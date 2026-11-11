@@ -83,14 +83,22 @@ Rationale: one tested implementation of behavior, two thin native shells.
 
 ### VI. Story File Licensing
 
-- Commercial story files (including Zork) MUST NOT be committed to the repository or
-  included in any build artifact. They are used locally for development and testing.
-- Tests that need a commercial story file locate it through a local path and are
-  reported as skipped, not passed, when it is absent.
-- Only story files whose licenses permit redistribution may be bundled in a shipped app.
-  Each bundled file's license and source are recorded in the repository.
+- A story file, or a transcript of its text, may be committed or included in a build
+  artifact only if its license permits redistribution. Its license text, its source
+  (URL and revision) and a SHA-256 digest MUST be recorded beside it in the repository.
+- Any other story file MUST NOT be committed or included in any build artifact, and
+  neither may transcripts of its text. Such files are used locally for development and
+  testing.
+- Tests that need a story file that is not in the repository locate it through a local
+  path and are reported as skipped, not passed, when it is absent.
+- A license on a game's code does not grant its trademarks. Names such as "Zork" MUST
+  NOT be used in the shipped app's name, icon or store listing without separate
+  permission.
 
-Rationale: Zork remains Activision's property; shipping it is not ours to decide.
+Rationale: Zork I, II and III were relicensed under the MIT License on 2025-11-20, so
+their story files may be redistributed with attribution; most other Infocom titles
+remain commercial. What decides the matter is each file's license, checked and recorded,
+not the game's fame.
 
 ## Scope & Technology Constraints
 
@@ -125,4 +133,4 @@ Rationale: Zork remains Activision's property; shipping it is not ours to decide
 - Every plan and every review MUST verify compliance. A deviation MUST be written down
   in the plan with its justification and the simpler alternative that was rejected.
 
-**Version**: 1.0.0 | **Ratified**: 2026-11-11 | **Last Amended**: 2026-11-11
+**Version**: 1.1.0 | **Ratified**: 2026-11-11 | **Last Amended**: 2026-11-11

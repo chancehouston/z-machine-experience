@@ -50,9 +50,10 @@ Z-machine versions 3, 5 and 8. Version 6 (graphics) is out of scope.
 
 ## Story files
 
-This repository contains no story files, and commercial games such as Zork are never
-committed or bundled. To run the tests that use one, you supply your own copy locally;
-those tests are reported as skipped when the file is absent.
+A story file is committed here only when its license permits redistribution, with the
+license and source recorded beside it. Zork I qualifies: its source was released under
+the MIT License in November 2025. Commercial games are never committed or bundled; tests
+that need one use a local copy and are reported as skipped when it is absent.
 
 ## Development
 
