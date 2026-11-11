@@ -1,32 +1,55 @@
 # Research: Faithful Z-Machine Version 3 Core
 
-**Date**: 2026-11-11 | **Plan**: [plan.md](plan.md)
+**Date**: 2026-11-11 (revised after independent review the same day) | **Plan**: [plan.md](plan.md)
 
-Each item records what was decided, why, and what else was considered. Items marked
-**Verify** rest on a source that was read but not yet exercised on this machine; the task
-that first touches them must confirm the fact before building on it.
+Each item records what was decided, why, and what else was considered. Evidence is
+labelled: **Observed** means run on this machine with dfrotz 2.55; **Read** means taken
+from a primary source and not yet exercised. A task that first relies on a Read item must
+confirm it.
 
-## R1. Reference interpreter and how it is invoked
+## R1. The reference and how transcripts are compared
 
-**Decision**: dfrotz from Frotz 2.55, installed with Homebrew (`brew install frotz`, which
-builds the `frotz`, `dumb` and `sdl` targets). The reference transcript is dfrotz's
-standard output with the command script on standard input, run as
-`dfrotz -m -p -q -w 80 -s <seed> <story>`.
+**Decision**: The reference interpreter is dfrotz from Frotz 2.55 (Homebrew bottle;
+`dfrotz -v` reports git commit `acf205585a9472d27c07c0fe62da4b8bc89d1ec7`, "Official
+release"). The reference transcript is the **transcript file Frotz writes** when the game
+turns transcription on, with wrapping disabled:
 
-**Rationale**: 2.55 is the current Homebrew stable and the version whose source was read
-for R2. `-m` removes MORE prompts, `-p` forces plain ASCII, `-q` removes the startup
-banner, `-w` fixes the width and `-s` fixes the seed, so the output depends only on the
-story file and the script.
+```text
+dfrotz -m -q -w 80 -S 0 -s <seed> <story> < <script>
+```
 
-**Alternatives considered**: Using the in-game SCRIPT command to produce the transcript
-(adds commands to the walkthrough and a second wrapping rule, `-S`); the curses build
-(output is screen-addressed, not a byte stream).
+The command script begins with the game's own `script` command followed by a line giving
+the transcript file name. Everything after that is recorded.
 
-**Verify**: dfrotz is not installed on this machine yet. The manual page does not say how
-dfrotz treats piped input (whether it echoes the command), how it renders the version 3
-status line, or what it writes at end of input. The first fidelity task characterizes
-these by observation and records them in
-[contracts/transcript-format.md](contracts/transcript-format.md).
+**Observed**:
+
+- The transcript file is plain game text. Each paragraph is one unwrapped line. The
+  status line does not appear in it.
+- Each command is echoed on the same line as the game's `>` prompt, followed by a line
+  feed. Answers to in-game questions are echoed the same way (`...(Y is affirmative): >y`).
+- File names given to the transcript, save and restore prompts are read from the next
+  line of standard input and do not appear in the transcript.
+- When input ends while the game is waiting, the file ends with the bare prompt and no
+  line feed; `EOT` goes to standard error and the exit status is 0.
+- Two runs with the same seed give byte-identical transcript files; a different seed
+  gives a different file once combat occurs.
+- Frotz appends `.scr` to the transcript name and `.qzl` to a save name without one.
+
+**Rationale**: The original plan compared dfrotz's standard output. Review, then
+observation, showed that output is a diff of a 24-row screen grid: the status row is
+reprinted after most commands, runs of blank lines collapse, long turns gain a blank
+line, and commands are not echoed. Matching it would mean emulating Frotz's screen in our
+host, which tests a terminal, not an interpreter. The transcript file contains exactly
+what the game printed and what the player typed. It is also the literal reading of the
+handoff's "transcript matching Frotz byte for byte", and it exercises a real version 3
+feature (output stream 2).
+
+**Alternatives considered**: dfrotz standard output with `-r ch1 -h 255` to hide the
+status row and height effects (still a screen diff, with a fixed extra first line); full
+emulation of the screen grid (large, and outside what "faithful interpreter" means).
+
+**Also found**: `-p` (plain ASCII) has no effect in dfrotz 2.55, because the flag sets a
+variable the output code never reads. It is not used. Zork 1's text is ASCII.
 
 ## R2. Matching the reference random sequence
 
@@ -34,179 +57,223 @@ these by observation and records them in
 (`src/common/random.c`), reimplemented from its description, not copied:
 
 - State is one 32-bit value `A` plus `interval` and `counter` for predictable mode.
-- Seeding with a value from 1 to 999 enters predictable mode: `counter` is reset to 0 and
-  `interval` is set to the value. Seeding with 1000 or more sets `A` to the value and
-  leaves predictable mode. Seeding with 0 takes `A` from the host's seed source and leaves
-  predictable mode.
-- `random` with a zero or negative argument reseeds with the absolute value and returns 0.
+- **The host seed goes straight into `A`**, whatever its value, at start and on every
+  restart. It does not enter predictable mode.
+- A game's own `random` with a zero or negative argument reseeds and returns 0. With
+  argument 0, `A` is taken from the host seed again. With magnitude 1 to 999, predictable
+  mode is entered: `counter` is reset to 0 and `interval` set to the magnitude. With
+  magnitude 1000 or more, `A` is set to the magnitude and predictable mode is left. The
+  magnitude of -32768 is 32768, so the argument is widened before negating.
 - `random` with a positive argument `range`: in predictable mode the raw value is
   `counter`, which then increments and wraps to 0 on reaching `interval`. Otherwise
   `A = 0x015a4e35 * A + 1` in wrapping 32-bit arithmetic and the raw value is
   `(A >> 16) & 0x7fff`. The result is `(raw % range) + 1`.
-- At start and on every restart the generator is seeded with 0, so the host seed applies.
+- Restore does not touch the generator.
+
+**Evidence**: Read, and confirmed line by line by an independent reviewer against the
+2.55 source. Observed only indirectly (same seed, same transcript). A direct comparison
+is the first task that depends on it.
 
 **Rationale**: Standard §2.4 and the `random` opcode leave the generator to the
-interpreter, so this is a free choice. Without it a game with combat and a wandering thief
-takes a different course and no byte-for-byte comparison is possible.
+interpreter, so this is a free choice. Without it a game with combat and a wandering
+thief takes a different course and no byte-for-byte comparison is possible.
 
-**Alternatives considered**: A modern generator with a walkthrough restricted to
-non-random passages (cannot reach the end of Zork 1); recording Frotz's random outputs and
-replaying them (couples tests to a recording, and the core would still need a replay
-hook).
+**Seed range**: dfrotz reads `-s` with `atoi` into a signed integer and treats -1 as
+"use the clock". Seeds for comparison are therefore limited to 0 to 2147483647.
 
-**Licensing note**: Frotz is GPL-2.0-or-later and this project is MIT. The constants and
-the algorithm are facts and are restated here in our own words; no Frotz source text is
-copied into this repository.
-
-**Verify**: Confirm against dfrotz by running a tiny story file that prints a run of
-`random` results under several seeds, including one below 1000 passed with `-s`.
+**Licensing note**: Frotz is GPL-2.0-or-later and this project is MIT. Constants and
+algorithms are facts and are restated here in our own words. Frotz source may be read to
+learn how the reference behaves; none of its text is copied into this repository.
 
 ## R3. Zork 1 story file and its license
 
-**Finding**: The handoff and constitution Principle VI treat Zork as commercial and
-Activision's. That changed on 2025-11-20: Microsoft, with Xbox and Activision, relicensed
-the Zork I, II and III source under the MIT License. The public repository
-`historicalsource/zork1` reports license MIT and contains `COMPILED/zork1.z3` (86,838
-bytes). The license covers the code; the Zork trademark and packaging are not included.
+**Finding**: On 2025-11-20 Microsoft, with Xbox and Activision, relicensed the Zork I, II
+and III source under the MIT License. `historicalsource/zork1` reports license MIT and
+contains `COMPILED/zork1.z3`: 86,838 bytes, version 3, release 119, serial 880429, header
+checksum valid, SHA-256
+`37084966477dff679282de42974b2077156b1bd68fad92a65d4ea94d8eb64d79` (Observed). The
+license commit excludes trademarks.
 
-**Decision**: The acceptance story file is `COMPILED/zork1.z3` from
-`historicalsource/zork1`, taken at a specific commit. It is committed at
-`stories/zork1/zork1.z3` with that repository's license text and a `SOURCE.md` recording
-the URL, commit, SHA-256 digest, release and serial number. The project owner approved
-this on 2026-11-11 and the constitution was amended to version 1.1.0 to allow it.
+**Decision**: That file is the acceptance story file, committed at
+`stories/zork1/zork1.z3` with the repository's license text and a `SOURCE.md` recording
+URL, commit, digest, release and serial. Walkthrough, reference transcripts and reference
+saves live under `stories/zork1/fidelity/`, beside that record, as Principle VI requires.
+The project owner approved committing it on 2026-11-11, and the constitution was amended
+to version 1.1.0.
 
-**Rationale**: A committed, pinned file makes the headline test reproducible by anyone
-and runnable in CI with no fetch step, and lets the reference transcript be committed too.
-
-**Alternatives considered**: A copy supplied by the project owner (not reproducible by
-others); fetching at test time (works, but adds a network dependency and forces a
-fingerprint in place of a readable reference transcript).
-
-**Verify**: Whether the MIT grant in that repository is understood to cover the compiled
-file as well as the source. The file sits in the licensed repository beside the license,
-which is the basis for committing it; if that reading proves wrong, the file and
-transcript are removed and the test reverts to a local path.
+**Known uncertainty, accepted**: The license text covers "this software and associated
+documentation files" and the repository's README describes the compiled file as an
+Infocom artefact found on the original drive. Whether the grant covers the compiled file
+is a legal reading, not a fact, and no task can settle it. The owner approved committing
+with this stated. If the reading proves wrong, the file, transcripts and saves are
+removed from history and the fidelity tests revert to a local path.
 
 ## R4. czech
 
-**Decision**: czech 0.8 (`czech_0_8.zip`, IF Archive, Amir Karger, 2003) is fetched by
-a script into the gitignored `stories/local/` and not committed.
+**Finding** (Read, from the archive's contents): `czech_0_8.zip` contains `czech.inf`,
+`README.txt`, `CHANGES.txt`, `czech.z5`, and expected outputs `czech.out3`, `.out4`,
+`.out5`, `.out8`. There is no version 3 build. The README's license (Copyright 2003 Amir
+Karger) permits use, distribution and modification provided the notice is kept. The
+version 3 expected output ends "Passed: 349, Failed: 0, Print tests: 19".
 
-**Rationale**: The archive listing states no license, so redistribution rights are
-unknown; treating it as a local story file complies with Principle VI either way.
+**Decision**: Commit `stories/czech/` containing `czech.inf`, `README.txt` (the license
+notice), `czech.out3`, a `czech.z3` compiled once with Inform 6 (`inform6 -v3`, Homebrew
+`inform6` 6.44), and a `SOURCE.md` with URL, digests and the compile command. The test
+checks the summary line and compares the print-test output with `czech.out3`.
 
-**Verify**: That the archive contains a version 3 build (`czech.z3`) and an expected
-output file for it. If it contains only source, the task compiles it with Inform 6 for
-version 3, or the project owner is asked. czech targets Standard 1.0 with some 1.1 fixes;
-any czech expectation that conflicts with Standard 1.1 is ledgered, not obeyed.
+**Rationale**: With the license permitting redistribution, committing removes a fetch
+step and a skip path. Inform 6 is needed once, by whoever builds `czech.z3`, not by
+everyone who runs the tests.
+
+**To confirm at the task**: the license wording, read directly from `README.txt`; and how
+much of `czech.out3` is interpreter-specific (header and formatting lines) and so must be
+left out of the comparison. czech targets Standard 1.0 with some 1.1 fixes; an
+expectation that conflicts with Standard 1.1 is ledgered, not obeyed.
 
 ## R5. How the host drives the core
 
-**Decision**: The core is a resumable state machine, not a set of blocking callbacks.
-`run(budget)` executes instructions until something needs the host, then returns an event:
-line input wanted, save requested, restore requested, game finished, fault, or budget
-exhausted. The host answers and calls `run` again. Game text and status line updates are
-collected by the core and drained by the host. A small blocking driver built on this loop
-serves simple hosts such as the CLI.
+**Decision**: The core is a resumable state machine. `run(budget)` executes instructions
+until something needs the host, then returns an event: line wanted, save requested,
+restore requested, transcript requested, finished, fault, or budget exhausted. The host
+answers and calls `run` again. Game text, transcript text, status line updates and
+diagnostics are collected by the core and drained by the host.
 
 **Rationale**: A phone UI cannot block a thread inside the interpreter waiting for a tap,
 and C bindings are far simpler over "call, get event, answer" than over callbacks into
-Swift or Kotlin. The instruction budget satisfies FR-010 without threads or signals. The
-machine stays a plain value, which makes determinism and save straightforward.
+Swift or Kotlin. The instruction budget satisfies FR-010 without threads or signals.
 
-**Alternatives considered**: Host traits with blocking `read_line` (simplest for a CLI,
-wrong shape for the shells this core exists to serve); async Rust (pulls a runtime
-concept into a crate that must have no dependencies).
+**Alternatives considered**: Host traits with blocking `read_line` (wrong shape for the
+shells this core exists to serve); async Rust (pulls a runtime concept into a crate that
+must have no dependencies).
 
-## R6. Where line wrapping and the screen width live
+**Reviewed**: An independent reviewer found no version 3 instruction needing host
+interaction beyond these events.
 
-**Decision**: The core emits unwrapped text. Wrapping to a width is done by a
-dumb-terminal formatter in the CLI crate, which reproduces dfrotz's conventions.
+## R6. Output streams, input echo and wrapping
 
-**Rationale**: A version 3 header has no screen width field (that arrives in version 4),
-so the game never sees the width; FR-009 is purely a presentation matter. The phone UI
-will lay out text itself and must not inherit 80-column wrapping.
+**Decision**:
 
-**Alternatives considered**: Wrapping inside the core (forces every host to undo it).
+- The core emits screen text (stream 1) unwrapped. It does not echo input into it; the
+  host has already shown what the player typed.
+- The core produces transcript text (stream 2) while Flags 2 bit 0 is set: the same game
+  text, plus each input line echoed and followed by a line feed. This is what R1 compares.
+- When the game sets Flags 2 bit 0, the core raises a transcript-requested event before
+  the next output or input. If the host declines, the core clears the bit.
+- `output_stream` selects and deselects streams as Standard §7 specifies for version 3.
+  Deselecting stream 1 suppresses screen text.
+- Wrapping to a width is done by the host. The CLI wraps its terminal output at word
+  boundaries for readability; that output is not compared with anything.
+
+**Rationale**: A version 3 header has no screen width field, so the game never sees one.
+The phone UI will lay out text itself.
 
 ## R7. Save format
 
-**Decision**: Quetzal 1.4: `IFhd` (release, serial, checksum, program counter), `CMem`
-(dynamic memory XORed against the original and run-length encoded) and `Stks` (call
-frames). `UMem` is accepted on restore. Restore is refused when `IFhd` does not match the
-loaded story file or any chunk is malformed.
+**Decision**: Quetzal 1.4.
 
-**Rationale**: The standard portable format (FR-016); written and read by Frotz, which
-allows cross-checking saves during development.
+- `IFhd`: release, serial, checksum, and the program counter; 13 bytes plus a pad byte.
+  For version 3 the saved program counter points at the branch data of the `save`
+  instruction (Quetzal §5.8.1).
+- `CMem`: dynamic memory XORed with the original and run-length encoded. On restore,
+  decoded data **shorter** than dynamic memory is accepted and the remainder is unchanged;
+  longer is an error (§3.4, §3.5). Frotz writes short `CMem` chunks deliberately.
+- `UMem` is accepted on restore and must be exactly the dynamic memory size (§3.6).
+- `Stks`: begins with the dummy frame holding the top-level evaluation stack (§4.11),
+  then the real frames.
+- A successful restore resumes inside the saved `save` instruction with its branch taken;
+  the `restore` instruction's own branch is never taken on success in version 3.
+- After restore and after restart, the interpreter re-applies the header fields it owns,
+  and Flags 2 survives (Standard §6.1.2, §6.1.3).
+- Restore is refused when `IFhd` does not match the loaded story or a chunk is malformed.
 
-**Alternatives considered**: A private snapshot format (smaller code, ties saves to our
-internals, and the phone app would need a migration later).
+**Evidence**: Read. dfrotz save and restore driven from a script were Observed to work,
+which makes cross-checking possible.
 
-## R8. Toolchain and dependencies
+**Rationale**: The standard portable format (FR-016). Compatibility is tested in both
+directions against Frotz, because a round trip through our own code would pass even with
+a wrong convention on both sides.
 
-**Decision**: Rust 1.99 stable, edition 2024, one Cargo workspace. `zmachine-core` has no
-dependencies and `#![forbid(unsafe_code)]`. `zmachine-cli` depends on the core only;
-argument parsing is hand-written (four options). `sha2` is a development dependency, used
-to check story file digests against their recorded values.
+## R8. Toolchain, crates and where tests live
 
-**Rationale**: A dependency-free core is trivially portable to iOS and Android targets and
-keeps Principle V checkable by reading one manifest.
+**Decision**: Rust 1.99 stable, edition 2024, one Cargo workspace with three crates:
 
-**Alternatives considered**: `clap` for the CLI (more than four options need); a
-`no_std` core (attractive, but `alloc`-only discipline buys nothing until a target
-needs it; revisit with the C bindings).
+- `zmachine-core`: no dependencies, `#![forbid(unsafe_code)]`.
+- `zmachine-testkit`: builds version 3 story images in memory. Depends on nothing. Used
+  only as a development dependency.
+- `zmachine-cli`: a library (`lib.rs`) holding the driver and formatting, and a thin
+  `main.rs`. Depends on the core only.
+
+Tests of internals (decoder, memory rules, text, objects, dictionary) are unit tests
+inside the module they test. Tests of behavior visible through the public API are
+integration tests in each crate's `tests/` directory. `sha2` is a development dependency
+for checking committed files against their recorded digests.
+
+**Rationale**: The public API deliberately hides memory and objects, so tests of those
+must sit inside the crate. A separate testkit crate lets the core and the CLI share the
+image builder without a feature flag on the core.
 
 ## R9. Testing instructions without a compiler
 
-**Decision**: A small test-support module builds version 3 story images in memory: a
-header, a few objects, a dictionary, and hand-assembled instruction bytes. Each opcode
-test builds an image, runs it, and asserts on memory, stack, output or the event returned.
-The same builder produces the malformed images for SC-007.
+**Decision**: The testkit builds an image from a header description, objects, a
+dictionary and hand-assembled instruction bytes, with helpers for each operand form and
+for Z-encoded strings. Its encoders are themselves tested against known vectors taken
+from the Standard and from the committed Zork 1 file, so an encoder bug cannot be
+mirrored unseen by the implementation.
 
-**Rationale**: Tests can cite a Standard section and exercise one instruction form
-exactly, including encodings no compiler would emit. No external assembler is needed and
-no story file has to be committed.
-
-**Alternatives considered**: Committing story files compiled with Inform 6 (opaque
-binaries, a toolchain to install, and awkward for malformed cases).
-
-## R10. Divergence ledger format
+## R10. Divergence ledger
 
 **Decision**: `docs/divergences.md` is the single ledger. Each entry has an identifier, a
-plain description, the Standard section, and a fenced rule naming the story file digest,
-the index of the command after which the difference occurs, the reference text and our
-text. The fidelity test parses these rules, applies exactly those substitutions to the
-reference transcript, and fails on any rule that matches nothing (SC-008).
+description, the Standard section, and a fenced rule of one of two kinds:
 
-**Rationale**: One file serves both the human reader and the test, so they cannot drift.
+- `transcript`: story digest, index of the command after which the difference occurs,
+  reference text, our text.
+- `czech`: the name of a czech test whose expectation conflicts with Standard 1.1.
 
-**Alternatives considered**: A separate machine-readable file alongside the document
-(two sources of truth).
+The fidelity and czech tests parse these rules and apply exactly them. A rule that
+matches nothing fails the test (SC-008). The parser and the substitution are tested with
+synthetic inputs, since the real ledger may well stay empty.
 
-## R11. The reference transcript is committed
+## R11. Reference artefacts are committed
 
-**Decision**: `tests/fidelity/zork1.reference.txt` is dfrotz's output for the pinned
-story file, script, seed and width, committed as generated. The fidelity test compares
-our transcript to it after ledger substitutions and reports the first differing byte. A
-second test, skipped when dfrotz is absent, regenerates the transcript with dfrotz and
-fails if it no longer equals the committed file.
+**Decision**: The walkthrough, its seed, the reference transcript, and the reference
+saves and continuation transcripts are committed under `stories/zork1/fidelity/`. The
+fidelity tests compare against these files and need no dfrotz. Separate tests, marked
+`#[ignore = "needs dfrotz 2.55"]`, regenerate each artefact with dfrotz and fail if it
+differs; CI runs them with `--ignored` after installing dfrotz and checking its version.
 
-**Rationale**: The comparison runs anywhere, including CI images without dfrotz, and a
-failure can always show where the difference is. The regeneration test catches a changed
-dfrotz or an edited reference file.
+**Rationale**: Rust's test harness cannot mark a test skipped at run time. With Zork 1
+and czech committed, the only tests with an optional prerequisite are the regeneration
+checks, and a static `#[ignore]` reports them honestly as ignored, never as passed.
 
-## R12. Continuous integration
+## R12. Illegal operations on object 0
 
-**Decision**: A GitHub Actions workflow runs the test suite on macOS and Linux, fetching
-czech with the script. It is the evidence for SC-003's "each supported
-platform".
+**Decision**: Instructions given object 0 do not stop the game. They do nothing or return
+0, as the common interpreters do, and the core records a diagnostic that the host can
+read. Nothing is added to the game's text.
 
-**Rationale**: Determinism across platforms cannot be shown from one laptop.
+**Rationale**: The Standard calls these operations illegal but several published games
+perform them, and an interpreter that stops is unusable for those games. Frotz prints a
+warning into the game text and continues. If the Zork 1 walkthrough triggers one, the
+reference transcript will contain Frotz's warning and ours will not; that would be a
+ledger entry. An early task runs the walkthrough under `dfrotz -Z 2` to find out.
+
+**Alternatives considered**: Fault, as first planned (strict, but would stop real games
+the reference plays); printing Frotz's warning text into the game output (imitates a
+Frotz message that is not game text).
+
+## R13. Continuous integration
+
+**Decision**: GitHub Actions on macOS and Linux runs `cargo test --workspace`, then
+installs dfrotz, checks it reports 2.55, and runs the ignored regeneration tests and the
+timing test in a release build. The committed reference files being identical on both
+platforms is the cross-platform evidence for SC-003.
 
 ## Sources
 
-- Frotz 2.55 `src/common/random.c` and `doc/dfrotz.6`: <https://gitlab.com/DavidGriffith/frotz/-/tree/2.55>
+- Z-Machine Standards Document 1.1: <https://inform-fiction.org/zmachine/standards/z1point1/index.html>
+- Quetzal 1.4: <https://inform-fiction.org/zmachine/standards/quetzal/index.html>
+- Frotz 2.55: <https://gitlab.com/DavidGriffith/frotz/-/tree/2.55>
 - Homebrew formula for frotz: <https://github.com/Homebrew/homebrew-core/blob/HEAD/Formula/f/frotz.rb>
-- IF Archive, interpreter tools (czech, praxix): <https://ifarchive.org/indexes/if-archive/infocom/interpreters/tools/>
+- czech 0.8 contents: <https://unbox.ifarchive.org/?url=/if-archive/infocom/interpreters/tools/czech_0_8.zip>
 - Zork 1 source repository: <https://github.com/historicalsource/zork1>
 - Relicensing coverage: <https://www.theregister.com/2025/11/21/microsoft_zork_source/>, <https://hackaday.com/2025/11/21/microsoft-open-sources-zork-i-ii-and-iii/>

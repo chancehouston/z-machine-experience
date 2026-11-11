@@ -1,6 +1,6 @@
 # Implementation Plan: Faithful Z-Machine Version 3 Core
 
-**Branch**: `001-v3-core` | **Date**: 2026-11-11 | **Spec**: [spec.md](spec.md)
+**Branch**: `001-v3-core` | **Date**: 2026-11-11 (revised after independent review) | **Spec**: [spec.md](spec.md)
 
 **Input**: Feature specification from `/specs/001-v3-core/spec.md`
 
@@ -8,39 +8,60 @@
 
 Build a Z-machine version 3 interpreter as a dependency-free Rust library, plus a small
 command-line host. The library is a resumable state machine: the host calls `run`, gets
-back an event (input wanted, save, restore, finished, fault, budget exhausted), answers
-it, and calls `run` again. Fidelity is proven three ways: per-instruction tests citing the
-Standard, the czech conformance program, and a full Zork 1 walkthrough whose transcript
-matches dfrotz 2.55 byte for byte. To make the last possible, the seeded random number
-generator reproduces Frotz's sequence. Details and evidence are in
-[research.md](research.md).
+back an event (line wanted, save, restore, transcript, finished, fault, budget
+exhausted), answers it, and calls `run` again. Fidelity is proven three ways:
+per-instruction tests citing the Standard, the czech conformance program, and a full
+Zork 1 walkthrough whose transcript file matches the one Frotz 2.55 writes, byte for
+byte. To make the last possible, the seeded random number generator reproduces Frotz's
+sequence. Details and evidence are in [research.md](research.md).
+
+## Revision after review
+
+Two independent reviews found the first version of this plan was not executable. The
+main changes:
+
+- **Comparison method.** The reference is now Frotz's transcript file with wrapping off,
+  not dfrotz's standard output, which turned out to be a diff of a 24-row screen
+  (research R1). No screen emulation is needed.
+- **Save and restore test.** A save does not carry random state, so "restore and match
+  the uninterrupted run" cannot hold. The test is now: a fresh run that restores a save
+  and plays a fixed continuation matches Frotz doing the same, for saves written by
+  either interpreter (R7).
+- **czech is committed**, compiled for version 3 from its source; its license permits it
+  (R4).
+- **Tests of internals live inside the crate**; a separate testkit crate builds images;
+  the CLI gains a library target (R8).
+- **Object 0 operations are tolerated with a diagnostic**, not fatal (R12).
+- **Risky unknowns come first**: the generator comparison and the walkthrough start in
+  the first two phases.
 
 ## Technical Context
 
 **Language/Version**: Rust 1.99 stable, edition 2024
 
-**Primary Dependencies**: None for the core. The CLI depends only on the core. `sha2` as a
-development dependency of the fidelity tests.
+**Primary Dependencies**: None for the core or the testkit. The CLI depends only on the
+core. `sha2` as a development dependency.
 
-**Storage**: None in the core. The CLI stores saves as Quetzal files on disk.
+**Storage**: None in the core. The CLI writes transcript and Quetzal save files.
 
-**Testing**: `cargo test`. Unit tests build story images in memory with a test-support
-builder. Integration tests run czech and the Zork 1 walkthrough against dfrotz 2.55.
+**Testing**: `cargo test`. Unit tests inside modules for internals; integration tests
+through the public API; czech; Zork 1 against committed reference artefacts; ignored
+tests that regenerate those artefacts with dfrotz 2.55.
 
-**Target Platform**: macOS and Linux for this feature. The core must stay free of anything
-that would block iOS and Android targets later.
+**Target Platform**: macOS and Linux for this feature. The core must stay free of
+anything that would block iOS and Android targets later.
 
 **Project Type**: Library plus CLI, in one Cargo workspace
 
-**Performance Goals**: Full Zork 1 walkthrough in under five seconds on a development
-laptop (SC-005)
+**Performance Goals**: Full Zork 1 walkthrough in under five seconds in a release build
+(SC-005)
 
-**Constraints**: No I/O and no `unsafe` in the core; bit-identical output for the same
-story file, script and seed on every platform; only story files licensed for
-redistribution are committed
+**Constraints**: No I/O and no `unsafe` in the core; identical output for the same story
+file, script and seed on every platform; only story files licensed for redistribution
+are committed
 
-**Scale/Scope**: The version 3 instruction set (roughly 70 instruction forms), Quetzal
-save and restore, one CLI with two modes
+**Scale/Scope**: The 68 instructions of version 3, Quetzal save and restore, output
+streams 1 and 2, one CLI with two modes
 
 ## Constitution Check
 
@@ -48,19 +69,14 @@ save and restore, one CLI with two modes
 
 | Principle | Gate | Status |
 | --- | --- | --- |
-| I. Faithful Core | Standard 1.1 is the definition; czech passes; Zork 1 matches dfrotz; divergences ledgered; no global mode; deterministic | Pass. Matching Frotz's random sequence is permitted by the Standard, not a divergence (research R2). Ledger format in R10. |
-| II. Test-First | Failing test before implementation; every instruction test cites the Standard | Pass. The in-memory story builder (R9) exists so tests can be written first. Tasks order tests before code. |
-| III. Typed Commands | State changes only through input text, save, restore, restart | Pass. The event interface offers no other way to alter state. |
-| IV. Introspection | Not in this feature | Not applicable. The core keeps its state readable so the next feature can add queries without changing execution. |
-| V. Strict Layering | Core has no UI, no I/O, no `unsafe`; core does not know about the CLI | Pass. `#![forbid(unsafe_code)]` and an empty dependency list in the core. Wrapping lives in the CLI (R6). |
-| VI. Story File Licensing | Only redistributable story files committed, each with license, source and digest; others local and skipped when absent | Pass. Zork 1 (MIT) is committed with its license record; czech (no stated license) is fetched into a gitignored directory. |
+| I. Faithful Core | Standard 1.1 is the definition; czech and praxix pass; Zork 1 transcript matches Frotz; divergences ledgered; no global mode; deterministic | Pass, with one recorded deviation: praxix is deferred (see Complexity Tracking). Matching Frotz's random sequence is permitted by the Standard (R2). |
+| II. Test-First | Failing test before implementation; every instruction test cites the Standard | Pass. Types are stubbed first so tests compile and fail for the right reason; the testkit's encoders have their own vector tests. |
+| III. Typed Commands | State changes only through input text, save, restore, restart | Pass. The event interface offers no other way. |
+| IV. Introspection | Not in this feature | Not applicable. |
+| V. Strict Layering | Core has no UI, no I/O, no `unsafe`; core does not know about the CLI | Pass. Checked by a test of the core's manifest and source. |
+| VI. Story File Licensing | Only redistributable files committed, each with license, source and digest beside it | Pass. Zork 1 and czech each have a record; reference transcripts and saves sit beside Zork 1's. The uncertainty over the compiled Zork file is stated in R3 and was accepted by the owner. |
 
-**Note on Principle VI**: Research R3 found that Zork 1 was relicensed under MIT in
-November 2025. The constitution was amended to version 1.1.0 on 2026-11-11 to decide by
-each file's license, and this plan follows the amended text.
-
-**Post-design re-check**: No change. The design adds no layer, dependency or mode that the
-gates above did not already consider.
+**Post-design re-check**: No change after the revision.
 
 ## Project Structure
 
@@ -78,96 +94,99 @@ specs/001-v3-core/
 │   └── transcript-format.md
 ├── checklists/
 │   └── requirements.md
-└── tasks.md             # created by /speckit-tasks
+└── tasks.md
 ```
 
 ### Source Code (repository root)
 
 ```text
-Cargo.toml                      # workspace
+Cargo.toml                          # workspace
 crates/
 ├── zmachine-core/
-│   ├── Cargo.toml              # no dependencies
+│   ├── Cargo.toml                  # no dependencies; dev-dependency on the testkit
 │   ├── src/
-│   │   ├── lib.rs              # public API: Machine, Event, Fault, StatusLine
-│   │   ├── header.rs           # header fields, load-time validation
-│   │   ├── memory.rs           # dynamic/static/high memory, bounds rules
-│   │   ├── text.rs             # ZSCII, Z-character decode/encode, abbreviations
-│   │   ├── objects.rs          # object tree, attributes, properties
-│   │   ├── dictionary.rs       # dictionary lookup, input tokenisation
-│   │   ├── decode.rs           # instruction decoding
-│   │   ├── exec.rs             # instruction execution, calls, stack
-│   │   ├── random.rs           # Frotz-compatible generator
-│   │   ├── quetzal.rs          # save and restore
-│   │   └── testkit.rs          # in-memory story builder (test support)
-│   └── tests/                  # per-area tests, each citing the Standard
+│   │   ├── lib.rs                  # public API: Machine, Event, Fault, StatusLine, ...
+│   │   ├── header.rs               # header fields, load validation
+│   │   ├── memory.rs               # memory map and write rule
+│   │   ├── text.rs                 # ZSCII, Z-characters, abbreviations
+│   │   ├── objects.rs              # object tree, attributes, properties
+│   │   ├── dictionary.rs           # lookup and tokenisation
+│   │   ├── decode.rs               # instruction decoding
+│   │   ├── exec.rs                 # execution loop, calls, stack, events
+│   │   ├── ops_math.rs             # arithmetic and logic instructions
+│   │   ├── ops_object.rs           # object instructions
+│   │   ├── ops_io.rs               # output, streams, status line, read
+│   │   ├── random.rs               # Frotz-compatible generator
+│   │   └── quetzal.rs              # save and restore
+│   └── tests/                      # public-API tests: events.rs, random.rs, save.rs,
+│                                   #   streams.rs, faults.rs, coverage.rs
+├── zmachine-testkit/
+│   ├── Cargo.toml                  # no dependencies
+│   └── src/lib.rs                  # in-memory story image builder
 └── zmachine-cli/
-    ├── Cargo.toml              # depends on zmachine-core
+    ├── Cargo.toml                  # depends on zmachine-core
     ├── src/
-    │   ├── main.rs             # argument handling, exit status
-    │   ├── driver.rs           # run loop answering core events
-    │   └── dumbterm.rs         # wrapping and transcript conventions
-    └── tests/
-        ├── czech.rs
-        ├── determinism.rs
-        ├── fidelity_zork1.rs
-        ├── save_restore.rs
-        └── malformed.rs
-tests/fidelity/
-├── zork1.walkthrough           # our command script
-└── zork1.reference.txt         # dfrotz transcript for the pinned seed and width
-docs/
-└── divergences.md              # the ledger
+    │   ├── lib.rs                  # driver, wrapping, file handling, ledger parsing
+    │   └── main.rs                 # argument handling, exit status
+    └── tests/                      # play.rs, script.rs, czech.rs, fidelity_zork1.rs,
+                                    #   save_restore.rs, malformed.rs, ledger.rs
 stories/
 ├── zork1/
-│   ├── zork1.z3                # from historicalsource/zork1, MIT
-│   ├── LICENSE                 # that repository's license text
-│   └── SOURCE.md               # URL, revision, SHA-256, release and serial
-└── local/                      # gitignored; czech and any non-redistributable file
+│   ├── zork1.z3                    # historicalsource/zork1, MIT
+│   ├── LICENSE
+│   ├── SOURCE.md                   # URL, commit, SHA-256, release, serial
+│   └── fidelity/
+│       ├── walkthrough.txt         # our command script
+│       ├── seed.txt
+│       ├── reference.scr           # Frotz transcript of the walkthrough
+│       └── saves/                  # reference saves, continuation scripts and transcripts
+├── czech/
+│   ├── czech.inf, README.txt       # source and license notice
+│   ├── czech.z3                    # compiled once with Inform 6
+│   ├── czech.out3                  # expected output from the archive
+│   └── SOURCE.md
+└── local/                          # gitignored
+docs/
+└── divergences.md                  # the ledger
 scripts/
-└── fetch-stories.sh            # downloads czech into stories/local/
-.github/workflows/ci.yml        # macOS and Linux
+└── regenerate-references.sh        # rebuilds fidelity artefacts with dfrotz
+.github/workflows/ci.yml            # macOS and Linux
 ```
 
-**Structure Decision**: One workspace with two crates. The core is a library with no
-knowledge of the CLI; the CLI is the only place that touches files, the terminal or the
-clock. Later features add crates beside these (C bindings, introspection) without
-changing the core's manifest.
+**Structure Decision**: One workspace, three crates. The core knows nothing of the
+others. Instruction groups are split across `ops_*.rs` files so that work on them does
+not collide in one file.
 
 ## Implementation Approach
 
-Work proceeds in the order of the spec's user stories, each ending in a test that passes:
-
-1. **Foundations**: workspace, the test-support story builder, header and memory, the
-   instruction decoder. Nothing runs yet, but every later test depends on these.
-2. **Story 1, play from the command line**: instruction execution, text, objects,
-   dictionary and tokenisation, the event loop, the interactive CLI.
-3. **Story 2, scripted and repeatable**: script mode, the Frotz-compatible generator, the
-   dumb-terminal formatter, the determinism test.
-4. **Story 3, czech**: fetch script, czech in the suite, fixes for whatever it finds.
-5. **Story 4, match dfrotz on Zork 1**: characterize dfrotz output, write the walkthrough,
-   commit the reference transcript, the comparison with first-difference reporting, the
-   ledger, CI.
-6. **Story 5, save, restore, restart**: Quetzal, the save and restore events, the five
-   save points in the walkthrough.
-
-The walkthrough is written against dfrotz at the pinned seed before our interpreter can
-finish the game, so it serves as the specification our interpreter then has to meet.
+1. **Setup**: workspace, committed story files with their records, the ledger.
+2. **Foundations and early evidence**: testkit with vector tests, stub types, header,
+   memory, decoder; and, needing only dfrotz, the generator fixtures and the remaining
+   transcript-format observations.
+3. **Walkthrough** (runs alongside steps 4 to 6; needs only dfrotz): written in sections
+   against Frotz until the game is won, then the reference transcript is generated.
+4. **Story 1, play from the command line.**
+5. **Story 2, scripted and repeatable**: the generator, the transcript stream, script
+   mode.
+6. **Story 3, czech.**
+7. **Story 4, match Frotz on Zork 1**: the comparison, the ledger, CI.
+8. **Story 5, save, restore, restart**: Quetzal, both directions against Frotz.
+9. **Polish.**
 
 ## Risks
 
-- **dfrotz output conventions are undocumented** (input echo, status line, end of input).
-  Mitigation: the first fidelity task observes and records them before any formatter code
-  is written. If dfrotz emits something that cannot be reproduced from the event stream,
-  that is raised with the project owner, not worked around.
-- **czech may lack a version 3 build or conflict with Standard 1.1** (R4). Mitigation:
-  compile from source with Inform 6, and ledger conflicts.
-- **Writing a winning Zork 1 walkthrough for one seed is real work**: the thief and combat
-  outcomes depend on the seed. Mitigation: build it incrementally against dfrotz; choose
-  the seed for a cooperative run.
-- **Frotz's generator is described from a reading of its source**, not yet observed (R2).
-  Mitigation: a dedicated comparison test before the walkthrough depends on it.
+- **A winning walkthrough at one seed is real work.** It is written in sections with a
+  stop for the owner if a section cannot be completed, and it starts early.
+- **czech's expected output may contain interpreter-specific lines.** The task classifies
+  them before the comparison is written.
+- **Zork 1 may perform object 0 operations on the route**, in which case Frotz's warning
+  text appears in the reference. Checked early with `dfrotz -Z 2`.
+- **The Homebrew bottle is assumed to match the 2.55 source that was read.** The
+  regeneration tests record and check the version string.
+- **Legal reading of the Zork license for the compiled file** (R3), accepted by the owner.
 
 ## Complexity Tracking
 
-No constitution violations to justify.
+| Deviation | Why | Simpler alternative rejected because |
+| --- | --- | --- |
+| Principle I requires czech and praxix; this feature delivers czech only | praxix is a version 5 program and cannot run on a version 3 interpreter | Building version 5 first would put the headline Zork 1 test behind a larger feature. praxix is the acceptance test of the next feature (versions 5 and 8). |

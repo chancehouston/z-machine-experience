@@ -2,40 +2,41 @@
 
 **Plan**: [../plan.md](../plan.md) | **Research**: [../research.md](../research.md) R1, R6
 
-A transcript is the standard output of `zm --script` and must equal, byte for byte, the
-standard output of the reference command for the same story file, script, seed and width:
+A transcript is the file the host writes from the core's transcript stream (output
+stream 2) once the game turns transcription on. For the same story file, command script
+and seed it must equal, byte for byte, the transcript file written by:
 
 ```text
-dfrotz -m -p -q -w <width> -s <seed> <story> < <script>
+dfrotz -m -q -w 80 -S 0 -s <seed> <story> < <script>
 ```
 
-## Settled
+The script starts with the game's `script` command, then a line naming the transcript
+file. `zm --script` consumes that line the same way, so one script drives both.
 
-- Encoding is plain ASCII; characters outside ASCII are transliterated as the reference
-  does with `-p`.
-- Lines end with a single line feed.
-- Text is wrapped at word boundaries to the given width.
-- No MORE prompts and no startup banner appear.
+## Rules (observed with dfrotz 2.55)
 
-## To be established by observation
+1. The transcript begins with the first text printed after transcription is turned on.
+2. Game text is written unwrapped: one paragraph, one line. Lines end with a single line
+   feed.
+3. The status line is not part of the transcript.
+4. Each line of player input is written immediately after whatever the game printed
+   before asking (normally `>`), followed by a line feed.
+5. Lines consumed as file names (for the transcript, a save or a restore) are not
+   written, and neither are the interpreter's prompts for them.
+6. If input ends while the game is waiting, the transcript ends with the game's prompt
+   and no line feed.
+7. If the game quits, the transcript ends with whatever the game last printed.
 
-dfrotz is not yet installed here and its manual does not specify the following. The first
-fidelity task runs dfrotz on a small story file and on the opening of Zork 1, records the
-answers in this section, and only then is the formatter written.
+## To confirm at the first fidelity task
 
-1. Whether a command read from piped input is echoed after the prompt.
-2. Whether and how the version 3 status line appears in the output.
-3. Exactly where a line breaks when a word ends at the width, and how trailing spaces are
-   treated.
-4. What is written when input ends while the game is waiting.
-5. What is written when the game quits.
-6. How a fault is reported, and whether any of it goes to standard output.
+- Whether input is recorded exactly as typed or lowercased.
+- What is written for an input line longer than the game's buffer.
+- Whether anything is written when the game turns transcription off.
 
-Each answer is recorded with the dfrotz command that demonstrates it.
+Each answer is added above with the dfrotz command that shows it.
 
-## If the reference cannot be reproduced
+## What is not compared
 
-If dfrotz writes something that cannot be derived from the core's events (for example,
-text that depends on terminal state), the difference is not papered over in the
-formatter. It is raised with the project owner and, if accepted, entered in the
-divergence ledger.
+The host's terminal output. `zm` wraps it for reading and prints its own prompts for file
+names; dfrotz's terminal output is a screen diff with the status row. Neither is a
+transcript.

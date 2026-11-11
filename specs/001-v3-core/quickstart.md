@@ -8,23 +8,13 @@ repository root.
 ## Prerequisites
 
 - Rust 1.99 or later (`rustc --version`).
-- dfrotz 2.55, for the fidelity comparison:
+- Nothing else for the main test suite: Zork 1 and czech are committed under `stories/`,
+  and so are the reference transcripts.
+- Only to regenerate the reference files, dfrotz 2.55:
 
   ```bash
   brew install frotz
   ```
-
-  Only the test that regenerates the reference transcript needs it; the comparison itself
-  runs against the committed transcript.
-- czech, fetched into the gitignored `stories/local/` directory:
-
-  ```bash
-  scripts/fetch-stories.sh
-  ```
-
-  This downloads czech 0.8 from the IF Archive and verifies it against a recorded SHA-256
-  digest. Zork 1 needs no fetching: it is committed at `stories/zork1/zork1.z3`, with its
-  release, serial number and digest in `stories/zork1/SOURCE.md`.
 
 ## 1. Everything at once
 
@@ -32,8 +22,8 @@ repository root.
 cargo test --workspace
 ```
 
-Expected: all tests pass. Tests that need czech or dfrotz when it is missing are listed
-as ignored with the reason, never as passed.
+Expected: all tests pass. The tests that regenerate reference files with dfrotz are
+listed as ignored.
 
 ## 2. Play a game (User Story 1)
 
@@ -47,19 +37,23 @@ respond correctly; `quit` then `y` exits with status 0.
 ## 3. Repeatable scripted run (User Story 2)
 
 ```bash
-cargo run -p zmachine-cli -- --script tests/fidelity/zork1.walkthrough --seed 4242 stories/zork1/zork1.z3 > temp/a.txt
+mkdir -p temp/a temp/b
 ```
 
 ```bash
-cargo run -p zmachine-cli -- --script tests/fidelity/zork1.walkthrough --seed 4242 stories/zork1/zork1.z3 > temp/b.txt
+cargo run -p zmachine-cli -- --script stories/zork1/fidelity/walkthrough.txt --seed "$(cat stories/zork1/fidelity/seed.txt)" --dir temp/a stories/zork1/zork1.z3
 ```
 
 ```bash
-cmp temp/a.txt temp/b.txt
+cargo run -p zmachine-cli -- --script stories/zork1/fidelity/walkthrough.txt --seed "$(cat stories/zork1/fidelity/seed.txt)" --dir temp/b stories/zork1/zork1.z3
 ```
 
-Expected: `cmp` prints nothing. The seed shown is a placeholder; the pinned seed is
-recorded with the walkthrough.
+```bash
+diff -r temp/a temp/b
+```
+
+Expected: `diff` prints nothing. Each directory holds the transcript the walkthrough
+started with its `script` command.
 
 ## 4. czech (User Story 3)
 
@@ -76,8 +70,14 @@ cargo test -p zmachine-cli --test fidelity_zork1
 ```
 
 Expected: pass. On failure, the output names the byte offset of the first difference and
-the command that preceded it. The final lines of the transcript show the game won with
-350 points.
+the command that preceded it. The end of the transcript shows the game won with 350
+points.
+
+With dfrotz installed, confirm it still produces the committed reference files:
+
+```bash
+cargo test -p zmachine-cli -- --ignored
+```
 
 ## 6. Save and restore (User Story 5)
 
@@ -85,8 +85,9 @@ the command that preceded it. The final lines of the transcript show the game wo
 cargo test -p zmachine-cli --test save_restore
 ```
 
-Expected: pass. For each of five save points in the walkthrough, restoring and continuing
-gives the same remaining transcript as an uninterrupted run.
+Expected: pass. For each of five save points, restoring the save in a fresh run and
+playing its continuation gives the committed reference transcript, for saves written by
+Frotz and by `zm`.
 
 ## 7. Misbehaving story files
 

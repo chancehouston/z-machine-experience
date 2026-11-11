@@ -39,5 +39,6 @@
   a requirement of this spec.
 - The reference interpreter (Frotz) and the czech test program are named because they are
   the acceptance oracles given in the feature description, not implementation choices.
-- Three items are assumptions to confirm during planning, not open clarifications: the
-  pinned Frotz version, the pinned Zork 1 release, and czech's redistribution license.
+- Revised 2026-11-11 after independent review: the comparison is against Frotz's
+  transcript file, the save and restore criterion no longer assumes a save carries random
+  state, FR-009 was reworded, and the edge cases now state expected outcomes.
