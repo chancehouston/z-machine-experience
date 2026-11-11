@@ -1,0 +1,302 @@
+north
+north
+up
+take egg
+down
+south
+east
+open window
+west
+west
+drop egg
+take lamp
+take sword
+move rug
+open trap door
+turn on lamp
+down
+north
+kill troll with sword
+drop sword
+south
+south
+east
+take painting
+north
+up
+west
+open case
+put painting in case
+east
+up
+take rope
+down
+west
+open trap door
+down
+north
+east
+east
+southeast
+east
+tie rope to railing
+down
+take torch
+turn off lamp
+south
+east
+take coffin
+west
+south
+pray
+east
+south
+east
+west
+west
+open coffin
+take sceptre
+put coffin in case
+drop lamp
+east
+east
+east
+east
+down
+down
+north
+wave sceptre
+take pot
+southwest
+up
+up
+northwest
+west
+west
+west
+put pot in case
+put sceptre in case
+open trap door
+down
+north
+east
+east
+east
+echo
+take bar
+up
+east
+north
+take matches
+north
+take wrench
+take screwdriver
+push yellow button
+south
+south
+turn bolt with wrench
+drop wrench
+west
+wait
+wait
+north
+take trunk
+north
+take pump
+south
+south
+east
+down
+inflate plastic with pump
+drop pump
+enter boat
+launch
+wait
+wait
+wait
+wait
+drop bar
+take buoy
+east
+open buoy
+take emerald
+drop buoy
+take bar
+leave boat
+north
+drop trunk
+take shovel
+northeast
+dig sand with shovel
+dig sand with shovel
+dig sand with shovel
+dig sand with shovel
+take scarab
+drop shovel
+southwest
+take trunk
+south
+south
+west
+west
+southwest
+up
+up
+northwest
+west
+west
+west
+put bar in case
+put trunk in case
+put emerald in case
+put scarab in case
+take lamp
+east
+open sack
+take garlic
+west
+open trap door
+down
+north
+east
+east
+southeast
+east
+down
+south
+take bell
+south
+take book
+take candles
+down
+down
+ring bell
+take candles
+light match
+light candles with match
+read book
+drop book
+south
+take skull
+north
+up
+north
+drop candles
+rub mirror
+east
+down
+take trident
+up
+north
+north
+west
+north
+west
+north
+take jade
+east
+put torch in basket
+put screwdriver in basket
+turn on lamp
+north
+down
+take bracelet
+east
+northeast
+southeast
+southwest
+down
+down
+south
+take coal
+north
+up
+up
+north
+east
+south
+north
+up
+south
+put coal in basket
+lower basket
+north
+down
+east
+northeast
+southeast
+southwest
+down
+down
+west
+drop all
+west
+take coal
+take screwdriver
+take torch
+south
+open lid
+put coal in machine
+close lid
+turn switch with screwdriver
+open lid
+take diamond
+drop screwdriver
+north
+put diamond in basket
+put torch in basket
+east
+take all
+drop matchbook
+wait
+east
+up
+up
+north
+east
+south
+north
+up
+south
+raise basket
+take diamond
+take torch
+turn off lamp
+west
+south
+east
+south
+down
+up
+put diamond in case
+put bracelet in case
+put jade in case
+put trident in case
+put skull in case
+drop garlic
+drop lamp
+take egg
+east
+up
+take knife
+down
+west
+down
+north
+west
+south
+east
+up
+take coins
+wait
+southwest
+east
+south
+southeast
+odysseus
+up
+give egg to thief
+kill thief with knife
+kill thief with knife
+save
+save_5.qzl

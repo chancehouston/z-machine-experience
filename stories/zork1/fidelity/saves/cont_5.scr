@@ -1,0 +1,121 @@
+Here begins a transcript of interaction with
+ZORK I: The Great Underground Empire
+Infocom interactive fiction - a fantasy story
+Copyright (c) 1981, 1982, 1983, 1984, 1985, 1986 Infocom, Inc. All rights reserved.
+ZORK is a registered trademark of Infocom, Inc.
+Release 119 / Serial number 880429
+
+>restore
+Ok.
+
+>kill thief with knife
+The force of your blow knocks the thief back, stunned.
+The thief slowly regains his feet.
+
+>take egg
+Taken.
+You parry a lightning thrust, and the thief salutes you with a grim nod.
+
+>take chalice
+You'd be stabbed in the back first.
+You parry a lightning thrust, and the thief salutes you with a grim nod.
+
+>down
+Cyclops Room
+
+>east
+Strange Passage
+This is a long passage. To the west is one entrance. On the east there is an old wooden door, with a large opening in it (about cyclops sized).
+
+>east
+Living Room
+There is a brass lantern (battery-powered) here.
+There is a clove of garlic here.
+Your collection of treasures consists of:
+    A crystal skull
+    A crystal trident
+    A jade figurine
+    A sapphire-encrusted bracelet
+    A huge diamond
+    A beautiful jeweled scarab
+    A large emerald
+    A trunk of jewels
+    A platinum bar
+    A sceptre
+    A pot of gold
+    A gold coffin
+    A painting
+
+>put chalice in case
+You don't have that!
+
+>put coins in case
+Done.
+
+>take canary
+You can't see any canary here!
+
+>put egg in case
+Done.
+
+>east
+Kitchen
+A bottle is sitting on the table.
+The glass bottle contains:
+  A quantity of water
+There is a brown sack here.
+The brown sack contains:
+  A lunch
+
+>east
+Behind House
+
+>north
+North of House
+
+>north
+Forest Path
+
+>wind canary
+You can't see any canary here!
+
+>take bauble
+You can't see any bauble here!
+
+>south
+North of House
+
+>east
+Behind House
+
+>west
+Kitchen
+A bottle is sitting on the table.
+The glass bottle contains:
+  A quantity of water
+There is a brown sack here.
+The brown sack contains:
+  A lunch
+
+>west
+Living Room
+There is a brass lantern (battery-powered) here.
+There is a clove of garlic here.
+Your collection of treasures consists of:
+    A jewel-encrusted egg
+    A leather bag of coins
+    A crystal skull
+    A crystal trident
+    A jade figurine
+    A sapphire-encrusted bracelet
+    A huge diamond
+    A beautiful jeweled scarab
+    A large emerald
+    A trunk of jewels
+    A platinum bar
+    A sceptre
+    A pot of gold
+    A gold coffin
+    A painting
+
+>

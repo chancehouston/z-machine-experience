@@ -29,3 +29,29 @@ The compiler reports one warning, that the source's `Switches` directive is depr
 
 Under dfrotz 2.55 this build reports "Passed: 349, Failed: 0, Print tests: 19", the same
 totals as `czech.out3`.
+
+## Comparing output with `czech.out3`
+
+`czech.out3` has CRLF line endings; comparison is made after reducing them to line feeds.
+
+czech's README says "header information WILL be different for different interpreters".
+That information is the four lines czech prints under "Header (No tests)", which report
+what the interpreter wrote into the header and so describe the interpreter, not its
+correctness:
+
+```text
+    standard ...
+    interpreter ...
+    Flags on: ...
+    Flags off: ...
+```
+
+Those four lines are excluded. Every other line must match exactly, which covers the 19
+print tests that czech cannot check for itself.
+
+For the record, this interpreter prints `standard 1.1`, `interpreter 0  ()`, no flags on,
+and screen-splitting and variable-pitch-default among the flags off. `czech.out3` was
+made by an interpreter reporting `standard 1.0` with those two flags on.
+
+dfrotz's terminal output is not a useful comparison here: it redraws a screen and drops
+blank lines, so it differs from `czech.out3` in more places than this interpreter does.

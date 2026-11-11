@@ -1,0 +1,24 @@
+script
+cont_5
+restore
+save_5.qzl
+kill thief with knife
+take egg
+take chalice
+down
+east
+east
+put chalice in case
+put coins in case
+take canary
+put egg in case
+east
+east
+north
+north
+wind canary
+take bauble
+south
+east
+west
+west

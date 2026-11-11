@@ -1,0 +1,24 @@
+script
+cont_3
+restore
+save_3.qzl
+east
+east
+southeast
+east
+down
+south
+take bell
+south
+take book
+take candles
+down
+down
+ring bell
+take candles
+light match
+light candles with match
+read book
+drop book
+south
+take skull

@@ -1,0 +1,32 @@
+north
+north
+up
+take egg
+down
+south
+east
+open window
+west
+west
+drop egg
+take lamp
+take sword
+move rug
+open trap door
+turn on lamp
+down
+north
+kill troll with sword
+drop sword
+south
+south
+east
+take painting
+north
+up
+west
+open case
+put painting in case
+east
+save
+save_1.qzl

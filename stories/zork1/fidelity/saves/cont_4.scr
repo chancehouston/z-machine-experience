@@ -1,0 +1,88 @@
+Here begins a transcript of interaction with
+ZORK I: The Great Underground Empire
+Infocom interactive fiction - a fantasy story
+Copyright (c) 1981, 1982, 1983, 1984, 1985, 1986 Infocom, Inc. All rights reserved.
+ZORK is a registered trademark of Infocom, Inc.
+Release 119 / Serial number 880429
+
+>restore
+Ok.
+
+>take torch
+Taken.
+
+>south
+Machine Room
+This is a large, cold room whose sole exit is to the north. In one corner there is a machine which is reminiscent of a clothes dryer. On its face is a switch which is labelled "START". The switch does not appear to be manipulable by any human hand (unless the fingers are about 1/16 by 1/4 inch). On the front of the machine is a large lid, which is closed.
+
+>open lid
+The lid opens.
+
+>put coal in machine
+Done.
+
+>close lid
+The lid closes.
+
+>turn switch with screwdriver
+The machine comes to life (figuratively) with a dazzling display of colored lights and bizarre noises. After a few moments, the excitement abates.
+
+>open lid
+The lid opens, revealing a huge diamond.
+
+>take diamond
+Taken.
+
+>drop screwdriver
+Dropped.
+
+>north
+Drafty Room
+At the end of the chain is a basket.
+
+>put diamond in basket
+Done.
+
+>put torch in basket
+Done.
+
+>east
+Timber Room
+There is a matchbook whose cover says "Visit Beautiful FCD#3" here.
+There is a brass lantern (battery-powered) here.
+There is a clove of garlic here.
+There is a crystal skull here.
+There is a crystal trident here.
+There is an exquisite jade figurine here.
+There is a sapphire-encrusted bracelet here.
+There is a broken timber here.
+
+>take all
+matchbook: Taken.
+brass lantern: Taken.
+clove of garlic: Taken.
+crystal skull: Taken.
+crystal trident: Taken.
+jade figurine: Taken.
+sapphire-encrusted bracelet: Taken.
+broken timber: Your load is too heavy.
+
+>drop matchbook
+Dropped.
+
+>wait
+Time passes...
+
+>east
+Ladder Bottom
+
+>up
+Ladder Top
+
+>up
+Coal Mine
+
+>north
+Coal Mine
+
+>
