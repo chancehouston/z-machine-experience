@@ -174,7 +174,10 @@ impl Story {
         self.data_still_open("scratch data");
         let at = SCRATCH as usize + self.scratch.len();
         self.scratch.extend_from_slice(bytes);
-        assert!(self.scratch.len() <= SCRATCH_LEN as usize, "scratch area is full");
+        assert!(
+            self.scratch.len() <= SCRATCH_LEN as usize,
+            "scratch area is full"
+        );
         at as u16
     }
 
@@ -204,14 +207,21 @@ impl Story {
         low.resize(entries + self.objects.len() * 9, 0);
         for (i, o) in self.objects.iter().enumerate() {
             let table = low.len();
-            let name = if o.name.is_empty() { Vec::new() } else { zencode(&o.name) };
+            let name = if o.name.is_empty() {
+                Vec::new()
+            } else {
+                zencode(&o.name)
+            };
             low.push((name.len() / 2) as u8);
             low.extend(&name);
             let mut props = o.props.clone();
-            props.sort_by(|a, b| b.0.cmp(&a.0));
+            props.sort_by_key(|p| std::cmp::Reverse(p.0));
             for (number, data) in &props {
                 assert!((1..=31).contains(number), "property numbers are 1 to 31");
-                assert!((1..=8).contains(&data.len()), "property data is 1 to 8 bytes");
+                assert!(
+                    (1..=8).contains(&data.len()),
+                    "property data is 1 to 8 bytes"
+                );
                 low.push(32 * (data.len() as u8 - 1) + number);
                 low.extend(data);
             }
@@ -223,7 +233,7 @@ impl Story {
             low[e + 6] = o.child;
             low[e + 7..e + 9].copy_from_slice(&(table as u16).to_be_bytes());
         }
-        if low.len() % 2 != 0 {
+        if !low.len().is_multiple_of(2) {
             low.push(0);
         }
         self.static_base = low.len();
@@ -256,7 +266,7 @@ impl Story {
             low.extend(key);
             low.extend([0, 0, 0]);
         }
-        if low.len() % 2 != 0 {
+        if !low.len().is_multiple_of(2) {
             low.push(0);
         }
         self.low = Some(low);
@@ -268,7 +278,7 @@ impl Story {
     }
 
     fn align(&mut self) {
-        if self.high.len() % 2 != 0 {
+        if !self.high.len().is_multiple_of(2) {
             self.high.push(0);
         }
     }
@@ -342,7 +352,7 @@ impl Story {
         let main_at = self.main_at.expect("a story needs main code");
         let mut image = self.low.clone().unwrap();
         image.extend(&self.high);
-        if image.len() % 2 != 0 {
+        if !image.len().is_multiple_of(2) {
             image.push(0);
         }
         assert!(image.len() <= 0x1_FFFE, "a version 3 story is at most 128K");

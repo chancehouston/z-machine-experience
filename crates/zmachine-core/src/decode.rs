@@ -49,10 +49,30 @@ impl Opcode {
     fn two_op(number: u8) -> Option<Opcode> {
         use Opcode::*;
         Some(match number {
-            1 => Je, 2 => Jl, 3 => Jg, 4 => DecChk, 5 => IncChk, 6 => Jin, 7 => Test, 8 => Or,
-            9 => And, 10 => TestAttr, 11 => SetAttr, 12 => ClearAttr, 13 => Store,
-            14 => InsertObj, 15 => Loadw, 16 => Loadb, 17 => GetProp, 18 => GetPropAddr,
-            19 => GetNextProp, 20 => Add, 21 => Sub, 22 => Mul, 23 => Div, 24 => Mod,
+            1 => Je,
+            2 => Jl,
+            3 => Jg,
+            4 => DecChk,
+            5 => IncChk,
+            6 => Jin,
+            7 => Test,
+            8 => Or,
+            9 => And,
+            10 => TestAttr,
+            11 => SetAttr,
+            12 => ClearAttr,
+            13 => Store,
+            14 => InsertObj,
+            15 => Loadw,
+            16 => Loadb,
+            17 => GetProp,
+            18 => GetPropAddr,
+            19 => GetNextProp,
+            20 => Add,
+            21 => Sub,
+            22 => Mul,
+            23 => Div,
+            24 => Mod,
             _ => return None,
         })
     }
@@ -60,9 +80,21 @@ impl Opcode {
     fn one_op(number: u8) -> Option<Opcode> {
         use Opcode::*;
         Some(match number {
-            0 => Jz, 1 => GetSibling, 2 => GetChild, 3 => GetParent, 4 => GetPropLen, 5 => Inc,
-            6 => Dec, 7 => PrintAddr, 9 => RemoveObj, 10 => PrintObj, 11 => Ret, 12 => Jump,
-            13 => PrintPaddr, 14 => Load, 15 => Not,
+            0 => Jz,
+            1 => GetSibling,
+            2 => GetChild,
+            3 => GetParent,
+            4 => GetPropLen,
+            5 => Inc,
+            6 => Dec,
+            7 => PrintAddr,
+            9 => RemoveObj,
+            10 => PrintObj,
+            11 => Ret,
+            12 => Jump,
+            13 => PrintPaddr,
+            14 => Load,
+            15 => Not,
             _ => return None,
         })
     }
@@ -70,9 +102,20 @@ impl Opcode {
     fn zero_op(number: u8) -> Option<Opcode> {
         use Opcode::*;
         Some(match number {
-            0 => Rtrue, 1 => Rfalse, 2 => Print, 3 => PrintRet, 4 => Nop, 5 => Save,
-            6 => Restore, 7 => Restart, 8 => RetPopped, 9 => Pop, 10 => Quit, 11 => NewLine,
-            12 => ShowStatus, 13 => Verify,
+            0 => Rtrue,
+            1 => Rfalse,
+            2 => Print,
+            3 => PrintRet,
+            4 => Nop,
+            5 => Save,
+            6 => Restore,
+            7 => Restart,
+            8 => RetPopped,
+            9 => Pop,
+            10 => Quit,
+            11 => NewLine,
+            12 => ShowStatus,
+            13 => Verify,
             _ => return None,
         })
     }
@@ -80,9 +123,21 @@ impl Opcode {
     fn var(number: u8) -> Option<Opcode> {
         use Opcode::*;
         Some(match number {
-            0 => Call, 1 => Storew, 2 => Storeb, 3 => PutProp, 4 => Sread, 5 => PrintChar,
-            6 => PrintNum, 7 => Random, 8 => Push, 9 => Pull, 10 => SplitWindow,
-            11 => SetWindow, 19 => OutputStream, 20 => InputStream, 21 => SoundEffect,
+            0 => Call,
+            1 => Storew,
+            2 => Storeb,
+            3 => PutProp,
+            4 => Sread,
+            5 => PrintChar,
+            6 => PrintNum,
+            7 => Random,
+            8 => Push,
+            9 => Pull,
+            10 => SplitWindow,
+            11 => SetWindow,
+            19 => OutputStream,
+            20 => InputStream,
+            21 => SoundEffect,
             _ => return None,
         })
     }
@@ -92,9 +147,25 @@ impl Opcode {
         use Opcode::*;
         matches!(
             self,
-            Or | And | Loadw | Loadb | GetProp | GetPropAddr | GetNextProp | Add | Sub | Mul
-                | Div | Mod | GetSibling | GetChild | GetParent | GetPropLen | Load | Not
-                | Call | Random
+            Or | And
+                | Loadw
+                | Loadb
+                | GetProp
+                | GetPropAddr
+                | GetNextProp
+                | Add
+                | Sub
+                | Mul
+                | Div
+                | Mod
+                | GetSibling
+                | GetChild
+                | GetParent
+                | GetPropLen
+                | Load
+                | Not
+                | Call
+                | Random
         )
     }
 
@@ -104,8 +175,19 @@ impl Opcode {
         use Opcode::*;
         matches!(
             self,
-            Je | Jl | Jg | DecChk | IncChk | Jin | Test | TestAttr | Jz | GetSibling
-                | GetChild | Save | Restore | Verify
+            Je | Jl
+                | Jg
+                | DecChk
+                | IncChk
+                | Jin
+                | Test
+                | TestAttr
+                | Jz
+                | GetSibling
+                | GetChild
+                | Save
+                | Restore
+                | Verify
         )
     }
 
@@ -170,9 +252,47 @@ impl Cursor<'_> {
     }
 }
 
+impl Cursor<'_> {
+    /// Reads branch data (§4.7).
+    fn branch(&mut self) -> Result<Branch, DecodeError> {
+        let b = self.byte()?;
+        let on_true = b & 0x80 != 0;
+        let offset: i32 = if b & 0x40 != 0 {
+            (b & 0x3F) as i32
+        } else {
+            // Signed 14 bits: sign-extend from bit 13.
+            let raw = ((b & 0x3F) as u16) << 8 | self.byte()? as u16;
+            ((raw << 2) as i16 >> 2) as i32
+        };
+        let target = match offset {
+            0 => BranchTarget::ReturnFalse,
+            1 => BranchTarget::ReturnTrue,
+            _ => BranchTarget::Address((self.at as i64 + offset as i64 - 2) as u32),
+        };
+        Ok(Branch { on_true, target })
+    }
+}
+
+/// Decodes the branch data at `address` on its own, returning it with the address
+/// that follows. A version 3 save records the address of its `save` instruction's
+/// branch data, and a restore resumes from there (Quetzal §5.8.1).
+pub(crate) fn decode_branch(memory: &Memory, address: u32) -> Result<(Branch, u32), DecodeError> {
+    let mut c = Cursor {
+        memory,
+        start: address,
+        at: address,
+    };
+    let branch = c.branch()?;
+    Ok((branch, c.at))
+}
+
 /// Decodes the instruction at `address`.
 pub(crate) fn decode(memory: &Memory, address: u32) -> Result<Instruction, DecodeError> {
-    let mut c = Cursor { memory, start: address, at: address };
+    let mut c = Cursor {
+        memory,
+        start: address,
+        at: address,
+    };
     let unknown = DecodeError::UnknownInstruction(address);
     let first = c.byte()?;
     let mut operands = Vec::with_capacity(4);
@@ -220,27 +340,17 @@ pub(crate) fn decode(memory: &Memory, address: u32) -> Result<Instruction, Decod
         }
     };
 
-    let store = if opcode.stores() { Some(c.byte()?) } else { None };
+    let store = if opcode.stores() {
+        Some(c.byte()?)
+    } else {
+        None
+    };
 
     let mut branch = None;
     let mut branch_data = None;
     if opcode.branches() {
         branch_data = Some(c.at);
-        let b = c.byte()?;
-        let on_true = b & 0x80 != 0;
-        let offset: i32 = if b & 0x40 != 0 {
-            (b & 0x3F) as i32
-        } else {
-            // Signed 14 bits: sign-extend from bit 13.
-            let raw = ((b & 0x3F) as u16) << 8 | c.byte()? as u16;
-            ((raw << 2) as i16 >> 2) as i32
-        };
-        let target = match offset {
-            0 => BranchTarget::ReturnFalse,
-            1 => BranchTarget::ReturnTrue,
-            _ => BranchTarget::Address((c.at as i64 + offset as i64 - 2) as u32),
-        };
-        branch = Some(Branch { on_true, target });
+        branch = Some(c.branch()?);
     }
 
     let mut text = None;

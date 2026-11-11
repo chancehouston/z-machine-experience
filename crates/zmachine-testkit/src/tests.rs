@@ -2,7 +2,7 @@
 //! unseen by the interpreter that is tested with these images.
 
 use crate::op::{self, Arg};
-use crate::{zencode, zencode_dict, Object, Story, GLOBALS, SCRATCH};
+use crate::{GLOBALS, Object, SCRATCH, Story, zencode, zencode_dict};
 
 fn zork1() -> Vec<u8> {
     let path = concat!(env!("CARGO_MANIFEST_DIR"), "/../../stories/zork1/zork1.z3");
@@ -82,8 +82,13 @@ fn zencode_dict_pads_and_truncates_to_six_zchars() {
 #[test]
 fn zencode_dict_agrees_with_the_zork1_dictionary() {
     let keys = dictionary_keys(&zork1());
-    for w in ["mailbox", "troll", "xyzzy", "lantern", "north", "leaflet", "sword", "all"] {
-        assert!(keys.contains(&zencode_dict(w)), "{w} should be in Zork I's dictionary");
+    for w in [
+        "mailbox", "troll", "xyzzy", "lantern", "north", "leaflet", "sword", "all",
+    ] {
+        assert!(
+            keys.contains(&zencode_dict(w)),
+            "{w} should be in Zork I's dictionary"
+        );
     }
     assert!(!keys.contains(&zencode_dict("qqqqqq")));
 }
@@ -101,7 +106,10 @@ fn zork1_dictionary_is_sorted_as_our_reader_assumes() {
 fn op2_long_form_bytes() {
     assert_eq!(op::op2(op::ADD, Arg::S(2), Arg::S(3)), vec![0x14, 2, 3]);
     assert_eq!(op::op2(op::ADD, Arg::V(1), Arg::S(3)), vec![0x54, 1, 3]);
-    assert_eq!(op::op2(op::ADD, Arg::S(2), Arg::V(0x10)), vec![0x34, 2, 0x10]);
+    assert_eq!(
+        op::op2(op::ADD, Arg::S(2), Arg::V(0x10)),
+        vec![0x34, 2, 0x10]
+    );
     assert_eq!(op::op2(op::ADD, Arg::V(1), Arg::V(2)), vec![0x74, 1, 2]);
 }
 
@@ -138,7 +146,10 @@ fn op1_and_op0_short_form_bytes() {
 // §4.3.3: VAR form, top bits 111.
 #[test]
 fn var_form_bytes() {
-    assert_eq!(op::var(op::CALL, &[Arg::L(0x0400)]), vec![0xE0, 0b00_11_11_11, 4, 0]);
+    assert_eq!(
+        op::var(op::CALL, &[Arg::L(0x0400)]),
+        vec![0xE0, 0b00_11_11_11, 4, 0]
+    );
     assert_eq!(
         op::var(op::STOREW, &[Arg::L(0x0300), Arg::S(1), Arg::V(5)]),
         vec![0xE1, 0b00_01_10_11, 3, 0, 1, 5]
@@ -234,7 +245,11 @@ fn built_objects_follow_the_version_3_layout() {
     let second = first + 9;
     assert_eq!(image[second + 4], 1, "parent");
     let props2 = word(&image, second + 7);
-    assert_eq!(&image[props2..props2 + 2], &[0, 0], "no name, no properties");
+    assert_eq!(
+        &image[props2..props2 + 2],
+        &[0, 0],
+        "no name, no properties"
+    );
 }
 
 // §3.3: abbreviation strings are reached through a table of word addresses.

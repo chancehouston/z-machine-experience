@@ -1,8 +1,11 @@
 use super::*;
 use crate::{HeaderField, LoadOptions, Machine};
-use zmachine_testkit::{op, Story};
+use zmachine_testkit::{Story, op};
 
-const OPTIONS: LoadOptions = LoadOptions { seed: Some(1), entropy: 0 };
+const OPTIONS: LoadOptions = LoadOptions {
+    seed: Some(1),
+    entropy: 0,
+};
 
 fn image() -> Vec<u8> {
     let mut story = Story::new();
@@ -78,7 +81,11 @@ fn a_table_address_outside_the_file_is_a_bad_header() {
         let mut image = image();
         let len = image.len() as u16;
         put(&mut image, offset, len);
-        assert_eq!(parse(&image), Err(LoadError::BadHeader(field)), "offset {offset:#x}");
+        assert_eq!(
+            parse(&image),
+            Err(LoadError::BadHeader(field)),
+            "offset {offset:#x}"
+        );
     }
 }
 
@@ -88,7 +95,10 @@ fn a_table_address_outside_the_file_is_a_bad_header() {
 fn a_static_base_inside_the_header_is_a_bad_header() {
     let mut image = image();
     put(&mut image, 0x0E, 63);
-    assert_eq!(parse(&image), Err(LoadError::BadHeader(HeaderField::StaticMemoryBase)));
+    assert_eq!(
+        parse(&image),
+        Err(LoadError::BadHeader(HeaderField::StaticMemoryBase))
+    );
     put(&mut image, 0x0E, 64);
     assert!(parse(&image).is_ok());
 }

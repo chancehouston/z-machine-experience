@@ -32,7 +32,7 @@ fn pack(mut z: Vec<u8>) -> Vec<u8> {
     if z.is_empty() {
         z.push(5);
     }
-    while z.len() % 3 != 0 {
+    while !z.len().is_multiple_of(3) {
         z.push(5);
     }
     let words = z.len() / 3;

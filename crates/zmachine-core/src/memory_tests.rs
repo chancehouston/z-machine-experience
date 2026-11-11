@@ -29,10 +29,16 @@ fn words_are_big_endian() {
 fn reads_outside_the_file_are_errors() {
     let m = memory();
     assert_eq!(m.read_byte(0x100), Err(MemoryError::ReadOutsideFile(0x100)));
-    assert_eq!(m.read_byte(u32::MAX), Err(MemoryError::ReadOutsideFile(u32::MAX)));
+    assert_eq!(
+        m.read_byte(u32::MAX),
+        Err(MemoryError::ReadOutsideFile(u32::MAX))
+    );
     // A word whose second byte is outside the file.
     assert_eq!(m.read_word(0xFF), Err(MemoryError::ReadOutsideFile(0xFF)));
-    assert_eq!(m.read_word(u32::MAX), Err(MemoryError::ReadOutsideFile(u32::MAX)));
+    assert_eq!(
+        m.read_word(u32::MAX),
+        Err(MemoryError::ReadOutsideFile(u32::MAX))
+    );
 }
 
 // §1.1.1: dynamic memory, below the static memory base, can be written.
@@ -49,17 +55,33 @@ fn writes_below_the_static_base_succeed() {
 #[test]
 fn writes_at_or_above_the_static_base_are_errors() {
     let mut m = memory();
-    assert_eq!(m.write_byte(0x80, 1), Err(MemoryError::WriteOutsideDynamicMemory(0x80)));
-    assert_eq!(m.write_byte(0xFF, 1), Err(MemoryError::WriteOutsideDynamicMemory(0xFF)));
-    assert_eq!(m.write_byte(0x1000, 1), Err(MemoryError::WriteOutsideDynamicMemory(0x1000)));
-    assert_eq!(m.read_byte(0x80), Ok(0x80), "a refused write changes nothing");
+    assert_eq!(
+        m.write_byte(0x80, 1),
+        Err(MemoryError::WriteOutsideDynamicMemory(0x80))
+    );
+    assert_eq!(
+        m.write_byte(0xFF, 1),
+        Err(MemoryError::WriteOutsideDynamicMemory(0xFF))
+    );
+    assert_eq!(
+        m.write_byte(0x1000, 1),
+        Err(MemoryError::WriteOutsideDynamicMemory(0x1000))
+    );
+    assert_eq!(
+        m.read_byte(0x80),
+        Ok(0x80),
+        "a refused write changes nothing"
+    );
 }
 
 // A word that starts in dynamic memory but ends in static memory is refused whole.
 #[test]
 fn a_word_write_straddling_the_static_base_is_refused_whole() {
     let mut m = memory();
-    assert_eq!(m.write_word(0x7F, 0xFFFF), Err(MemoryError::WriteOutsideDynamicMemory(0x7F)));
+    assert_eq!(
+        m.write_word(0x7F, 0xFFFF),
+        Err(MemoryError::WriteOutsideDynamicMemory(0x7F))
+    );
     assert_eq!(m.read_byte(0x7F), Ok(0x7F));
     assert_eq!(m.read_byte(0x80), Ok(0x80));
 }

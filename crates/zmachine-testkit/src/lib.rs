@@ -21,7 +21,7 @@ pub mod programs;
 mod story;
 mod zenc;
 
-pub use story::{Object, Story, GLOBALS, SCRATCH, SCRATCH_LEN};
+pub use story::{GLOBALS, Object, SCRATCH, SCRATCH_LEN, Story};
 pub use zenc::{zencode, zencode_dict};
 
 #[cfg(test)]

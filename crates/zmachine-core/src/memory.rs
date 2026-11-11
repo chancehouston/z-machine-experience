@@ -25,6 +25,7 @@ impl Memory {
         Memory { bytes, static_base }
     }
 
+    #[cfg(test)]
     pub fn len(&self) -> usize {
         self.bytes.len()
     }
@@ -43,7 +44,10 @@ impl Memory {
     /// Reads a big-endian word (§2.1).
     pub fn read_word(&self, address: u32) -> Result<u16, MemoryError> {
         let at = address as usize;
-        match (self.bytes.get(at), at.checked_add(1).and_then(|n| self.bytes.get(n))) {
+        match (
+            self.bytes.get(at),
+            at.checked_add(1).and_then(|n| self.bytes.get(n)),
+        ) {
             (Some(&hi), Some(&lo)) => Ok(u16::from_be_bytes([hi, lo])),
             _ => Err(MemoryError::ReadOutsideFile(address)),
         }

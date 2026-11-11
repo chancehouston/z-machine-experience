@@ -184,7 +184,10 @@ pub fn branch(on_true: bool, offset: i16) -> Vec<u8> {
 
 /// Branch data in the two-byte form, whatever the offset (§4.7).
 pub fn branch_long(on_true: bool, offset: i16) -> Vec<u8> {
-    assert!((-8192..=8191).contains(&offset), "offset must fit in 14 bits");
+    assert!(
+        (-8192..=8191).contains(&offset),
+        "offset must fit in 14 bits"
+    );
     let raw = offset as u16 & 0x3FFF;
     let sense = if on_true { 0x80 } else { 0 };
     vec![sense | (raw >> 8) as u8, raw as u8]

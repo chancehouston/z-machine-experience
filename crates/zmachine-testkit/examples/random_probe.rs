@@ -8,6 +8,8 @@
 //! ```
 
 fn main() {
-    let path = std::env::args().nth(1).expect("usage: random_probe <output.z3>");
+    let path = std::env::args()
+        .nth(1)
+        .expect("usage: random_probe <output.z3>");
     std::fs::write(&path, zmachine_testkit::programs::random_probe()).expect("write story");
 }

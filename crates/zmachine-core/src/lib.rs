@@ -10,11 +10,25 @@
 #![forbid(unsafe_code)]
 
 mod decode;
+mod dictionary;
+mod exec;
 mod header;
 mod memory;
+mod objects;
+mod ops_io;
+mod ops_math;
+mod ops_object;
+mod quetzal;
+mod random;
+mod text;
 
+#[cfg(test)]
+mod testing;
+
+use exec::{Frame, State};
 use header::Header;
-use memory::Memory;
+use memory::{Memory, MemoryError};
+use random::Random;
 
 /// Why a story file was refused at load.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -38,6 +52,28 @@ pub enum HeaderField {
     StaticMemoryBase,
     Abbreviations,
 }
+
+impl std::fmt::Display for LoadError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            LoadError::UnsupportedVersion(v) => {
+                write!(
+                    f,
+                    "not a version 3 story file (its header says version {v})"
+                )
+            }
+            LoadError::TooShort => write!(f, "too short to be a story file"),
+            LoadError::BadHeader(field) => {
+                write!(
+                    f,
+                    "damaged story file: the header's {field:?} address is outside the file"
+                )
+            }
+        }
+    }
+}
+
+impl std::error::Error for LoadError {}
 
 /// The host called the machine out of turn. Nothing was changed.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -64,12 +100,34 @@ pub enum FaultKind {
     TextOverrun,
 }
 
+impl std::fmt::Display for FaultKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(match self {
+            FaultKind::UnknownInstruction => "unknown instruction",
+            FaultKind::DivisionByZero => "division by zero",
+            FaultKind::StackUnderflow => "stack underflow",
+            FaultKind::CallStackOverflow => "call stack overflow",
+            FaultKind::ReadOutsideFile => "read outside the story file",
+            FaultKind::WriteOutsideDynamicMemory => "write outside dynamic memory",
+            FaultKind::MissingProperty => "property not present on the object",
+            FaultKind::InvalidVariable => "variable does not exist",
+            FaultKind::TextOverrun => "text runs past the end of the story file",
+        })
+    }
+}
+
 /// An illegal operation by the story file. The game cannot continue.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Fault {
     pub kind: FaultKind,
     /// Address of the instruction that caused it.
     pub address: u32,
+}
+
+impl std::fmt::Display for Fault {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{} at {:#x}", self.kind, self.address)
+    }
 }
 
 /// The kind of illegal operation the core tolerates.
@@ -138,14 +196,49 @@ pub struct LoadOptions {
 /// A loaded story file and everything that changes while it runs.
 #[derive(Debug)]
 pub struct Machine {
-    #[allow(dead_code)]
+    /// The story file as loaded, kept for restart, `verify` and save compression.
     story: Vec<u8>,
-    #[allow(dead_code)]
     header: Header,
-    #[allow(dead_code)]
     memory: Memory,
-    #[allow(dead_code)]
-    options: LoadOptions,
+    /// Call frames, innermost last. The first is the main code, which is not a
+    /// routine and cannot be returned from.
+    frames: Vec<Frame>,
+    /// Address of the next instruction.
+    pc: u32,
+    /// Address of the instruction being executed, for faults and diagnostics.
+    current: u32,
+    state: State,
+    /// A fault found while handling an answer, reported by the next `run`.
+    pending_fault: Option<Fault>,
+    /// The `save` or `restore` instruction waiting for the host's answer.
+    pending: Option<decode::Instruction>,
+    random: Random,
+    /// Output stream 1 is selected (§7.1).
+    screen_selected: bool,
+    /// The window text goes to: 0 lower, 1 upper (§8.5).
+    window: u16,
+    output: String,
+    transcript: String,
+    /// The host has agreed to keep a transcript (contracts/core-api.md).
+    transcript_accepted: bool,
+    /// Text printed but not yet sent to the transcript: the word in progress, with
+    /// the space before it. See `Machine::emit`.
+    chunk: String,
+    /// Something has been printed since the last new-line, so a game that quits
+    /// now leaves a line unfinished.
+    line_open: bool,
+    status: Option<StatusLine>,
+    status_changed: bool,
+    diagnostics: Vec<Diagnostic>,
+}
+
+impl From<MemoryError> for FaultKind {
+    fn from(e: MemoryError) -> Self {
+        match e {
+            MemoryError::ReadOutsideFile(_) => FaultKind::ReadOutsideFile,
+            MemoryError::WriteOutsideDynamicMemory(_) => FaultKind::WriteOutsideDynamicMemory,
+        }
+    }
 }
 
 impl Machine {
@@ -157,58 +250,138 @@ impl Machine {
         let header = header::parse(&story)?;
         let mut memory = Memory::new(story.clone(), header.static_base as usize);
         header::apply_interpreter_fields(memory.dynamic_mut());
-        Ok(Machine { story, header, memory, options })
+        let pc = header.initial_pc as u32;
+        Ok(Machine {
+            story,
+            header,
+            memory,
+            frames: vec![Frame::main()],
+            pc,
+            current: pc,
+            state: State::Running,
+            pending_fault: None,
+            pending: None,
+            random: Random::new(options.seed.unwrap_or(options.entropy)),
+            screen_selected: true,
+            window: 0,
+            output: String::new(),
+            transcript: String::new(),
+            transcript_accepted: false,
+            chunk: String::new(),
+            line_open: false,
+            status: None,
+            status_changed: false,
+            diagnostics: Vec::new(),
+        })
     }
 
     /// Executes at most `budget` instructions and returns the next event.
-    pub fn run(&mut self, _budget: u64) -> Result<Event, HostError> {
-        Err(HostError::Stopped)
+    ///
+    /// Returns an error, changing nothing, if an answer to the previous event is
+    /// owed or the game has stopped.
+    pub fn run(&mut self, budget: u64) -> Result<Event, HostError> {
+        match self.state {
+            State::Running => Ok(self.execute(budget)),
+            State::Finished | State::Faulted => Err(HostError::Stopped),
+            _ => Err(HostError::AnswerOwed),
+        }
     }
 
-    /// Answers [`Event::LineWanted`].
-    pub fn provide_line(&mut self, _text: &str) -> Result<(), HostError> {
-        Err(HostError::NotWaitingForThis)
+    /// The error for an answer the machine is not waiting for.
+    fn not_waiting(&self) -> HostError {
+        match self.state {
+            State::Finished | State::Faulted => HostError::Stopped,
+            _ => HostError::NotWaitingForThis,
+        }
     }
 
-    /// Answers [`Event::SaveRequested`]: whether the host stored the bytes.
-    pub fn save_result(&mut self, _stored: bool) -> Result<(), HostError> {
-        Err(HostError::NotWaitingForThis)
+    /// Answers [`Event::LineWanted`] with what the player typed.
+    ///
+    /// Letters are reduced to lower case, characters the game cannot represent
+    /// become question marks, and anything beyond the length the game asked for is
+    /// dropped.
+    pub fn provide_line(&mut self, text: &str) -> Result<(), HostError> {
+        let State::AwaitingLine {
+            text: buffer,
+            parse,
+            max_len,
+        } = self.state
+        else {
+            return Err(self.not_waiting());
+        };
+        self.state = State::Running;
+        self.accept_line(text, buffer, parse, max_len);
+        Ok(())
+    }
+
+    /// Answers [`Event::SaveRequested`]: whether the host stored the bytes. The
+    /// game is told the save succeeded or failed accordingly.
+    pub fn save_result(&mut self, stored: bool) -> Result<(), HostError> {
+        if self.state != State::AwaitingSaveResult {
+            return Err(self.not_waiting());
+        }
+        self.state = State::Running;
+        self.finish_save(stored);
+        Ok(())
     }
 
     /// Answers [`Event::RestoreRequested`] with a saved position, or `None` to
     /// decline.
-    pub fn provide_restore(&mut self, _saved: Option<&[u8]>) -> Result<(), HostError> {
-        Err(HostError::NotWaitingForThis)
+    ///
+    /// If the bytes are not a save of this story, the game is told the restore
+    /// failed and nothing else changes. Otherwise play resumes from the saved
+    /// position.
+    pub fn provide_restore(&mut self, saved: Option<&[u8]>) -> Result<(), HostError> {
+        if self.state != State::AwaitingRestoreData {
+            return Err(self.not_waiting());
+        }
+        self.state = State::Running;
+        self.finish_restore(saved);
+        Ok(())
     }
 
-    /// Answers [`Event::TranscriptRequested`].
-    pub fn transcript_result(&mut self, _accepted: bool) -> Result<(), HostError> {
-        Err(HostError::NotWaitingForThis)
+    /// Answers [`Event::TranscriptRequested`]. If the host declines, the game's
+    /// transcription bit is cleared so that it can tell.
+    pub fn transcript_result(&mut self, accepted: bool) -> Result<(), HostError> {
+        if self.state != State::AwaitingTranscriptAnswer {
+            return Err(self.not_waiting());
+        }
+        self.state = State::Running;
+        self.answer_transcript_request(accepted);
+        Ok(())
     }
 
-    /// Screen text printed since the last call, unwrapped.
+    /// Screen text printed since the last call, unwrapped. It does not include
+    /// what the player typed.
     pub fn take_output(&mut self) -> String {
-        String::new()
+        std::mem::take(&mut self.output)
     }
 
     /// Transcript text produced since the last call.
     pub fn take_transcript(&mut self) -> String {
-        String::new()
+        std::mem::take(&mut self.transcript)
     }
 
     /// The status line, if it changed since the last call.
     pub fn take_status(&mut self) -> Option<StatusLine> {
-        None
+        if self.status_changed {
+            self.status_changed = false;
+            self.status.clone()
+        } else {
+            None
+        }
     }
 
     /// Tolerated illegal operations recorded since the last call.
     pub fn take_diagnostics(&mut self) -> Vec<Diagnostic> {
-        Vec::new()
+        std::mem::take(&mut self.diagnostics)
     }
 
     /// The byte at `address` in the machine's memory, for tests of this crate.
     #[cfg(test)]
     pub(crate) fn peek(&self, address: u32) -> u8 {
-        self.memory.read_byte(address).expect("address inside the file")
+        self.memory
+            .read_byte(address)
+            .expect("address inside the file")
     }
 }
