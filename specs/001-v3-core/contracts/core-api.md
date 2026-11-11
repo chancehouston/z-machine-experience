@@ -67,6 +67,10 @@ machine.take_diagnostics() -> Vec<Diagnostic> // tolerated illegal operations
 - Screen text does not include the player's input. Transcript text does, as
   [transcript-format.md](transcript-format.md) describes.
 - The host may drain after every `run` or less often; nothing is lost in between.
+- When the game quits leaving a line unfinished, the core ends it with a line feed in both
+  the screen text and the transcript text.
+- Transcript text is released a word at a time, so `take_transcript` may lag the screen
+  by the word in progress until the game reads input or stops.
 
 ## Guarantees
 

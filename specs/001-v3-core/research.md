@@ -260,6 +260,10 @@ warning into the game text and continues. If the Zork 1 walkthrough triggers one
 reference transcript will contain Frotz's warning and ours will not; that would be a
 ledger entry. An early task runs the walkthrough under `dfrotz -Z 2` to find out.
 
+**Observed**: the finished walkthrough was run under `dfrotz -Z 2`. No warning appears and
+the transcript is identical to the one made without it, so Zork I performs no object 0
+operation on this route and the ledger needs no entry for one.
+
 **Observed**: dfrotz stops with a fatal error when a version 3 game asks for input while
 its first global variable, the location shown on the status line, is object 0. This
 interpreter reports an empty location name and a diagnostic, and continues.

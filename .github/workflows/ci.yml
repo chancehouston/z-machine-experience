@@ -1,0 +1,52 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# The same story file, script and seed must give the same output on every platform
+# (SC-003). Both jobs compare against the same committed reference files, so both
+# passing is the evidence.
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        run: |
+          rustup toolchain install stable --profile minimal --component clippy,rustfmt
+          rustup default stable
+
+      # Everything the project requires. Needs nothing but Rust: the story files and
+      # the reference transcripts are in the repository.
+      - name: Test
+        run: cargo test --workspace
+
+      # The remaining tests check the committed reference files against the
+      # reference interpreter itself, which must be Frotz 2.55. The tests refuse any
+      # other version.
+      - name: Install dfrotz 2.55 (macOS)
+        if: runner.os == 'macOS'
+        run: brew install frotz
+
+      - name: Build dfrotz 2.55 (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          curl -sSfL -o frotz.tar.gz https://www.ifarchive.org/if-archive/infocom/interpreters/frotz/frotz-2.55.tar.gz
+          mkdir frotz-src
+          tar xzf frotz.tar.gz -C frotz-src --strip-components=1
+          make -C frotz-src dumb
+          echo "$PWD/frotz-src" >> "$GITHUB_PATH"
+
+      - name: Check dfrotz version
+        run: dfrotz -v | head -1 | grep -F "FROTZ V2.55"
+
+      # Optimized, because one of these tests times the full walkthrough (SC-005).
+      - name: Test against dfrotz, and timing
+        run: cargo test --workspace --release -- --ignored

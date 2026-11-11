@@ -118,8 +118,9 @@ crates/
 │   │   ├── ops_io.rs               # output, streams, status line, read
 │   │   ├── random.rs               # Frotz-compatible generator
 │   │   └── quetzal.rs              # save and restore
-│   └── tests/                      # public-API tests: events.rs, random.rs, save.rs,
-│                                   #   streams.rs, faults.rs, coverage.rs
+│   └── tests/                      # public-API tests: events.rs, streams.rs,
+│                                   #   transcript.rs, random.rs, save.rs,
+│                                   #   robustness.rs, coverage.rs; fixtures/ from dfrotz
 ├── zmachine-testkit/
 │   ├── Cargo.toml                  # no dependencies
 │   └── src/lib.rs                  # in-memory story image builder

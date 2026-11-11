@@ -88,6 +88,11 @@ An illegal operation the core tolerates ([research.md](research.md) R12). Carrie
 instruction address and the kind. The only kind in this feature is an instruction given
 object 0, which does nothing or yields 0.
 
+Two other out-of-range requests are defined quietly, with no diagnostic. An attribute
+number above 31 does not exist in version 3: testing it gives false, and setting or
+clearing it does nothing. `output_stream` with 3 or 4 is ignored, because version 3 has no
+form of the instruction that could supply stream 3's table.
+
 ## Saved position
 
 Quetzal 1.4 ([research.md](research.md) R7).
