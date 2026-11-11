@@ -1,0 +1,9 @@
+[workspace]
+resolver = "3"
+members = ["crates/zmachine-core", "crates/zmachine-testkit", "crates/zmachine-cli"]
+
+[workspace.package]
+edition = "2024"
+license = "MIT"
+repository = "https://github.com/chancehouston/z-machine-experience"
+rust-version = "1.99"

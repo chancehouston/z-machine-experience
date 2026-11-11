@@ -70,9 +70,12 @@ variable the output code never reads. It is not used. Zork 1's text is ASCII.
   `(A >> 16) & 0x7fff`. The result is `(raw % range) + 1`.
 - Restore does not touch the generator.
 
-**Evidence**: Read, and confirmed line by line by an independent reviewer against the
-2.55 source. Observed only indirectly (same seed, same transcript). A direct comparison
-is the first task that depends on it.
+**Evidence**: Read, confirmed line by line by an independent reviewer against the 2.55
+source, and Observed: a probe story printing 260 results of `random 100` (200 from the
+host seed, then 20 after each of `random -5`, `random -1000` and `random 0`) was run
+under dfrotz at seeds 0, 1, 999, 1000, 123456 and 2147483647. A model of the rules above
+reproduces all six outputs exactly. The outputs are committed as
+`crates/zmachine-core/tests/fixtures/random/seed_<n>.txt`.
 
 **Rationale**: Standard §2.4 and the `random` opcode leave the generator to the
 interpreter, so this is a free choice. Without it a game with combat and a wandering
@@ -256,6 +259,10 @@ perform them, and an interpreter that stops is unusable for those games. Frotz p
 warning into the game text and continues. If the Zork 1 walkthrough triggers one, the
 reference transcript will contain Frotz's warning and ours will not; that would be a
 ledger entry. An early task runs the walkthrough under `dfrotz -Z 2` to find out.
+
+**Observed**: dfrotz stops with a fatal error when a version 3 game asks for input while
+its first global variable, the location shown on the status line, is object 0. This
+interpreter reports an empty location name and a diagnostic, and continues.
 
 **Alternatives considered**: Fault, as first planned (strict, but would stop real games
 the reference plays); printing Frotz's warning text into the game output (imitates a

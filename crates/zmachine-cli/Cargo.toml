@@ -1,0 +1,22 @@
+[package]
+name = "zmachine-cli"
+version = "0.1.0"
+description = "Command-line host for the Z-machine core."
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[lib]
+name = "zmachine_cli"
+
+[[bin]]
+name = "zm"
+path = "src/main.rs"
+
+[dependencies]
+zmachine-core = { path = "../zmachine-core" }
+
+[dev-dependencies]
+zmachine-testkit = { path = "../zmachine-testkit" }
+sha2 = "0.10"

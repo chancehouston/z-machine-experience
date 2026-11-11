@@ -26,14 +26,29 @@ file. `zm --script` consumes that line the same way, so one script drives both.
 6. If input ends while the game is waiting, the transcript ends with the game's prompt
    and no line feed.
 7. If the game quits, the transcript ends with whatever the game last printed.
+8. Input is written exactly as given: case and surrounding spaces are kept
+   (`>OPEN Mailbox`, `>  look  `), even though the game receives it in lower case.
+9. Text and input are written only while transcription is on. When the game turns it
+   off, whatever it printed before clearing the bit is included (Zork I's "Here ends a
+   transcript of interaction with" and its version lines) and nothing after. The prompt
+   and command that follow are absent.
+10. A file name is asked for only the first time. When the game turns transcription on
+    again, writing continues at the end of the same file with no prompt, so the next
+    input line goes to the game.
 
-## To confirm at the first fidelity task
+Rules 8 to 10 were observed with:
 
-- Whether input is recorded exactly as typed or lowercased.
-- What is written for an input line longer than the game's buffer.
-- Whether anything is written when the game turns transcription off.
+```text
+printf 'script\nt1\nOPEN Mailbox\n  look  \nunscript\ninventory\nscript\nlook\n' \
+  | dfrotz -m -q -w 80 -S 0 -s 4242 stories/zork1/zork1.z3
+```
 
-Each answer is added above with the dfrotz command that shows it.
+## A limit of the reference, not of the format
+
+dfrotz keeps at most 198 characters of an input line and writes those to the transcript,
+whatever the size of the game's own input buffer (observed with test stories whose
+buffers hold 19, 99 and 249 characters). This interpreter writes the whole line as given.
+Scripts used for comparison therefore keep every line under 198 characters.
 
 ## What is not compared
 

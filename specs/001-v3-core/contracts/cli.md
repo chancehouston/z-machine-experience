@@ -29,7 +29,9 @@ zm --help
   resolved inside `--dir`; a name containing a path separator is refused and the
   operation fails. An existing file is overwritten without asking.
 - **Transcript**: once started, the transcript file receives the core's transcript
-  stream, in the format of [transcript-format.md](transcript-format.md).
+  stream, in the format of [transcript-format.md](transcript-format.md). A file name is
+  asked for only the first time; if the game turns transcription off and on again,
+  writing continues at the end of the same file.
 - **Save and restore**: saves are Quetzal files. A missing, unreadable or refused file
   makes the game report failure and play continues.
 - Diagnostics, prompts for file names, and fault reports go to standard error.

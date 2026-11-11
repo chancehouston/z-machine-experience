@@ -1,0 +1,13 @@
+[package]
+name = "zmachine-core"
+version = "0.1.0"
+description = "A faithful Z-machine interpreter core: no I/O, no unsafe, no dependencies."
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+
+[dev-dependencies]
+zmachine-testkit = { path = "../zmachine-testkit" }
