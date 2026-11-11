@@ -1,0 +1,22 @@
+# Story files: commercial games must never be committed (constitution, Principle VI).
+# Redistributable games that ship with the app are added explicitly with `git add -f`.
+*.z1
+*.z2
+*.z3
+*.z4
+*.z5
+*.z6
+*.z7
+*.z8
+*.dat
+*.zblorb
+*.zlb
+
+# Rust
+target/
+
+# macOS
+.DS_Store
+
+# Claude Code local settings
+.claude/settings.local.json
