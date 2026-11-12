@@ -418,15 +418,17 @@ started.
 - **The app.** `scripts/build-ios.sh` copies `packs/zork1.pack` to the app's resources
   as `story.pack`, after checking that the pack names the story it is copied beside.
   The app finds it by the story's resource name and hands its text over unread; no key
-  of the format is written in the app. A closed door is drawn as an outlined upright
-  panel with the direction's arrow.
+  of the format is written in the app. A closed door is drawn as a solid upright panel
+  with the direction's arrow and a knob.
 - **T053 done differently.** The task had the app's `story.pack` committed and compared
   byte for byte with `packs/zork1.pack`. The app's resources are generated and ignored,
   as the story is, so the test is of the build script and of the app's sources instead.
 - **T058, the drawing.** A first version had a knob on the panel; it ran into the
   arrow and was taken off. Pictures of the three states (a closed door, the same door
-  opened, a way that may be blocked) were sent to the owner. The drawing is not
-  settled until the owner has said so.
+  opened, a way that may be blocked) were sent to the owner, who asked for another.
+  Of four sketches (the outlined panel, an arrow stopped at a bar, a disc with a door
+  badge, a solid door with a knob) the owner chose the solid door on 2026-11-12. The
+  knob sits in the panel's lower corner, clear of the arrow.
 - **An earlier UI test changed in value, by design.** `testCompassAtTheOpening` said
   the way west behind the house "may be blocked"; with the pack it is a closed door.
   This is FR-030, not a form change.
