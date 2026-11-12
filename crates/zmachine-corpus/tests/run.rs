@@ -47,6 +47,13 @@ fn disagreeing() -> Toy {
     toy
 }
 
+/// An entry whose budget lets the crawl visit nothing: the walkthrough alone.
+fn walkthrough_only() -> Story {
+    let mut story = entry("toy");
+    story.rooms = Some(0);
+    story
+}
+
 fn count(report: &Report, direction: u8, reported: Reported, outcome: Outcome) -> usize {
     let case = Case {
         room: Toy::room(0),
@@ -67,7 +74,7 @@ fn count(report: &Report, direction: u8, reported: Reported, outcome: Outcome) -
 #[test]
 fn every_direction_at_every_prompt_has_one_verdict() {
     let report = run_story(
-        &entry("toy"),
+        &walkthrough_only(),
         disagreeing().build(),
         Some("look\nlook\nlook\n"),
         &Ledger::default(),
@@ -125,7 +132,12 @@ fn every_direction_at_every_prompt_has_one_verdict() {
 #[test]
 fn a_report_says_what_was_run_and_how_far_it_got() {
     let bytes = disagreeing().build();
-    let report = run_story(&entry("toy"), bytes, Some("look\n"), &Ledger::default());
+    let report = run_story(
+        &walkthrough_only(),
+        bytes,
+        Some("look\n"),
+        &Ledger::default(),
+    );
     assert_eq!(report.id, "toy");
     assert_eq!(report.sha256, "0".repeat(64));
     assert_eq!(

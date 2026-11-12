@@ -156,3 +156,55 @@ pub fn command(root: &Path, mode: Mode, ids: &[String]) -> (Vec<String>, i32) {
     }
     (lines, failed as i32)
 }
+
+/// `corpus explain ID ROOM DIRECTION`: every trial of the story from that room in
+/// that direction, with what the game printed. For finding a wrong case's cause.
+/// What it prints is a game's text: it is for the terminal, never for a file the
+/// repository tracks.
+pub fn explain(root: &Path, id: &str, room: u16, direction: u8) -> (Vec<String>, i32) {
+    let (stories, ledger) = match load(root) {
+        Ok(loaded) => loaded,
+        Err(why) => return (vec![why], 1),
+    };
+    let Some(story) = stories.iter().find(|s| s.id == id) else {
+        return (vec![format!("{id} is not in the manifest")], 2);
+    };
+    let Some(bytes) = present(root, story) else {
+        return (vec![format!("{id} skipped")], 0);
+    };
+    let script = story
+        .walkthrough
+        .as_ref()
+        .and_then(|path| std::fs::read_to_string(root.join(path)).ok());
+    let (_, _, shown) = crate::walk::run_story_watching(
+        story,
+        bytes,
+        script.as_deref(),
+        &ledger,
+        Some((room, direction)),
+    );
+    let mut lines = Vec::new();
+    for trial in shown {
+        let case = Case {
+            room,
+            direction,
+            reported: trial.reported,
+            outcome: trial.outcome,
+        };
+        lines.push(format!(
+            "{}: > {}    [{}]",
+            trial.origin,
+            trial.word,
+            case.text()
+        ));
+        for line in trial.text.trim().lines() {
+            lines.push(format!("    {line}"));
+        }
+    }
+    if lines.is_empty() {
+        lines.push(format!(
+            "no trial of {id} started in room {room} in direction {direction}"
+        ));
+    }
+    (lines, 0)
+}

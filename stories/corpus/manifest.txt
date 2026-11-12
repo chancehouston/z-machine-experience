@@ -11,3 +11,27 @@ tier: committed
 path: stories/zork1/zork1.z3
 seed: 11
 walkthrough: stories/zork1/fidelity/walkthrough.txt
+
+id: advent-z5
+sha256: 9df430b9454ebee51de43d10af6c5616ad56b8f4f59389130c132449d99e9b05
+size: 152064
+version: 5
+family: inform
+source: https://ifarchive.org/if-archive/infocom/compilers/inform6/source/inform-6.44-r7.tar.gz std/demos/advent.inf
+standing: a test fixture only, not cleared for bundling; see stories/advent/SOURCE.md
+tier: committed
+path: stories/advent/advent.z5
+seed: 1
+walkthrough: stories/advent/fidelity/walkthrough.txt
+
+id: advent-z8
+sha256: 9dc8e334af1e4487707a2bd351d8121417d5864ac04ae9e883503527917d6c4e
+size: 156160
+version: 8
+family: inform
+source: https://ifarchive.org/if-archive/infocom/compilers/inform6/source/inform-6.44-r7.tar.gz std/demos/advent.inf
+standing: a test fixture only, not cleared for bundling; see stories/advent/SOURCE.md
+tier: committed
+path: stories/advent/advent.z8
+seed: 1
+walkthrough: stories/advent/fidelity/walkthrough.txt

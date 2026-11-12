@@ -1,7 +1,7 @@
 //! Bringing a game to places: the driver, a walkthrough, and the crawl
 //! (specs/005-corpus-testing/research.md R3, R5, R6).
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
 use zmachine_core::{Event, Key, LoadError, LoadOptions, Machine, Settings};
 use zmachine_introspect::{Family, Introspector};
@@ -9,8 +9,8 @@ use zmachine_introspect::{Family, Introspector};
 use crate::directions::{Direction, directions};
 use crate::ledger::Ledger;
 use crate::manifest::Story;
-use crate::report::{Case, Outcomes, Report};
-use crate::trial::{LIMIT, Outcome, trial};
+use crate::report::{Case, Outcomes, Reached, Report};
+use crate::trial::{LIMIT, Outcome, room, trial};
 use crate::verdict::{Reported, Verdict, judge, reported};
 
 /// Loads a story as the project's reference transcripts were made: a fixed seed,
@@ -182,6 +182,21 @@ struct Tally {
     visited: BTreeSet<u16>,
     /// Rooms a fixed exit, reported at a place, leads to.
     named: BTreeSet<u16>,
+    /// A room and direction whose trials are to be shown, and what they showed.
+    watch: Option<(u16, u8)>,
+    shown: Vec<Shown>,
+}
+
+/// One trial as a person would have seen it: for `corpus explain`.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Shown {
+    /// `line N` of the walkthrough, or `crawl`.
+    pub origin: String,
+    pub word: String,
+    pub reported: Reported,
+    pub outcome: Outcome,
+    /// What the game printed in reply.
+    pub text: String,
 }
 
 /// The story's own tools, made once.
@@ -191,9 +206,18 @@ struct Tools {
 }
 
 impl Tally {
-    /// Runs a trial of every direction at a place. Returns the copies that
-    /// moved, each with the room it reached, in the order tried.
-    fn place(&mut self, tools: &Tools, machine: &Machine, address: u32) -> Vec<(u16, Machine)> {
+    /// Runs a trial of every direction at a place, `most` trials at the most.
+    /// Returns the copies that moved, each with the room it reached, in the
+    /// order tried.
+    fn place(
+        &mut self,
+        tools: &Tools,
+        machine: &Machine,
+        address: u32,
+        most: usize,
+        origin: &str,
+    ) -> Vec<(u16, Machine)> {
+        let stop_at = self.trials.saturating_add(most);
         let view = machine.view();
         let here = tools
             .introspector
@@ -207,6 +231,9 @@ impl Tally {
         }
         let mut moved = Vec::new();
         for direction in &tools.directions {
+            if self.trials == stop_at {
+                break;
+            }
             let Some(word) = &direction.word else {
                 self.wordless += 1;
                 continue;
@@ -223,6 +250,20 @@ impl Tally {
                 reported: said,
                 outcome,
             };
+            if self.watch == Some((case.room, case.direction)) {
+                let mut copy = machine.clone();
+                let text = match copy.provide_line(word).and_then(|()| copy.run(LIMIT)) {
+                    Ok(_) => copy.take_output(),
+                    Err(_) => String::new(),
+                };
+                self.shown.push(Shown {
+                    origin: origin.to_string(),
+                    word: word.clone(),
+                    reported: said,
+                    outcome,
+                    text,
+                });
+            }
             *self.cases.entry(case).or_default() += 1;
             if let Outcome::Moved(room) = outcome {
                 moved.push((room, copy));
@@ -233,8 +274,43 @@ impl Tally {
 }
 
 /// Runs one story: trials at every command prompt of its walkthrough, if it has
-/// one. `bytes` is the story file and `script` its walkthrough.
+/// one, and then the crawl outward from the places reached (research R5).
+/// `bytes` is the story file and `script` its walkthrough.
 pub fn run_story(story: &Story, bytes: Vec<u8>, script: Option<&str>, ledger: &Ledger) -> Report {
+    run_story_traced(story, bytes, script, ledger).0
+}
+
+fn tools(machine: &Machine) -> Tools {
+    let view = machine.view();
+    let introspector = Introspector::new(&view);
+    let directions = directions(&introspector, &view);
+    Tools {
+        introspector,
+        directions,
+    }
+}
+
+/// As [`run_story`], and also the rooms of the crawl's places in the order they
+/// were taken.
+pub fn run_story_traced(
+    story: &Story,
+    bytes: Vec<u8>,
+    script: Option<&str>,
+    ledger: &Ledger,
+) -> (Report, Vec<u16>) {
+    let (report, order, _) = run_story_watching(story, bytes, script, ledger, None);
+    (report, order)
+}
+
+/// As [`run_story_traced`], and also every trial from `watch`'s room in its
+/// direction, with what the game printed.
+pub fn run_story_watching(
+    story: &Story,
+    bytes: Vec<u8>,
+    script: Option<&str>,
+    ledger: &Ledger,
+    watch: Option<(u16, u8)>,
+) -> (Report, Vec<u16>, Vec<Shown>) {
     let mut report = Report {
         id: story.id.clone(),
         sha256: story.sha256.clone(),
@@ -245,25 +321,99 @@ pub fn run_story(story: &Story, bytes: Vec<u8>, script: Option<&str>, ledger: &L
         budget_trials: story.trials.unwrap_or(TRIALS),
         ..Report::default()
     };
-    let mut tally = Tally::default();
-    let mut tools: Option<Tools> = None;
-    let replay = walkthrough(bytes, script.unwrap_or(""), story.seed, |driver, _| {
-        let tools = tools.get_or_insert_with(|| {
-            let view = driver.machine.view();
-            let introspector = Introspector::new(&view);
-            let directions = directions(&introspector, &view);
-            Tools {
-                introspector,
-                directions,
+    let mut tally = Tally {
+        watch,
+        ..Tally::default()
+    };
+    let mut made: Option<Tools> = None;
+    // Places waiting for the crawl: each a machine at a command prompt, in a
+    // room no place has been in.
+    let mut queue: VecDeque<(u16, Machine)> = VecDeque::new();
+    let mut address = None;
+
+    match script {
+        Some(script) => {
+            // Rooms a trial reached before the walkthrough did, in the order met.
+            let mut beside: Vec<(u16, Machine)> = Vec::new();
+            let replay = walkthrough(bytes, script, story.seed, |driver, line| {
+                let tools = made.get_or_insert_with(|| tools(&driver.machine));
+                let Some(at) = driver.command_address else {
+                    return;
+                };
+                address = Some(at);
+                let origin =
+                    line.map_or("after the last line".to_string(), |n| format!("line {n}"));
+                for (room, copy) in tally.place(tools, &driver.machine, at, usize::MAX, &origin) {
+                    if !beside.iter().any(|(seen, _)| *seen == room) {
+                        beside.push((room, copy));
+                    }
+                }
+            });
+            report.walkthrough = replay.command_prompts;
+            for (room, copy) in beside {
+                if tally.visited.insert(room) {
+                    queue.push_back((room, copy));
+                }
             }
-        });
-        if let Some(address) = driver.command_address {
-            tally.place(tools, &driver.machine, address);
         }
-    });
-    report.walkthrough = replay.command_prompts;
-    report.places = report.walkthrough + report.crawl;
-    if let Some(tools) = &tools {
+        None => {
+            // The opening lines answer what the game asks before its first
+            // command prompt, which is where it waits after them (research R6).
+            if let Ok(mut driver) = Driver::new(bytes, story.seed) {
+                let mut waiting = true;
+                for line in &story.opening {
+                    waiting = driver.stop() != Wants::Nothing;
+                    driver.command_address = None;
+                    driver.answer(line);
+                }
+                if waiting && driver.stop() == Wants::Command {
+                    made = Some(tools(&driver.machine));
+                    address = driver.command_address;
+                    if let (Some(tools), Some(_)) = (&made, address) {
+                        // A place whose room is unknown is still a place.
+                        let here = room(&driver.machine, &tools.introspector).unwrap_or(0);
+                        tally.visited.insert(here);
+                        queue.push_back((here, driver.machine));
+                    }
+                }
+            }
+        }
+    }
+
+    let mut order = Vec::new();
+    if let (Some(tools), Some(address)) = (&made, address) {
+        while !queue.is_empty() {
+            if report.crawl == report.budget_rooms {
+                report.reached = Reached::Rooms;
+                break;
+            }
+            let left = report.budget_trials.saturating_sub(tally.trials);
+            if left == 0 {
+                report.reached = Reached::Trials;
+                break;
+            }
+            let Some((here, machine)) = queue.pop_front() else {
+                break;
+            };
+            report.crawl += 1;
+            order.push(here);
+            let before = tally.trials + tally.wordless;
+            let moved = tally.place(tools, &machine, address, left, "crawl");
+            if tally.trials + tally.wordless - before < tools.directions.len() {
+                // The trials ran out part of the way through this place.
+                report.reached = Reached::Trials;
+                break;
+            }
+            for (room, copy) in moved {
+                if tally.visited.insert(room) {
+                    queue.push_back((room, copy));
+                }
+            }
+        }
+        // A room put on the queue and never taken was not visited.
+        for (room, _) in &queue {
+            tally.visited.remove(room);
+        }
         report.family = match tools.introspector.family() {
             Family::Zil => "zil",
             Family::Inform6 => "inform",
@@ -271,7 +421,9 @@ pub fn run_story(story: &Story, bytes: Vec<u8>, script: Option<&str>, ledger: &L
         }
         .to_string();
     }
-    tally.into_report(report, ledger)
+    report.places = report.walkthrough + report.crawl;
+    let shown = std::mem::take(&mut tally.shown);
+    (tally.into_report(report, ledger), order, shown)
 }
 
 impl Tally {

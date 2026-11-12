@@ -13,6 +13,7 @@ Built from `crates/zmachine-corpus`. Run from the repository's root.
 corpus check
 corpus run [ID...]
 corpus write [ID...]
+corpus explain ID ROOM DIRECTION
 corpus --help
 ```
 
@@ -22,14 +23,19 @@ corpus --help
 | `run` | Runs each named story, or every present story, and compares its report with the one kept. Prints one line for each story: `ok`, `skipped`, `differs`, or `wrong` with each unexplained case. Then checks the ledger for entries that matched nothing, and the summary | 0 if every present story is `ok` and the ledger and summary hold; 1 otherwise |
 | `write` | Runs as `run` does, and writes each present story's report and the summary in place of those kept | 0 unless a story could not be run |
 
+- `explain` runs the story as `run` does and prints every trial that started in that
+  room in that direction: where it was (`line N` of the walkthrough, or `crawl`), the
+  word sent, the case, and **what the game printed in reply**. It is how a wrong case's
+  cause is found. It is the one command that prints a game's text; its output is for the
+  terminal and is never written to a file the repository tracks.
 - An `ID` that is not in the manifest is an error: exit status 2, nothing run.
 - `write` never writes a report for an absent story and never removes one. With some
   stories absent it rewrites only the present stories' lines of the summary.
 - `write` does not touch the ledger. An unexplained wrong case is written into the
   report as `wrong-unexplained`; the next `run` fails on it until a person adds it to
   the ledger with a cause, or its cause is fixed.
-- Output is to standard output; it holds ids, numbers and the keywords of the formats,
-  and nothing a game printed.
+- Output is to standard output. Except for `explain`, it holds ids, numbers and the
+  keywords of the formats, and nothing a game printed.
 
 ## `scripts/fetch-corpus.sh`
 

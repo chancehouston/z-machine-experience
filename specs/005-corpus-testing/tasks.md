@@ -135,15 +135,15 @@ more than one room visited, and running it twice gives the same report
 
 ### Tests for User Story 3
 
-- [ ] T026 [P] [US3] Failing tests in `crates/zmachine-corpus/tests/crawl.rs` (R5; FR-009, FR-010, FR-012; US3 scenarios 1, 3, 5), on a story in memory of six rooms in a known shape with one direction that quits, one that asks a question and one that faults: the crawl visits every room reachable by directions, each once; the places are taken in the order R5 gives (first in, first out; directions ascending), checked against the expected list of rooms; the three branches are counted under their outcomes and nothing beyond them is visited; with a budget of three rooms the crawl stops at three and the report says `reached rooms`; with a budget of ten trials it stops and says `reached trials`; with the default budget it says `reached no`
-- [ ] T027 [P] [US3] Failing test in `tests/crawl.rs` (FR-011; US3 scenario 2; SC-004): two runs of the same story, seed and budget give reports equal as text; so do two runs of a story in memory that calls the random instruction on each move
-- [ ] T028 [P] [US3] Failing test in `tests/crawl.rs` (R5 item 2, second paragraph; US3 scenario 4): on a story in memory with a three-line script that passes a side room without entering it, the side room is visited by the crawl after the walkthrough and its trials are counted; a room the walkthrough itself reaches later is not crawled a second time; `places` equals `walkthrough` plus `crawl`
+- [x] T026 [P] [US3] Failing tests in `crates/zmachine-corpus/tests/crawl.rs` (R5; FR-009, FR-010, FR-012; US3 scenarios 1, 3, 5), on a story in memory of six rooms in a known shape with one direction that quits, one that asks a question and one that faults: the crawl visits every room reachable by directions, each once; the places are taken in the order R5 gives (first in, first out; directions ascending), checked against the expected list of rooms; the three branches are counted under their outcomes and nothing beyond them is visited; with a budget of three rooms the crawl stops at three and the report says `reached rooms`; with a budget of ten trials it stops and says `reached trials`; with the default budget it says `reached no`
+- [x] T027 [P] [US3] Failing test in `tests/crawl.rs` (FR-011; US3 scenario 2; SC-004): two runs of the same story, seed and budget give reports equal as text; so do two runs of a story in memory that calls the random instruction on each move
+- [x] T028 [P] [US3] Failing test in `tests/crawl.rs` (R5 item 2, second paragraph; US3 scenario 4): on a story in memory with a three-line script that passes a side room without entering it, the side room is visited by the crawl after the walkthrough and its trials are counted; a room the walkthrough itself reaches later is not crawled a second time; `places` equals `walkthrough` plus `crawl`
 
 ### Implementation for User Story 3
 
-- [ ] T029 [US3] `crates/zmachine-corpus/src/walk.rs`: the crawl of R5 (a queue of places, each owning its machine; the visited set shared with the walkthrough; the budget from the story or the defaults 400 rooms and 40,000 trials), and a story with no walkthrough started by its `opening` lines (R6; F§ "The manifest", `opening`), the command address taken after them. Passes T026 to T028
-- [ ] T030 [US3] Add Advent to `stories/corpus/manifest.txt` as two entries, `advent-z5` and `advent-z8` (digests and sizes from `stories/advent/SOURCE.md`; seed 1; the walkthrough; `standing` saying it is a test fixture only), `corpus write`, and repeat T024's work for Advent's wrong cases, using `stories/advent/advent.inf` for causes. `corpus write zork1` again now that the crawl runs: its report changes (more places); commit both. `corpus run` passes
-- [ ] T031 [US3] Measure (R12; "Still open" 2; SC-009): time `cargo run -q --release -p zmachine-corpus -- run` and `cargo test -p zmachine-corpus` on this Mac and record both in the notes with each story's places and trials. If the plain test run takes more than two minutes, set `[profile.test.package.zmachine-corpus] opt-level = 2` in the root `Cargo.toml` and measure again. If a story reaches its budget, record it; change the default only with a reason in the notes
+- [x] T029 [US3] `crates/zmachine-corpus/src/walk.rs`: the crawl of R5 (a queue of places, each owning its machine; the visited set shared with the walkthrough; the budget from the story or the defaults 400 rooms and 40,000 trials), and a story with no walkthrough started by its `opening` lines (R6; F§ "The manifest", `opening`), the command address taken after them. Passes T026 to T028
+- [x] T030 [US3] Add Advent to `stories/corpus/manifest.txt` as two entries, `advent-z5` and `advent-z8` (digests and sizes from `stories/advent/SOURCE.md`; seed 1; the walkthrough; `standing` saying it is a test fixture only), `corpus write`, and repeat T024's work for Advent's wrong cases, using `stories/advent/advent.inf` for causes. `corpus write zork1` again now that the crawl runs: its report changes (more places); commit both. `corpus run` passes
+- [x] T031 [US3] Measure (R12; "Still open" 2; SC-009): time `cargo run -q --release -p zmachine-corpus -- run` and `cargo test -p zmachine-corpus` on this Mac and record both in the notes with each story's places and trials. If the plain test run takes more than two minutes, set `[profile.test.package.zmachine-corpus] opt-level = 2` in the root `Cargo.toml` and measure again. If a story reaches its budget, record it; change the default only with a reason in the notes
 
 **Checkpoint**: three committed story files have reports from walkthrough and crawl
 
@@ -340,3 +340,37 @@ the code beneath it was written.
   not for dictionary words, which include ordinary words a cause cannot avoid.
 - **T025**: `git diff --quiet main -- crates/zmachine-introspect/src docs/introspection.md`
   exits 0 at the end of this phase.
+
+### Phase 5
+
+- **T026 to T028**: four of five crawl tests were seen to fail. "The same story, seed and
+  budget give the same report" passed before the crawl existed, the walkthrough alone
+  being the same twice; it tests the crawl only now that there is one.
+- **The walkthrough-only tests of Phase 3** now give their story a budget of no rooms, so
+  that they still test the walkthrough alone.
+- **`corpus explain ID ROOM DIRECTION`** was added, and is in the commands contract: it
+  shows every trial from a room in a direction with what the game printed. Finding causes
+  by temporary test files, as in Phase 4, does not scale to ten games, and for a game
+  whose source cannot be read it is the only way. It is the one command that prints a
+  game's text, and only to the terminal.
+- **T030, with the crawl**:
+
+  | Story | Places | Rooms | Named, not reached | Trials | Fixed: confirmed / wrong | Not an exit: confirmed / wrong | Conditional: let through / all |
+  | --- | --- | --- | --- | --- | --- | --- | --- |
+  | Zork I | 356 (330 + 26) | 109 | 1 | 4,628 | 801 / 35 | 3,591 / 66 | 89 / 113 |
+  | Advent, either build | 228 (171 + 57) | 122 | 1 | 2,736 | 635 / 16 | 2,018 / 22 | 23 / 37 |
+
+  The two builds of Advent give the same figures and the same cases.
+- **New causes, all found by `corpus explain`.** Zork I, 39 cases: in the dark, a walk in
+  any direction kills the player. Advent, 36 cases in each build: the player is moved on
+  at arrival to another room of the same name (the case feature 003's specification
+  section 8.3 describes); a timed event moves the player; an obstacle's routine refuses
+  the walk; a routine keeps the player in place by chance; a room's routine moves the
+  player elsewhere by chance. The ledger has 160 entries. None is a fault in how the
+  tables are read.
+- **T031, time on this Mac**: the three stories run in 3.3 seconds optimised.
+  `cargo test -p zmachine-corpus` takes 46 seconds unoptimised, 35 of them the test that
+  replays the three walkthroughs with trials. Under two minutes, so no profile was
+  changed. No story reached its budget.
+- **T025**: `git diff --quiet main -- crates/zmachine-introspect/src docs/introspection.md`
+  exits 0.
