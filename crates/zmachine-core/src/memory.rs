@@ -30,6 +30,11 @@ impl Memory {
         self.bytes.len()
     }
 
+    /// The whole of memory as it stands.
+    pub fn bytes(&self) -> &[u8] {
+        &self.bytes
+    }
+
     pub fn static_base(&self) -> usize {
         self.static_base
     }

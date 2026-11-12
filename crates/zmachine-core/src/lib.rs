@@ -13,6 +13,7 @@ mod decode;
 mod dictionary;
 mod exec;
 mod header;
+mod inspect;
 mod memory;
 mod objects;
 mod ops_io;
@@ -33,6 +34,7 @@ use exec::{Frame, State};
 use header::Header;
 use memory::{Memory, MemoryError};
 use random::Random;
+pub use inspect::View;
 pub use screen::{Screen, Style, StyledRun};
 
 /// Why a story file was refused at load.
@@ -464,6 +466,15 @@ impl Machine {
     /// was printed in. The two calls drain one buffer; a host uses one or the other.
     pub fn take_styled_output(&mut self) -> Vec<StyledRun> {
         self.output.take_runs()
+    }
+
+    /// A read-only view of memory as it is now and of the story file as loaded.
+    pub fn view(&self) -> View<'_> {
+        View {
+            version: self.header.version,
+            now: self.memory.bytes(),
+            shipped: &self.story,
+        }
     }
 
     /// What a version 5 or 8 game has drawn outside its main text: the canvas, the
