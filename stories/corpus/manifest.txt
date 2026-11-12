@@ -1,0 +1,170 @@
+# The corpus: one entry for each story (specs/005-corpus-testing/contracts/formats.md, "The manifest").
+
+id: zork1
+sha256: 37084966477dff679282de42974b2077156b1bd68fad92a65d4ea94d8eb64d79
+size: 86838
+version: 3
+family: zil
+source: https://github.com/historicalsource/zork1 COMPILED/zork1.z3
+standing: MIT, Copyright (c) 2025 Microsoft; see stories/zork1/SOURCE.md
+tier: committed
+path: stories/zork1/zork1.z3
+seed: 11
+walkthrough: stories/zork1/fidelity/walkthrough.txt
+
+id: advent-z5
+sha256: 9df430b9454ebee51de43d10af6c5616ad56b8f4f59389130c132449d99e9b05
+size: 152064
+version: 5
+family: inform
+source: https://ifarchive.org/if-archive/infocom/compilers/inform6/source/inform-6.44-r7.tar.gz std/demos/advent.inf
+standing: a test fixture only, not cleared for bundling; see stories/advent/SOURCE.md
+tier: committed
+path: stories/advent/advent.z5
+seed: 1
+walkthrough: stories/advent/fidelity/walkthrough.txt
+
+id: advent-z8
+sha256: 9dc8e334af1e4487707a2bd351d8121417d5864ac04ae9e883503527917d6c4e
+size: 156160
+version: 8
+family: inform
+source: https://ifarchive.org/if-archive/infocom/compilers/inform6/source/inform-6.44-r7.tar.gz std/demos/advent.inf
+standing: a test fixture only, not cleared for bundling; see stories/advent/SOURCE.md
+tier: committed
+path: stories/advent/advent.z8
+seed: 1
+walkthrough: stories/advent/fidelity/walkthrough.txt
+
+id: zork2
+sha256: 3ae7d5558943e9721f3e4b273c8a7faec1a03a604e1ae4ee1cde472c21cb24ac
+size: 92524
+version: 3
+family: zil
+source: https://github.com/historicalsource/zork2 COMPILED/zork2.z3
+standing: MIT, Copyright (c) 2025 Microsoft; see stories/zork2/SOURCE.md
+tier: committed
+path: stories/zork2/zork2.z3
+seed: 1
+
+id: zork3
+sha256: b637a242865d059890184164ce8dec28554cc80901dcbf26c740b2d1ed0d4eb8
+size: 87984
+version: 3
+family: zil
+source: https://github.com/historicalsource/zork3 COMPILED/zork3.z3
+standing: MIT, Copyright (c) 2025 Microsoft; see stories/zork3/SOURCE.md
+tier: committed
+path: stories/zork3/zork3.z3
+seed: 1
+
+id: minizork
+sha256: c74f01a232e8df4b05d7ebcba14870143f49b3c9a25f194f7a7d2c69e31ea4a6
+size: 52216
+version: 3
+family: zil
+source: https://ifarchive.org/if-archive/infocom/demos/minizork.z3
+standing: no license attached; personal use only under the archive's terms; never committed
+tier: fetched
+path: stories/local/corpus/minizork.z3
+seed: 1
+
+id: sampler1
+sha256: 7a2e5b7698f42a83e73dab5d9c5fbead294cf7b407f6daa8fe57caa429bd35bf
+size: 126902
+version: 3
+family: zil
+source: https://ifarchive.org/if-archive/infocom/demos/sampler1_R55.z3
+standing: no license attached; personal use only under the archive's terms; never committed
+tier: fetched
+path: stories/local/corpus/sampler1_R55.z3
+seed: 1
+opening: (return)
+opening: p
+
+
+id: advent-zil
+sha256: 03c19b3730f1b46b6e882944a255d1d58e4148e51fcce423dcd96792f476ebfa
+size: 66414
+version: 3
+family: zil
+source: https://ifarchive.org/if-archive/games/zcode/advent.z3
+standing: no license attached; personal use only under the archive's terms; never committed
+tier: fetched
+path: stories/local/corpus/advent.z3
+seed: 1
+opening: n
+
+
+id: curses
+sha256: 330100bf1c1ab8ed64065ceb58145ebb87cb6faef5b331fbc6684be4f14fe7da
+size: 259072
+version: 5
+family: none
+source: https://ifarchive.org/if-archive/games/zcode/curses.z5
+standing: no license attached; personal use only under the archive's terms; never committed
+tier: fetched
+path: stories/local/corpus/curses.z5
+seed: 1
+opening: (space)
+
+
+id: adventureland
+sha256: 45a3840cdba26e3742c0ad3797ffaf7bd2eb284edee6b433e41fc908c283e930
+size: 58368
+version: 5
+family: inform
+source: https://ifarchive.org/if-archive/games/zcode/Adventureland.z5
+standing: no license attached; personal use only under the archive's terms; never committed
+tier: fetched
+path: stories/local/corpus/Adventureland.z5
+seed: 1
+
+id: balances
+sha256: 10e717578f85200c6aadc8149d95e43f7b6c09fb473770d309a0d6afe3b29538
+size: 75264
+version: 5
+family: none
+source: https://ifarchive.org/if-archive/games/zcode/Balances.z5
+standing: no license attached; personal use only under the archive's terms; never committed
+tier: fetched
+path: stories/local/corpus/Balances.z5
+seed: 1
+
+id: nine-oh-five
+sha256: 0f41ff7811668e236060b399ced1cd0481c1bb624a8876fc7e16dc58816f1ecb
+size: 87040
+version: 5
+family: inform
+source: https://ifarchive.org/if-archive/games/zcode/905.z5
+standing: no license attached; personal use only under the archive's terms; never committed
+tier: fetched
+path: stories/local/corpus/905.z5
+seed: 1
+
+id: anchorhead
+sha256: c2f28a4ddd9367c260946926a33c73a4b0cc38b1f327646cc1202182a28a10ff
+size: 520192
+version: 8
+family: inform
+source: https://ifarchive.org/if-archive/games/zcode/anchor.z8
+standing: no license attached; personal use only under the archive's terms; never committed
+tier: fetched
+path: stories/local/corpus/anchor.z8
+seed: 1
+opening: x
+opening: x
+opening: x
+
+
+id: advent-crowther
+sha256: 93be8c77302b7931567995ef1246b3739086d0b3e2e02a2bd751ec83cd0fdc19
+size: 431616
+version: 8
+family: none
+source: https://ifarchive.org/if-archive/games/zcode/Advent_Crowther.z8
+standing: no license attached; personal use only under the archive's terms; never committed
+tier: fetched
+path: stories/local/corpus/Advent_Crowther.z8
+seed: 1
+opening: no

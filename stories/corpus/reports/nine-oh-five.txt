@@ -1,0 +1,25 @@
+story nine-oh-five
+sha256 0f41ff7811668e236060b399ced1cd0481c1bb624a8876fc7e16dc58816f1ecb
+version 5 family inform seed 1
+places 1 walkthrough 0 crawl 1
+rooms visited 1 named-not-reached 0
+budget rooms 400 trials 40000 reached no
+trials 12 wordless 0
+fixed confirmed 0 wrong-known 0 wrong-unexplained 0
+none confirmed 0 wrong-known 0 wrong-unexplained 0 other 0
+conditional 0 moved 0 stayed 0 question 0 ended 0 fault 0
+unknown 0 moved 0 stayed 0 question 0 ended 0 fault 0
+no-verdict 12
+detail
+0 7 unknown lost 1
+0 8 unknown lost 1
+0 9 unknown lost 1
+0 10 unknown lost 1
+0 11 unknown lost 1
+0 12 unknown lost 1
+0 13 unknown lost 1
+0 14 unknown lost 1
+0 15 unknown lost 1
+0 16 unknown lost 1
+0 17 unknown lost 1
+0 18 unknown lost 1

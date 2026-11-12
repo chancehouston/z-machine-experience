@@ -1,0 +1,32 @@
+story sampler1
+sha256 7a2e5b7698f42a83e73dab5d9c5fbead294cf7b407f6daa8fe57caa429bd35bf
+version 3 family zil seed 1
+places 22 walkthrough 0 crawl 22
+rooms visited 22 named-not-reached 0
+budget rooms 400 trials 40000 reached no
+trials 264 wordless 0
+fixed confirmed 49 wrong-known 1 wrong-unexplained 0
+none confirmed 196 wrong-known 0 wrong-unexplained 0 other 10
+conditional 8 moved 2 stayed 6 question 0 ended 0 fault 0
+unknown 0 moved 0 stayed 0 question 0 ended 0 fault 0
+no-verdict 0
+detail
+90 20 none question 1
+90 21 none question 1
+90 22 fixed 90 question 1
+90 24 none question 1
+90 25 none question 1
+90 26 none question 1
+90 27 none question 1
+90 28 none question 1
+90 29 none question 1
+90 30 none question 1
+90 31 none question 1
+92 21 conditional stayed 1
+92 29 conditional stayed 1
+108 31 conditional stayed 1
+112 25 conditional moved 117 1
+116 21 conditional stayed 1
+116 27 conditional stayed 1
+117 29 conditional moved 112 1
+123 31 conditional stayed 1

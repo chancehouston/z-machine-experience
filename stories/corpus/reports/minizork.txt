@@ -1,0 +1,16 @@
+story minizork
+sha256 c74f01a232e8df4b05d7ebcba14870143f49b3c9a25f194f7a7d2c69e31ea4a6
+version 3 family zil seed 1
+places 12 walkthrough 0 crawl 12
+rooms visited 12 named-not-reached 0
+budget rooms 400 trials 40000 reached no
+trials 156 wordless 0
+fixed confirmed 40 wrong-known 0 wrong-unexplained 0
+none confirmed 113 wrong-known 0 wrong-unexplained 0 other 0
+conditional 3 moved 0 stayed 3 question 0 ended 0 fault 0
+unknown 0 moved 0 stayed 0 question 0 ended 0 fault 0
+no-verdict 0
+detail
+28 21 conditional stayed 1
+28 29 conditional stayed 1
+119 22 conditional stayed 1

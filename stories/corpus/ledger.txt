@@ -1,0 +1,1702 @@
+# Known wrong reports, each with its cause (specs/005-corpus-testing/contracts/formats.md, "The ledger").
+#
+# Zork I. Each cause was found by running the trial and reading what the game printed
+# (specs/005-corpus-testing/tasks.md, T024). Rooms and directions are by number.
+
+story: zork1
+room: 15
+direction: 30
+reported: fixed 205
+outcome: question
+cause: The destination reads its own line of input, at another address than the command
+  prompt's. The player has arrived; the instrument sees a question (the walkthrough's
+  line 87 is the same stop).
+
+story: zork1
+room: 37
+direction: 22
+reported: fixed 174
+outcome: stayed
+cause: The player is in a vehicle, and the vehicle's own routine refuses a walk in this
+  direction before the room's table is read.
+
+story: zork1
+room: 40
+direction: 28
+reported: fixed 47
+outcome: stayed
+cause: The player is in a vehicle, and the vehicle's own routine refuses a walk in this
+  direction before the room's table is read.
+
+story: zork1
+room: 40
+direction: 31
+reported: fixed 30
+outcome: stayed
+cause: The player is in a vehicle, and the vehicle's own routine refuses a walk in this
+  direction before the room's table is read.
+
+story: zork1
+room: 45
+direction: 22
+reported: fixed 182
+outcome: stayed
+cause: The player is in a vehicle, and the vehicle's own routine refuses a walk in this
+  direction before the room's table is read.
+
+story: zork1
+room: 53
+direction: 20
+reported: none
+outcome: moved 38
+cause: A timed event ends this turn in the player's death, and the game's routine for death
+  moves the player.
+
+story: zork1
+room: 53
+direction: 21
+reported: none
+outcome: moved 38
+cause: A timed event ends this turn in the player's death, and the game's routine for death
+  moves the player.
+
+story: zork1
+room: 53
+direction: 22
+reported: none
+outcome: moved 38
+cause: A timed event ends this turn in the player's death, and the game's routine for death
+  moves the player.
+
+story: zork1
+room: 53
+direction: 23
+reported: none
+outcome: moved 38
+cause: A timed event ends this turn in the player's death, and the game's routine for death
+  moves the player.
+
+story: zork1
+room: 53
+direction: 24
+reported: none
+outcome: moved 38
+cause: A timed event ends this turn in the player's death, and the game's routine for death
+  moves the player.
+
+story: zork1
+room: 53
+direction: 25
+reported: none
+outcome: moved 38
+cause: A timed event ends this turn in the player's death, and the game's routine for death
+  moves the player.
+
+story: zork1
+room: 53
+direction: 26
+reported: none
+outcome: moved 38
+cause: A timed event ends this turn in the player's death, and the game's routine for death
+  moves the player.
+
+story: zork1
+room: 53
+direction: 27
+reported: none
+outcome: moved 38
+cause: A timed event ends this turn in the player's death, and the game's routine for death
+  moves the player.
+
+story: zork1
+room: 53
+direction: 28
+reported: none
+outcome: moved 38
+cause: A timed event ends this turn in the player's death, and the game's routine for death
+  moves the player.
+
+story: zork1
+room: 53
+direction: 29
+reported: none
+outcome: moved 38
+cause: A timed event ends this turn in the player's death, and the game's routine for death
+  moves the player.
+
+story: zork1
+room: 53
+direction: 31
+reported: none
+outcome: moved 38
+cause: A timed event ends this turn in the player's death, and the game's routine for death
+  moves the player.
+
+story: zork1
+room: 95
+direction: 23
+reported: fixed 86
+outcome: stayed
+cause: The destination admits the player only in a vehicle; the game's routine for entering
+  a room refuses on foot.
+
+story: zork1
+room: 95
+direction: 29
+reported: fixed 86
+outcome: stayed
+cause: The destination admits the player only in a vehicle; the game's routine for entering
+  a room refuses on foot.
+
+story: zork1
+room: 111
+direction: 23
+reported: fixed 178
+outcome: stayed
+cause: The player is in a vehicle, and the vehicle's own routine refuses a walk in this
+  direction before the room's table is read.
+
+story: zork1
+room: 111
+direction: 31
+reported: fixed 178
+outcome: stayed
+cause: The player is in a vehicle, and the vehicle's own routine refuses a walk in this
+  direction before the room's table is read.
+
+story: zork1
+room: 129
+direction: 22
+reported: none
+outcome: moved 176
+cause: The exit depends on a flag that the room's own routine sets afresh when a command
+  begins. The stored value is the one left by the command before, and here it is out
+  of date.
+
+story: zork1
+room: 174
+direction: 19
+reported: none
+outcome: moved 45
+cause: A timed event moves the player's vehicle on at the end of this turn, whatever the
+  command was. The direction itself does nothing.
+
+story: zork1
+room: 174
+direction: 20
+reported: none
+outcome: moved 45
+cause: A timed event moves the player's vehicle on at the end of this turn, whatever the
+  command was. The direction itself does nothing.
+
+story: zork1
+room: 174
+direction: 21
+reported: none
+outcome: moved 45
+cause: A timed event moves the player's vehicle on at the end of this turn, whatever the
+  command was. The direction itself does nothing.
+
+story: zork1
+room: 174
+direction: 22
+reported: fixed 45
+outcome: stayed
+cause: The player is in a vehicle, and the vehicle's own routine refuses a walk in this
+  direction before the room's table is read.
+
+story: zork1
+room: 174
+direction: 23
+reported: none
+outcome: moved 45
+cause: A timed event moves the player's vehicle on at the end of this turn, whatever the
+  command was. The direction itself does nothing.
+
+story: zork1
+room: 174
+direction: 24
+reported: none
+outcome: moved 45
+cause: A timed event moves the player's vehicle on at the end of this turn, whatever the
+  command was. The direction itself does nothing.
+
+story: zork1
+room: 174
+direction: 25
+reported: none
+outcome: moved 45
+cause: A timed event moves the player's vehicle on at the end of this turn, whatever the
+  command was. The direction itself does nothing.
+
+story: zork1
+room: 174
+direction: 26
+reported: none
+outcome: moved 45
+cause: A timed event moves the player's vehicle on at the end of this turn, whatever the
+  command was. The direction itself does nothing.
+
+story: zork1
+room: 174
+direction: 27
+reported: none
+outcome: moved 45
+cause: A timed event moves the player's vehicle on at the end of this turn, whatever the
+  command was. The direction itself does nothing.
+
+story: zork1
+room: 174
+direction: 28
+reported: none
+outcome: moved 45
+cause: A timed event moves the player's vehicle on at the end of this turn, whatever the
+  command was. The direction itself does nothing.
+
+story: zork1
+room: 174
+direction: 29
+reported: none
+outcome: moved 45
+cause: A timed event moves the player's vehicle on at the end of this turn, whatever the
+  command was. The direction itself does nothing.
+
+story: zork1
+room: 174
+direction: 30
+reported: none
+outcome: moved 45
+cause: A timed event moves the player's vehicle on at the end of this turn, whatever the
+  command was. The direction itself does nothing.
+
+story: zork1
+room: 174
+direction: 31
+reported: none
+outcome: moved 45
+cause: A timed event moves the player's vehicle on at the end of this turn, whatever the
+  command was. The direction itself does nothing.
+
+story: zork1
+room: 182
+direction: 19
+reported: none
+outcome: moved 53
+cause: A timed event moves the player's vehicle on at the end of this turn, whatever the
+  command was. The direction itself does nothing.
+
+story: zork1
+room: 182
+direction: 20
+reported: none
+outcome: moved 53
+cause: A timed event moves the player's vehicle on at the end of this turn, whatever the
+  command was. The direction itself does nothing.
+
+story: zork1
+room: 182
+direction: 21
+reported: none
+outcome: moved 53
+cause: A timed event moves the player's vehicle on at the end of this turn, whatever the
+  command was. The direction itself does nothing.
+
+story: zork1
+room: 182
+direction: 22
+reported: fixed 53
+outcome: stayed
+cause: The player is in a vehicle, and the vehicle's own routine refuses a walk in this
+  direction before the room's table is read.
+
+story: zork1
+room: 182
+direction: 23
+reported: none
+outcome: moved 53
+cause: A timed event moves the player's vehicle on at the end of this turn, whatever the
+  command was. The direction itself does nothing.
+
+story: zork1
+room: 182
+direction: 24
+reported: none
+outcome: moved 53
+cause: A timed event moves the player's vehicle on at the end of this turn, whatever the
+  command was. The direction itself does nothing.
+
+story: zork1
+room: 182
+direction: 25
+reported: none
+outcome: moved 53
+cause: A timed event moves the player's vehicle on at the end of this turn, whatever the
+  command was. The direction itself does nothing.
+
+story: zork1
+room: 182
+direction: 26
+reported: none
+outcome: moved 53
+cause: A timed event moves the player's vehicle on at the end of this turn, whatever the
+  command was. The direction itself does nothing.
+
+story: zork1
+room: 182
+direction: 27
+reported: none
+outcome: moved 53
+cause: A timed event moves the player's vehicle on at the end of this turn, whatever the
+  command was. The direction itself does nothing.
+
+story: zork1
+room: 182
+direction: 28
+reported: none
+outcome: moved 53
+cause: A timed event moves the player's vehicle on at the end of this turn, whatever the
+  command was. The direction itself does nothing.
+
+story: zork1
+room: 182
+direction: 31
+reported: none
+outcome: moved 53
+cause: A timed event moves the player's vehicle on at the end of this turn, whatever the
+  command was. The direction itself does nothing.
+
+story: zork1
+room: 249
+direction: 20
+reported: fixed 8
+outcome: stayed
+cause: The exit depends on a flag that the room's own routine sets afresh when a command
+  begins. The stored value is the one left by the command before, and here it is out
+  of date.
+
+story: zork1
+room: 249
+direction: 20
+reported: none
+outcome: moved 8
+cause: The exit depends on a flag that the room's own routine sets afresh when a command
+  begins. The stored value is the one left by the command before, and here it is out
+  of date.
+
+story: zork1
+room: 249
+direction: 30
+reported: fixed 8
+outcome: stayed
+cause: The exit depends on a flag that the room's own routine sets afresh when a command
+  begins. The stored value is the one left by the command before, and here it is out
+  of date.
+
+story: zork1
+room: 249
+direction: 30
+reported: none
+outcome: moved 8
+cause: The exit depends on a flag that the room's own routine sets afresh when a command
+  begins. The stored value is the one left by the command before, and here it is out
+  of date.
+# Zork I, places the crawl reached (T030).
+
+story: zork1
+room: 51
+direction: 19
+reported: none
+outcome: moved 38
+cause: The player is in the dark, where the game kills the player on a walk in any direction,
+  exit or not; the game's routine for death then moves the player.
+
+story: zork1
+room: 51
+direction: 20
+reported: none
+outcome: moved 38
+cause: The player is in the dark, where the game kills the player on a walk in any direction,
+  exit or not; the game's routine for death then moves the player.
+
+story: zork1
+room: 51
+direction: 21
+reported: none
+outcome: moved 38
+cause: The player is in the dark, where the game kills the player on a walk in any direction,
+  exit or not; the game's routine for death then moves the player.
+
+story: zork1
+room: 51
+direction: 22
+reported: none
+outcome: moved 38
+cause: The player is in the dark, where the game kills the player on a walk in any direction,
+  exit or not; the game's routine for death then moves the player.
+
+story: zork1
+room: 51
+direction: 23
+reported: none
+outcome: moved 38
+cause: The player is in the dark, where the game kills the player on a walk in any direction,
+  exit or not; the game's routine for death then moves the player.
+
+story: zork1
+room: 51
+direction: 24
+reported: none
+outcome: moved 38
+cause: The player is in the dark, where the game kills the player on a walk in any direction,
+  exit or not; the game's routine for death then moves the player.
+
+story: zork1
+room: 51
+direction: 25
+reported: none
+outcome: moved 38
+cause: The player is in the dark, where the game kills the player on a walk in any direction,
+  exit or not; the game's routine for death then moves the player.
+
+story: zork1
+room: 51
+direction: 26
+reported: fixed 51
+outcome: moved 38
+cause: The player is in the dark, where the game kills the player on a walk in any direction,
+  exit or not; the game's routine for death then moves the player.
+
+story: zork1
+room: 51
+direction: 27
+reported: fixed 158
+outcome: moved 38
+cause: The player is in the dark, where the game kills the player on a walk in any direction,
+  exit or not; the game's routine for death then moves the player.
+
+story: zork1
+room: 51
+direction: 28
+reported: fixed 158
+outcome: moved 38
+cause: The player is in the dark, where the game kills the player on a walk in any direction,
+  exit or not; the game's routine for death then moves the player.
+
+story: zork1
+room: 51
+direction: 29
+reported: fixed 170
+outcome: moved 38
+cause: The player is in the dark, where the game kills the player on a walk in any direction,
+  exit or not; the game's routine for death then moves the player.
+
+story: zork1
+room: 51
+direction: 30
+reported: none
+outcome: moved 38
+cause: The player is in the dark, where the game kills the player on a walk in any direction,
+  exit or not; the game's routine for death then moves the player.
+
+story: zork1
+room: 51
+direction: 31
+reported: none
+outcome: moved 38
+cause: The player is in the dark, where the game kills the player on a walk in any direction,
+  exit or not; the game's routine for death then moves the player.
+
+story: zork1
+room: 153
+direction: 19
+reported: none
+outcome: moved 38
+cause: The player is in the dark, where the game kills the player on a walk in any direction,
+  exit or not; the game's routine for death then moves the player.
+
+story: zork1
+room: 153
+direction: 20
+reported: none
+outcome: moved 38
+cause: The player is in the dark, where the game kills the player on a walk in any direction,
+  exit or not; the game's routine for death then moves the player.
+
+story: zork1
+room: 153
+direction: 21
+reported: none
+outcome: moved 38
+cause: The player is in the dark, where the game kills the player on a walk in any direction,
+  exit or not; the game's routine for death then moves the player.
+
+story: zork1
+room: 153
+direction: 22
+reported: none
+outcome: moved 38
+cause: The player is in the dark, where the game kills the player on a walk in any direction,
+  exit or not; the game's routine for death then moves the player.
+
+story: zork1
+room: 153
+direction: 23
+reported: none
+outcome: moved 38
+cause: The player is in the dark, where the game kills the player on a walk in any direction,
+  exit or not; the game's routine for death then moves the player.
+
+story: zork1
+room: 153
+direction: 24
+reported: none
+outcome: moved 38
+cause: The player is in the dark, where the game kills the player on a walk in any direction,
+  exit or not; the game's routine for death then moves the player.
+
+story: zork1
+room: 153
+direction: 25
+reported: none
+outcome: moved 38
+cause: The player is in the dark, where the game kills the player on a walk in any direction,
+  exit or not; the game's routine for death then moves the player.
+
+story: zork1
+room: 153
+direction: 26
+reported: none
+outcome: moved 38
+cause: The player is in the dark, where the game kills the player on a walk in any direction,
+  exit or not; the game's routine for death then moves the player.
+
+story: zork1
+room: 153
+direction: 27
+reported: none
+outcome: moved 38
+cause: The player is in the dark, where the game kills the player on a walk in any direction,
+  exit or not; the game's routine for death then moves the player.
+
+story: zork1
+room: 153
+direction: 28
+reported: fixed 42
+outcome: moved 38
+cause: The player is in the dark, where the game kills the player on a walk in any direction,
+  exit or not; the game's routine for death then moves the player.
+
+story: zork1
+room: 153
+direction: 29
+reported: none
+outcome: moved 38
+cause: The player is in the dark, where the game kills the player on a walk in any direction,
+  exit or not; the game's routine for death then moves the player.
+
+story: zork1
+room: 153
+direction: 30
+reported: none
+outcome: moved 38
+cause: The player is in the dark, where the game kills the player on a walk in any direction,
+  exit or not; the game's routine for death then moves the player.
+
+story: zork1
+room: 153
+direction: 31
+reported: none
+outcome: moved 38
+cause: The player is in the dark, where the game kills the player on a walk in any direction,
+  exit or not; the game's routine for death then moves the player.
+
+story: zork1
+room: 161
+direction: 19
+reported: none
+outcome: moved 38
+cause: The player is in the dark, where the game kills the player on a walk in any direction,
+  exit or not; the game's routine for death then moves the player.
+
+story: zork1
+room: 161
+direction: 20
+reported: none
+outcome: moved 38
+cause: The player is in the dark, where the game kills the player on a walk in any direction,
+  exit or not; the game's routine for death then moves the player.
+
+story: zork1
+room: 161
+direction: 21
+reported: none
+outcome: moved 38
+cause: The player is in the dark, where the game kills the player on a walk in any direction,
+  exit or not; the game's routine for death then moves the player.
+
+story: zork1
+room: 161
+direction: 22
+reported: fixed 42
+outcome: moved 38
+cause: The player is in the dark, where the game kills the player on a walk in any direction,
+  exit or not; the game's routine for death then moves the player.
+
+story: zork1
+room: 161
+direction: 23
+reported: none
+outcome: moved 38
+cause: The player is in the dark, where the game kills the player on a walk in any direction,
+  exit or not; the game's routine for death then moves the player.
+
+story: zork1
+room: 161
+direction: 24
+reported: none
+outcome: moved 38
+cause: The player is in the dark, where the game kills the player on a walk in any direction,
+  exit or not; the game's routine for death then moves the player.
+
+story: zork1
+room: 161
+direction: 25
+reported: none
+outcome: moved 38
+cause: The player is in the dark, where the game kills the player on a walk in any direction,
+  exit or not; the game's routine for death then moves the player.
+
+story: zork1
+room: 161
+direction: 26
+reported: none
+outcome: moved 38
+cause: The player is in the dark, where the game kills the player on a walk in any direction,
+  exit or not; the game's routine for death then moves the player.
+
+story: zork1
+room: 161
+direction: 27
+reported: none
+outcome: moved 38
+cause: The player is in the dark, where the game kills the player on a walk in any direction,
+  exit or not; the game's routine for death then moves the player.
+
+story: zork1
+room: 161
+direction: 28
+reported: fixed 34
+outcome: moved 38
+cause: The player is in the dark, where the game kills the player on a walk in any direction,
+  exit or not; the game's routine for death then moves the player.
+
+story: zork1
+room: 161
+direction: 29
+reported: fixed 152
+outcome: moved 38
+cause: The player is in the dark, where the game kills the player on a walk in any direction,
+  exit or not; the game's routine for death then moves the player.
+
+story: zork1
+room: 161
+direction: 30
+reported: fixed 81
+outcome: moved 38
+cause: The player is in the dark, where the game kills the player on a walk in any direction,
+  exit or not; the game's routine for death then moves the player.
+
+story: zork1
+room: 161
+direction: 31
+reported: none
+outcome: moved 38
+cause: The player is in the dark, where the game kills the player on a walk in any direction,
+  exit or not; the game's routine for death then moves the player.
+
+# Advent, version 5. Each cause was found by `corpus explain` (T030).
+
+story: advent-z5
+room: 30
+direction: 7
+reported: fixed 47
+outcome: moved 48
+cause: The game's own code moves the player on at arrival, to another room of the same
+  printed name (introspection specification, section 8.3).
+
+story: advent-z5
+room: 38
+direction: 7
+reported: none
+outcome: moved 270
+cause: A timed event moves the player at the end of this turn, whatever the command was.
+  The direction itself does what the table says or nothing.
+
+story: advent-z5
+room: 38
+direction: 8
+reported: none
+outcome: moved 270
+cause: A timed event moves the player at the end of this turn, whatever the command was.
+  The direction itself does what the table says or nothing.
+
+story: advent-z5
+room: 38
+direction: 9
+reported: none
+outcome: moved 270
+cause: A timed event moves the player at the end of this turn, whatever the command was.
+  The direction itself does what the table says or nothing.
+
+story: advent-z5
+room: 38
+direction: 10
+reported: fixed 30
+outcome: moved 270
+cause: A timed event moves the player at the end of this turn, whatever the command was.
+  The direction itself does what the table says or nothing.
+
+story: advent-z5
+room: 38
+direction: 11
+reported: none
+outcome: moved 270
+cause: A timed event moves the player at the end of this turn, whatever the command was.
+  The direction itself does what the table says or nothing.
+
+story: advent-z5
+room: 38
+direction: 12
+reported: none
+outcome: moved 270
+cause: A timed event moves the player at the end of this turn, whatever the command was.
+  The direction itself does what the table says or nothing.
+
+story: advent-z5
+room: 38
+direction: 13
+reported: none
+outcome: moved 270
+cause: A timed event moves the player at the end of this turn, whatever the command was.
+  The direction itself does what the table says or nothing.
+
+story: advent-z5
+room: 38
+direction: 14
+reported: none
+outcome: moved 270
+cause: A timed event moves the player at the end of this turn, whatever the command was.
+  The direction itself does what the table says or nothing.
+
+story: advent-z5
+room: 38
+direction: 15
+reported: none
+outcome: moved 270
+cause: A timed event moves the player at the end of this turn, whatever the command was.
+  The direction itself does what the table says or nothing.
+
+story: advent-z5
+room: 38
+direction: 16
+reported: none
+outcome: moved 270
+cause: A timed event moves the player at the end of this turn, whatever the command was.
+  The direction itself does what the table says or nothing.
+
+story: advent-z5
+room: 38
+direction: 17
+reported: none
+outcome: moved 270
+cause: A timed event moves the player at the end of this turn, whatever the command was.
+  The direction itself does what the table says or nothing.
+
+story: advent-z5
+room: 38
+direction: 18
+reported: fixed 30
+outcome: moved 270
+cause: A timed event moves the player at the end of this turn, whatever the command was.
+  The direction itself does what the table says or nothing.
+
+story: advent-z5
+room: 53
+direction: 8
+reported: fixed 47
+outcome: moved 48
+cause: The game's own code moves the player on at arrival, to another room of the same
+  printed name (introspection specification, section 8.3).
+
+story: advent-z5
+room: 53
+direction: 9
+reported: fixed 47
+outcome: moved 48
+cause: The game's own code moves the player on at arrival, to another room of the same
+  printed name (introspection specification, section 8.3).
+
+story: advent-z5
+room: 53
+direction: 10
+reported: fixed 47
+outcome: moved 48
+cause: The game's own code moves the player on at arrival, to another room of the same
+  printed name (introspection specification, section 8.3).
+
+story: advent-z5
+room: 91
+direction: 7
+reported: fixed 93
+outcome: stayed
+cause: An obstacle in the room: a routine that runs before the walk refuses these
+  directions while the obstacle is there.
+
+story: advent-z5
+room: 91
+direction: 8
+reported: fixed 95
+outcome: stayed
+cause: An obstacle in the room: a routine that runs before the walk refuses these
+  directions while the obstacle is there.
+
+story: advent-z5
+room: 91
+direction: 10
+reported: fixed 97
+outcome: stayed
+cause: An obstacle in the room: a routine that runs before the walk refuses these
+  directions while the obstacle is there.
+
+story: advent-z5
+room: 136
+direction: 7
+reported: fixed 154
+outcome: stayed
+cause: A routine that runs before the walk keeps the player here, by chance. At another
+  moment the same exit leads where the table says.
+
+story: advent-z5
+room: 136
+direction: 8
+reported: fixed 149
+outcome: stayed
+cause: A routine that runs before the walk keeps the player here, by chance. At another
+  moment the same exit leads where the table says.
+
+story: advent-z5
+room: 136
+direction: 15
+reported: fixed 113
+outcome: stayed
+cause: A routine that runs before the walk keeps the player here, by chance. At another
+  moment the same exit leads where the table says.
+
+story: advent-z5
+room: 136
+direction: 16
+reported: fixed 213
+outcome: stayed
+cause: A routine that runs before the walk keeps the player here, by chance. At another
+  moment the same exit leads where the table says.
+
+story: advent-z5
+room: 137
+direction: 8
+reported: fixed 160
+outcome: stayed
+cause: A routine that runs before the walk keeps the player here, by chance. At another
+  moment the same exit leads where the table says.
+
+story: advent-z5
+room: 137
+direction: 12
+reported: fixed 195
+outcome: stayed
+cause: A routine that runs before the walk keeps the player here, by chance. At another
+  moment the same exit leads where the table says.
+
+story: advent-z5
+room: 216
+direction: 7
+reported: none
+outcome: moved 213
+cause: The room's own routine, by chance, moves the player to another room on a walk in
+  any direction, exit or not.
+
+story: advent-z5
+room: 216
+direction: 8
+reported: none
+outcome: moved 213
+cause: The room's own routine, by chance, moves the player to another room on a walk in
+  any direction, exit or not.
+
+story: advent-z5
+room: 216
+direction: 9
+reported: none
+outcome: moved 213
+cause: The room's own routine, by chance, moves the player to another room on a walk in
+  any direction, exit or not.
+
+story: advent-z5
+room: 216
+direction: 10
+reported: none
+outcome: moved 213
+cause: The room's own routine, by chance, moves the player to another room on a walk in
+  any direction, exit or not.
+
+story: advent-z5
+room: 216
+direction: 11
+reported: none
+outcome: moved 213
+cause: The room's own routine, by chance, moves the player to another room on a walk in
+  any direction, exit or not.
+
+story: advent-z5
+room: 216
+direction: 12
+reported: none
+outcome: moved 213
+cause: The room's own routine, by chance, moves the player to another room on a walk in
+  any direction, exit or not.
+
+story: advent-z5
+room: 216
+direction: 13
+reported: none
+outcome: moved 213
+cause: The room's own routine, by chance, moves the player to another room on a walk in
+  any direction, exit or not.
+
+story: advent-z5
+room: 216
+direction: 14
+reported: none
+outcome: moved 213
+cause: The room's own routine, by chance, moves the player to another room on a walk in
+  any direction, exit or not.
+
+story: advent-z5
+room: 216
+direction: 15
+reported: none
+outcome: moved 213
+cause: The room's own routine, by chance, moves the player to another room on a walk in
+  any direction, exit or not.
+
+story: advent-z5
+room: 216
+direction: 16
+reported: none
+outcome: moved 213
+cause: The room's own routine, by chance, moves the player to another room on a walk in
+  any direction, exit or not.
+
+story: advent-z5
+room: 216
+direction: 17
+reported: none
+outcome: moved 213
+cause: The room's own routine, by chance, moves the player to another room on a walk in
+  any direction, exit or not.
+
+# Advent, version 8: the same game, and the same cases.
+
+story: advent-z8
+room: 30
+direction: 7
+reported: fixed 47
+outcome: moved 48
+cause: The game's own code moves the player on at arrival, to another room of the same
+  printed name (introspection specification, section 8.3).
+
+story: advent-z8
+room: 38
+direction: 7
+reported: none
+outcome: moved 270
+cause: A timed event moves the player at the end of this turn, whatever the command was.
+  The direction itself does what the table says or nothing.
+
+story: advent-z8
+room: 38
+direction: 8
+reported: none
+outcome: moved 270
+cause: A timed event moves the player at the end of this turn, whatever the command was.
+  The direction itself does what the table says or nothing.
+
+story: advent-z8
+room: 38
+direction: 9
+reported: none
+outcome: moved 270
+cause: A timed event moves the player at the end of this turn, whatever the command was.
+  The direction itself does what the table says or nothing.
+
+story: advent-z8
+room: 38
+direction: 10
+reported: fixed 30
+outcome: moved 270
+cause: A timed event moves the player at the end of this turn, whatever the command was.
+  The direction itself does what the table says or nothing.
+
+story: advent-z8
+room: 38
+direction: 11
+reported: none
+outcome: moved 270
+cause: A timed event moves the player at the end of this turn, whatever the command was.
+  The direction itself does what the table says or nothing.
+
+story: advent-z8
+room: 38
+direction: 12
+reported: none
+outcome: moved 270
+cause: A timed event moves the player at the end of this turn, whatever the command was.
+  The direction itself does what the table says or nothing.
+
+story: advent-z8
+room: 38
+direction: 13
+reported: none
+outcome: moved 270
+cause: A timed event moves the player at the end of this turn, whatever the command was.
+  The direction itself does what the table says or nothing.
+
+story: advent-z8
+room: 38
+direction: 14
+reported: none
+outcome: moved 270
+cause: A timed event moves the player at the end of this turn, whatever the command was.
+  The direction itself does what the table says or nothing.
+
+story: advent-z8
+room: 38
+direction: 15
+reported: none
+outcome: moved 270
+cause: A timed event moves the player at the end of this turn, whatever the command was.
+  The direction itself does what the table says or nothing.
+
+story: advent-z8
+room: 38
+direction: 16
+reported: none
+outcome: moved 270
+cause: A timed event moves the player at the end of this turn, whatever the command was.
+  The direction itself does what the table says or nothing.
+
+story: advent-z8
+room: 38
+direction: 17
+reported: none
+outcome: moved 270
+cause: A timed event moves the player at the end of this turn, whatever the command was.
+  The direction itself does what the table says or nothing.
+
+story: advent-z8
+room: 38
+direction: 18
+reported: fixed 30
+outcome: moved 270
+cause: A timed event moves the player at the end of this turn, whatever the command was.
+  The direction itself does what the table says or nothing.
+
+story: advent-z8
+room: 53
+direction: 8
+reported: fixed 47
+outcome: moved 48
+cause: The game's own code moves the player on at arrival, to another room of the same
+  printed name (introspection specification, section 8.3).
+
+story: advent-z8
+room: 53
+direction: 9
+reported: fixed 47
+outcome: moved 48
+cause: The game's own code moves the player on at arrival, to another room of the same
+  printed name (introspection specification, section 8.3).
+
+story: advent-z8
+room: 53
+direction: 10
+reported: fixed 47
+outcome: moved 48
+cause: The game's own code moves the player on at arrival, to another room of the same
+  printed name (introspection specification, section 8.3).
+
+story: advent-z8
+room: 91
+direction: 7
+reported: fixed 93
+outcome: stayed
+cause: An obstacle in the room: a routine that runs before the walk refuses these
+  directions while the obstacle is there.
+
+story: advent-z8
+room: 91
+direction: 8
+reported: fixed 95
+outcome: stayed
+cause: An obstacle in the room: a routine that runs before the walk refuses these
+  directions while the obstacle is there.
+
+story: advent-z8
+room: 91
+direction: 10
+reported: fixed 97
+outcome: stayed
+cause: An obstacle in the room: a routine that runs before the walk refuses these
+  directions while the obstacle is there.
+
+story: advent-z8
+room: 136
+direction: 7
+reported: fixed 154
+outcome: stayed
+cause: A routine that runs before the walk keeps the player here, by chance. At another
+  moment the same exit leads where the table says.
+
+story: advent-z8
+room: 136
+direction: 8
+reported: fixed 149
+outcome: stayed
+cause: A routine that runs before the walk keeps the player here, by chance. At another
+  moment the same exit leads where the table says.
+
+story: advent-z8
+room: 136
+direction: 15
+reported: fixed 113
+outcome: stayed
+cause: A routine that runs before the walk keeps the player here, by chance. At another
+  moment the same exit leads where the table says.
+
+story: advent-z8
+room: 136
+direction: 16
+reported: fixed 213
+outcome: stayed
+cause: A routine that runs before the walk keeps the player here, by chance. At another
+  moment the same exit leads where the table says.
+
+story: advent-z8
+room: 137
+direction: 8
+reported: fixed 160
+outcome: stayed
+cause: A routine that runs before the walk keeps the player here, by chance. At another
+  moment the same exit leads where the table says.
+
+story: advent-z8
+room: 137
+direction: 12
+reported: fixed 195
+outcome: stayed
+cause: A routine that runs before the walk keeps the player here, by chance. At another
+  moment the same exit leads where the table says.
+
+story: advent-z8
+room: 216
+direction: 7
+reported: none
+outcome: moved 213
+cause: The room's own routine, by chance, moves the player to another room on a walk in
+  any direction, exit or not.
+
+story: advent-z8
+room: 216
+direction: 8
+reported: none
+outcome: moved 213
+cause: The room's own routine, by chance, moves the player to another room on a walk in
+  any direction, exit or not.
+
+story: advent-z8
+room: 216
+direction: 9
+reported: none
+outcome: moved 213
+cause: The room's own routine, by chance, moves the player to another room on a walk in
+  any direction, exit or not.
+
+story: advent-z8
+room: 216
+direction: 10
+reported: none
+outcome: moved 213
+cause: The room's own routine, by chance, moves the player to another room on a walk in
+  any direction, exit or not.
+
+story: advent-z8
+room: 216
+direction: 11
+reported: none
+outcome: moved 213
+cause: The room's own routine, by chance, moves the player to another room on a walk in
+  any direction, exit or not.
+
+story: advent-z8
+room: 216
+direction: 12
+reported: none
+outcome: moved 213
+cause: The room's own routine, by chance, moves the player to another room on a walk in
+  any direction, exit or not.
+
+story: advent-z8
+room: 216
+direction: 13
+reported: none
+outcome: moved 213
+cause: The room's own routine, by chance, moves the player to another room on a walk in
+  any direction, exit or not.
+
+story: advent-z8
+room: 216
+direction: 14
+reported: none
+outcome: moved 213
+cause: The room's own routine, by chance, moves the player to another room on a walk in
+  any direction, exit or not.
+
+story: advent-z8
+room: 216
+direction: 15
+reported: none
+outcome: moved 213
+cause: The room's own routine, by chance, moves the player to another room on a walk in
+  any direction, exit or not.
+
+story: advent-z8
+room: 216
+direction: 16
+reported: none
+outcome: moved 213
+cause: The room's own routine, by chance, moves the player to another room on a walk in
+  any direction, exit or not.
+
+story: advent-z8
+room: 216
+direction: 17
+reported: none
+outcome: moved 213
+cause: The room's own routine, by chance, moves the player to another room on a walk in
+  any direction, exit or not.
+
+# Zork II, by the crawl alone. Each cause was found by `corpus explain` (T037).
+
+story: zork2
+room: 144
+direction: 18
+reported: none
+outcome: moved 224
+cause: The room's own routine replaces the direction given with one chosen by chance, so
+  the player goes somewhere the direction's entry in the table does not say.
+
+story: zork2
+room: 144
+direction: 19
+reported: none
+outcome: moved 224
+cause: The room's own routine replaces the direction given with one chosen by chance, so
+  the player goes somewhere the direction's entry in the table does not say.
+
+story: zork2
+room: 144
+direction: 20
+reported: none
+outcome: moved 218
+cause: The room's own routine replaces the direction given with one chosen by chance, so
+  the player goes somewhere the direction's entry in the table does not say.
+
+story: zork2
+room: 144
+direction: 21
+reported: none
+outcome: moved 224
+cause: The room's own routine replaces the direction given with one chosen by chance, so
+  the player goes somewhere the direction's entry in the table does not say.
+
+story: zork2
+room: 144
+direction: 24
+reported: fixed 206
+outcome: moved 224
+cause: The room's own routine replaces the direction given with one chosen by chance, so
+  the player goes somewhere the direction's entry in the table does not say.
+
+story: zork2
+room: 144
+direction: 25
+reported: fixed 238
+outcome: moved 224
+cause: The room's own routine replaces the direction given with one chosen by chance, so
+  the player goes somewhere the direction's entry in the table does not say.
+
+story: zork2
+room: 144
+direction: 26
+reported: fixed 172
+outcome: moved 224
+cause: The room's own routine replaces the direction given with one chosen by chance, so
+  the player goes somewhere the direction's entry in the table does not say.
+
+story: zork2
+room: 144
+direction: 27
+reported: fixed 212
+outcome: moved 224
+cause: The room's own routine replaces the direction given with one chosen by chance, so
+  the player goes somewhere the direction's entry in the table does not say.
+
+story: zork2
+room: 144
+direction: 28
+reported: fixed 159
+outcome: moved 224
+cause: The room's own routine replaces the direction given with one chosen by chance, so
+  the player goes somewhere the direction's entry in the table does not say.
+
+story: zork2
+room: 144
+direction: 29
+reported: fixed 207
+outcome: moved 224
+cause: The room's own routine replaces the direction given with one chosen by chance, so
+  the player goes somewhere the direction's entry in the table does not say.
+
+story: zork2
+room: 144
+direction: 31
+reported: fixed 30
+outcome: moved 224
+cause: The room's own routine replaces the direction given with one chosen by chance, so
+  the player goes somewhere the direction's entry in the table does not say.
+
+story: zork2
+room: 158
+direction: 18
+reported: none
+outcome: moved 224
+cause: The player is in the dark, where the game kills the player on a walk in any direction,
+  exit or not; the game's routine for death then moves the player.
+
+story: zork2
+room: 158
+direction: 19
+reported: none
+outcome: moved 224
+cause: The player is in the dark, where the game kills the player on a walk in any direction,
+  exit or not; the game's routine for death then moves the player.
+
+story: zork2
+room: 158
+direction: 20
+reported: none
+outcome: moved 224
+cause: The player is in the dark, where the game kills the player on a walk in any direction,
+  exit or not; the game's routine for death then moves the player.
+
+story: zork2
+room: 158
+direction: 21
+reported: none
+outcome: moved 224
+cause: The player is in the dark, where the game kills the player on a walk in any direction,
+  exit or not; the game's routine for death then moves the player.
+
+story: zork2
+room: 158
+direction: 22
+reported: none
+outcome: moved 224
+cause: The player is in the dark, where the game kills the player on a walk in any direction,
+  exit or not; the game's routine for death then moves the player.
+
+story: zork2
+room: 158
+direction: 23
+reported: none
+outcome: moved 224
+cause: The player is in the dark, where the game kills the player on a walk in any direction,
+  exit or not; the game's routine for death then moves the player.
+
+story: zork2
+room: 158
+direction: 24
+reported: fixed 212
+outcome: moved 224
+cause: The player is in the dark, where the game kills the player on a walk in any direction,
+  exit or not; the game's routine for death then moves the player.
+
+story: zork2
+room: 158
+direction: 26
+reported: none
+outcome: moved 224
+cause: The player is in the dark, where the game kills the player on a walk in any direction,
+  exit or not; the game's routine for death then moves the player.
+
+story: zork2
+room: 158
+direction: 28
+reported: none
+outcome: moved 224
+cause: The player is in the dark, where the game kills the player on a walk in any direction,
+  exit or not; the game's routine for death then moves the player.
+
+story: zork2
+room: 158
+direction: 29
+reported: none
+outcome: moved 224
+cause: The player is in the dark, where the game kills the player on a walk in any direction,
+  exit or not; the game's routine for death then moves the player.
+
+story: zork2
+room: 158
+direction: 30
+reported: none
+outcome: moved 224
+cause: The player is in the dark, where the game kills the player on a walk in any direction,
+  exit or not; the game's routine for death then moves the player.
+
+story: zork2
+room: 158
+direction: 31
+reported: none
+outcome: moved 224
+cause: The player is in the dark, where the game kills the player on a walk in any direction,
+  exit or not; the game's routine for death then moves the player.
+
+story: zork2
+room: 212
+direction: 18
+reported: none
+outcome: moved 224
+cause: The player is in the dark, where the game kills the player on a walk in any direction,
+  exit or not; the game's routine for death then moves the player.
+
+story: zork2
+room: 212
+direction: 19
+reported: none
+outcome: moved 224
+cause: The player is in the dark, where the game kills the player on a walk in any direction,
+  exit or not; the game's routine for death then moves the player.
+
+story: zork2
+room: 212
+direction: 20
+reported: none
+outcome: moved 224
+cause: The player is in the dark, where the game kills the player on a walk in any direction,
+  exit or not; the game's routine for death then moves the player.
+
+story: zork2
+room: 212
+direction: 21
+reported: none
+outcome: moved 224
+cause: The player is in the dark, where the game kills the player on a walk in any direction,
+  exit or not; the game's routine for death then moves the player.
+
+story: zork2
+room: 212
+direction: 23
+reported: none
+outcome: moved 224
+cause: The player is in the dark, where the game kills the player on a walk in any direction,
+  exit or not; the game's routine for death then moves the player.
+
+story: zork2
+room: 212
+direction: 24
+reported: fixed 144
+outcome: moved 224
+cause: The player is in the dark, where the game kills the player on a walk in any direction,
+  exit or not; the game's routine for death then moves the player.
+
+story: zork2
+room: 212
+direction: 25
+reported: none
+outcome: moved 224
+cause: The player is in the dark, where the game kills the player on a walk in any direction,
+  exit or not; the game's routine for death then moves the player.
+
+story: zork2
+room: 212
+direction: 26
+reported: none
+outcome: moved 224
+cause: The player is in the dark, where the game kills the player on a walk in any direction,
+  exit or not; the game's routine for death then moves the player.
+
+story: zork2
+room: 212
+direction: 27
+reported: fixed 158
+outcome: moved 224
+cause: The player is in the dark, where the game kills the player on a walk in any direction,
+  exit or not; the game's routine for death then moves the player.
+
+story: zork2
+room: 212
+direction: 28
+reported: none
+outcome: moved 224
+cause: The player is in the dark, where the game kills the player on a walk in any direction,
+  exit or not; the game's routine for death then moves the player.
+
+story: zork2
+room: 212
+direction: 31
+reported: none
+outcome: moved 224
+cause: The player is in the dark, where the game kills the player on a walk in any direction,
+  exit or not; the game's routine for death then moves the player.
+
+story: zork2
+room: 228
+direction: 29
+reported: fixed 210
+outcome: moved 51
+cause: The destination's own routine, run at arrival, sends the player on to another room.
+
+# Zork III, by the crawl alone (T038).
+
+story: zork3
+room: 217
+direction: 7
+reported: none
+outcome: moved 211
+cause: The player is in the dark, where the game kills the player on a walk in any direction,
+  exit or not; the game's routine for death then moves the player.
+
+story: zork3
+room: 217
+direction: 20
+reported: none
+outcome: moved 211
+cause: The player is in the dark, where the game kills the player on a walk in any direction,
+  exit or not; the game's routine for death then moves the player.
+
+story: zork3
+room: 217
+direction: 21
+reported: none
+outcome: moved 211
+cause: The player is in the dark, where the game kills the player on a walk in any direction,
+  exit or not; the game's routine for death then moves the player.
+
+story: zork3
+room: 217
+direction: 22
+reported: none
+outcome: moved 211
+cause: The player is in the dark, where the game kills the player on a walk in any direction,
+  exit or not; the game's routine for death then moves the player.
+
+story: zork3
+room: 217
+direction: 23
+reported: none
+outcome: moved 211
+cause: The player is in the dark, where the game kills the player on a walk in any direction,
+  exit or not; the game's routine for death then moves the player.
+
+story: zork3
+room: 217
+direction: 24
+reported: none
+outcome: moved 211
+cause: The player is in the dark, where the game kills the player on a walk in any direction,
+  exit or not; the game's routine for death then moves the player.
+
+story: zork3
+room: 217
+direction: 25
+reported: none
+outcome: moved 211
+cause: The player is in the dark, where the game kills the player on a walk in any direction,
+  exit or not; the game's routine for death then moves the player.
+
+story: zork3
+room: 217
+direction: 26
+reported: none
+outcome: moved 211
+cause: The player is in the dark, where the game kills the player on a walk in any direction,
+  exit or not; the game's routine for death then moves the player.
+
+story: zork3
+room: 217
+direction: 27
+reported: none
+outcome: moved 211
+cause: The player is in the dark, where the game kills the player on a walk in any direction,
+  exit or not; the game's routine for death then moves the player.
+
+story: zork3
+room: 217
+direction: 28
+reported: fixed 55
+outcome: moved 211
+cause: The player is in the dark, where the game kills the player on a walk in any direction,
+  exit or not; the game's routine for death then moves the player.
+
+story: zork3
+room: 217
+direction: 29
+reported: fixed 112
+outcome: moved 211
+cause: The player is in the dark, where the game kills the player on a walk in any direction,
+  exit or not; the game's routine for death then moves the player.
+
+story: zork3
+room: 217
+direction: 30
+reported: fixed 93
+outcome: moved 211
+cause: The player is in the dark, where the game kills the player on a walk in any direction,
+  exit or not; the game's routine for death then moves the player.
+
+# The 1984 Infocom Sampler, the second excerpt on its menu, by the crawl (T040). A fetched story: numbers only.
+
+story: sampler1
+room: 90
+direction: 22
+reported: fixed 90
+outcome: question
+cause: The player is in the dark, where a walk kills the player; the game then asks a
+  question, so the trial does not come back to a command prompt.
+
+# Anchorhead, by the crawl (T042). A fetched story: numbers only.
+
+story: anchorhead
+room: 119
+direction: 8
+reported: fixed 118
+outcome: stayed
+cause: A routine that runs before the walk decides it: the room's table is not what the
+  game goes by here.
+
+story: anchorhead
+room: 208
+direction: 14
+reported: fixed 230
+outcome: stayed
+cause: A routine that runs before the walk decides it: the room's table is not what the
+  game goes by here.

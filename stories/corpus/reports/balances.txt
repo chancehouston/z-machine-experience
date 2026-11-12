@@ -1,0 +1,13 @@
+story balances
+sha256 10e717578f85200c6aadc8149d95e43f7b6c09fb473770d309a0d6afe3b29538
+version 5 family none seed 1
+places 1 walkthrough 0 crawl 1
+rooms visited 1 named-not-reached 0
+budget rooms 400 trials 40000 reached no
+trials 0 wordless 0
+fixed confirmed 0 wrong-known 0 wrong-unexplained 0
+none confirmed 0 wrong-known 0 wrong-unexplained 0 other 0
+conditional 0 moved 0 stayed 0 question 0 ended 0 fault 0
+unknown 0 moved 0 stayed 0 question 0 ended 0 fault 0
+no-verdict 0
+detail

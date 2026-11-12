@@ -7,9 +7,16 @@ use common::*;
 use std::time::{Duration, Instant};
 use zmachine_introspect::Introspector;
 
+// The limit is the specification's five milliseconds. QUERY_LIMIT_MILLIS gives
+// another, for a machine that is not the measure of the interface: a shared CI
+// runner once took 7.1 ms over one prompt, with a mean of 0.53 ms.
 #[test]
 #[ignore = "timing; run with --release"]
 fn all_six_queries_take_under_five_milliseconds() {
+    let limit = std::env::var("QUERY_LIMIT_MILLIS")
+        .ok()
+        .and_then(|millis| millis.parse().ok())
+        .unwrap_or(5);
     for game in [ZORK1, ADVENT5, ADVENT8] {
         let machine = load(game.story, game.seed);
         let started = Instant::now();
@@ -48,7 +55,7 @@ fn all_six_queries_take_under_five_milliseconds() {
             total / prompts
         );
         assert!(
-            slowest < Duration::from_millis(5),
+            slowest < Duration::from_millis(limit),
             "{}: the slowest prompt took {slowest:?}",
             game.name
         );

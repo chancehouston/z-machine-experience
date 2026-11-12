@@ -1,0 +1,34 @@
+story anchorhead
+sha256 c2f28a4ddd9367c260946926a33c73a4b0cc38b1f327646cc1202182a28a10ff
+version 8 family inform seed 1
+places 31 walkthrough 0 crawl 31
+rooms visited 31 named-not-reached 1
+budget rooms 400 trials 40000 reached no
+trials 310 wordless 0
+fixed confirmed 63 wrong-known 2 wrong-unexplained 0
+none confirmed 226 wrong-known 0 wrong-unexplained 0 other 0
+conditional 19 moved 3 stayed 16 question 0 ended 0 fault 0
+unknown 0 moved 0 stayed 0 question 0 ended 0 fault 0
+no-verdict 0
+detail
+105 9 conditional stayed 1
+107 7 conditional stayed 1
+107 9 conditional stayed 1
+107 15 conditional stayed 1
+119 8 fixed 118 stayed 1
+131 14 conditional stayed 1
+135 7 conditional stayed 1
+135 16 conditional stayed 1
+166 10 conditional stayed 1
+172 8 conditional stayed 1
+188 7 conditional moved 191 1
+188 16 conditional moved 191 1
+191 8 conditional stayed 1
+205 8 conditional stayed 1
+208 14 fixed 230 stayed 1
+214 10 conditional stayed 1
+236 9 conditional stayed 1
+236 10 conditional moved 212 1
+240 16 conditional stayed 1
+505 9 conditional stayed 1
+513 9 conditional stayed 1

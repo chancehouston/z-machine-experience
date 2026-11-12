@@ -1,0 +1,128 @@
+story zork1
+sha256 37084966477dff679282de42974b2077156b1bd68fad92a65d4ea94d8eb64d79
+version 3 family zil seed 11
+places 356 walkthrough 330 crawl 26
+rooms visited 109 named-not-reached 1
+budget rooms 400 trials 40000 reached no
+trials 4628 wordless 0
+fixed confirmed 801 wrong-known 35 wrong-unexplained 0
+none confirmed 3591 wrong-known 66 wrong-unexplained 0 other 2
+conditional 113 moved 89 stayed 24 question 0 ended 0 fault 0
+unknown 0 moved 0 stayed 0 question 0 ended 0 fault 0
+no-verdict 20
+detail
+3 29 fixed 3 stayed 4
+15 30 fixed 205 question 2
+19 22 conditional moved 193 1
+27 20 conditional moved 85 16
+27 30 conditional moved 85 16
+33 23 conditional moved 75 4
+33 23 conditional stayed 3
+37 22 fixed 174 stayed 1
+40 28 fixed 47 stayed 5
+40 31 fixed 30 stayed 5
+42 22 conditional moved 218 1
+45 22 fixed 182 stayed 1
+50 29 fixed 50 stayed 1
+51 19 none moved 38 1
+51 20 none moved 38 1
+51 21 none moved 38 1
+51 22 none moved 38 1
+51 23 none moved 38 1
+51 24 none moved 38 1
+51 25 none moved 38 1
+51 26 fixed 51 moved 38 1
+51 27 fixed 158 moved 38 1
+51 28 fixed 158 moved 38 1
+51 29 fixed 170 moved 38 1
+51 30 none moved 38 1
+51 31 none moved 38 1
+53 20 none moved 38 1
+53 21 none moved 38 1
+53 22 none moved 38 1
+53 23 none moved 38 1
+53 24 none moved 38 1
+53 25 none moved 38 1
+53 26 none moved 38 1
+53 27 none moved 38 1
+53 28 none moved 38 1
+53 29 none moved 38 1
+53 31 none moved 38 1
+75 22 conditional moved 33 32
+75 22 conditional stayed 17
+81 22 conditional moved 152 1
+81 26 fixed 81 stayed 1
+85 21 conditional moved 27 8
+85 21 conditional stayed 1
+85 29 conditional moved 27 8
+85 29 conditional stayed 1
+90 31 fixed 90 stayed 4
+95 23 fixed 86 stayed 3
+95 29 fixed 86 stayed 3
+104 31 fixed 104 stayed 1
+111 23 fixed 178 stayed 1
+111 31 fixed 178 stayed 1
+112 28 fixed 112 stayed 4
+129 22 none moved 176 1
+134 29 fixed 134 stayed 1
+153 19 none moved 38 1
+153 20 none moved 38 1
+153 21 none moved 38 1
+153 22 none moved 38 1
+153 23 none moved 38 1
+153 24 none moved 38 1
+153 25 none moved 38 1
+153 26 none moved 38 1
+153 27 none moved 38 1
+153 28 fixed 42 moved 38 1
+153 29 none moved 38 1
+153 30 none moved 38 1
+153 31 none moved 38 1
+158 22 conditional moved 147 1
+160 22 conditional stayed 1
+161 19 none moved 38 1
+161 20 none moved 38 1
+161 21 none moved 38 1
+161 22 fixed 42 moved 38 1
+161 23 none moved 38 1
+161 24 none moved 38 1
+161 25 none moved 38 1
+161 26 none moved 38 1
+161 27 none moved 38 1
+161 28 fixed 34 moved 38 1
+161 29 fixed 152 moved 38 1
+161 30 fixed 81 moved 38 1
+161 31 none moved 38 1
+173 30 fixed 173 stayed 4
+174 19 none moved 45 1
+174 20 none moved 45 1
+174 21 none moved 45 1
+174 22 fixed 45 stayed 1
+174 23 none moved 45 1
+174 24 none moved 45 1
+174 25 none moved 45 1
+174 26 none moved 45 1
+174 27 none moved 45 1
+174 28 none moved 45 1
+174 29 none moved 45 1
+174 30 none moved 45 1
+174 31 none moved 45 1
+182 19 none moved 53 1
+182 20 none moved 53 1
+182 21 none moved 53 1
+182 22 fixed 53 stayed 1
+182 23 none moved 53 1
+182 24 none moved 53 1
+182 25 none moved 53 1
+182 26 none moved 53 1
+182 27 none moved 53 1
+182 28 none moved 53 1
+182 31 none moved 53 1
+216 23 conditional stayed 1
+220 23 conditional moved 27 1
+244 21 none question 1
+244 29 none question 1
+249 20 fixed 8 stayed 1
+249 20 none moved 8 1
+249 30 fixed 8 stayed 1
+249 30 none moved 8 1

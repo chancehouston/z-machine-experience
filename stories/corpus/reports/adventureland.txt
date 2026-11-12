@@ -1,0 +1,21 @@
+story adventureland
+sha256 45a3840cdba26e3742c0ad3797ffaf7bd2eb284edee6b433e41fc908c283e930
+version 5 family inform seed 1
+places 8 walkthrough 0 crawl 8
+rooms visited 8 named-not-reached 0
+budget rooms 400 trials 40000 reached no
+trials 96 wordless 0
+fixed confirmed 15 wrong-known 0 wrong-unexplained 0
+none confirmed 73 wrong-known 0 wrong-unexplained 0 other 0
+conditional 2 moved 2 stayed 0 question 0 ended 0 fault 0
+unknown 0 moved 0 stayed 0 question 0 ended 0 fault 0
+no-verdict 6
+detail
+27 8 fixed 27 stayed 1
+35 7 fixed 35 stayed 1
+35 8 fixed 35 stayed 1
+35 10 fixed 35 stayed 1
+35 15 conditional moved 37 1
+46 8 fixed 46 stayed 1
+46 9 fixed 46 stayed 1
+46 15 conditional moved 55 1

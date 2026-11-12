@@ -1,0 +1,78 @@
+story advent-z8
+sha256 9dc8e334af1e4487707a2bd351d8121417d5864ac04ae9e883503527917d6c4e
+version 8 family inform seed 1
+places 228 walkthrough 171 crawl 57
+rooms visited 122 named-not-reached 1
+budget rooms 400 trials 40000 reached no
+trials 2736 wordless 0
+fixed confirmed 635 wrong-known 16 wrong-unexplained 0
+none confirmed 2018 wrong-known 22 wrong-unexplained 0 other 0
+conditional 37 moved 23 stayed 14 question 0 ended 0 fault 0
+unknown 0 moved 0 stayed 0 question 0 ended 0 fault 0
+no-verdict 8
+detail
+30 7 fixed 47 moved 48 1
+38 7 none moved 270 1
+38 8 none moved 270 1
+38 9 none moved 270 1
+38 10 fixed 30 moved 270 1
+38 11 none moved 270 1
+38 12 none moved 270 1
+38 13 none moved 270 1
+38 14 none moved 270 1
+38 15 none moved 270 1
+38 16 none moved 270 1
+38 17 none moved 270 1
+38 18 fixed 30 moved 270 1
+47 7 fixed 47 stayed 1
+47 8 fixed 47 stayed 1
+47 10 fixed 47 stayed 1
+53 8 fixed 47 moved 48 1
+53 9 fixed 47 moved 48 1
+53 10 fixed 47 moved 48 1
+53 16 conditional moved 56 1
+53 16 conditional stayed 1
+56 15 conditional moved 53 1
+67 16 conditional moved 71 1
+71 15 conditional moved 67 1
+71 15 conditional stayed 1
+91 7 fixed 93 stayed 1
+91 8 fixed 95 stayed 1
+91 10 fixed 97 stayed 1
+116 7 fixed 116 stayed 1
+126 8 fixed 126 stayed 1
+129 7 fixed 129 stayed 1
+136 7 fixed 154 stayed 1
+136 8 fixed 149 stayed 1
+136 15 fixed 113 stayed 1
+136 16 fixed 213 stayed 1
+137 8 fixed 160 stayed 2
+137 12 fixed 195 stayed 1
+163 7 conditional moved 152 2
+163 7 conditional stayed 2
+163 9 conditional moved 157 4
+163 18 conditional moved 157 4
+168 8 fixed 168 stayed 1
+168 10 fixed 168 stayed 1
+185 7 conditional moved 187 2
+185 7 conditional stayed 1
+201 9 conditional moved 202 2
+201 9 conditional stayed 2
+202 10 conditional moved 201 2
+202 10 conditional stayed 1
+208 8 conditional moved 135 2
+216 7 none moved 213 1
+216 8 none moved 213 1
+216 9 none moved 213 1
+216 10 none moved 213 2
+216 11 none moved 213 1
+216 12 none moved 213 1
+216 13 none moved 213 1
+216 14 none moved 213 1
+216 15 none moved 213 1
+216 16 none moved 213 1
+216 17 none moved 213 1
+222 11 conditional moved 226 1
+222 11 conditional stayed 2
+226 14 conditional stayed 1
+274 16 conditional stayed 3
