@@ -50,8 +50,10 @@ fi
 resources=apps/ios/Lamplight/Resources
 mkdir -p "$resources"
 cp "$story" "$resources/story.z3"
-cp stories/zork1/LICENSE "$resources/story-license.txt"
-echo "Copied the story (digest verified) and its license to $resources"
+# The About sheet shows where the story came from, then its license.
+source=$(sed -n 's/^| Source | <\(.*\)>, path `\(.*\)` |$/Source: \1 (\2)/p' stories/zork1/SOURCE.md)
+{ echo "$source"; echo; cat stories/zork1/LICENSE; } > "$resources/story-license.txt"
+echo "Copied the story (digest verified), its source and its license to $resources"
 
 (cd apps/ios && xcodegen generate --quiet)
 echo "Generated apps/ios/Lamplight.xcodeproj"
