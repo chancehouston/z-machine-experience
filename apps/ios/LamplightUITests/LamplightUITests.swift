@@ -136,6 +136,82 @@ final class LamplightUITests: XCTestCase {
         XCTAssertEqual(value(app, "compass.east"), "open")
     }
 
+    // Feature 007 (specs/007-inventory-panel/spec.md User Story 3; FR-020 to
+    // FR-024; SC-006): what the player carries is on the screen without being
+    // asked for. A closed container shows nothing in it; opened, it shows what
+    // it holds. Touching the strip sends nothing.
+    @MainActor
+    func testTheInventoryStrip() {
+        let app = launch()
+        _ = turn(app, 0)
+        XCTAssertEqual(element(app, "inventory.note").label, "Carrying nothing")
+        XCTAssertFalse(element(app, "inventory.strip").exists)
+
+        type(app, "open mailbox")
+        _ = turn(app, 1)
+        // The keyboard is up: the strip gives way with the compass.
+        XCTAssertFalse(element(app, "inventory.note").isHittable)
+        app.typeText("take leaflet")
+        element(app, "button.send").tap()
+        _ = turn(app, 2)
+        element(app, "button.compass").tap()
+        let strip = element(app, "inventory.strip")
+        XCTAssertTrue(strip.waitForExistence(timeout: patience))
+        XCTAssertEqual(strip.label, "Carrying: leaflet")
+        XCTAssertFalse(element(app, "inventory.note").exists)
+
+        element(app, "compass.north").tap()
+        waitForPlace(app, "North of House")
+        element(app, "compass.east").tap()
+        waitForPlace(app, "Behind House")
+        type(app, "open window")
+        _ = turn(app, 5)
+        element(app, "button.compass").tap()
+        element(app, "compass.west").tap()
+        waitForPlace(app, "Kitchen")
+        type(app, "take sack")
+        _ = turn(app, 7)
+        element(app, "button.compass").tap()
+        XCTAssertEqual(strip.label, "Carrying: brown sack, closed; leaflet")
+
+        // Touching the strip sends nothing.
+        strip.tap()
+        XCTAssertFalse(element(app, "turn.8.text").waitForExistence(timeout: 1))
+
+        type(app, "open sack")
+        _ = turn(app, 8)
+        element(app, "button.compass").tap()
+        XCTAssertEqual(
+            strip.label,
+            "Carrying: brown sack, open, holding clove of garlic and lunch; leaflet")
+    }
+
+    // Feature 007, User Story 4 (FR-022, FR-025): where what is carried is not
+    // known the strip says so and shows no item; and it is drawn, and read, at
+    // times the game is not waiting for a command. Drawn from hand-made
+    // snapshots: the bundled game has no such moment that is quick to reach.
+    @MainActor
+    func testAStripThatIsNotKnown() {
+        let unknown = #"{"known":false,"note":"Not known: type to ask","spoken":"Not known: type to ask","items":[]}"#
+        var app = launch(drawing: handMade(
+            state: "open", spokenTail: "to somewhere", known: true, note: nil,
+            inventory: unknown))
+        XCTAssertTrue(element(app, "inventory.note").waitForExistence(timeout: patience))
+        XCTAssertEqual(element(app, "inventory.note").label, "Not known: type to ask")
+        XCTAssertFalse(element(app, "inventory.strip").exists)
+        app.terminate()
+
+        // A closed container and a plain item, with the game not waiting for a
+        // command: still there, and still read.
+        let carrying = #"{"known":true,"note":null,"spoken":"Carrying: box, closed; key","items":[{"name":"box","state":"closed","contents":[]},{"name":"key","state":"plain","contents":[]}]}"#
+        app = launch(drawing: handMade(
+            state: "idle", spokenTail: "not available now", offered: false, known: false,
+            note: nil, waiting: "ended", inventory: carrying))
+        let strip = element(app, "inventory.strip")
+        XCTAssertTrue(strip.waitForExistence(timeout: patience))
+        XCTAssertEqual(strip.label, "Carrying: box, closed; key")
+    }
+
     // Feature 006, User Story 5 (specs/006-game-packs/spec.md FR-030, FR-031;
     // SC-010): a closed door is shown as closed and can be tried; opened by a
     // typed command it is an open way; and a way the game decides in its own
@@ -396,7 +472,8 @@ final class LamplightUITests: XCTestCase {
     /// passed in the environment (S§ "For automated tests").
     private func handMade(
         state: String, spokenTail: String, offered: Bool = true, known: Bool,
-        note: String?, extras: String = ""
+        note: String?, extras: String = "", waiting: String = "command",
+        inventory: String = #"{"known":true,"note":"Carrying nothing","spoken":"Carrying nothing","items":[]}"#
     ) -> String {
         let labels = [
             "North", "Northeast", "East", "Southeast", "South", "Southwest", "West", "Northwest",
@@ -410,11 +487,11 @@ final class LamplightUITests: XCTestCase {
         }.joined(separator: ",")
         let noteJSON = note.map { "\"\($0)\"" } ?? "null"
         return """
-            {"generation":1,"turn_count":1,"waiting":"command","message":null,\
+            {"generation":1,"turn_count":1,"waiting":"\(waiting)","message":null,\
             "status":{"place":"A Place","score":null,"moves":null,"hours":9,"minutes":5},\
             "turns":[{"number":0,"command":null,"source":null,"text":"Ready.\\n\\n>"}],\
             "compass":{"offered":\(offered),"known":\(known),"note":\(noteJSON),\
-            "places":[\(drawn)],"extras":[\(extras)]}}
+            "places":[\(drawn)],"extras":[\(extras)]},"inventory":\(inventory)}
             """
     }
 

@@ -142,16 +142,16 @@ seen, and whether the answer rests on a pack
 - [x] T031 [P] [US3] Failing tests in `crates/zmachine-experience/src/strip_tests.rs` (FR-019, FR-020; R10; D§ "Strip"), from hand-made inventory answers: each row of D§ "Strip"'s table; items in the answer's order; a thing seen `no` or `unknown` is not an item at any depth, and nothing about it is in `spoken`; nothing carried gives `known` true, no items and the note "Carrying nothing"; `spoken` for one plain item, for a closed container with nothing shown, for an open one with two things, and for a see-through closed one; two items of one name are both there
 - [x] T032 [P] [US3] Failing tests in `crates/zmachine-experience/tests/session.rs` and `src/json_tests.rs` (K§ "The experience layer"; FR-024): the snapshot has `inventory` after `compass` in the form the contract gives; on Zork I with its pack the strip is "Carrying nothing" at the start, has the leaflet after it is taken, shows the sack closed with nothing in it and the bottle closed with its water, and the sack's two things after `open sack`; without the pack the sack and the bottle are plain with nothing in them; the strip of a new game is the new game's; the walkthrough's text is unchanged
 - [x] T033 [P] [US3] Failing test in `crates/zmachine-experience/tests/walkthrough.rs` (SC-002, SC-007): over the whole walkthrough with the pack, at every prompt, every name in the strip occurs in the game's own listing asked of a copy (but at the prompts where the reply is no listing), and the prompts where the strip is not known number 6
-- [ ] T034 [P] [US3] Failing test in `crates/zmachine-ffi/tests/app_rules.rs` (FR-027): the app's Swift sources hold no string for the strip but identifiers; `InventoryStrip.swift` shows only `name`, `note` and `spoken` from the snapshot; and nothing in it is a `Button` or has a tap gesture (FR-023)
-- [ ] T035 [US3] Failing UI test `testTheInventoryStrip` in `apps/ios/LamplightUITests/LamplightUITests.swift` (US3 scenarios 1 to 6; FR-021; SC-006): at the start the strip's label is the note for nothing carried; after typed commands that take a closed container with things in it, the strip has that item, its value says closed, and no element for its contents exists; after opening it they exist; tapping an item adds no turn; the strip exists whenever the compass does and not while the keyboard is up
+- [x] T034 [P] [US3] Failing test in `crates/zmachine-ffi/tests/app_rules.rs` (FR-027): the app's Swift sources hold no string for the strip but identifiers; `InventoryStrip.swift` shows only `name`, `note` and `spoken` from the snapshot; and nothing in it is a `Button` or has a tap gesture (FR-023)
+- [x] T035 [US3] Failing UI test `testTheInventoryStrip` in `apps/ios/LamplightUITests/LamplightUITests.swift` (US3 scenarios 1 to 6; FR-021; SC-006): at the start the strip's label is the note for nothing carried; after typed commands that take a closed container with things in it, the strip has that item, its value says closed, and no element for its contents exists; after opening it they exist; tapping an item adds no turn; the strip exists whenever the compass does and not while the keyboard is up
 - [ ] T036 [P] [US3] Failing UI test `testAFullStripScrolls` drawn from a hand-made snapshot with twelve items (US3 scenario 5): the last item is not hittable at first and is after the row is moved
 
 ### Implementation for User Story 3
 
 - [x] T037 [US3] `Strip` and `StripItem` from the inventory answer in `crates/zmachine-experience/src/strip.rs`; T031 passes
 - [x] T038 [US3] The session asks at each stop and keeps the strip; `Session::inventory`; the snapshot's `inventory` in `crates/zmachine-experience/src/json.rs`; T032 and T033 pass; earlier tests that fix a whole snapshot's text gain the key and are listed
-- [ ] T039 [US3] `Snapshot.swift` decodes the strip; the hand-made snapshots in the UI tests gain an `inventory` and are listed
-- [ ] T040 [US3] `apps/ios/Lamplight/InventoryStrip.swift` and its place in `GameView.swift`, above the compass and under the same condition (R11); T034 passes
+- [x] T039 [US3] `Snapshot.swift` decodes the strip; the hand-made snapshots in the UI tests gain an `inventory` and are listed
+- [x] T040 [US3] `apps/ios/Lamplight/InventoryStrip.swift` and its place in `GameView.swift`, above the compass and under the same condition (R11); T034 passes
 - [ ] T041 [US3] Take simulator screenshots of the strip: nothing carried; three plain items; a closed container; the same opened with its contents; more than fits. Send them to the owner and **stop** for their eye before settling the drawing. Record what was chosen
 - [ ] T042 [US3] T035 and T036 pass on iOS 26 and 27
 
@@ -162,8 +162,8 @@ seen, and whether the answer rests on a pack
 ## Phase 6: User Story 4 - Where the interface cannot say, the strip says so (Priority: P4)
 
 - [x] T043 [P] [US4] Failing tests in `crates/zmachine-experience/src/strip_tests.rs` (FR-022; US4 scenarios 1, 2, 4): an unknown inventory answer, for each reason, gives `known` false, no items, the note "Not known: type to ask" and that as `spoken`; a container of state `unknown` is `plain` with nothing in it
-- [ ] T044 [P] [US4] Failing UI tests drawn from hand-made snapshots (US4 scenarios 1 to 3; FR-025, FR-026): a strip that is not known shows its note and no item; with `waiting` not `command` the strip is dimmed as the compass is and still read by a screen reader; a closed container differs from a plain item in its accessibility value, not only in how it looks
-- [ ] T045 [US4] The unknown and not-current states in `strip.rs` and `InventoryStrip.swift`; T043 and T044 pass
+- [x] T044 [P] [US4] Failing UI tests drawn from hand-made snapshots (US4 scenarios 1 to 3; FR-025, FR-026): a strip that is not known shows its note and no item; with `waiting` not `command` the strip is dimmed as the compass is and still read by a screen reader; a closed container differs from a plain item in its accessibility value, not only in how it looks
+- [x] T045 [US4] The unknown and not-current states in `strip.rs` and `InventoryStrip.swift`; T043 and T044 pass
 
 ---
 

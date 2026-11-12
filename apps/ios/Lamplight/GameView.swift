@@ -36,9 +36,13 @@ struct GameView: View {
                     Divider()
                     TranscriptView(turns: game.turns, keyboardUp: typing)
                     Divider()
-                    // With the keyboard showing, the compass gives its room to
-                    // the transcript and the field.
+                    // With the keyboard showing, the compass and the strip of
+                    // what is carried give their room to the transcript and the
+                    // field.
                     if !typing {
+                        InventoryStrip(
+                            strip: showing.inventory, current: showing.waiting == .command)
+                        Divider()
                         CompassView(
                             compass: showing.compass, ready: !game.busy,
                             tapPlace: { place in Task { await game.tap(place: place) } },

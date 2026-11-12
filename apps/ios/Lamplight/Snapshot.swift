@@ -10,9 +10,10 @@ struct Snapshot: Decodable, Sendable, Equatable {
     let status: Status?
     let turns: [Turn]
     let compass: Compass
+    let inventory: Strip
 
     enum CodingKeys: String, CodingKey {
-        case generation, waiting, message, status, turns, compass
+        case generation, waiting, message, status, turns, compass, inventory
         case turnCount = "turn_count"
     }
 }
@@ -36,6 +37,24 @@ struct Turn: Decodable, Sendable, Equatable, Identifiable {
     let text: String
 
     var id: Int { number }
+}
+
+/// What to show of what the player carries: the layer's words throughout.
+struct Strip: Decodable, Sendable, Equatable {
+    let known: Bool
+    let note: String?
+    let spoken: String
+    let items: [StripItem]
+}
+
+struct StripItem: Decodable, Sendable, Equatable {
+    let name: String
+    let state: ItemState
+    let contents: [StripItem]
+}
+
+enum ItemState: String, Decodable, Sendable {
+    case plain, open, closed
 }
 
 struct Compass: Decodable, Sendable, Equatable {
