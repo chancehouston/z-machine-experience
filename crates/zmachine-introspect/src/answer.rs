@@ -29,7 +29,14 @@ impl Unknown {
 
     /// The reason as the specification writes it.
     pub fn as_str(self) -> &'static str {
-        ""
+        match self {
+            Unknown::UnrecognisedFamily => "unrecognised-family",
+            Unknown::NoPlayer => "no-player",
+            Unknown::AmbiguousPlayer => "ambiguous-player",
+            Unknown::Inconsistent => "inconsistent",
+            Unknown::NotDeterminable => "not-determinable",
+            Unknown::Damaged => "damaged",
+        }
     }
 }
 
@@ -42,7 +49,10 @@ pub enum Exactness {
 
 impl Exactness {
     pub fn as_str(self) -> &'static str {
-        ""
+        match self {
+            Exactness::Exact => "exact",
+            Exactness::Approximate => "approximate",
+        }
     }
 }
 
@@ -59,11 +69,15 @@ pub enum Tri {
 
 impl Tri {
     pub fn as_str(self) -> &'static str {
-        ""
+        match self {
+            Tri::Yes => "yes",
+            Tri::No => "no",
+            Tri::Unknown => "unknown",
+        }
     }
 
-    pub fn from_bool(_value: bool) -> Tri {
-        Tri::Unknown
+    pub fn from_bool(value: bool) -> Tri {
+        if value { Tri::Yes } else { Tri::No }
     }
 }
 
@@ -76,19 +90,19 @@ pub struct Answer<T> {
 
 impl<T> Answer<T> {
     pub fn exact(value: T) -> Self {
-        Answer { value: Ok(value), exactness: Exactness::Approximate }
-    }
-
-    pub fn approximate(value: T) -> Self {
         Answer { value: Ok(value), exactness: Exactness::Exact }
     }
 
+    pub fn approximate(value: T) -> Self {
+        Answer { value: Ok(value), exactness: Exactness::Approximate }
+    }
+
     /// An answer that is not known. `exactness` says what it would have been.
-    pub fn unknown(_reason: Unknown, exactness: Exactness) -> Self {
-        Answer { value: Err(Unknown::Damaged), exactness }
+    pub fn unknown(reason: Unknown, exactness: Exactness) -> Self {
+        Answer { value: Err(reason), exactness }
     }
 
     pub fn is_unknown(&self) -> bool {
-        false
+        self.value.is_err()
     }
 }
