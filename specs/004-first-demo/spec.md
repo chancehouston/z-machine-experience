@@ -135,7 +135,7 @@ compass offers none while typing still works.
 3. **Given** the player types `save` or `restore`, **When** the game asks the app to do
    it, **Then** the game is told it could not be done and says so; play continues.
 4. **Given** the player types `script`, **When** the game asks the app for a transcript,
-   **Then** it is declined and play continues.
+   **Then** it is declined, none is kept, and play continues.
 5. **Given** the game's own file is damaged or missing from the app, **When** the app
    starts, **Then** it shows a message saying the game could not be started, and does
    not crash.
@@ -227,9 +227,14 @@ reference transcript.
   light a direction it does not know to be an exit, and MUST show that exits are unknown
   in a way that differs from showing there are none.
 - **FR-015**: When the game is waiting for something other than a command, the compass
-  MUST offer nothing.
+  MUST offer nothing, and MUST NOT say that there are no exits. A game does not mark its
+  questions; the rule by which the app tells one from a command prompt is the project
+  owner's choice (research R6), and where that rule is unsure the compass offers
+  nothing.
 - **FR-016**: The compass MUST NOT offer anything while a reply is being worked out; a
-  second tap in that time MUST NOT send a second command.
+  second tap in that time MUST NOT send a second command. A tap made on a compass that
+  has since been replaced MUST be refused, even if the new compass offers the same
+  direction.
 
 **Typing**
 
@@ -247,8 +252,9 @@ reference transcript.
   introspection interface reports as unknown, as if it were known.
 - **FR-022**: When the game ends, the app MUST say so and offer to start a new game.
 - **FR-023**: When the game asks to save, to restore or to keep a transcript, the app
-  MUST decline, so that the game reports the failure in its own words and play
-  continues.
+  MUST decline. Whatever the game then prints is shown, and play continues. (Zork I
+  reports a declined save or restore as a failure; it announces a transcript whether or
+  not one is kept.)
 - **FR-024**: A fault in the story file, or a story file that cannot be loaded, MUST
   produce a message to the player and MUST NOT crash the app.
 - **FR-025**: A command that makes the game run for a long time MUST NOT freeze the
@@ -299,23 +305,31 @@ reference transcript.
 
 ### Measurable Outcomes
 
-- **SC-001**: From a cold launch in the simulator, the game's opening text and the first
-  room's exits are on screen in under two seconds.
+- **SC-001**: From the start of the app's process in the simulator to the game's opening
+  text and the first room's exits being shown takes under two seconds, as the app itself
+  measures it.
 - **SC-002**: A player can walk from the opening to at least ten different rooms using
   only taps, and at every step the compass shows exactly the exits the introspection
   interface reports.
-- **SC-003**: After a tap or a typed command, the reply and the updated compass are on
-  screen in under a tenth of a second for every command of the walkthrough.
+- **SC-003**: After a tap or a typed command, the shared layer has the reply and the
+  updated compass ready in under a hundredth of a second for every command of the
+  walkthrough, and in the simulator the reply is on screen within one second of the tap.
+  (Reworded in planning: a tenth of a second "on screen" cannot be measured reliably in
+  a simulator.)
 - **SC-004**: The walkthrough replayed with taps wherever the compass offered the move
   gives a transcript with zero bytes of difference from the reference; at least 150 of
   its commands are sent as taps.
-- **SC-005**: At no point of that replay is a direction lit that the introspection
-  interface did not report as an exit, and at no point is a reported exit left unlit:
-  zero disagreements over more than 300 prompts.
+- **SC-005**: At no command prompt of that replay is a direction lit that the
+  introspection interface, asked separately of an identical game, did not report as an
+  exit, and at none is a reported exit left unlit: zero disagreements over more than 300
+  prompts. At the walkthrough positions that have hand-made exit lists, the compass
+  agrees with those too.
 - **SC-006**: Every command a tap sends is shown to the player: zero taps whose command
   is not in the visible text.
-- **SC-007**: After a complete game played in one session, the app still responds to a
-  tap in under a tenth of a second and all of the session's text can be scrolled.
+- **SC-007**: After a complete game played in one session, the shared layer still
+  answers a command, and hands over what is new, in under a hundredth of a second; and
+  in the simulator, after at least thirty commands, the first text of the session can
+  still be scrolled to.
 - **SC-008**: Ending the game and starting a new one, ten times in a row, leaves the app
   showing the opening text each time.
 - **SC-009**: A damaged story file, a fault during play, and `save`, `restore` and
@@ -323,8 +337,10 @@ reference transcript.
 - **SC-010**: With the system's text size at its largest accessibility setting, the
   compass, the text and the text field are all usable without any control overlapping
   another.
-- **SC-011**: None of the app's own code decides what an exit is: a check of the iPhone
-  app's source finds no reading of the game's memory and no direction logic.
+- **SC-011**: None of the app's own code decides what an exit is or composes a command.
+  A check of the iPhone app's source finds that the only text it ever sends the game is
+  what the player typed in the field; that it names the twelve compass places only to
+  position them; and that every label and state it shows comes from the shared layer.
 
 ## Assumptions
 
@@ -352,7 +368,11 @@ reference transcript.
   stores words cut to six letters, and the player should not be shown `northe`.
 - **The game's text is shown in a readable proportional font**, with layout by the
   phone. Zork I has almost nothing that depends on fixed-width columns.
-- **Random events use a fresh seed each launch.** Tests use a fixed seed.
+- **Random events use a fresh seed each launch and each "New game".** Tests use a fixed
+  seed. If the player types `restart`, the game restarts itself by its own means.
+- **The compass misses one prompt in Zork I.** In the Loud Room the game reads input
+  from a different place in its code, and by the owner's chosen rule the compass offers
+  nothing there; the player types.
 - **Out of scope**: Android; a physical device; the App Store and anything about
   distribution; saving, restoring and transcripts; inventory and tappable objects; other
   games and a way to choose one; version 5 and 8 screen features in the phone interface

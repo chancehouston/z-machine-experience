@@ -25,8 +25,9 @@ cargo test -p zmachine-experience --test walkthrough
 ```
 
 Expected: pass. The Zork I walkthrough, with a tap sent wherever the compass offered the
-move, gives the reference transcript byte for byte; at least 150 commands went as taps;
-and at every prompt the compass agreed with the introspection interface.
+move, gives the reference text from the first command to the end, byte for byte; at
+least 150 commands went as taps; and at every command prompt the compass agreed with the
+introspection interface asked of an identical game.
 
 ## 3. The C interface
 
@@ -48,7 +49,7 @@ Expected: the bindings are built for the simulator and the device, and
 ## 5. Run it in the simulator (User Stories 1 to 4)
 
 ```bash
-xcodebuild -project apps/ios/Lamplight.xcodeproj -scheme Lamplight -destination 'platform=iOS Simulator,name=iPhone 17 Pro' -derivedDataPath temp/ios build
+xcodebuild -project apps/ios/Lamplight.xcodeproj -scheme Lamplight -destination 'platform=iOS Simulator,name=iPhone 18 Pro,OS=27.2' -derivedDataPath temp/ios CODE_SIGNING_ALLOWED=NO build
 ```
 
 Then install and launch the built app in the simulator (or open the project in Xcode and
@@ -56,13 +57,16 @@ press Run).
 
 Expected: the game's opening text, "West of House" at the top, and a compass with north,
 south and west lit among others. Tapping north shows `north` in the text, then "North of
-House"; the compass changes. Typing `open mailbox` in the field works. Typing `quit` and
-`y` ends the game and offers "New game".
+House"; the compass changes. Typing `open mailbox` in the field works. Typing `quit`
+dims the compass while the game asks whether you mean it; `y` ends the game and offers
+"New game".
 
 ## 6. The automated UI tests
 
 ```bash
-xcodebuild -project apps/ios/Lamplight.xcodeproj -scheme Lamplight -destination 'platform=iOS Simulator,name=iPhone 17 Pro' -derivedDataPath temp/ios test
+xcodebuild -project apps/ios/Lamplight.xcodeproj -scheme Lamplight -destination 'platform=iOS Simulator,name=iPhone 18 Pro,OS=27.2' -derivedDataPath temp/ios CODE_SIGNING_ALLOWED=NO test
 ```
 
-Expected: pass, on the iOS 27.2 simulator and, with the destination changed, on iOS 26.0.
+Expected: pass. For iOS 26.0, use the destination
+`platform=iOS Simulator,name=iPhone 17 Pro,OS=26.0`. The simulator's model names differ
+from one system version to the next, so the destination must name both.
