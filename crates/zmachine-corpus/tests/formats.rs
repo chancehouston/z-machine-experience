@@ -3,7 +3,9 @@
 
 use zmachine_corpus::ledger;
 use zmachine_corpus::manifest::{self, Tier};
-use zmachine_corpus::report::{Case, Figures, Outcomes, Reached, Report, StoryLine, Summary};
+use zmachine_corpus::report::{
+    Case, Figures, Marked, Outcomes, Reached, Report, StoryLine, Summary,
+};
 use zmachine_corpus::trial::Outcome;
 use zmachine_corpus::verdict::Reported;
 
@@ -58,6 +60,9 @@ fn sample() -> Report {
             fault: 0,
         },
         no_verdict: 1,
+        pack: zmachine_introspect::PackState::None,
+        entries: 0,
+        marked: Marked::default(),
         detail: vec![
             (case(2, 28, Reported::None, Outcome::Moved(3)), 1),
             (case(2, 29, Reported::Fixed(3), Outcome::Moved(4)), 2),
@@ -489,4 +494,178 @@ fn a_summary_that_departs_from_the_format_is_refused_with_the_line() {
         .replace("trials 180", "trials 181");
     assert_eq!(refused(7, &wrong), 7);
     assert_eq!(refused(8, "skipped Four Rooms"), 8);
+}
+
+// ---------------------------------------------------------------------------
+// Game packs (specs/006-game-packs/contracts/commands.md, "The corpus's files")
+// ---------------------------------------------------------------------------
+
+/// The sample as a run with a pack in force gives it: twelve trials more, on
+/// answers that rest on the pack.
+fn marked() -> Report {
+    let mut report = sample();
+    report.pack = zmachine_introspect::PackState::InForce;
+    report.entries = 3;
+    report.marked = Marked {
+        open_confirmed: 4,
+        open_wrong_known: 1,
+        open_wrong_unexplained: 0,
+        closed_confirmed: 2,
+        closed_wrong_known: 0,
+        closed_wrong_unexplained: 1,
+        closed_other: 1,
+        distrusted: Outcomes {
+            moved: 1,
+            stayed: 2,
+            question: 0,
+            ended: 0,
+            fault: 0,
+        },
+    };
+    report.trials += 12;
+    report.detail.extend([
+        (case(4, 28, Reported::Open(5), Outcome::Stayed), 1),
+        (case(4, 29, Reported::Closed(5), Outcome::Ended), 1),
+        (case(4, 29, Reported::Closed(5), Outcome::Moved(5)), 1),
+        (case(4, 30, Reported::Distrusted, Outcome::Moved(6)), 1),
+        (case(4, 30, Reported::Distrusted, Outcome::Stayed), 2),
+    ]);
+    report
+}
+
+const PACK_LINES: &str = "\
+no-verdict 1
+pack in-force entries 3
+open confirmed 4 wrong-known 1 wrong-unexplained 0
+closed confirmed 2 wrong-known 0 wrong-unexplained 1 other 1
+distrusted 3 moved 1 stayed 2 question 0 ended 0 fault 0
+detail
+";
+
+// FR-022: a report of a run with a pack says so, and counts the trials on
+// answers that rest on it; without a pack a report is what it was.
+#[test]
+fn a_report_with_a_pack_writes_and_reads_its_marked_trials() {
+    let written = marked().write();
+    assert!(written.contains(PACK_LINES), "{written}");
+    for line in [
+        "4 28 open 5 stayed 1",
+        "4 29 closed 5 ended 1",
+        "4 29 closed 5 moved 5 1",
+        "4 30 distrusted moved 6 1",
+        "4 30 distrusted stayed 2",
+    ] {
+        assert!(
+            written.contains(&format!("\n{line}\n")),
+            "{line}: {written}"
+        );
+    }
+    assert_eq!(Report::read(&written), Ok(marked()));
+    assert_eq!(marked().verdicts(), marked().trials);
+    assert!(!sample().write().contains("pack"), "no pack, no line");
+
+    // A pack that was given and is not in force: one line, and no marked trial.
+    for (state, word) in [
+        (zmachine_introspect::PackState::NotMatching, "not-matching"),
+        (zmachine_introspect::PackState::Refused, "refused"),
+    ] {
+        let mut report = sample();
+        report.pack = state;
+        let written = report.write();
+        assert!(
+            written.contains(&format!("no-verdict 1\npack {word}\ndetail\n")),
+            "{written}"
+        );
+        assert_eq!(Report::read(&written), Ok(report));
+    }
+}
+
+#[test]
+fn a_report_whose_pack_lines_depart_from_the_format_is_refused() {
+    let written = marked().write();
+    let with = |from: &str, to: &str| {
+        assert!(written.contains(from), "{from}");
+        Report::read(&written.replace(from, to))
+            .expect_err("refused")
+            .0
+    };
+    assert_eq!(with("pack in-force entries 3", "pack in-force"), 13);
+    assert_eq!(
+        with("pack in-force entries 3", "pack sometimes entries 3"),
+        13
+    );
+    assert_eq!(with("pack in-force entries 3", "pack none"), 13);
+    assert_eq!(with("open confirmed 4", "open confirmed four"), 14);
+    assert_eq!(
+        with("closed confirmed 2 wrong-known 0", "closed confirmed 2"),
+        15
+    );
+    // The outcomes of the distrusted do not add up.
+    assert_eq!(with("distrusted 3 moved 1", "distrusted 4 moved 1"), 16);
+    // One marked trial more than the trials account for.
+    assert_eq!(with("open confirmed 4", "open confirmed 5"), 7);
+    // A marked case in the detail of a report with no pack.
+    let plain = sample().write() + "4 28 open 5 stayed 1\n";
+    assert_eq!(Report::read(&plain).expect_err("refused").0, 19);
+}
+
+// The ledger may explain a wrong report on a door (FR-019); a report that is
+// conditional is never wrong, with a pack or without.
+#[test]
+fn a_ledger_entry_may_be_on_a_door() {
+    let entry = |reported: &str, outcome: &str| {
+        format!(
+            "story: toy\nroom: 4\ndirection: 28\nreported: {reported}\noutcome: {outcome}\ncause: The room is dark.\n"
+        )
+    };
+    let read = ledger::read(&entry("open 5", "ended")).unwrap();
+    assert_eq!(
+        read.entries[0].case,
+        case(4, 28, Reported::Open(5), Outcome::Ended)
+    );
+    let read = ledger::read(&entry("closed 5", "moved 5")).unwrap();
+    assert_eq!(read.entries[0].case.reported, Reported::Closed(5));
+    assert_eq!(
+        ledger::read(&entry("distrusted", "stayed")).unwrap_err().0,
+        4
+    );
+    // A closed door that kept the player where they were is not wrong.
+    assert_eq!(ledger::read(&entry("closed 5", "stayed")).unwrap_err().0, 1);
+    assert_eq!(ledger::read(&entry("open 5", "moved 5")).unwrap_err().0, 1);
+}
+
+// The summary's form is unchanged: a door reported open counts with the exits
+// reported as leading to a room, one reported closed with those reported as not
+// an exit, and a distrusted exit with the conditional.
+#[test]
+fn the_summary_counts_marked_trials_with_their_like() {
+    let (plain, with) = (sample().line().figures, marked().line().figures);
+    assert_eq!(with.trials, plain.trials + 12);
+    assert_eq!(with.fixed, (plain.fixed.0 + 4, plain.fixed.1 + 5));
+    assert_eq!(with.none, (plain.none.0 + 2, plain.none.1 + 4));
+    assert_eq!(
+        with.conditional,
+        (plain.conditional.0 + 1, plain.conditional.1 + 3)
+    );
+    assert_eq!(with.wrong_known, plain.wrong_known + 1);
+    assert_eq!(with.wrong_unexplained, plain.wrong_unexplained + 1);
+}
+
+// Feature 006 (specs/006-game-packs/data-model.md, "Story"; research R12): the
+// key `first` may repeat, in order: commands given at the first command
+// prompts. It is not allowed with a walkthrough.
+#[test]
+fn a_manifest_may_give_first_commands() {
+    let with = ENTRY.replace(
+        "opening: yes\n",
+        "opening: yes\nfirst: north\nfirst: open\n",
+    );
+    let stories = manifest::read(&with).expect("the manifest reads");
+    assert_eq!(stories[1].first, ["north", "open"]);
+    assert!(stories[0].first.is_empty());
+    let both = ENTRY.replace(
+        "walkthrough: stories/zork1/fidelity/walkthrough.txt\n",
+        "walkthrough: stories/zork1/fidelity/walkthrough.txt\nfirst: north\n",
+    );
+    assert_eq!(manifest::read(&both).unwrap_err().0, 13);
 }

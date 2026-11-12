@@ -121,9 +121,14 @@ fn make(entry: &[(usize, &str, String)]) -> Result<Entry, Refusal> {
     };
     if matches!(
         case.reported,
-        crate::verdict::Reported::Conditional | crate::verdict::Reported::Unknown
+        crate::verdict::Reported::Conditional
+            | crate::verdict::Reported::Unknown
+            | crate::verdict::Reported::Distrusted
     ) {
-        return Err((reported_line, "reported is `fixed N` or `none`".to_string()));
+        return Err((
+            reported_line,
+            "reported is `fixed N`, `none`, `open N` or `closed N`".to_string(),
+        ));
     }
     if case.outcome == crate::trial::Outcome::Lost {
         return Err((outcome_line, "a lost trial has no verdict".to_string()));

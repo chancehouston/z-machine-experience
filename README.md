@@ -170,10 +170,29 @@ cargo test --workspace --release -- --ignored
 How often is introspection right about exits? `crates/zmachine-corpus` measures it: at
 each place a game is brought to, every direction is tried on a throwaway copy of the
 game, and what happened is set against what introspection reported. On fourteen story
-files and 11,258 trials, 96.5% of the exits reported as leading to a room did, and 98.2%
+files and 11,310 trials, 96.6% of the exits reported as leading to a room did, and 98.1%
 of the directions reported as not an exit were not; every wrong report has its cause
 written down. The figures, what they mean and what they do not show are in
 [`stories/corpus/README.md`](stories/corpus/README.md).
+
+## Game packs
+
+Some facts a game stores mean different things from game to game: which attribute says
+a door is open is number 11 in Zork I and 10 in Mini-Zork. No rule for a whole family of
+games can read them. A game pack is a small text file that states such facts for exactly
+one story file, named by its SHA-256, release and serial. Its format is section 12 of
+[`docs/introspection.md`](docs/introspection.md), so any interpreter can read the packs
+in [`packs/`](packs/). A pack holds numbers and no text of a game; every entry is proven
+against its story by the corpus's trials, and one that a trial contradicts fails the
+build. With no pack, every answer is what it was.
+
+```text
+cargo run --release -p zmachine-cli -- --pack packs/zork1.pack --inspect - stories/zork1/zork1.z3
+```
+
+With Zork I's pack a door is reported as a door, open or closed, with the room behind
+it, where without one the answer is "conditional". The iPhone app does not use packs
+yet.
 
 ```text
 cargo run -q --release -p zmachine-corpus -- check
@@ -199,6 +218,7 @@ reported as ignored, not passed.
 | `crates/zmachine-testkit` | Builds small story files in memory, for tests. |
 | `crates/zmachine-corpus` | Testing tools: tries a game's exits on copies and judges what introspection reported. Nothing depends on it. |
 | `stories/corpus/` | The corpus: its manifest, the ledger of known wrong reports, and each story's figures. |
+| `packs/` | Game packs: a few facts about one story file each, in the format of `docs/introspection.md` section 12, each proven by the corpus. |
 | `stories/` | Story files that may be redistributed, each with its license record. |
 | `stories/zork1/fidelity/` | The Zork I walkthrough and what Frotz makes of it. |
 | `stories/advent/fidelity/` | The same for Adventure in versions 5 and 8, with undo and save files. |
@@ -210,6 +230,7 @@ reported as ignored, not passed.
 | `specs/003-introspection/` | The same for the introspection interface. |
 | `specs/004-first-demo/` | The same for the first demo, with the C interface, the screen's contract and screenshots. |
 | `specs/005-corpus-testing/` | The same for corpus testing, with the formats of its files and its commands. |
+| `specs/006-game-packs/` | The same for game packs. |
 
 ## How it fits together
 

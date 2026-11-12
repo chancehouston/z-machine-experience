@@ -6,6 +6,7 @@
 
 use crate::trial::Outcome;
 use crate::verdict::Reported;
+use zmachine_introspect::PackState;
 
 /// What identifies a trial's result apart from when it happened: the room it
 /// started in (0 when unknown), the direction, what was reported, and what the
@@ -44,6 +45,34 @@ impl Outcomes {
     }
 }
 
+/// Trials on answers that rest on a game pack, by what was reported
+/// (specs/006-game-packs/research.md R10).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct Marked {
+    pub open_confirmed: usize,
+    pub open_wrong_known: usize,
+    pub open_wrong_unexplained: usize,
+    pub closed_confirmed: usize,
+    pub closed_wrong_known: usize,
+    pub closed_wrong_unexplained: usize,
+    /// Reported closed; the game ended, asked a question or faulted.
+    pub closed_other: usize,
+    pub distrusted: Outcomes,
+}
+
+impl Marked {
+    pub fn total(&self) -> usize {
+        self.open_confirmed
+            + self.open_wrong_known
+            + self.open_wrong_unexplained
+            + self.closed_confirmed
+            + self.closed_wrong_known
+            + self.closed_wrong_unexplained
+            + self.closed_other
+            + self.distrusted.total()
+    }
+}
+
 /// The figures for one story on one run.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Report {
@@ -73,6 +102,12 @@ pub struct Report {
     pub conditional: Outcomes,
     pub unknown: Outcomes,
     pub no_verdict: usize,
+    /// What became of the story's game pack; and, in force, how many entries
+    /// it holds.
+    pub pack: PackState,
+    pub entries: usize,
+    /// The trials on answers that rest on the pack.
+    pub marked: Marked,
     /// Each case whose verdict is not "confirmed", with how many trials.
     pub detail: Vec<(Case, usize)>,
 }
@@ -88,6 +123,9 @@ fn reported_text(reported: Reported) -> String {
         Reported::None => "none".to_string(),
         Reported::Conditional => "conditional".to_string(),
         Reported::Unknown => "unknown".to_string(),
+        Reported::Open(room) => format!("open {room}"),
+        Reported::Closed(room) => format!("closed {room}"),
+        Reported::Distrusted => "distrusted".to_string(),
     }
 }
 
@@ -129,6 +167,9 @@ impl Case {
             "none" => (Reported::None, &words[3..]),
             "conditional" => (Reported::Conditional, &words[3..]),
             "unknown" => (Reported::Unknown, &words[3..]),
+            "open" => (Reported::Open(number(words.get(3)?)?), &words[4..]),
+            "closed" => (Reported::Closed(number(words.get(3)?)?), &words[4..]),
+            "distrusted" => (Reported::Distrusted, &words[3..]),
             _ => return None,
         };
         let (outcome, rest) = match *rest.first()? {
@@ -201,6 +242,7 @@ impl Report {
             + self.conditional.total()
             + self.unknown.total()
             + self.no_verdict
+            + self.marked.total()
     }
 
     pub fn write(&self) -> String {
@@ -258,6 +300,28 @@ impl Report {
         line(format!("conditional {}", outcomes(&self.conditional)));
         line(format!("unknown {}", outcomes(&self.unknown)));
         line(format!("no-verdict {}", self.no_verdict));
+        // Only a run that was given a pack says so: a report without these lines
+        // is a run with none, and is what it was before there were packs.
+        match self.pack {
+            PackState::None => {}
+            PackState::InForce => {
+                let m = &self.marked;
+                line(format!("pack in-force entries {}", self.entries));
+                line(format!(
+                    "open confirmed {} wrong-known {} wrong-unexplained {}",
+                    m.open_confirmed, m.open_wrong_known, m.open_wrong_unexplained
+                ));
+                line(format!(
+                    "closed confirmed {} wrong-known {} wrong-unexplained {} other {}",
+                    m.closed_confirmed,
+                    m.closed_wrong_known,
+                    m.closed_wrong_unexplained,
+                    m.closed_other
+                ));
+                line(format!("distrusted {}", outcomes(&m.distrusted)));
+            }
+            state => line(format!("pack {}", state.as_str())),
+        }
         line("detail".to_string());
         // By room, then direction, then the rest as text.
         let mut detail: Vec<(u16, u8, String, usize)> = self
@@ -388,13 +452,56 @@ impl Report {
             }
         }
         report.no_verdict = get(12, "no-verdict #")?[0];
+        // The lines of a run that was given a pack, if it was.
+        let mut at = 13;
+        match lines.get(12).copied().unwrap_or("") {
+            "pack not-matching" => (report.pack, at) = (PackState::NotMatching, 14),
+            "pack refused" => (report.pack, at) = (PackState::Refused, 14),
+            line if line.starts_with("pack ") => {
+                report.pack = PackState::InForce;
+                report.entries = get(13, "pack in-force entries #")?[0];
+                let n = get(14, "open confirmed # wrong-known # wrong-unexplained #")?;
+                let m = &mut report.marked;
+                (
+                    m.open_confirmed,
+                    m.open_wrong_known,
+                    m.open_wrong_unexplained,
+                ) = (n[0], n[1], n[2]);
+                let n = get(
+                    15,
+                    "closed confirmed # wrong-known # wrong-unexplained # other #",
+                )?;
+                (
+                    m.closed_confirmed,
+                    m.closed_wrong_known,
+                    m.closed_wrong_unexplained,
+                    m.closed_other,
+                ) = (n[0], n[1], n[2], n[3]);
+                let n = get(
+                    16,
+                    "distrusted # moved # stayed # question # ended # fault #",
+                )?;
+                m.distrusted = Outcomes {
+                    moved: n[1],
+                    stayed: n[2],
+                    question: n[3],
+                    ended: n[4],
+                    fault: n[5],
+                };
+                if m.distrusted.total() != n[0] {
+                    return refuse(16, "the outcomes do not add up to the total");
+                }
+                at = 17;
+            }
+            _ => {}
+        }
         if report.verdicts() != report.trials {
             return refuse(7, "the verdicts do not add up to the trials");
         }
-        if lines.get(12).copied() != Some("detail") {
-            return refuse(13, "expected `detail`");
+        if lines.get(at - 1).copied() != Some("detail") {
+            return refuse(at, "expected `detail`");
         }
-        for (i, line) in lines.iter().enumerate().skip(13) {
+        for (i, line) in lines.iter().enumerate().skip(at) {
             let words: Vec<&str> = line.split(' ').collect();
             let Some((case, rest)) = Case::read(&words) else {
                 return refuse(i + 1, "expected `room direction reported outcome count`");
@@ -406,6 +513,12 @@ impl Report {
             let Some(count) = count else {
                 return refuse(i + 1, "expected `room direction reported outcome count`");
             };
+            if case.reported.marked() && report.pack != PackState::InForce {
+                return refuse(
+                    i + 1,
+                    "an answer that rests on a pack, with no pack in force",
+                );
+            }
             report.detail.push((case, count));
         }
         if !text.ends_with('\n') {
@@ -451,8 +564,20 @@ pub struct Summary {
 impl Report {
     /// The story's line of the summary.
     pub fn line(&self) -> StoryLine {
-        let fixed_wrong = self.fixed_wrong_known + self.fixed_wrong_unexplained;
-        let none_wrong = self.none_wrong_known + self.none_wrong_unexplained;
+        // A door reported open counts with the exits reported as leading to a
+        // room; one reported closed with those reported as not an exit; a
+        // distrusted exit with the conditional. The summary's form is unchanged.
+        let m = &self.marked;
+        let fixed_wrong = self.fixed_wrong_known
+            + self.fixed_wrong_unexplained
+            + m.open_wrong_known
+            + m.open_wrong_unexplained;
+        let none_wrong = self.none_wrong_known
+            + self.none_wrong_unexplained
+            + m.closed_wrong_known
+            + m.closed_wrong_unexplained;
+        let fixed_confirmed = self.fixed_confirmed + m.open_confirmed;
+        let none_confirmed = self.none_confirmed + m.closed_confirmed;
         StoryLine {
             id: self.id.clone(),
             family: self.family.clone(),
@@ -460,15 +585,24 @@ impl Report {
                 places: self.places,
                 rooms: self.rooms_visited,
                 trials: self.trials,
-                fixed: (self.fixed_confirmed, self.fixed_confirmed + fixed_wrong),
+                fixed: (fixed_confirmed, fixed_confirmed + fixed_wrong),
                 none: (
-                    self.none_confirmed,
-                    self.none_confirmed + none_wrong + self.none_other,
+                    none_confirmed,
+                    none_confirmed + none_wrong + self.none_other + m.closed_other,
                 ),
-                conditional: (self.conditional.moved, self.conditional.total()),
+                conditional: (
+                    self.conditional.moved + m.distrusted.moved,
+                    self.conditional.total() + m.distrusted.total(),
+                ),
                 unknown: self.unknown.total(),
-                wrong_known: self.fixed_wrong_known + self.none_wrong_known,
-                wrong_unexplained: self.fixed_wrong_unexplained + self.none_wrong_unexplained,
+                wrong_known: self.fixed_wrong_known
+                    + self.none_wrong_known
+                    + m.open_wrong_known
+                    + m.closed_wrong_known,
+                wrong_unexplained: self.fixed_wrong_unexplained
+                    + self.none_wrong_unexplained
+                    + m.open_wrong_unexplained
+                    + m.closed_wrong_unexplained,
             },
         }
     }

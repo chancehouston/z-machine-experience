@@ -9,7 +9,7 @@ rust-version.workspace = true
 
 [dependencies]
 zmachine-core = { path = "../zmachine-core" }
+sha2 = "0.10"
 
 [dev-dependencies]
 zmachine-testkit = { path = "../zmachine-testkit" }
-sha2 = "0.10"

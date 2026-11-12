@@ -296,8 +296,20 @@ fn exits() {
             "words",
             "kind",
             "destination",
-            "destination_name"
+            "destination_name",
+            "door",
+            "state",
+            "source"
         ]
+    );
+    // I§12.5: with no pack, no door and the file's own answer.
+    assert_eq!(
+        (
+            north.get("door"),
+            north.get("state"),
+            north.get("source").text()
+        ),
+        (&J::Null, &J::Null, "file")
     );
     assert_eq!(north.get("direction"), &J::Number(7.0));
     assert_eq!(
@@ -497,4 +509,66 @@ fn text_is_escaped() {
     assert_eq!(to_json("Caf\u{e9} \u{3b1}"), "\"Caf\u{e9} \u{3b1}\"");
     // Control characters are written as \u escapes.
     assert_eq!(to_json("tab\there\u{1}"), r#""tab\there\u0001""#);
+}
+
+// I§2.3, I§12.5 (specs/006-game-packs/contracts/pack-format.md P§22, 23): an
+// exit's eight keys in order, a door and a marked conditional exit as they are
+// written, and an unknown direction with no mark.
+#[test]
+fn exits_with_a_pack() {
+    use sha2::{Digest, Sha256};
+    let mut f = Zil::new();
+    // Up: open by a variable that is set, to something that is not a room.
+    f.prop(
+        zl::KITCHEN,
+        zl::UP,
+        vec![zl::LAMP as u8, 16 + 21, 0x12, 0x34],
+    );
+    f.setup.extend(set_global(21, 1));
+    let image = f.build();
+    let digest: String = Sha256::digest(&image)
+        .iter()
+        .map(|b| format!("{b:02x}"))
+        .collect();
+    let serial = String::from_utf8(image[0x12..0x18].to_vec()).unwrap();
+    let pack = format!(
+        "pack: 1\nsha256: {digest}\nrelease: {}\nserial: {serial}\nopen-attribute: 7\nuntrusted-variable: {}\n",
+        u16::from_be_bytes([image[2], image[3]]),
+        16 + zl::TRAP_OPEN
+    );
+    let m = crate::fixtures::run(image);
+    let view = m.view();
+    let i = Introspector::with_pack(&view, &pack);
+    assert_eq!(i.pack(), crate::PackState::InForce);
+    let text = to_json(&i.exits(&view));
+    let hall = zl::HALL;
+    let door = zl::DOOR;
+    assert!(
+        text.contains(&format!(
+            r#"{{"direction":{},"words":["west"],"kind":"door","destination":{hall},"destination_name":"Hall","door":{door},"state":"closed","source":"pack"}}"#,
+            zl::WEST
+        )),
+        "{text}"
+    );
+    assert!(
+        text.contains(&format!(
+            r#"{{"direction":{},"words":["down"],"kind":"conditional","destination":null,"destination_name":null,"door":null,"state":null,"source":"pack"}}"#,
+            zl::DOWN
+        )),
+        "{text}"
+    );
+    assert!(
+        text.contains(&format!(
+            r#"{{"direction":{},"words":["n","north"],"kind":"fixed","destination":{hall},"destination_name":"Hall","door":null,"state":null,"source":"file"}}"#,
+            zl::NORTH
+        )),
+        "{text}"
+    );
+    assert!(
+        text.contains(&format!(
+            r#""unknown":[{{"direction":{},"words":["up"],"reason":"not-determinable"}}]"#,
+            zl::UP
+        )),
+        "{text}"
+    );
 }

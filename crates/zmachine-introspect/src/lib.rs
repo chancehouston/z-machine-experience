@@ -9,10 +9,12 @@ mod answer;
 mod family;
 mod inform;
 pub mod json;
+pub mod pack;
 mod table;
 mod zil;
 
 pub use answer::{Answer, Exactness, Part, Tri, Unknown};
+pub use pack::{Pack, PackError, PackState};
 
 use family::{Adapter, Place, Way};
 use table::{Bytes, Layout};
@@ -31,12 +33,14 @@ mod json_tests;
 #[cfg(test)]
 mod lib_tests;
 #[cfg(test)]
+mod pack_tests;
+#[cfg(test)]
 mod table_tests;
 #[cfg(test)]
 mod zil_tests;
 
 /// The version of `docs/introspection.md` this crate implements.
-pub const SPEC_VERSION: &str = "0.1.0";
+pub const SPEC_VERSION: &str = "0.2.0";
 
 /// The queries, as the specification names them and in its order.
 pub const QUERIES: [&str; 6] = [
@@ -149,6 +153,8 @@ pub struct Carried {
 pub enum ExitKind {
     Fixed,
     Conditional,
+    /// Through a door whose state a game pack lets be read (section 12.3).
+    Door,
 }
 
 impl ExitKind {
@@ -156,6 +162,40 @@ impl ExitKind {
         match self {
             ExitKind::Fixed => "fixed",
             ExitKind::Conditional => "conditional",
+            ExitKind::Door => "door",
+        }
+    }
+}
+
+/// Whether a door stands open (specification section 12.3).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum DoorState {
+    Open,
+    Closed,
+}
+
+impl DoorState {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            DoorState::Open => "open",
+            DoorState::Closed => "closed",
+        }
+    }
+}
+
+/// Whether an exit is what the story file alone gives, or would be different
+/// with no game pack in force (specification section 12.5).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum Source {
+    File,
+    Pack,
+}
+
+impl Source {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Source::File => "file",
+            Source::Pack => "pack",
         }
     }
 }
@@ -168,10 +208,15 @@ pub struct Exit {
     /// The dictionary words that name it, shortest first. May be empty.
     pub words: Vec<String>,
     pub kind: ExitKind,
-    /// The room it leads to, for a fixed exit.
+    /// The room it leads to, for a fixed exit or a door.
     pub destination: Option<u16>,
-    /// That room's printed name, for a fixed exit.
+    /// That room's printed name, for a fixed exit or a door.
     pub destination_name: Option<Part<String>>,
+    /// The door, for an exit through one.
+    pub door: Option<u16>,
+    /// Whether that door is open.
+    pub state: Option<DoorState>,
+    pub source: Source,
 }
 
 /// A direction whose exit could not be determined.
@@ -283,6 +328,9 @@ pub struct Introspector {
     adapter: Adapter,
     /// The story file's length and checksum, to know it again.
     identity: (usize, Option<u16>),
+    /// What became of the game pack this was given, and its facts if in force.
+    pack: PackState,
+    entries: pack::Entries,
 }
 
 impl Introspector {
@@ -294,7 +342,34 @@ impl Introspector {
             layout,
             adapter,
             identity: (view.len(), view.shipped_word(0x1C)),
+            pack: PackState::None,
+            entries: pack::Entries::default(),
         }
+    }
+
+    /// As [`Introspector::new`], with a game pack's text (specification section
+    /// 12). Never fails: a pack that is malformed or is another story's changes
+    /// nothing, and [`Introspector::pack`] says which.
+    pub fn with_pack(view: &View<'_>, text: &str) -> Introspector {
+        let mut introspector = Introspector::new(view);
+        introspector.pack = match Pack::parse(text) {
+            Err(_) => PackState::Refused,
+            // Both kinds of entry are about ZIL's exits.
+            Ok(pack) if pack.has_entries() && !matches!(introspector.adapter, Adapter::Zil(_)) => {
+                PackState::Refused
+            }
+            Ok(pack) if !pack::matches(&pack, view) => PackState::NotMatching,
+            Ok(pack) => {
+                introspector.entries = pack.entries();
+                PackState::InForce
+            }
+        };
+        introspector
+    }
+
+    /// What became of the game pack this was given.
+    pub fn pack(&self) -> PackState {
+        self.pack
     }
 
     /// The version of the specification the answers follow.
@@ -424,7 +499,7 @@ impl Introspector {
                     (
                         d.property,
                         d.words.as_slice(),
-                        zil.way(&self.layout, b, room, d),
+                        zil.way(&self.layout, b, room, d, &self.entries),
                     )
                 })
                 .collect(),
@@ -441,6 +516,9 @@ impl Introspector {
                     kind: ExitKind::Fixed,
                     destination: Some(destination),
                     destination_name: Some(self.printed_name(b, destination)),
+                    door: None,
+                    state: None,
+                    source: Source::File,
                 }),
                 Way::Conditional => exits.exits.push(Exit {
                     direction,
@@ -448,6 +526,33 @@ impl Introspector {
                     kind: ExitKind::Conditional,
                     destination: None,
                     destination_name: None,
+                    door: None,
+                    state: None,
+                    source: Source::File,
+                }),
+                Way::Door { room, door, open } => exits.exits.push(Exit {
+                    direction,
+                    words,
+                    kind: ExitKind::Door,
+                    destination: Some(room),
+                    destination_name: Some(self.printed_name(b, room)),
+                    door: Some(door),
+                    state: Some(if open {
+                        DoorState::Open
+                    } else {
+                        DoorState::Closed
+                    }),
+                    source: Source::Pack,
+                }),
+                Way::Distrusted => exits.exits.push(Exit {
+                    direction,
+                    words,
+                    kind: ExitKind::Conditional,
+                    destination: None,
+                    destination_name: None,
+                    door: None,
+                    state: None,
+                    source: Source::Pack,
                 }),
                 Way::Unknown(reason) => exits.unknown.push(UnknownDirection {
                     direction,

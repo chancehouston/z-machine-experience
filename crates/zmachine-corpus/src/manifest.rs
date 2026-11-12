@@ -27,6 +27,9 @@ pub struct Story {
     pub walkthrough: Option<String>,
     /// Answers given before the first command prompt.
     pub opening: Vec<String>,
+    /// Commands given at the first command prompts, each of which is a place,
+    /// before the crawl starts (specs/006-game-packs/research.md R12).
+    pub first: Vec<String>,
     /// The crawl's budget for this story, when not the default.
     pub rooms: Option<usize>,
     pub trials: Option<usize>,
@@ -34,7 +37,7 @@ pub struct Story {
     pub line: usize,
 }
 
-const KEYS: [&str; 14] = [
+const KEYS: [&str; 15] = [
     "id",
     "sha256",
     "size",
@@ -47,6 +50,7 @@ const KEYS: [&str; 14] = [
     "seed",
     "walkthrough",
     "opening",
+    "first",
     "rooms",
     "trials",
 ];
@@ -82,7 +86,7 @@ pub fn read(text: &str) -> Result<Vec<Story>, Refusal> {
         if !KEYS.contains(&key) {
             return Err((number, format!("`{key}` is not a key of the manifest")));
         }
-        if key != "opening" && entry.iter().any(|(_, k, _)| *k == key) {
+        if !["opening", "first"].contains(&key) && entry.iter().any(|(_, k, _)| *k == key) {
             return Err((number, format!("`{key}` is given twice")));
         }
         entry.push((number, key, value));
@@ -110,6 +114,7 @@ fn story(entry: &[(usize, &str, &str)]) -> Result<Story, Refusal> {
         seed: 0,
         walkthrough: None,
         opening: Vec::new(),
+        first: Vec::new(),
         rooms: None,
         trials: None,
         line: first,
@@ -156,6 +161,7 @@ fn story(entry: &[(usize, &str, &str)]) -> Result<Story, Refusal> {
                 "(return)" => String::new(),
                 other => other.to_string(),
             }),
+            "first" => story.first.push(value.to_string()),
             "rooms" | "trials" => match number(value) {
                 Some(n) if key == "rooms" => story.rooms = Some(n as usize),
                 Some(n) => story.trials = Some(n as usize),
@@ -192,6 +198,12 @@ fn story(entry: &[(usize, &str, &str)]) -> Result<Story, Refusal> {
             ));
         }
         _ => {}
+    }
+    if story.walkthrough.is_some() && !story.first.is_empty() {
+        return Err((
+            line_of("first"),
+            "a story with a walkthrough has no first commands".to_string(),
+        ));
     }
     Ok(story)
 }

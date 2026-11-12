@@ -27,6 +27,7 @@ pub fn entry(id: &str) -> Story {
         seed: 1,
         walkthrough: None,
         opening: vec![],
+        first: vec![],
         rooms: None,
         trials: None,
         line: 1,

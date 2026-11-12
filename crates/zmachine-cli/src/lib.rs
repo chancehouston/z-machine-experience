@@ -15,7 +15,8 @@ use zmachine_introspect::{Introspector, json};
 
 pub const USAGE: &str = "\
 usage: zm [--script FILE] [--seed N] [--width N] [--dir DIR] [--max-instructions N]
-          [--upper] [--style MODE] [--interpreter-version C] [--inspect FILE] STORY
+          [--upper] [--style MODE] [--interpreter-version C] [--inspect FILE]
+          [--pack FILE] STORY
        zm [--tree] [--dictionary] STORY
        zm --version
        zm --help
@@ -31,6 +32,8 @@ usage: zm [--script FILE] [--seed N] [--width N] [--dir DIR] [--max-instructions
   --interpreter-version C  the letter a game may print as the interpreter's version (default Z)
   --inspect FILE         each time the game waits for input, write one line of JSON to FILE: where the
                          player is, the exits, what is carried and what is in reach (- for standard error)
+  --pack FILE            a game pack for STORY (docs/introspection.md, section 12): facts that let
+                         --inspect say more; one that is another story's changes nothing
   --tree                 print the story's object tree as JSON and exit
   --dictionary           print the story's dictionary as JSON and exit
 ";
@@ -63,6 +66,8 @@ pub struct Config {
     pub interpreter_version: u8,
     /// Where to write a line of introspection at each stop; `-` is standard error.
     pub inspect: Option<PathBuf>,
+    /// A game pack to give the introspection interface.
+    pub pack: Option<PathBuf>,
     /// Print the object tree and exit.
     pub tree: bool,
     /// Print the dictionary and exit.
@@ -98,6 +103,7 @@ pub fn parse_args(args: &[String]) -> Result<Invocation, String> {
         style: StyleMode::Auto,
         interpreter_version: b'Z',
         inspect: None,
+        pack: None,
         tree: false,
         dictionary: false,
     };
@@ -140,6 +146,7 @@ pub fn parse_args(args: &[String]) -> Result<Invocation, String> {
             "--tree" => config.tree = true,
             "--dictionary" => config.dictionary = true,
             "--inspect" => config.inspect = Some(PathBuf::from(value("--inspect")?)),
+            "--pack" => config.pack = Some(PathBuf::from(value("--pack")?)),
             "--style" => {
                 let text = value("--style")?;
                 config.style = match text.as_str() {
@@ -442,7 +449,18 @@ pub fn play(
 
     // The introspection interface (docs/introspection.md). It reads the machine
     // through a shared reference and changes nothing about the game.
-    let introspector = Introspector::new(&machine.view());
+    // A game pack is text the interface is handed. One it refuses, or that is
+    // another story's, changes nothing, and each line says so in its `pack` field.
+    let introspector = match config.pack.as_deref() {
+        None => Introspector::new(&machine.view()),
+        Some(path) => match std::fs::read_to_string(path) {
+            Ok(text) => Introspector::with_pack(&machine.view(), &text),
+            Err(e) => {
+                writeln!(err, "zm: cannot read {}: {e}", path.display())?;
+                return Ok(EXIT_USAGE);
+            }
+        },
+    };
     if config.tree || config.dictionary {
         let json = json::tables(
             &introspector,

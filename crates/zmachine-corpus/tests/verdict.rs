@@ -13,6 +13,9 @@ fn exit(direction: u8, kind: ExitKind, destination: Option<u16>) -> Exit {
         kind,
         destination,
         destination_name: None,
+        door: None,
+        state: None,
+        source: zmachine_introspect::Source::File,
     }
 }
 
@@ -113,4 +116,75 @@ fn an_exit_to_the_room_the_player_is_in_has_no_verdict_when_the_player_stays() {
         judge(&case(7, Reported::None, Outcome::Stayed)),
         Verdict::Confirmed
     );
+}
+
+// ---------------------------------------------------------------------------
+// Answers that rest on a game pack (specs/006-game-packs/research.md R10)
+// ---------------------------------------------------------------------------
+
+// I§12.5: the three marked answers are read from the exit's kind, state and
+// source; an exit whose source is the file is read as before.
+#[test]
+fn a_marked_answer_is_read_from_the_exit() {
+    use zmachine_introspect::{DoorState, Source};
+    let door = |direction: u8, state: DoorState| Exit {
+        kind: ExitKind::Door,
+        door: Some(40),
+        state: Some(state),
+        source: Source::Pack,
+        ..exit(direction, ExitKind::Door, Some(9))
+    };
+    let exits = Ok(Exits {
+        exits: vec![
+            door(31, DoorState::Open),
+            door(30, DoorState::Closed),
+            Exit {
+                source: Source::Pack,
+                ..exit(29, ExitKind::Conditional, None)
+            },
+            exit(28, ExitKind::Conditional, None),
+            exit(27, ExitKind::Fixed, Some(7)),
+        ],
+        unknown: vec![],
+    });
+    assert_eq!(reported(&exits, 31), Reported::Open(9));
+    assert_eq!(reported(&exits, 30), Reported::Closed(9));
+    assert_eq!(reported(&exits, 29), Reported::Distrusted);
+    assert_eq!(reported(&exits, 28), Reported::Conditional);
+    assert_eq!(reported(&exits, 27), Reported::Fixed(7));
+    assert_eq!(reported(&exits, 26), Reported::None);
+    for (said, marked) in [
+        (Reported::Open(9), true),
+        (Reported::Closed(9), true),
+        (Reported::Distrusted, true),
+        (Reported::Fixed(9), false),
+        (Reported::Conditional, false),
+        (Reported::None, false),
+        (Reported::Unknown, false),
+    ] {
+        assert_eq!(said.marked(), marked, "{said:?}");
+    }
+}
+
+// Research R10, row by row.
+#[test]
+fn the_verdict_on_a_marked_answer() {
+    use Outcome::*;
+    let others = [Question, Ended, Fault];
+    assert_eq!(verdict(Reported::Open(9), Moved(9)), Verdict::Confirmed);
+    assert_eq!(verdict(Reported::Open(9), Moved(8)), Verdict::Wrong);
+    assert_eq!(verdict(Reported::Open(9), Stayed), Verdict::Wrong);
+    assert_eq!(verdict(Reported::Closed(9), Stayed), Verdict::Confirmed);
+    assert_eq!(verdict(Reported::Closed(9), Moved(9)), Verdict::Wrong);
+    assert_eq!(verdict(Reported::Closed(9), Moved(8)), Verdict::Wrong);
+    for outcome in others {
+        assert_eq!(verdict(Reported::Open(9), outcome), Verdict::Wrong);
+        assert_eq!(verdict(Reported::Closed(9), outcome), Verdict::NoneOther);
+    }
+    for outcome in [Moved(9), Stayed, Question, Ended, Fault] {
+        assert_eq!(verdict(Reported::Distrusted, outcome), Verdict::Conditional);
+    }
+    for said in [Reported::Open(9), Reported::Closed(9), Reported::Distrusted] {
+        assert_eq!(verdict(said, Lost), Verdict::NoVerdict);
+    }
 }

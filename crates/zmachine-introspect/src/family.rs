@@ -50,6 +50,16 @@ pub(crate) enum Way {
     Fixed(u16),
     /// Decided by the game's code.
     Conditional,
+    /// Through a door a game pack lets be read: the room behind it, the door,
+    /// and whether the door is open (specification section 12.3).
+    Door {
+        room: u16,
+        door: u16,
+        open: bool,
+    },
+    /// Conditional because a game pack names its variable as untrusted
+    /// (specification section 12.4).
+    Distrusted,
     /// Not an exit: absent, refused, or closed by a stored value.
     None,
     Unknown(crate::Unknown),

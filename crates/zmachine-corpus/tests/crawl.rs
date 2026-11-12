@@ -23,6 +23,7 @@ fn entry() -> Story {
         seed: 1,
         walkthrough: None,
         opening: vec![],
+        first: vec![],
         rooms: None,
         trials: None,
         line: 1,
@@ -154,4 +155,49 @@ fn opening_lines_answer_what_a_game_asks_first() {
     assert_eq!(order, rooms(&[1]));
     assert_eq!(plain.crawl, 2);
     assert_eq!(opened.crawl, 1);
+}
+
+// Feature 006, research R12: each command prompt a `first` command is given at
+// is a place with trials, and the crawl starts from every place so far. A door
+// that only a command opens is tried in both states.
+#[test]
+fn first_commands_make_places_before_the_crawl() {
+    use zmachine_corpus::corpus::{Mode, command};
+    let mut toy = Toy::new(3);
+    toy.way(1, SOUTH, 0).way(1, EAST, 2);
+    toy.door = Some((0, NORTH, 1));
+    let image = toy.build();
+
+    // Without them the crawl only walks: the door stays closed, and the rooms
+    // behind it are never reached.
+    let scratch = Scratch::new("no-first");
+    scratch.add("toy", &image, "");
+    scratch.pack("toy", &image, &format!("open-attribute: {OPEN_ATTR}\n"));
+    let (said, _) = command(&scratch.0, Mode::Write, &[]);
+    assert_eq!(said[0], "toy entry open-attribute 9: not-proven");
+    let kept = scratch.read("stories/corpus/reports/toy.txt");
+    assert!(
+        kept.contains("\nplaces 1 walkthrough 0 crawl 1\n"),
+        "{kept}"
+    );
+    assert!(kept.contains("\nopen confirmed 0 "), "{kept}");
+
+    let scratch = Scratch::new("first");
+    scratch.add("toy", &image, "first: look\nfirst: open\n");
+    scratch.pack("toy", &image, &format!("open-attribute: {OPEN_ATTR}\n"));
+    let (said, status) = command(&scratch.0, Mode::Write, &[]);
+    assert_eq!(
+        (said[0].as_str(), status),
+        ("toy entry open-attribute 9: proven", 0)
+    );
+    let kept = scratch.read("stories/corpus/reports/toy.txt");
+    // Three prompts: before `look`, before `open`, and after it, where the door
+    // is open. Then the crawl, from the rooms the trials reached.
+    assert!(
+        kept.contains("\nplaces 5 walkthrough 3 crawl 2\n"),
+        "{kept}"
+    );
+    assert!(kept.contains("\nrooms visited 3 "), "{kept}");
+    assert!(kept.contains("\nopen confirmed 1 "), "{kept}");
+    assert!(kept.contains("\nclosed confirmed 2 "), "{kept}");
 }

@@ -320,3 +320,162 @@ fn a_story_that_has_never_run_is_listed_as_skipped() {
     assert!(kept.contains("\nall stories 1 places 2 "), "{kept}");
     assert!(kept.ends_with("skipped far\n"), "{kept}");
 }
+
+// ---------------------------------------------------------------------------
+// Game packs (specs/006-game-packs/research.md R9; FR-005, FR-023)
+// ---------------------------------------------------------------------------
+
+/// The failures of the pack check, which must be exactly one, naming `what`.
+fn pack_fails_with(scratch: &Scratch, what: &str) {
+    let (stories, ledger) = zmachine_corpus::corpus::load(&scratch.0).unwrap();
+    let (failures, _) = zmachine_corpus::packs::check(&scratch.0, &stories, &ledger);
+    assert_eq!(failures.len(), 1, "{failures:?}");
+    assert!(failures[0].contains(what), "{what:?} in {failures:?}");
+    // Nothing is run on a pack that does not pass.
+    assert_eq!(command(&scratch.0, Mode::Run, &[]), (failures, 1));
+}
+
+fn pack_passes(scratch: &Scratch) {
+    let (stories, ledger) = zmachine_corpus::corpus::load(&scratch.0).unwrap();
+    let (failures, _) = zmachine_corpus::packs::check(&scratch.0, &stories, &ledger);
+    assert_eq!(failures, Vec::<String>::new());
+}
+
+// FR-023: a repository with no pack passes, and so does a well-formed pack for
+// a story of the manifest, named by the story's id.
+#[test]
+fn a_well_formed_pack_for_a_story_of_the_manifest_passes() {
+    let scratch = good();
+    pack_passes(&scratch);
+    scratch.pack("toy", &toy(), "open-attribute: 9\n");
+    pack_passes(&scratch);
+    // A file that is not a pack is not read as one.
+    scratch.write("packs/README.md", b"Packs.\n");
+    pack_passes(&scratch);
+}
+
+// FR-005: a malformed pack is refused as a whole, with the file and the line.
+#[test]
+fn a_malformed_pack_is_refused_with_its_file_and_line() {
+    let scratch = good();
+    scratch.pack("toy", &toy(), "open-attribute: 9\nlit-attribute: 3\n");
+    pack_fails_with(
+        &scratch,
+        "packs/toy.pack:6: a key this format does not have",
+    );
+    scratch.pack("toy", &toy(), "open-attribute: 32\n");
+    pack_fails_with(
+        &scratch,
+        "packs/toy.pack:5: open-attribute is a number from 0 to 31",
+    );
+}
+
+// FR-023: an entry with no story to test it on may not exist; nor two packs for
+// one story; and a pack is named by its story's id.
+#[test]
+fn a_pack_must_be_the_one_pack_of_a_story_the_corpus_holds() {
+    let scratch = good();
+    let mut other = Toy::new(3);
+    other.way(0, NORTH, 1);
+    scratch.pack("toy", &other.build(), "");
+    pack_fails_with(
+        &scratch,
+        "packs/toy.pack: its digest is no story's in the manifest",
+    );
+
+    let scratch = good();
+    scratch.pack("toy", &toy(), "");
+    scratch.pack("toy-again", &toy(), "");
+    let (stories, ledger) = zmachine_corpus::corpus::load(&scratch.0).unwrap();
+    let (failures, _) = zmachine_corpus::packs::check(&scratch.0, &stories, &ledger);
+    assert_eq!(failures.len(), 2, "{failures:?}");
+    assert!(
+        failures[0].contains("packs/toy-again.pack: another pack names the same story"),
+        "{failures:?}"
+    );
+    assert!(
+        failures[1].contains("packs/toy-again.pack: its story is `toy`"),
+        "{failures:?}"
+    );
+}
+
+// FR-023: both kinds of entry are for the ZIL family. A pack with none is no
+// fault for any family.
+#[test]
+fn an_entry_for_a_story_of_another_family_is_refused() {
+    let scratch = good();
+    edit(&scratch, MANIFEST, "family: zil", "family: inform");
+    scratch.pack("toy", &toy(), "");
+    pack_passes(&scratch);
+    scratch.pack("toy", &toy(), "untrusted-variable: 40\n");
+    pack_fails_with(
+        &scratch,
+        "packs/toy.pack: an entry, for a story of family inform",
+    );
+}
+
+// I§12.2: the release and the serial are the story file's own; where the file
+// is present a pack that states others is refused.
+#[test]
+fn a_pack_states_its_storys_own_release_and_serial() {
+    let scratch = good();
+    scratch.pack("toy", &toy(), "");
+    edit(&scratch, "packs/toy.pack", "release: 1\n", "release: 2\n");
+    pack_fails_with(&scratch, "packs/toy.pack: the story's release is 1");
+    scratch.pack("toy", &toy(), "");
+    edit(
+        &scratch,
+        "packs/toy.pack",
+        "serial: 000000\n",
+        "serial: 000001\n",
+    );
+    pack_fails_with(&scratch, "packs/toy.pack: the story's serial is 000000");
+    // Where the file is absent these cannot be checked, and are not.
+    std::fs::remove_file(scratch.path("stories/toy/toy.z3")).unwrap();
+    pack_passes(&scratch);
+}
+
+// FR-019: the check shows each ledger entry on an answer that rests on a pack,
+// for a person to read its cause. It is a note, not a failure.
+#[test]
+fn the_check_shows_ledger_entries_on_marked_answers() {
+    let scratch = good();
+    scratch.write(
+        "stories/corpus/ledger.txt",
+        b"story: toy\nroom: 2\ndirection: 31\nreported: fixed 3\noutcome: stayed\ncause: One.\n\n\
+          story: toy\nroom: 3\ndirection: 29\nreported: open 2\noutcome: stayed\ncause: The room is dark.\n",
+    );
+    let (stories, ledger) = zmachine_corpus::corpus::load(&scratch.0).unwrap();
+    let (failures, notes) = zmachine_corpus::packs::check(&scratch.0, &stories, &ledger);
+    assert_eq!(failures, Vec::<String>::new());
+    assert_eq!(
+        notes,
+        [
+            "stories/corpus/ledger.txt:8: on an answer that rests on a pack: toy 3 29 open 2 stayed: The room is dark."
+        ]
+    );
+}
+
+// The packs the repository holds pass the check.
+#[test]
+fn the_repositorys_packs_pass() {
+    let root = std::path::Path::new(ROOT);
+    let (stories, ledger) = zmachine_corpus::corpus::load(root).unwrap();
+    let (failures, _) = zmachine_corpus::packs::check(root, &stories, &ledger);
+    assert_eq!(failures, Vec::<String>::new());
+}
+
+// SC-007: the packs of two games name different attributes as "open", and both
+// are read by the same rules. (Each is proven by its story's run, where its
+// story is present.)
+#[test]
+fn two_games_packs_name_different_open_attributes() {
+    let read = |id: &str| {
+        let text = read_text(&format!("packs/{id}.pack"));
+        zmachine_introspect::Pack::parse(&text)
+            .unwrap_or_else(|e| panic!("{id}: {e}"))
+            .open_attribute
+            .unwrap_or_else(|| panic!("{id} has an open-attribute"))
+    };
+    assert_ne!(read("zork1"), read("minizork"));
+}
