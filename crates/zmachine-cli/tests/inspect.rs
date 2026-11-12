@@ -411,7 +411,11 @@ fn pack_gives_a_game_pack_and_the_line_says_what_became_of_it() {
             std::fs::write(&pack_file, text).unwrap();
             args.extend(["--pack".to_string(), path(&pack_file)]);
         }
-        args.extend(["--inspect".to_string(), path(&out_file), story("zork1/zork1.z3")]);
+        args.extend([
+            "--inspect".to_string(),
+            path(&out_file),
+            story("zork1/zork1.z3"),
+        ]);
         let args: Vec<&str> = args.iter().map(String::as_str).collect();
         let out = zm(&args, "north\n");
         assert_eq!(out.status.code(), Some(0), "{}", text(&out.stderr));
@@ -454,7 +458,11 @@ fn pack_gives_a_game_pack_and_the_line_says_what_became_of_it() {
         "north\n",
     );
     assert_eq!(out.status.code(), Some(2));
-    assert!(text(&out.stderr).contains("no-such.pack"), "{}", text(&out.stderr));
+    assert!(
+        text(&out.stderr).contains("no-such.pack"),
+        "{}",
+        text(&out.stderr)
+    );
     assert_eq!(text(&out.stdout), "", "the game did not start");
     let out = zm(&["--pack"], "");
     assert_eq!(out.status.code(), Some(2));
@@ -470,7 +478,12 @@ fn a_door_is_reported_closed_and_then_open() {
     std::fs::write(&pack_file, zork1_pack("open-attribute: 11\n")).unwrap();
     let out = zm(
         &[
-            "--seed", "1", "--pack", &path(&pack_file), "--inspect", &path(&out_file),
+            "--seed",
+            "1",
+            "--pack",
+            &path(&pack_file),
+            "--inspect",
+            &path(&out_file),
             &story("zork1/zork1.z3"),
         ],
         "north\neast\nopen window\n",
@@ -480,12 +493,27 @@ fn a_door_is_reported_closed_and_then_open() {
     let lines: Vec<&str> = written.lines().collect();
     assert_eq!(lines.len(), 4);
     let door = |line: &str| {
-        let at = line.find(r#""kind":"door""#).unwrap_or_else(|| panic!("no door: {line}"));
+        let at = line
+            .find(r#""kind":"door""#)
+            .unwrap_or_else(|| panic!("no door: {line}"));
         line[at..].split('}').next().unwrap().to_string()
     };
-    assert!(!lines[0].contains(r#""kind":"door""#), "no door at the start");
+    assert!(
+        !lines[0].contains(r#""kind":"door""#),
+        "no door at the start"
+    );
     let (closed, open) = (door(lines[2]), door(lines[3]));
-    assert!(closed.ends_with(r#""state":"closed","source":"pack""#), "{closed}");
-    assert!(open.ends_with(r#""state":"open","source":"pack""#), "{open}");
-    assert_eq!(closed.replace("closed", "open"), open, "the same door and room");
+    assert!(
+        closed.ends_with(r#""state":"closed","source":"pack""#),
+        "{closed}"
+    );
+    assert!(
+        open.ends_with(r#""state":"open","source":"pack""#),
+        "{open}"
+    );
+    assert_eq!(
+        closed.replace("closed", "open"),
+        open,
+        "the same door and room"
+    );
 }
