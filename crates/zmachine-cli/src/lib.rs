@@ -8,19 +8,24 @@ pub mod ledger;
 use std::fs::File;
 use std::io::{BufRead, Write};
 use std::path::{Path, PathBuf};
-use zmachine_core::{DiagnosticKind, Event, LoadOptions, Machine};
+use std::collections::VecDeque;
+use zmachine_core::{DiagnosticKind, Event, HostError, Key, LoadOptions, Machine, Settings};
 
 pub const USAGE: &str = "\
-usage: zm [--script FILE] [--seed N] [--width N] [--dir DIR] [--max-instructions N] STORY
+usage: zm [--script FILE] [--seed N] [--width N] [--dir DIR] [--max-instructions N]
+          [--upper] [--style MODE] [--interpreter-version C] STORY
        zm --version
        zm --help
 
-  STORY                  a Z-machine version 3 story file
+  STORY                  a Z-machine version 3, 5 or 8 story file
   --script FILE          read input lines from FILE instead of the terminal (- for standard input)
   --seed N               random seed, 0 to 2147483647, for a repeatable run
   --width N              wrap terminal output at N columns; 0 turns wrapping off (default 80)
   --dir DIR              directory for transcript and save files (default: current directory)
   --max-instructions N   stop with a fault after N instructions without a request for input
+  --upper                show what the game draws outside its main text, above each prompt
+  --style MODE           ansi, plain or auto: how bold, italic and reverse text is shown (default auto)
+  --interpreter-version C  the letter a game may print as the interpreter's version (default Z)
 ";
 
 /// Exit status when the game quit or the input ended.
@@ -44,6 +49,20 @@ pub struct Config {
     pub width: usize,
     pub dir: PathBuf,
     pub max_instructions: Option<u64>,
+    /// Print the game's canvas above each prompt.
+    pub upper: bool,
+    pub style: StyleMode,
+    /// The letter the game is told is the interpreter's version (§11.1.3).
+    pub interpreter_version: u8,
+}
+
+/// How styled text is written to the terminal.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum StyleMode {
+    /// Escape codes when standard output is a terminal.
+    Auto,
+    Ansi,
+    Plain,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -62,6 +81,9 @@ pub fn parse_args(args: &[String]) -> Result<Invocation, String> {
         width: 80,
         dir: PathBuf::from("."),
         max_instructions: None,
+        upper: false,
+        style: StyleMode::Auto,
+        interpreter_version: b'Z',
     };
     let mut story = None;
     let mut args = args.iter();
@@ -97,6 +119,27 @@ pub fn parse_args(args: &[String]) -> Result<Invocation, String> {
                     Some(text.parse().map_err(|_| {
                         format!("--max-instructions must be a number, not {text:?}")
                     })?);
+            }
+            "--upper" => config.upper = true,
+            "--style" => {
+                let text = value("--style")?;
+                config.style = match text.as_str() {
+                    "auto" => StyleMode::Auto,
+                    "ansi" => StyleMode::Ansi,
+                    "plain" => StyleMode::Plain,
+                    _ => return Err(format!("--style must be ansi, plain or auto, not {text:?}")),
+                };
+            }
+            "--interpreter-version" => {
+                let text = value("--interpreter-version")?;
+                config.interpreter_version = match text.as_bytes() {
+                    [letter] if letter.is_ascii_graphic() => *letter,
+                    _ => {
+                        return Err(format!(
+                            "--interpreter-version must be one printable character, not {text:?}"
+                        ));
+                    }
+                };
             }
             other if other.starts_with("--") => return Err(format!("unknown option {other}")),
             other => {
@@ -228,6 +271,75 @@ fn read_line(input: &mut dyn BufRead) -> std::io::Result<Option<String>> {
     Ok(Some(line))
 }
 
+/// Whether a line is a command to dfrotz itself rather than input: a backslash
+/// followed by a lower-case letter (contracts/cli.md).
+fn is_dfrotz_command(line: &str) -> bool {
+    let mut chars = line.chars();
+    chars.next() == Some('\\') && chars.next().is_some_and(|c| c.is_ascii_lowercase())
+}
+
+/// Reads the next line that is input for the game, refusing dfrotz's own commands.
+fn read_input_line(input: &mut dyn BufRead, err: &mut dyn Write) -> std::io::Result<Option<String>> {
+    loop {
+        match read_line(input)? {
+            Some(line) if is_dfrotz_command(&line) => writeln!(
+                err,
+                "zm: skipped the line {line:?}: a backslash and a lower-case letter is a command to dfrotz, which zm does not take"
+            )?,
+            other => return Ok(other),
+        }
+    }
+}
+
+/// Turns dfrotz's escapes in an input line into keys: `\\_` return, `\\[` escape,
+/// `\\?` delete, `\\^` `\\.` `\\<` `\\>` the arrows, `\\1` to `\\9` and `\\0`
+/// function keys 1 to 10, `\\\\` a backslash. An escape dfrotz does not know is
+/// reported and dropped, as dfrotz does.
+fn keys_of_line(line: &str, err: &mut dyn Write) -> std::io::Result<Vec<Key>> {
+    let mut keys = Vec::new();
+    let mut chars = line.chars();
+    while let Some(ch) = chars.next() {
+        if ch != '\\' {
+            keys.push(Key::Char(ch));
+            continue;
+        }
+        keys.push(match chars.next() {
+            // A backslash at the end of the line stands for the return that ends it.
+            None | Some('_') => Key::Return,
+            Some('\\') => Key::Char('\\'),
+            Some('?') => Key::Delete,
+            Some('[') => Key::Escape,
+            Some('^') => Key::Up,
+            Some('.') => Key::Down,
+            Some('<') => Key::Left,
+            Some('>') => Key::Right,
+            Some('0') => Key::Function(10),
+            Some(digit @ '1'..='9') => Key::Function(digit as u8 - b'0'),
+            Some(other) => {
+                writeln!(err, "zm: unknown escape \\{other} in an input line")?;
+                continue;
+            }
+        });
+    }
+    Ok(keys)
+}
+
+/// The text of a line of input: its characters, with `\\\\` read as one backslash.
+/// A line ends with return, so any other special key in it is reported and dropped.
+fn text_of_line(line: &str, err: &mut dyn Write) -> std::io::Result<String> {
+    if !line.contains('\\') {
+        return Ok(line.to_string());
+    }
+    let mut text = String::new();
+    for key in keys_of_line(line, err)? {
+        match key {
+            Key::Char(ch) => text.push(ch),
+            _ => writeln!(err, "zm: a special key inside a line of input was dropped")?,
+        }
+    }
+    Ok(text)
+}
+
 /// Resolves a file name the player gave inside `dir`. A name that could lead
 /// outside it is refused (contracts/cli.md).
 fn file_in_dir(dir: &Path, name: &str) -> Result<PathBuf, String> {
@@ -282,7 +394,14 @@ pub fn play(
         seed: config.seed,
         entropy: os_entropy(),
     };
-    let mut machine = match Machine::load(story, options) {
+    // §8.4: the game is told the screen's size. With wrapping off it is told 80.
+    let columns = if config.width == 0 { 80 } else { config.width.min(255) as u16 };
+    let settings = Settings {
+        screen_columns: columns,
+        interpreter_version: config.interpreter_version,
+        ..Settings::default()
+    };
+    let mut machine = match Machine::load_with(story, options, settings) {
         Ok(machine) => machine,
         Err(e) => {
             writeln!(err, "zm: {}: {e}", config.story.display())?;
@@ -300,6 +419,8 @@ pub fn play(
     let mut wrapper = Wrapper::new(config.width);
     // Instructions run since the game last asked for input.
     let mut since_input: u64 = 0;
+    // Keys from the current input line that the game has not yet asked for.
+    let mut keys: VecDeque<Key> = VecDeque::new();
     loop {
         let slice = match config.max_instructions {
             Some(max) => SLICE.min(max - since_input),
@@ -340,7 +461,9 @@ pub fn play(
             Event::LineWanted { .. } => {
                 out.write_all(wrapper.flush().as_bytes())?;
                 out.flush()?;
-                let Some(line) = read_line(input)? else {
+                // Keys left over from a line read for single keys are dropped.
+                keys.clear();
+                let Some(line) = read_input_line(input, err)? else {
                     // The input ended while the game was waiting: a normal end.
                     return Ok(EXIT_OK);
                 };
@@ -348,6 +471,7 @@ pub fn play(
                     writeln!(out, "{line}")?;
                 }
                 wrapper.line_ended();
+                let line = text_of_line(&line, err)?;
                 machine.provide_line(&line).expect("a line was wanted");
                 since_input = 0;
             }
@@ -362,9 +486,28 @@ pub fn play(
                 writeln!(err, "zm: the story file stopped: {fault}")?;
                 return Ok(EXIT_FAULT);
             }
-            // Key input is wired up with the rest of version 5 support.
             Event::KeyWanted => {
-                machine.provide_key(zmachine_core::Key::Return).expect("a key was wanted")
+                out.write_all(wrapper.flush().as_bytes())?;
+                out.flush()?;
+                // The reference's rule: the next unused character of the current
+                // line, and an empty line is the return key.
+                if keys.is_empty() {
+                    let Some(line) = read_input_line(input, err)? else {
+                        return Ok(EXIT_OK);
+                    };
+                    keys.extend(keys_of_line(&line, err)?);
+                    if keys.is_empty() {
+                        keys.push_back(Key::Return);
+                    }
+                }
+                let key = keys.pop_front().expect("a key was just queued");
+                match machine.provide_key(key) {
+                    // A character the game cannot be given reads as a question mark.
+                    Err(HostError::UnrepresentableKey) => machine.provide_key(Key::Char('?')),
+                    other => other,
+                }
+                .expect("a key was wanted");
+                since_input = 0;
             }
             Event::TranscriptRequested => {
                 out.write_all(wrapper.flush().as_bytes())?;
