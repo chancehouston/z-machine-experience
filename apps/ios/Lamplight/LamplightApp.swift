@@ -4,7 +4,7 @@ import SwiftUI
 struct LamplightApp: App {
     var body: some Scene {
         WindowGroup {
-            Color.clear
+            GameView()
         }
     }
 }
