@@ -1,1 +1,402 @@
 # Known wrong reports, each with its cause (specs/005-corpus-testing/contracts/formats.md, "The ledger").
+#
+# Zork I. Each cause was found by running the trial and reading what the game printed
+# (specs/005-corpus-testing/tasks.md, T024). Rooms and directions are by number.
+
+story: zork1
+room: 15
+direction: 30
+reported: fixed 205
+outcome: question
+cause: The destination reads its own line of input, at another address than the command
+  prompt's. The player has arrived; the instrument sees a question (the walkthrough's
+  line 87 is the same stop).
+
+story: zork1
+room: 37
+direction: 22
+reported: fixed 174
+outcome: stayed
+cause: The player is in a vehicle, and the vehicle's own routine refuses a walk in this
+  direction before the room's table is read.
+
+story: zork1
+room: 40
+direction: 28
+reported: fixed 47
+outcome: stayed
+cause: The player is in a vehicle, and the vehicle's own routine refuses a walk in this
+  direction before the room's table is read.
+
+story: zork1
+room: 40
+direction: 31
+reported: fixed 30
+outcome: stayed
+cause: The player is in a vehicle, and the vehicle's own routine refuses a walk in this
+  direction before the room's table is read.
+
+story: zork1
+room: 45
+direction: 22
+reported: fixed 182
+outcome: stayed
+cause: The player is in a vehicle, and the vehicle's own routine refuses a walk in this
+  direction before the room's table is read.
+
+story: zork1
+room: 53
+direction: 20
+reported: none
+outcome: moved 38
+cause: A timed event ends this turn in the player's death, and the game's routine for death
+  moves the player.
+
+story: zork1
+room: 53
+direction: 21
+reported: none
+outcome: moved 38
+cause: A timed event ends this turn in the player's death, and the game's routine for death
+  moves the player.
+
+story: zork1
+room: 53
+direction: 22
+reported: none
+outcome: moved 38
+cause: A timed event ends this turn in the player's death, and the game's routine for death
+  moves the player.
+
+story: zork1
+room: 53
+direction: 23
+reported: none
+outcome: moved 38
+cause: A timed event ends this turn in the player's death, and the game's routine for death
+  moves the player.
+
+story: zork1
+room: 53
+direction: 24
+reported: none
+outcome: moved 38
+cause: A timed event ends this turn in the player's death, and the game's routine for death
+  moves the player.
+
+story: zork1
+room: 53
+direction: 25
+reported: none
+outcome: moved 38
+cause: A timed event ends this turn in the player's death, and the game's routine for death
+  moves the player.
+
+story: zork1
+room: 53
+direction: 26
+reported: none
+outcome: moved 38
+cause: A timed event ends this turn in the player's death, and the game's routine for death
+  moves the player.
+
+story: zork1
+room: 53
+direction: 27
+reported: none
+outcome: moved 38
+cause: A timed event ends this turn in the player's death, and the game's routine for death
+  moves the player.
+
+story: zork1
+room: 53
+direction: 28
+reported: none
+outcome: moved 38
+cause: A timed event ends this turn in the player's death, and the game's routine for death
+  moves the player.
+
+story: zork1
+room: 53
+direction: 29
+reported: none
+outcome: moved 38
+cause: A timed event ends this turn in the player's death, and the game's routine for death
+  moves the player.
+
+story: zork1
+room: 53
+direction: 31
+reported: none
+outcome: moved 38
+cause: A timed event ends this turn in the player's death, and the game's routine for death
+  moves the player.
+
+story: zork1
+room: 95
+direction: 23
+reported: fixed 86
+outcome: stayed
+cause: The destination admits the player only in a vehicle; the game's routine for entering
+  a room refuses on foot.
+
+story: zork1
+room: 95
+direction: 29
+reported: fixed 86
+outcome: stayed
+cause: The destination admits the player only in a vehicle; the game's routine for entering
+  a room refuses on foot.
+
+story: zork1
+room: 111
+direction: 23
+reported: fixed 178
+outcome: stayed
+cause: The player is in a vehicle, and the vehicle's own routine refuses a walk in this
+  direction before the room's table is read.
+
+story: zork1
+room: 111
+direction: 31
+reported: fixed 178
+outcome: stayed
+cause: The player is in a vehicle, and the vehicle's own routine refuses a walk in this
+  direction before the room's table is read.
+
+story: zork1
+room: 129
+direction: 22
+reported: none
+outcome: moved 176
+cause: The exit depends on a flag that the room's own routine sets afresh when a command
+  begins. The stored value is the one left by the command before, and here it is out
+  of date.
+
+story: zork1
+room: 174
+direction: 19
+reported: none
+outcome: moved 45
+cause: A timed event moves the player's vehicle on at the end of this turn, whatever the
+  command was. The direction itself does nothing.
+
+story: zork1
+room: 174
+direction: 20
+reported: none
+outcome: moved 45
+cause: A timed event moves the player's vehicle on at the end of this turn, whatever the
+  command was. The direction itself does nothing.
+
+story: zork1
+room: 174
+direction: 21
+reported: none
+outcome: moved 45
+cause: A timed event moves the player's vehicle on at the end of this turn, whatever the
+  command was. The direction itself does nothing.
+
+story: zork1
+room: 174
+direction: 22
+reported: fixed 45
+outcome: stayed
+cause: The player is in a vehicle, and the vehicle's own routine refuses a walk in this
+  direction before the room's table is read.
+
+story: zork1
+room: 174
+direction: 23
+reported: none
+outcome: moved 45
+cause: A timed event moves the player's vehicle on at the end of this turn, whatever the
+  command was. The direction itself does nothing.
+
+story: zork1
+room: 174
+direction: 24
+reported: none
+outcome: moved 45
+cause: A timed event moves the player's vehicle on at the end of this turn, whatever the
+  command was. The direction itself does nothing.
+
+story: zork1
+room: 174
+direction: 25
+reported: none
+outcome: moved 45
+cause: A timed event moves the player's vehicle on at the end of this turn, whatever the
+  command was. The direction itself does nothing.
+
+story: zork1
+room: 174
+direction: 26
+reported: none
+outcome: moved 45
+cause: A timed event moves the player's vehicle on at the end of this turn, whatever the
+  command was. The direction itself does nothing.
+
+story: zork1
+room: 174
+direction: 27
+reported: none
+outcome: moved 45
+cause: A timed event moves the player's vehicle on at the end of this turn, whatever the
+  command was. The direction itself does nothing.
+
+story: zork1
+room: 174
+direction: 28
+reported: none
+outcome: moved 45
+cause: A timed event moves the player's vehicle on at the end of this turn, whatever the
+  command was. The direction itself does nothing.
+
+story: zork1
+room: 174
+direction: 29
+reported: none
+outcome: moved 45
+cause: A timed event moves the player's vehicle on at the end of this turn, whatever the
+  command was. The direction itself does nothing.
+
+story: zork1
+room: 174
+direction: 30
+reported: none
+outcome: moved 45
+cause: A timed event moves the player's vehicle on at the end of this turn, whatever the
+  command was. The direction itself does nothing.
+
+story: zork1
+room: 174
+direction: 31
+reported: none
+outcome: moved 45
+cause: A timed event moves the player's vehicle on at the end of this turn, whatever the
+  command was. The direction itself does nothing.
+
+story: zork1
+room: 182
+direction: 19
+reported: none
+outcome: moved 53
+cause: A timed event moves the player's vehicle on at the end of this turn, whatever the
+  command was. The direction itself does nothing.
+
+story: zork1
+room: 182
+direction: 20
+reported: none
+outcome: moved 53
+cause: A timed event moves the player's vehicle on at the end of this turn, whatever the
+  command was. The direction itself does nothing.
+
+story: zork1
+room: 182
+direction: 21
+reported: none
+outcome: moved 53
+cause: A timed event moves the player's vehicle on at the end of this turn, whatever the
+  command was. The direction itself does nothing.
+
+story: zork1
+room: 182
+direction: 22
+reported: fixed 53
+outcome: stayed
+cause: The player is in a vehicle, and the vehicle's own routine refuses a walk in this
+  direction before the room's table is read.
+
+story: zork1
+room: 182
+direction: 23
+reported: none
+outcome: moved 53
+cause: A timed event moves the player's vehicle on at the end of this turn, whatever the
+  command was. The direction itself does nothing.
+
+story: zork1
+room: 182
+direction: 24
+reported: none
+outcome: moved 53
+cause: A timed event moves the player's vehicle on at the end of this turn, whatever the
+  command was. The direction itself does nothing.
+
+story: zork1
+room: 182
+direction: 25
+reported: none
+outcome: moved 53
+cause: A timed event moves the player's vehicle on at the end of this turn, whatever the
+  command was. The direction itself does nothing.
+
+story: zork1
+room: 182
+direction: 26
+reported: none
+outcome: moved 53
+cause: A timed event moves the player's vehicle on at the end of this turn, whatever the
+  command was. The direction itself does nothing.
+
+story: zork1
+room: 182
+direction: 27
+reported: none
+outcome: moved 53
+cause: A timed event moves the player's vehicle on at the end of this turn, whatever the
+  command was. The direction itself does nothing.
+
+story: zork1
+room: 182
+direction: 28
+reported: none
+outcome: moved 53
+cause: A timed event moves the player's vehicle on at the end of this turn, whatever the
+  command was. The direction itself does nothing.
+
+story: zork1
+room: 182
+direction: 31
+reported: none
+outcome: moved 53
+cause: A timed event moves the player's vehicle on at the end of this turn, whatever the
+  command was. The direction itself does nothing.
+
+story: zork1
+room: 249
+direction: 20
+reported: fixed 8
+outcome: stayed
+cause: The exit depends on a flag that the room's own routine sets afresh when a command
+  begins. The stored value is the one left by the command before, and here it is out
+  of date.
+
+story: zork1
+room: 249
+direction: 20
+reported: none
+outcome: moved 8
+cause: The exit depends on a flag that the room's own routine sets afresh when a command
+  begins. The stored value is the one left by the command before, and here it is out
+  of date.
+
+story: zork1
+room: 249
+direction: 30
+reported: fixed 8
+outcome: stayed
+cause: The exit depends on a flag that the room's own routine sets afresh when a command
+  begins. The stored value is the one left by the command before, and here it is out
+  of date.
+
+story: zork1
+room: 249
+direction: 30
+reported: none
+outcome: moved 8
+cause: The exit depends on a flag that the room's own routine sets afresh when a command
+  begins. The stored value is the one left by the command before, and here it is out
+  of date.

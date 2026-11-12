@@ -178,8 +178,12 @@ plain lines of keywords and numbers also makes FR-026 checkable by grammar (R9).
    dictionary word of five letters or more is searched for in that story's report and in
    the summary; a hit fails the test. Keywords of the format are exempt by listing them.
 
-Ledger causes are written by a person and are prose. A cause may name a routine or a
-rule; the check in 2 runs over the ledger too, so a cause cannot quote a room's name.
+Ledger causes are written by a person and are prose. A cause may name a rule or a kind
+of routine. The ledger is searched for the printed names of the committed stories'
+objects that are of two words or more, so a cause cannot name a room or a thing; names
+of one word and dictionary words are not searched for there, because a game's
+dictionary is full of ordinary words that prose cannot avoid. (Amended in Phase 4: the
+first wording searched the ledger for every dictionary word.)
 
 ## R10. Counting a story's rooms
 

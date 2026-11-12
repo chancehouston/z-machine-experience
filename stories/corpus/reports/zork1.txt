@@ -5,8 +5,8 @@ places 330 walkthrough 330 crawl 0
 rooms visited 83 named-not-reached 18
 budget rooms 400 trials 40000 reached no
 trials 4290 wordless 0
-fixed confirmed 749 wrong-known 0 wrong-unexplained 26
-none confirmed 3350 wrong-known 0 wrong-unexplained 36 other 2
+fixed confirmed 749 wrong-known 26 wrong-unexplained 0
+none confirmed 3350 wrong-known 36 wrong-unexplained 0 other 2
 conditional 109 moved 87 stayed 22 question 0 ended 0 fault 0
 unknown 0 moved 0 stayed 0 question 0 ended 0 fault 0
 no-verdict 18

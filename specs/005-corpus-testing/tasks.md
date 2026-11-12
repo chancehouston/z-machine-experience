@@ -113,14 +113,14 @@ agrees with what is known
 
 ### Tests for User Story 2
 
-- [ ] T021 [P] [US2] Failing tests in `tests/formats.rs` (F§ "The ledger"; FR-013, FR-014): the example entry reads; a cause may continue on lines that start with two spaces; reading refuses, with the line number, a missing key, an empty cause, a `reported` and `outcome` that do not make a wrong verdict (for example `none` and `stayed`), and two entries with the same story, room, direction, reported and outcome
-- [ ] T022 [P] [US2] Failing tests in `crates/zmachine-corpus/tests/ledger.rs` (US2 scenarios 1 to 4; FR-013, FR-014; quickstart 5), on the story in memory whose table says B and whose code goes to C: with an empty ledger the run's report has `wrong-unexplained 1` and `corpus run` fails, printing the story's id, the room, the direction, what was reported and the outcome, in numbers; with the case in the ledger the report has `wrong-known 1`, `wrong-unexplained 0`, and the run passes; with a further entry that no trial matches the run fails and names that entry's line in the ledger; an entry for a story that is absent is not counted as stale
+- [x] T021 [P] [US2] Failing tests in `tests/formats.rs` (F§ "The ledger"; FR-013, FR-014): the example entry reads; a cause may continue on lines that start with two spaces; reading refuses, with the line number, a missing key, an empty cause, a `reported` and `outcome` that do not make a wrong verdict (for example `none` and `stayed`), and two entries with the same story, room, direction, reported and outcome
+- [x] T022 [P] [US2] Failing tests in `crates/zmachine-corpus/tests/ledger.rs` (US2 scenarios 1 to 4; FR-013, FR-014; quickstart 5), on the story in memory whose table says B and whose code goes to C: with an empty ledger the run's report has `wrong-unexplained 1` and `corpus run` fails, printing the story's id, the room, the direction, what was reported and the outcome, in numbers; with the case in the ledger the report has `wrong-known 1`, `wrong-unexplained 0`, and the run passes; with a further entry that no trial matches the run fails and names that entry's line in the ledger; an entry for a story that is absent is not counted as stale
 
 ### Implementation for User Story 2
 
-- [ ] T023 [US2] `crates/zmachine-corpus/src/ledger.rs` (F§ "The ledger"; D§ "Ledger entry"): read and check as T021 asks; `Ledger::knows(story, case) -> bool`, recording that the entry was matched; `Ledger::stale(present_stories) -> Vec<line>`. Use it in `run_story` to split `wrong` into known and unexplained, and in `corpus run` to fail on an unexplained case or a stale entry, printing as T022 asks (K§ "`corpus`"). `corpus write` writes unexplained cases into the report and never touches the ledger
-- [ ] T024 [US2] For each `wrong` case in `stories/corpus/reports/zork1.txt`, find its cause: look the room and direction up in the story (`cargo run -q -p zmachine-cli -- --tree stories/zork1/zork1.z3`, and the ZIL source named in `stories/zork1/SOURCE.md`, read on the web, not downloaded), and write an entry in `stories/corpus/ledger.txt` whose cause names the rule or routine responsible without quoting a room's or an object's name (R9). Feature 003's specification section 8.3 (the game moves the player on at arrival) is the cause already known. **A case whose cause cannot be found is not entered: stop for the project owner with the case**. Then `corpus write zork1`, and `corpus run zork1` passes with no unexplained case (SC-003)
-- [ ] T025 [US2] FR-015 as a test in `tests/crate_rules.rs`: `git diff --quiet main -- crates/zmachine-introspect/src docs/introspection.md` is not something a test can run reliably in CI, so instead record in the notes, at the end of each phase from here on, the output of that command; and add to `tests/crate_rules.rs` a test that the introspection crate's `Cargo.toml` and `src` do not mention `corpus` or `ledger.txt`
+- [x] T023 [US2] `crates/zmachine-corpus/src/ledger.rs` (F§ "The ledger"; D§ "Ledger entry"): read and check as T021 asks; `Ledger::knows(story, case) -> bool`, recording that the entry was matched; `Ledger::stale(present_stories) -> Vec<line>`. Use it in `run_story` to split `wrong` into known and unexplained, and in `corpus run` to fail on an unexplained case or a stale entry, printing as T022 asks (K§ "`corpus`"). `corpus write` writes unexplained cases into the report and never touches the ledger
+- [x] T024 [US2] For each `wrong` case in `stories/corpus/reports/zork1.txt`, find its cause: look the room and direction up in the story (`cargo run -q -p zmachine-cli -- --tree stories/zork1/zork1.z3`, and the ZIL source named in `stories/zork1/SOURCE.md`, read on the web, not downloaded), and write an entry in `stories/corpus/ledger.txt` whose cause names the rule or routine responsible without quoting a room's or an object's name (R9). Feature 003's specification section 8.3 (the game moves the player on at arrival) is the cause already known. **A case whose cause cannot be found is not entered: stop for the project owner with the case**. Then `corpus write zork1`, and `corpus run zork1` passes with no unexplained case (SC-003)
+- [x] T025 [US2] FR-015 as a test in `tests/crate_rules.rs`: `git diff --quiet main -- crates/zmachine-introspect/src docs/introspection.md` is not something a test can run reliably in CI, so instead record in the notes, at the end of each phase from here on, the output of that command; and add to `tests/crate_rules.rs` a test that the introspection crate's `Cargo.toml` and `src` do not mention `corpus` or `ledger.txt`
 
 **Checkpoint**: Zork I passes with every wrong case explained
 
@@ -166,7 +166,7 @@ no story file
 
 - [ ] T034 [US4] `crates/zmachine-corpus/src/manifest.rs` `check(root) -> Vec<Failure>` and `corpus check` (K§ "`corpus`"), to pass T032. Whether a fetched path is tracked is asked of `git ls-files --error-unmatch <path>`, run from `root`; where `git` is not there the check says so and does not fail
 - [ ] T035 [US4] `scripts/fetch-corpus.sh` (K§ "`scripts/fetch-corpus.sh`"; FR-020; US4 scenario 2), executable, POSIX shell with `set -eu`: `ID...` and `--propose ADDRESS` as K§ gives them; no "all"; refuses a `committed` id; `curl -fsSL -A curl`; on a digest that differs, removes the file, says both digests, exits 1. It reads the manifest with `awk`. Check it without the network by a test script `scripts/test-fetch-corpus.sh` that serves a temporary folder with `python3 -I -m http.server` on a free port of 127.0.0.1 and runs the script against a temporary manifest: a right digest keeps the file; a wrong one removes it; a present file is left alone; `--propose` prints name, size, digest and first byte. Run it and record the output in the notes
-- [ ] T036 [US4] Failing test in `crates/zmachine-corpus/tests/no_text.rs` (R9; FR-026; SC-006; US4 scenario 5): every file under `stories/corpus/reports/` reads by `Report::read` or the summary's reader (T045 adds the summary; until then reports only); for each committed story, every object's printed name (from `Introspector::object_tree`) and every dictionary word of five letters or more is searched for, without regard to case, in that story's report, the summary and the ledger, less the keywords of F§ (list them in the test); a hit fails. Show it can fail by putting a room's name in a ledger cause for one run
+- [ ] T036 [US4] Failing test in `crates/zmachine-corpus/tests/no_text.rs` (R9; FR-026; SC-006; US4 scenario 5): every file under `stories/corpus/reports/` reads by `Report::read` or the summary's reader (T045 adds the summary; until then reports only); for each committed story, every object's printed name (from `Introspector::object_tree`) and every dictionary word of five letters or more is searched for, without regard to case, in that story's report and the summary, less the keywords of F§ (list them in the test); the ledger is searched for the printed names of two words or more only (research R9, as amended); a hit fails. Show it can fail by putting a room's name in a ledger cause for one run
 - [ ] T037 [US4] **Zork II (FR-022). Ask the project owner**: "Fetch `zork2.z3`, 92,524 bytes, from `https://github.com/historicalsource/zork2` (`COMPILED/zork2.z3`), MIT License dated 2025-11-20, to be committed with the same caveat as Zork I?" On approval only: fetch that file and the repository's `LICENSE` at a named commit; create `stories/zork2/` with `zork2.z3` (added with `git add -f`), `LICENSE` and a `SOURCE.md` on the pattern of `stories/zork1/SOURCE.md` (source, commit, SHA-256, size, version, release and serial read from the file's header, license, the caveat, the trademark note); add the manifest entry (`tier: committed`, no walkthrough, seed 1, `opening` lines if it needs them); `corpus check`, `corpus write zork2`; explain its wrong cases as in T024. If declined, mark this task "declined"
 - [ ] T038 [US4] **Zork III (FR-022). Ask the project owner** as in T037, for `zork3.z3`, 87,984 bytes, from `https://github.com/historicalsource/zork3` (`COMPILED/zork3.z3`); on approval only, the same steps under `stories/zork3/`
 - [ ] T039 [US4] **Mini-Zork I. Ask the project owner**: "Fetch `minizork.z3` from `https://ifarchive.org/if-archive/infocom/demos/minizork.z3` (size not stated by the archive; at most 128 KB), no license attached, personal use only under the archive's terms, never to be committed?" On approval only: `scripts/fetch-corpus.sh --propose` that address; write the manifest entry from what it prints (`tier: fetched`, `path: stories/local/corpus/minizork.z3`, `family` as `corpus check` reports it, seed 1); `scripts/fetch-corpus.sh minizork`; find by running it whether it opens at a command prompt, and add `opening` lines if not (R6; "Still open" 3); `corpus write minizork`; explain its wrong cases in the ledger by room, direction and rule, without the game's text; confirm `git status --short` shows no story file. If it cannot be loaded or used, say why in the notes and mark the task "unusable"
@@ -311,3 +311,32 @@ the code beneath it was written.
   an exit: 3,350 confirmed, 36 wrong, 2 that ended in a question. Reported conditional:
   109, of which 87 let the player through. No verdict: 18. The wrong cases are explained
   in Phase 4.
+
+### Phase 4
+
+- **T021 to T023**: both ledger format tests and all five behaviour tests were seen to
+  fail against a ledger that held nothing.
+- **T024, Zork I's wrong cases: all 62 trials (49 cases) explained, by six causes.** Each
+  was found by running the trial at the walkthrough's own place and reading what the game
+  printed, not from the source. None is a fault in how introspection reads the tables;
+  each is the game's code doing something the table does not say.
+
+  | Cause | Reported | Happened | Trials |
+  | --- | --- | --- | --- |
+  | The player is in a vehicle whose own routine refuses the walk | leads to a room | stayed | 16 |
+  | The destination admits the player only in a vehicle | leads to a room | stayed | 6 |
+  | The destination reads its own line, so the instrument sees a question | leads to a room | question | 2 |
+  | A flag exit whose flag the room sets afresh when a command begins: the stored value is one command old | leads to a room | stayed | 2 |
+  | The same, the other way | not an exit | moved | 3 |
+  | A timed event carries the vehicle on, whatever the command | not an exit | moved | 22 |
+  | A timed event kills the player, and the death routine moves them | not an exit | moved | 11 |
+
+  The fourth and fifth matter most to the compass: feature 003 decided to evaluate a flag
+  exit's flag (its research R5) and looked for a stale flag without finding one. Here are
+  two rooms where it is stale, in both directions.
+- **The two "other" trials** (reported not an exit; the game asked a question) are the
+  last room of the walkthrough, where entering ends the game. Not wrong, by FR-006.
+- **Research R9 amended**: the ledger is searched for object names of two words or more,
+  not for dictionary words, which include ordinary words a cause cannot avoid.
+- **T025**: `git diff --quiet main -- crates/zmachine-introspect/src docs/introspection.md`
+  exits 0 at the end of this phase.
