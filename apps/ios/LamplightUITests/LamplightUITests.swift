@@ -90,8 +90,12 @@ final class LamplightUITests: XCTestCase {
         app.terminate()
         app.launch()
         _ = turn(app, 0)
-        XCTAssertFalse(element(app, "turn.1.text").exists, "nothing of the last game is shown")
+        // Given time to appear, nothing of the last game does.
+        XCTAssertFalse(
+            element(app, "turn.1.text").waitForExistence(timeout: 2),
+            "nothing of the last game is shown")
         XCTAssertEqual(element(app, "status.place").label, "West of House")
+        XCTAssertEqual(value(app, "status.moves"), "0")
     }
 
     // S§ "The compass", "For automated tests"; FR-007, FR-008, FR-009, FR-012;
