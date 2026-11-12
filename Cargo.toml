@@ -3,6 +3,8 @@ resolver = "3"
 members = [
     "crates/zmachine-core",
     "crates/zmachine-introspect",
+    "crates/zmachine-experience",
+    "crates/zmachine-ffi",
     "crates/zmachine-testkit",
     "crates/zmachine-cli",
 ]

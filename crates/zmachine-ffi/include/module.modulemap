@@ -1,0 +1,4 @@
+module ZMX {
+    header "zmx.h"
+    export *
+}

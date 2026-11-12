@@ -12,8 +12,9 @@ walk, tap an object to pick it up. Typing is always still available.
 ## Status
 
 The interpreter works and is tested for Z-machine versions 3, 5 and 8, and so does the
-read-only introspection interface that the touch layer will be built on. The touch
-interface itself does not exist yet.
+read-only introspection interface that the touch layer is built on. A first demo of the
+touch interface runs in the iPhone simulator: an app called Lamplight that plays Zork I
+with a compass of exits you can tap.
 
 What the core does today:
 
@@ -52,13 +53,33 @@ What the introspection interface does today:
 - **Changes nothing.** With every question asked at every prompt, transcripts and save
   files are byte for byte the same.
 
+What the first demo does today:
+
+- **Plays a whole game on an iPhone, in the simulator.** The opening text appears at
+  launch with the place, score and moves above it.
+- **Shows the ways out as a compass.** Twelve places: the eight points, up, down, in and
+  out. A way that is open is a filled disc; one the game may refuse is an outlined disc
+  with a question mark; where it leads is given when the game's tables say.
+- **A tap is a typed command.** Tapping north sends the word `north` to the game and
+  shows it in the text, exactly as if it had been typed. The whole Zork I walkthrough,
+  with 186 of its commands sent as taps, gives the same text as Frotz, byte for byte.
+- **Typing always works**, and the compass steps aside for the keyboard.
+- **The app holds no rule of any game.** It draws what the experience layer reports and
+  sends back taps and typed lines; tests read its source to hold it to that.
+
+What the demo does not do: remember a game between launches (the game's own `save` is
+declined politely), show the inventory or objects, or run on Android or a real device.
+The compass goes dark whenever the game asks a question, and at one ordinary prompt of
+Zork I (the Loud Room, where the game reads its command from a different place in its
+code).
+
 The project proceeds in three phases:
 
 1. **Faithful core.** Done: versions 3, 5 and 8, with czech and praxix passing.
 2. **Introspection interface.** Done: the specification at version 0.1.0 and its
    implementation, for Infocom/ZIL and Inform 6 games.
-3. **First demo.** A game boots on a phone, room text shows, and a tappable compass of
-   exits works end to end. Not started.
+3. **First demo.** Done, in the iPhone simulator: a game boots, room text shows, and a
+   tappable compass of exits works end to end.
 
 ## Try it
 
@@ -109,6 +130,25 @@ cargo run --release -p zmachine-cli -- --tree --dictionary stories/advent/advent
 | `--tree` | Prints the object tree as JSON and exits |
 | `--dictionary` | Prints the dictionary as JSON and exits |
 
+## Lamplight, the iPhone demo
+
+You need a Mac with Xcode 27 or later, XcodeGen (`brew install xcodegen`) and the Rust
+targets for iOS (`rustup target add aarch64-apple-ios aarch64-apple-ios-sim`).
+
+```text
+scripts/build-ios.sh
+```
+
+builds the Rust code for iOS, copies the story into the app and generates
+`apps/ios/Lamplight.xcodeproj`. Open that in Xcode, pick an iPhone simulator running
+iOS 26 or later, and press Run. To run the app's UI tests from the command line:
+
+```text
+scripts/test-ios.sh 27
+```
+
+(`26` runs them on iOS 26.0.) They take about ten minutes.
+
 ## Tests
 
 ```text
@@ -131,6 +171,10 @@ cargo test --workspace --release -- --ignored
 | --- | --- |
 | `crates/zmachine-core` | The interpreter. No dependencies, no `unsafe`, no I/O of its own. |
 | `crates/zmachine-introspect` | The introspection interface: read-only queries over a running game. |
+| `crates/zmachine-experience` | The experience layer: a session of play, its transcript and its compass. No `unsafe`, no I/O, no game's name. |
+| `crates/zmachine-ffi` | C bindings to the experience layer. The only crate that uses `unsafe`. |
+| `apps/ios` | Lamplight, the SwiftUI app. Presentation only. |
+| `scripts/` | Building and testing the app; regenerating the reference files. |
 | `crates/zmachine-cli` | `zm`, the command-line host. |
 | `crates/zmachine-testkit` | Builds small story files in memory, for tests. |
 | `stories/` | Story files that may be redistributed, each with its license record. |
@@ -142,6 +186,7 @@ cargo test --workspace --release -- --ignored
 | `specs/001-v3-core/` | The specification, plan and task list for the version 3 core. |
 | `specs/002-v5-v8/` | The same for versions 5 and 8, with the screen model's contract. |
 | `specs/003-introspection/` | The same for the introspection interface. |
+| `specs/004-first-demo/` | The same for the first demo, with the C interface, the screen's contract and screenshots. |
 
 ## How it fits together
 

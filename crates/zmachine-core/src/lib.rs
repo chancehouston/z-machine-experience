@@ -468,6 +468,16 @@ impl Machine {
         self.output.take_runs()
     }
 
+    /// The address of the instruction that is waiting for a line or a key, or
+    /// `None` when the game is not waiting for either. A host can use it to tell
+    /// one of a game's requests for input from another.
+    pub fn waiting_at(&self) -> Option<u32> {
+        match self.state {
+            State::AwaitingLine { .. } | State::AwaitingKey => Some(self.current),
+            _ => None,
+        }
+    }
+
     /// A read-only view of memory as it is now and of the story file as loaded.
     pub fn view(&self) -> View<'_> {
         View {

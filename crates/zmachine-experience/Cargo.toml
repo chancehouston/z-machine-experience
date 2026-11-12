@@ -1,0 +1,15 @@
+[package]
+name = "zmachine-experience"
+version = "0.1.0"
+description = "The experience layer: turns a tap into the command a player would have typed."
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+zmachine-core = { path = "../zmachine-core" }
+zmachine-introspect = { path = "../zmachine-introspect" }
+
+[dev-dependencies]
+zmachine-testkit = { path = "../zmachine-testkit" }

@@ -1,0 +1,63 @@
+# The Xcode project is generated from this file by XcodeGen (scripts/build-ios.sh)
+# and is not committed.
+name: Lamplight
+options:
+  bundleIdPrefix: app.lamplight
+  deploymentTarget:
+    iOS: "26.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    SWIFT_STRICT_CONCURRENCY: complete
+    SWIFT_TREAT_WARNINGS_AS_ERRORS: YES
+    TARGETED_DEVICE_FAMILY: "1"
+    "EXCLUDED_ARCHS[sdk=iphonesimulator*]": x86_64
+targets:
+  Lamplight:
+    type: application
+    platform: iOS
+    sources:
+      - path: Lamplight
+        excludes:
+          - Resources
+      - path: Lamplight/Resources/story.z3
+        buildPhase: resources
+      - path: Lamplight/Resources/story-license.txt
+        buildPhase: resources
+    dependencies:
+      - framework: Frameworks/ZMX.xcframework
+        embed: false
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: app.lamplight.demo
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_CFBundleDisplayName: Lamplight
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        INFOPLIST_KEY_UISupportedInterfaceOrientations: UIInterfaceOrientationPortrait
+        MARKETING_VERSION: "0.1"
+        CURRENT_PROJECT_VERSION: "1"
+  LamplightUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: LamplightUITests
+    dependencies:
+      - target: Lamplight
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: app.lamplight.demo.uitests
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_TARGET_NAME: Lamplight
+schemes:
+  Lamplight:
+    build:
+      targets:
+        Lamplight: all
+        LamplightUITests: [test]
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets:
+        - LamplightUITests
