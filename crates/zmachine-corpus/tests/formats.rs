@@ -1,6 +1,7 @@
 //! The corpus's files: what each format accepts and what it refuses, with the
 //! line (specs/005-corpus-testing/contracts/formats.md).
 
+use zmachine_corpus::ledger;
 use zmachine_corpus::manifest::{self, Tier};
 use zmachine_corpus::report::{Case, Outcomes, Reached, Report};
 use zmachine_corpus::trial::Outcome;
@@ -282,4 +283,93 @@ fn a_manifest_that_departs_from_the_format_is_refused_with_the_line() {
         manifest_refused(10, Some("path: stories/local/corpus/zork1.z3")),
         10
     );
+}
+
+// ---------------------------------------------------------------------------
+// The ledger (F§ "The ledger"; FR-013, FR-014)
+// ---------------------------------------------------------------------------
+
+const LEDGER: &str = "\
+# Known wrong reports.
+story: zork1
+room: 82
+direction: 28
+reported: fixed 83
+outcome: moved 84
+cause: The game's own code moves the player on at arrival; introspection specification
+  section 8.3.
+
+story: zork1
+room: 90
+direction: 31
+reported: none
+outcome: moved 91
+cause: A routine runs before the table is read.
+";
+
+#[test]
+fn a_ledger_reads_as_the_format_gives_it() {
+    let ledger = ledger::read(LEDGER).expect("the ledger reads");
+    assert_eq!(ledger.entries.len(), 2);
+    let first = &ledger.entries[0];
+    assert_eq!(first.story, "zork1");
+    assert_eq!(
+        first.case,
+        case(82, 28, Reported::Fixed(83), Outcome::Moved(84))
+    );
+    // A cause may continue on lines that start with two spaces.
+    assert_eq!(
+        first.cause,
+        "The game's own code moves the player on at arrival; introspection specification \
+         section 8.3."
+    );
+    assert_eq!(first.line, 2);
+    assert_eq!(ledger.entries[1].line, 10);
+    assert!(ledger.knows("zork1", &case(90, 31, Reported::None, Outcome::Moved(91))));
+    assert!(!ledger.knows("zork2", &case(90, 31, Reported::None, Outcome::Moved(91))));
+    assert!(!ledger.knows("zork1", &case(90, 31, Reported::None, Outcome::Moved(92))));
+    assert_eq!(
+        ledger::read("# nothing known\n").map(|l| l.entries.len()),
+        Ok(0)
+    );
+}
+
+fn ledger_refused(line: usize, replacement: Option<&str>) -> usize {
+    let mut lines: Vec<&str> = LEDGER.lines().collect();
+    match replacement {
+        Some(text) => lines[line - 1] = text,
+        None => {
+            lines.remove(line - 1);
+        }
+    }
+    ledger::read(&(lines.join("\n") + "\n"))
+        .expect_err("the ledger is refused")
+        .0
+}
+
+#[test]
+fn a_ledger_that_departs_from_the_format_is_refused_with_the_line() {
+    // A key missing: the entry is refused where it starts.
+    assert_eq!(ledger_refused(3, None), 2);
+    assert_eq!(ledger_refused(14, None), 10);
+    // A cause that says nothing (FR-014).
+    assert_eq!(ledger_refused(15, Some("cause: ")), 15);
+    assert_eq!(ledger_refused(15, Some("cause:")), 15);
+    // A key that is not known, and one given twice.
+    assert_eq!(ledger_refused(4, Some("colour: blue")), 4);
+    assert_eq!(ledger_refused(4, Some("room: 82")), 4);
+    // Values not of their form.
+    assert_eq!(ledger_refused(3, Some("room: the kitchen")), 3);
+    assert_eq!(ledger_refused(5, Some("reported: conditional")), 5);
+    assert_eq!(ledger_refused(6, Some("outcome: moved")), 6);
+    assert_eq!(ledger_refused(6, Some("outcome: lost")), 6);
+    // A report and an outcome that are not a wrong verdict.
+    assert_eq!(ledger_refused(6, Some("outcome: moved 83")), 2);
+    assert_eq!(ledger_refused(14, Some("outcome: stayed")), 10);
+    // The same case twice.
+    let twice = format!(
+        "{LEDGER}\n{}",
+        LEDGER.lines().skip(9).collect::<Vec<_>>().join("\n")
+    );
+    assert_eq!(ledger::read(&(twice + "\n")).expect_err("refused").0, 17);
 }

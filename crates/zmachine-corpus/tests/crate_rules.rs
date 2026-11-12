@@ -43,3 +43,18 @@ fn the_tools_use_no_unsafe_code() {
         assert!(!text.contains("unsafe"), "{}", path.display());
     }
 }
+
+// FR-015: this feature does not change introspection, and introspection knows
+// nothing of the corpus or its ledger.
+#[test]
+fn introspection_knows_nothing_of_the_corpus() {
+    let mut sources = vec![std::path::PathBuf::from(repo(
+        "crates/zmachine-introspect/Cargo.toml",
+    ))];
+    files(&repo("crates/zmachine-introspect/src"), &mut sources);
+    for path in sources {
+        let text = std::fs::read_to_string(&path).unwrap();
+        assert!(!text.contains("corpus"), "{}", path.display());
+        assert!(!text.contains("ledger.txt"), "{}", path.display());
+    }
+}

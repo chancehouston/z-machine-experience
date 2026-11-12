@@ -7,7 +7,8 @@ use sha2::{Digest, Sha256};
 
 use crate::ledger::Ledger;
 use crate::manifest::{self, Story};
-use crate::report::Report;
+use crate::report::{Case, Report};
+use crate::verdict::{Verdict, judge};
 use crate::walk::run_story;
 
 pub const MANIFEST: &str = "stories/corpus/manifest.txt";
@@ -68,6 +69,17 @@ pub fn command(root: &Path, mode: Mode, ids: &[String]) -> (Vec<String>, i32) {
         Ok(loaded) => loaded,
         Err(why) => return (vec![why], 1),
     };
+    if let Some(entry) = ledger
+        .entries
+        .iter()
+        .find(|e| !stories.iter().any(|s| s.id == e.story))
+    {
+        let why = format!(
+            "{LEDGER}:{}: `{}` is not in the manifest",
+            entry.line, entry.story
+        );
+        return (vec![why], 1);
+    }
     let unknown: Vec<String> = ids
         .iter()
         .filter(|id| !stories.iter().any(|s| &s.id == *id))
@@ -81,11 +93,35 @@ pub fn command(root: &Path, mode: Mode, ids: &[String]) -> (Vec<String>, i32) {
         .filter(|s| ids.is_empty() || ids.contains(&s.id));
     let mut lines = Vec::new();
     let mut failed = false;
+    // The ledger's entries that a trial of this run matched.
+    let mut matched = vec![false; ledger.entries.len()];
+    let mut ran: Vec<&str> = Vec::new();
     for story in chosen {
         let Some(fresh) = report(root, story, &ledger) else {
             lines.push(format!("{} skipped", story.id));
             continue;
         };
+        ran.push(&story.id);
+        let wrong: Vec<&Case> = fresh
+            .detail
+            .iter()
+            .map(|(case, _)| case)
+            .filter(|case| judge(case) == Verdict::Wrong)
+            .collect();
+        for (entry, matched) in ledger.entries.iter().zip(&mut matched) {
+            *matched |= entry.story == story.id && wrong.contains(&&entry.case);
+        }
+        let unexplained: Vec<&&Case> = wrong
+            .iter()
+            .filter(|case| !ledger.knows(&story.id, case))
+            .collect();
+        if mode == Mode::Run && !unexplained.is_empty() {
+            for case in unexplained {
+                lines.push(format!("{} wrong {}", story.id, case.text()));
+            }
+            failed = true;
+            continue;
+        }
         let path = root.join(report_path(&story.id));
         match mode {
             Mode::Write => match std::fs::write(&path, fresh.write()) {
@@ -103,6 +139,18 @@ pub fn command(root: &Path, mode: Mode, ids: &[String]) -> (Vec<String>, i32) {
                     lines.push(format!("{} differs", story.id));
                     failed = true;
                 }
+            }
+        }
+    }
+    // An entry that no trial matched, for a story that ran, has outlived its case.
+    if mode == Mode::Run {
+        for (entry, matched) in ledger.entries.iter().zip(matched) {
+            if !matched && ran.contains(&entry.story.as_str()) {
+                lines.push(format!(
+                    "{LEDGER}:{}: the entry matches no trial",
+                    entry.line
+                ));
+                failed = true;
             }
         }
     }
