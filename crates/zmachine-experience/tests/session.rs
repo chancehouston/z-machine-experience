@@ -131,9 +131,8 @@ fn a_fresh_seed_is_the_number_the_host_supplies() {
 // fixed seed beyond what the core accepts is refused.
 #[test]
 fn a_story_that_cannot_start_says_why() {
-    let error = Session::new(vec![3; 10], Seed::Fixed(1))
-        .err()
-        .expect("too short to be a story file");
+    let error =
+        Session::new(vec![3; 10], Seed::Fixed(1)).expect_err("too short to be a story file");
     assert!(error.message.contains("too short"), "{}", error.message);
     let error = Session::new(Vec::new(), Seed::Fresh(1)).err().unwrap();
     assert!(!error.message.is_empty());
@@ -370,7 +369,7 @@ fn a_new_game_starts_afresh() {
             turn_count: 1
         }
     );
-    assert_eq!(s.turns(), [opening.clone()]);
+    assert_eq!(s.turns(), std::slice::from_ref(&opening));
     assert_eq!(s.waiting(), Waiting::Command);
     assert_eq!(s.status().unwrap().place, "West of House");
     assert_eq!(s.send_line(old, "north"), Err(Refused::Stale));
@@ -388,7 +387,7 @@ fn a_new_game_starts_afresh() {
     // SC-008: ten in a row.
     for n in 0..10 {
         s.new_game(Seed::Fresh(n));
-        assert_eq!(s.turns(), [opening.clone()], "new game {n}");
+        assert_eq!(s.turns(), std::slice::from_ref(&opening), "new game {n}");
     }
     assert_eq!(s.stamp().generation, 12);
 }
@@ -590,4 +589,30 @@ fn an_unrecognised_story_has_an_unknown_compass() {
     assert_eq!(s.tap(s.stamp(), Place::North), Err(Refused::NotOffered));
     say(&mut s, "north");
     assert_eq!(s.turns().len(), 2, "typing still works");
+}
+
+// C§4 (contracts/c-abi.md): the bindings mark a session failed when a call into
+// it did not return. It then reports a fault with the message given, offers
+// nothing and refuses commands, and a new game clears it.
+#[test]
+fn a_session_marked_failed_reports_a_fault_until_a_new_game() {
+    let mut session = game(11);
+    session.mark_failed("The game stopped unexpectedly.");
+    assert_eq!(session.waiting(), Waiting::Fault);
+    assert_eq!(session.message(), Some("The game stopped unexpectedly."));
+    assert!(!session.compass().offered);
+    let at = session.stamp();
+    assert_eq!(session.send_line(at, "look"), Err(Refused::NotWaiting));
+    assert_eq!(
+        session.tap(at, zmachine_experience::Place::North),
+        Err(Refused::NotWaiting)
+    );
+    assert_eq!(session.turns().len(), 1, "the transcript is kept");
+    session.new_game(Seed::Fixed(11));
+    assert_eq!(session.waiting(), Waiting::Command);
+    assert_eq!(session.message(), None);
+    assert_eq!(
+        session.tap(session.stamp(), zmachine_experience::Place::North),
+        Ok(())
+    );
 }

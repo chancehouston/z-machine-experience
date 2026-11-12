@@ -358,6 +358,14 @@ impl Session {
         }
     }
 
+    /// Marks the session as broken: it reports a fault with this message,
+    /// offers nothing and refuses commands until a new game. For a caller that
+    /// could not let a call into the session finish.
+    pub fn mark_failed(&mut self, message: &str) {
+        self.compass = Compass::idle();
+        self.fail(message.to_string());
+    }
+
     pub fn stamp(&self) -> Stamp {
         Stamp {
             generation: self.generation,

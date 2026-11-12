@@ -342,7 +342,8 @@ fn the_compass_agrees_with_an_identical_game_at_every_prompt() {
 #[test]
 fn the_compass_agrees_with_the_hand_made_exit_lists() {
     // (line, room, [(direction, "fixed <room>" or "conditional")])
-    let mut entries: Vec<(usize, String, Vec<(String, String)>)> = Vec::new();
+    type Entry = (usize, String, Vec<(String, String)>);
+    let mut entries: Vec<Entry> = Vec::new();
     for raw in read_text("stories/zork1/introspection/exits.txt").lines() {
         let line = raw.trim_end();
         if line.trim().is_empty() || line.trim_start().starts_with('#') {

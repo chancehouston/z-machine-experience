@@ -357,7 +357,9 @@ fn the_header_and_the_library_agree() {
             "zmx_string_free"
         ]
     );
-    // The static library sits beside the test binaries' directory.
+    // The static library sits beside the test binaries' directory. Running the
+    // tests does not rebuild it, so build it here: a stale one would be checked
+    // in place of this source.
     let exe = std::env::current_exe().unwrap();
     let library = exe
         .parent()
@@ -365,16 +367,16 @@ fn the_header_and_the_library_agree() {
         .parent()
         .unwrap()
         .join("libzmachine_ffi.a");
-    if !library.exists() {
-        let built = std::process::Command::new(env!("CARGO"))
-            .args(["build", "-p", "zmachine-ffi"])
-            .current_dir(ROOT)
-            .status();
-        assert!(
-            built.is_ok_and(|s| s.success()),
-            "building the static library"
-        );
-    }
+    let built = std::process::Command::new(env!("CARGO"))
+        .args(["build", "-p", "zmachine-ffi"])
+        .current_dir(ROOT)
+        .output()
+        .expect("running cargo");
+    assert!(
+        built.status.success(),
+        "building the static library: {}",
+        String::from_utf8_lossy(&built.stderr)
+    );
     let Ok(out) = std::process::Command::new("nm")
         .arg("-g")
         .arg(&library)
@@ -383,12 +385,9 @@ fn the_header_and_the_library_agree() {
         eprintln!("nm was not found: the exported symbols were not checked");
         return;
     };
-    assert!(
-        out.status.success(),
-        "nm {}: {}",
-        library.display(),
-        String::from_utf8_lossy(&out.stderr)
-    );
+    // The system's nm cannot read every object of Rust's standard library and
+    // says so with a failing status; this crate's own objects are what matter,
+    // and an empty listing fails the comparison below.
     let listing = String::from_utf8_lossy(&out.stdout);
     let mut exported: Vec<String> = listing
         .lines()
