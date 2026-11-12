@@ -7,13 +7,14 @@ use sha2::{Digest, Sha256};
 
 use crate::ledger::Ledger;
 use crate::manifest::{self, Story};
-use crate::report::{Case, Report};
+use crate::report::{Case, Report, StoryLine, Summary};
 use crate::verdict::{Verdict, judge};
 use crate::walk::run_story;
 
 pub const MANIFEST: &str = "stories/corpus/manifest.txt";
 pub const LEDGER: &str = "stories/corpus/ledger.txt";
 pub const REPORTS: &str = "stories/corpus/reports";
+pub const SUMMARY: &str = "stories/corpus/reports/summary.txt";
 
 /// What `corpus` was asked to do.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -96,12 +97,21 @@ pub fn command(root: &Path, mode: Mode, ids: &[String]) -> (Vec<String>, i32) {
     // The ledger's entries that a trial of this run matched.
     let mut matched = vec![false; ledger.entries.len()];
     let mut ran: Vec<&str> = Vec::new();
+    // The summary kept, and the lines of this run's stories.
+    let kept_read = std::fs::read_to_string(root.join(SUMMARY))
+        .ok()
+        .and_then(|text| Summary::read(&text).ok());
+    // A kept summary that does not read is caught whole, below.
+    let kept_reads = kept_read.is_some();
+    let kept = kept_read.unwrap_or_default();
+    let mut fresh_lines: Vec<StoryLine> = Vec::new();
     for story in chosen {
         let Some(fresh) = report(root, story, &ledger) else {
             lines.push(format!("{} skipped", story.id));
             continue;
         };
         ran.push(&story.id);
+        fresh_lines.push(fresh.line());
         let wrong: Vec<&Case> = fresh
             .detail
             .iter()
@@ -132,15 +142,63 @@ pub fn command(root: &Path, mode: Mode, ids: &[String]) -> (Vec<String>, i32) {
                 }
             },
             Mode::Run => {
+                let summary_has = |line: &StoryLine| !kept_reads || kept.stories.contains(line);
                 let kept = std::fs::read_to_string(&path).unwrap_or_default();
+                let line = fresh.line();
                 if kept == fresh.write() {
                     lines.push(format!("{} ok", story.id));
+                    if !summary_has(&line) {
+                        lines.push(format!("{}: its line of the summary differs", story.id));
+                        failed = true;
+                    }
                 } else {
                     lines.push(format!("{} differs", story.id));
                     failed = true;
                 }
             }
         }
+    }
+    // The summary: this run's stories by their fresh lines, the others by the
+    // lines kept; a story with neither is listed as skipped.
+    let summary = Summary {
+        stories: stories
+            .iter()
+            .filter_map(|story| {
+                fresh_lines
+                    .iter()
+                    .chain(&kept.stories)
+                    .find(|line| line.id == story.id)
+                    .cloned()
+            })
+            .collect(),
+        skipped: stories
+            .iter()
+            .filter(|story| {
+                !fresh_lines
+                    .iter()
+                    .chain(&kept.stories)
+                    .any(|line| line.id == story.id)
+            })
+            .map(|story| story.id.clone())
+            .collect(),
+    };
+    let all_ran = ran.len() == stories.len();
+    match mode {
+        Mode::Write => {
+            if let Err(e) = std::fs::write(root.join(SUMMARY), summary.write()) {
+                lines.push(format!("{SUMMARY}: {e}"));
+                failed = true;
+            }
+        }
+        // With every story run, the whole summary must be the one kept.
+        Mode::Run if all_ran => {
+            let text = std::fs::read_to_string(root.join(SUMMARY)).unwrap_or_default();
+            if text != summary.write() {
+                lines.push(format!("{SUMMARY} differs"));
+                failed = true;
+            }
+        }
+        Mode::Run => {}
     }
     // An entry that no trial matched, for a story that ran, has outlived its case.
     if mode == Mode::Run {

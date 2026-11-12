@@ -218,3 +218,105 @@ fn a_story_that_differs_fails_the_corpus_run() {
 fn the_repositorys_manifest_passes() {
     assert_eq!(check(std::path::Path::new(ROOT)), Vec::<String>::new());
 }
+
+// F§ "The summary"; FR-025, FR-027, FR-028; US5 scenarios 1 to 3.
+#[test]
+fn the_summary_is_kept_and_checked_with_the_reports() {
+    const SUMMARY: &str = "stories/corpus/reports/summary.txt";
+    let scratch = good();
+    let image = Toy::new(4).build();
+    fetched(&scratch, &image, 3, "zil");
+    scratch.write("stories/local/corpus/far.z3", &image);
+    assert_eq!(
+        command(&scratch.0, Mode::Write, &[]).0,
+        ["toy written", "far written"]
+    );
+    let kept = scratch.read(SUMMARY);
+    let lines: Vec<&str> = kept.lines().collect();
+    assert!(
+        lines[0].starts_with("story toy zil places 2 rooms 2 trials 12 fixed 2/2 "),
+        "{kept}"
+    );
+    assert!(
+        lines[1].starts_with("story far zil places 1 rooms 1 "),
+        "{kept}"
+    );
+    assert!(
+        lines[2].starts_with("family zil stories 2 places 3 rooms 3 "),
+        "{kept}"
+    );
+    assert!(
+        lines[5].starts_with("all stories 2 places 3 rooms 3 "),
+        "{kept}"
+    );
+    assert_eq!(lines.len(), 6);
+    assert_eq!(
+        command(&scratch.0, Mode::Run, &[]),
+        (vec!["toy ok".into(), "far ok".into()], 0)
+    );
+
+    // With every story present, the whole summary must be the one kept.
+    scratch.write(
+        SUMMARY,
+        kept.replace("all stories 2", "all stories 3").as_bytes(),
+    );
+    let (said, status) = command(&scratch.0, Mode::Run, &[]);
+    assert_eq!(status, 1);
+    assert_eq!(
+        said.last().unwrap(),
+        "stories/corpus/reports/summary.txt differs"
+    );
+
+    // With a story absent, each present story is checked against its own line.
+    let mut altered = zmachine_corpus::report::Summary::read(&kept).unwrap();
+    altered.stories[0].figures.places += 1;
+    scratch.write(SUMMARY, altered.write().as_bytes());
+    std::fs::rename(
+        scratch.path("stories/local/corpus/far.z3"),
+        scratch.path("stories/local/corpus/far.aside"),
+    )
+    .unwrap();
+    assert_eq!(
+        command(&scratch.0, Mode::Run, &[]),
+        (
+            vec![
+                "toy ok".into(),
+                "toy: its line of the summary differs".into(),
+                "far skipped".into()
+            ],
+            1
+        )
+    );
+    std::fs::rename(
+        scratch.path("stories/local/corpus/far.aside"),
+        scratch.path("stories/local/corpus/far.z3"),
+    )
+    .unwrap();
+
+    // With a story absent, its kept line stays, the present stories are checked
+    // against theirs, and writing leaves the absent story's report and line alone.
+    scratch.write(SUMMARY, kept.as_bytes());
+    std::fs::remove_file(scratch.path("stories/local/corpus/far.z3")).unwrap();
+    assert_eq!(
+        command(&scratch.0, Mode::Run, &[]),
+        (vec!["toy ok".into(), "far skipped".into()], 0)
+    );
+    assert_eq!(
+        command(&scratch.0, Mode::Write, &[]).0,
+        ["toy written", "far skipped"]
+    );
+    assert_eq!(scratch.read(SUMMARY), kept);
+    assert!(scratch.path("stories/corpus/reports/far.txt").exists());
+}
+
+// F§ "The summary": a story that has never run is listed as skipped and is in
+// no total.
+#[test]
+fn a_story_that_has_never_run_is_listed_as_skipped() {
+    let scratch = good();
+    fetched(&scratch, &Toy::new(4).build(), 3, "zil");
+    command(&scratch.0, Mode::Write, &[]);
+    let kept = scratch.read("stories/corpus/reports/summary.txt");
+    assert!(kept.contains("\nall stories 1 places 2 "), "{kept}");
+    assert!(kept.ends_with("skipped far\n"), "{kept}");
+}

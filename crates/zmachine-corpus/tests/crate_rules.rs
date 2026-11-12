@@ -58,3 +58,11 @@ fn introspection_knows_nothing_of_the_corpus() {
         assert!(!text.contains("ledger.txt"), "{}", path.display());
     }
 }
+
+// FR-020: fetching is a step a person runs. No CI job fetches a story.
+#[test]
+fn ci_does_not_fetch_stories() {
+    let ci = read_text(".github/workflows/ci.yml");
+    assert!(!ci.contains("fetch-corpus"));
+    assert!(!ci.contains("ifarchive.org/if-archive/games"));
+}

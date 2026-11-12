@@ -188,12 +188,12 @@ line for each story that ran, whose figures equal that story's report
 
 ### Tests for User Story 5
 
-- [ ] T044 [P] [US5] Failing tests in `tests/formats.rs` and `tests/run.rs` (F§ "The summary"; FR-025, FR-027, FR-028; US5 scenarios 1 to 3; SC-008): from three hand-made reports of two families the summary's `story` lines hold each report's figures (`fixed A/B` as confirmed of reported fixed; `none A/B`; `conditional A/B` as moved of conditional; `unknown N`), the `family` lines are the sums in the order `zil`, `inform`, `none`, and `all` the sum of those; an absent story has a `skipped` line, no `story` line, and is in no total; reading refuses a line not of the form; `corpus run` fails when a present story's line in the kept summary differs from a fresh one, and when every story is present and any other line differs; with a story absent, `corpus write` leaves that story's kept report alone and rewrites only what it can
+- [x] T044 [P] [US5] Failing tests in `tests/formats.rs` and `tests/run.rs` (F§ "The summary"; FR-025, FR-027, FR-028; US5 scenarios 1 to 3; SC-008): from three hand-made reports of two families the summary's `story` lines hold each report's figures (`fixed A/B` as confirmed of reported fixed; `none A/B`; `conditional A/B` as moved of conditional; `unknown N`), the `family` lines are the sums in the order `zil`, `inform`, `none`, and `all` the sum of those; an absent story has a `skipped` line, no `story` line, and is in no total; reading refuses a line not of the form; `corpus run` fails when a present story's line in the kept summary differs from a fresh one, and when every story is present and any other line differs; with a story absent, `corpus write` leaves that story's kept report alone and rewrites only what it can
 
 ### Implementation for User Story 5
 
-- [ ] T045 [US5] `crates/zmachine-corpus/src/report.rs` `Summary` (F§ "The summary"; D§ "Summary", "What is kept in the repository"): build from reports, write, read, compare; use it in `corpus run` and `corpus write` (K§) to pass T044; extend `tests/no_text.rs` to read the summary. `corpus write`, commit the summary
-- [ ] T046 [US5] Complete `stories/corpus/README.md` (plan, "Strongest objection"; spec, Assumptions): what each figure means; the answer to SC-008 in a sentence for each family, with the numbers; and the limits, plainly: the room comes from introspection, so the figures show consistency; "moved" means the room object changed; the crawl only walks, with each story's rooms visited and named but not reached; which stories are fetched and so absent from CI. No name of a room or an object, and no line of any game's text
+- [x] T045 [US5] `crates/zmachine-corpus/src/report.rs` `Summary` (F§ "The summary"; D§ "Summary", "What is kept in the repository"): build from reports, write, read, compare; use it in `corpus run` and `corpus write` (K§) to pass T044; extend `tests/no_text.rs` to read the summary. `corpus write`, commit the summary
+- [x] T046 [US5] Complete `stories/corpus/README.md` (plan, "Strongest objection"; spec, Assumptions): what each figure means; the answer to SC-008 in a sentence for each family, with the numbers; and the limits, plainly: the room comes from introspection, so the figures show consistency; "moved" means the room object changed; the crawl only walks, with each story's rooms visited and named but not reached; which stories are fetched and so absent from CI. No name of a room or an object, and no line of any game's text
 
 **Checkpoint**: the question the feature exists to answer has a figure
 
@@ -201,10 +201,10 @@ line for each story that ran, whose figures equal that story's report
 
 ## Phase 8: Polish & Cross-Cutting Concerns
 
-- [ ] T047 [P] `.github/workflows/ci.yml`: the corpus already runs under `cargo test --workspace` on both platforms. Add nothing unless T031 found the plain run slow; if so add a step `cargo test --release -p zmachine-corpus` to the `test` job. No step fetches a story (FR-020): add a test to `tests/crate_rules.rs` that `ci.yml` does not contain `fetch-corpus`
-- [ ] T048 [P] `README.md`: a short section on the corpus (what it is, the three commands of quickstart 2, 3 and 7, that fetched stories are never committed), and the layout row for `crates/zmachine-corpus` and `stories/corpus`
-- [ ] T049 SC-004 on this Mac: `cargo run -q --release -p zmachine-corpus -- write && git status --short stories/corpus` prints nothing (quickstart 8). SC-004 across platforms is CI passing on Linux and macOS against the same committed reports; record the run
-- [ ] T050 Run the quickstart, steps 1 to 9, and record each result in the notes. Run `cargo clippy --workspace --all-targets -- -D warnings` and `cargo fmt --check`; confirm with `git diff main --stat` that nothing outside `crates/zmachine-corpus`, `stories/corpus`, `stories/zork2`, `stories/zork3`, `scripts`, `specs/005-corpus-testing`, `Cargo.toml`, `Cargo.lock`, `README.md` and `.github` changed; list at the end of this file what was done differently from the plan, including any test that was not seen to fail before its code was written
+- [x] T047 [P] `.github/workflows/ci.yml`: the corpus already runs under `cargo test --workspace` on both platforms. Add nothing unless T031 found the plain run slow; if so add a step `cargo test --release -p zmachine-corpus` to the `test` job. No step fetches a story (FR-020): add a test to `tests/crate_rules.rs` that `ci.yml` does not contain `fetch-corpus`
+- [x] T048 [P] `README.md`: a short section on the corpus (what it is, the three commands of quickstart 2, 3 and 7, that fetched stories are never committed), and the layout row for `crates/zmachine-corpus` and `stories/corpus`
+- [x] T049 SC-004 on this Mac: `cargo run -q --release -p zmachine-corpus -- write && git status --short stories/corpus` prints nothing (quickstart 8). SC-004 across platforms is CI passing on Linux and macOS against the same committed reports; record the run
+- [x] T050 Run the quickstart, steps 1 to 9, and record each result in the notes. Run `cargo clippy --workspace --all-targets -- -D warnings` and `cargo fmt --check`; confirm with `git diff main --stat` that nothing outside `crates/zmachine-corpus`, `stories/corpus`, `stories/zork2`, `stories/zork3`, `scripts`, `specs/005-corpus-testing`, `Cargo.toml`, `Cargo.lock`, `README.md` and `.github` changed; list at the end of this file what was done differently from the plan, including any test that was not seen to fail before its code was written
 
 ---
 
@@ -410,3 +410,82 @@ the code beneath it was written.
 - **Their wrong cases** (47): darkness, as in Zork I; a room whose routine replaces the
   direction with one chosen by chance; a destination whose routine sends the player on
   at arrival.
+
+- **T039 to T042: nine stories fetched, each approved by the project owner by name on
+  2026-11-12** (three questions, then four, then four; one question for each file). All
+  nine could be used; none was declined. Sizes, which the archive does not state, were
+  52,216 to 520,192 bytes. `git ls-files stories/local` lists nothing.
+- **T043**: nine fetched stories have reports; FR-023 asks for six. The corpus is
+  fourteen stories.
+- **Opening lines** were needed by five: the sampler (Return, then a letter of its menu),
+  the ZIL Adventure and the Inform 7 Adventure (a yes-or-no question), Curses (a space),
+  and Anchorhead (three keys). **The manifest gained `(space)` and `(return)`** as
+  opening answers, since neither can be written safely as it is; the test was seen to
+  fail first.
+- **The word a trial sends was changed (research R4).** On Anchorhead the longest word
+  introspection reports for north is one the game shares among its directions and
+  answers with a question, so every trial of north was the instrument's own error. The
+  word is now the ordinary English word for the direction where the story has it, which
+  is what the compass sends. The test was seen to fail first. That introspection reports
+  such a word as naming north alone is noted as a finding, not fixed (FR-015).
+- **A report now gives the story's family whether or not any place was reached.** It was
+  written as "none" for a story that never came to a command prompt.
+- **Findings from the fetched stories**: three of nine are of no family to
+  introspection (two from an early Inform library, one from Inform 7), so nothing is
+  measured on them. In one story the player starts inside something and introspection
+  cannot say which room that is: all twelve trials have no verdict, and the crawl visits
+  one room. SC-007 asks for more than one room on each story with no walkthrough; that
+  story and the three of no family do not meet it. This is put to the project owner.
+- **Their wrong cases**: three, in two stories; the other seven have none.
+
+### Phases 7 and 8
+
+- **T044, T045**: the summary's tests were seen to fail against stubs. One was first
+  written to change a story's line of the kept summary by hand and expect that story to
+  be named; a line changed by hand no longer adds up, so the whole summary is refused.
+  The test now alters the kept summary through its own type, with a story absent.
+- **One earlier test changed**: "run is ok after write" expected one line before
+  anything was kept; with a summary there are two.
+- **T046**: `stories/corpus/README.md` gives the figures, what they answer and what they
+  do not show.
+- **T047**: nothing was added to CI. The corpus runs under `cargo test --workspace`, in
+  21 seconds for the whole workspace on this Mac, and the nine fetched stories are
+  reported as ignored there. A test holds that `ci.yml` never fetches a story.
+- **T049**: writing every report afresh changes nothing (`git status --short
+  stories/corpus` prints nothing). Across platforms is CI on Linux and macOS, which has
+  not run: nothing is pushed.
+- **T050, the quickstart**: step 1, 771 passed, 0 failed, 17 ignored (the earlier
+  features' checks against dfrotz); step 2, no output, status 0; step 3, `zork1 ok`;
+  steps 4, 5 and 9 pass; step 6 was done for each fetched story; step 7, fourteen lines,
+  each `ok`, in 3.4 seconds; step 8, no change. Clippy and the format check are clean.
+  `git diff main --stat` shows nothing outside the new crate, `stories/corpus`,
+  `stories/zork2`, `stories/zork3`, `scripts`, `specs/005-corpus-testing`, the root
+  `Cargo.toml` and lock file, and `README.md`.
+
+### The figures (SC-008)
+
+Fourteen stories, 913 places, 454 rooms, 11,258 trials.
+
+| | Reported as leading to a room: confirmed | Reported as not an exit: confirmed | Reported conditional: let the player through |
+| --- | --- | --- | --- |
+| ZIL family, 6 stories | 937 of 987 | 4,112 of 4,223 | 101 of 138 |
+| Inform family, 5 stories | 1,348 of 1,382 | 4,335 of 4,379 | 51 of 95 |
+| All | 2,285 of 2,369 | 8,447 of 8,602 | 152 of 233 |
+
+No direction was reported unknown in a story introspection recognised; three stories it
+did not recognise at all. All 227 wrong trials are in the ledger, 211 entries, none of
+them a misreading of an exit table.
+
+### Not done, and limits
+
+- **CI has not run** on this branch.
+- **The room is taken from introspection** (the plan's strongest objection). Nothing
+  here checks it independently on the twelve stories feature 003 did not.
+- **The crawl only walks**, so most stories with no walkthrough are seen only near their
+  opening.
+- **`cargo test` with a filter still runs the corpus**: the target has its own `main` and
+  takes no arguments.
+- **Tests that passed before their code**: the dependency rule (T002), two against empty
+  stubs (T005, T009), "the same twice" (T027), and the two no-text checks (T036). Each
+  is recorded above with what was done to show it can fail, except "the same twice",
+  which is now exercised by the crawl.

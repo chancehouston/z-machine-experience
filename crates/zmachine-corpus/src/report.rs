@@ -414,3 +414,211 @@ impl Report {
         Ok(report)
     }
 }
+
+/// The figures of one line of the summary.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct Figures {
+    pub places: usize,
+    pub rooms: usize,
+    pub trials: usize,
+    /// Confirmed, of those reported as leading to a room.
+    pub fixed: (usize, usize),
+    /// Confirmed, of those reported as not an exit.
+    pub none: (usize, usize),
+    /// That moved the player, of those reported conditional.
+    pub conditional: (usize, usize),
+    pub unknown: usize,
+    pub wrong_known: usize,
+    pub wrong_unexplained: usize,
+}
+
+/// One story's line of the summary.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct StoryLine {
+    pub id: String,
+    pub family: String,
+    pub figures: Figures,
+}
+
+/// The figures across the corpus (contracts/formats.md, "The summary").
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct Summary {
+    /// In the order of the manifest.
+    pub stories: Vec<StoryLine>,
+    pub skipped: Vec<String>,
+}
+
+impl Report {
+    /// The story's line of the summary.
+    pub fn line(&self) -> StoryLine {
+        let fixed_wrong = self.fixed_wrong_known + self.fixed_wrong_unexplained;
+        let none_wrong = self.none_wrong_known + self.none_wrong_unexplained;
+        StoryLine {
+            id: self.id.clone(),
+            family: self.family.clone(),
+            figures: Figures {
+                places: self.places,
+                rooms: self.rooms_visited,
+                trials: self.trials,
+                fixed: (self.fixed_confirmed, self.fixed_confirmed + fixed_wrong),
+                none: (
+                    self.none_confirmed,
+                    self.none_confirmed + none_wrong + self.none_other,
+                ),
+                conditional: (self.conditional.moved, self.conditional.total()),
+                unknown: self.unknown.total(),
+                wrong_known: self.fixed_wrong_known + self.none_wrong_known,
+                wrong_unexplained: self.fixed_wrong_unexplained + self.none_wrong_unexplained,
+            },
+        }
+    }
+}
+
+const FIGURES: &str = "places # rooms # trials # fixed #/# none #/# conditional #/# unknown # wrong-known # wrong-unexplained #";
+
+impl Figures {
+    fn text(&self) -> String {
+        format!(
+            "places {} rooms {} trials {} fixed {}/{} none {}/{} conditional {}/{} unknown {} \
+             wrong-known {} wrong-unexplained {}",
+            self.places,
+            self.rooms,
+            self.trials,
+            self.fixed.0,
+            self.fixed.1,
+            self.none.0,
+            self.none.1,
+            self.conditional.0,
+            self.conditional.1,
+            self.unknown,
+            self.wrong_known,
+            self.wrong_unexplained
+        )
+    }
+
+    /// Reads what [`Figures::text`] writes.
+    fn read(text: &str) -> Option<Figures> {
+        // `8/11` is two numbers: read the line with each stroke as a space.
+        let spaced = text.replace('/', " ");
+        let form = FIGURES.replace('/', " ");
+        if text.matches('/').count() != 3 {
+            return None;
+        }
+        let n = numbers(&spaced, &form)?;
+        Some(Figures {
+            places: n[0],
+            rooms: n[1],
+            trials: n[2],
+            fixed: (n[3], n[4]),
+            none: (n[5], n[6]),
+            conditional: (n[7], n[8]),
+            unknown: n[9],
+            wrong_known: n[10],
+            wrong_unexplained: n[11],
+        })
+    }
+
+    fn add(&mut self, other: &Figures) {
+        self.places += other.places;
+        self.rooms += other.rooms;
+        self.trials += other.trials;
+        self.fixed = (self.fixed.0 + other.fixed.0, self.fixed.1 + other.fixed.1);
+        self.none = (self.none.0 + other.none.0, self.none.1 + other.none.1);
+        self.conditional = (
+            self.conditional.0 + other.conditional.0,
+            self.conditional.1 + other.conditional.1,
+        );
+        self.unknown += other.unknown;
+        self.wrong_known += other.wrong_known;
+        self.wrong_unexplained += other.wrong_unexplained;
+    }
+}
+
+impl StoryLine {
+    pub fn text(&self) -> String {
+        format!("story {} {} {}", self.id, self.family, self.figures.text())
+    }
+}
+
+impl Summary {
+    /// The line of totals for a family, or for all with `None`.
+    fn total(&self, family: Option<&str>) -> String {
+        let mut figures = Figures::default();
+        let mut stories = 0;
+        for story in &self.stories {
+            if family.is_none_or(|f| f == story.family) {
+                figures.add(&story.figures);
+                stories += 1;
+            }
+        }
+        match family {
+            Some(family) => format!("family {family} stories {stories} {}", figures.text()),
+            None => format!("all stories {stories} {}", figures.text()),
+        }
+    }
+
+    pub fn write(&self) -> String {
+        let mut lines: Vec<String> = self.stories.iter().map(StoryLine::text).collect();
+        lines.extend(FAMILIES.iter().map(|family| self.total(Some(family))));
+        lines.push(self.total(None));
+        lines.extend(self.skipped.iter().map(|id| format!("skipped {id}")));
+        lines.join("\n") + "\n"
+    }
+
+    /// Reads what [`Summary::write`] writes, and nothing else. The totals must
+    /// be the sums of the stories' lines.
+    pub fn read(text: &str) -> Result<Summary, Refusal> {
+        let mut summary = Summary::default();
+        let mut totals: Vec<(usize, &str)> = Vec::new();
+        for (number, line) in text.lines().enumerate().map(|(i, l)| (i + 1, l)) {
+            let refuse = |why: &str| Err((number, why.to_string()));
+            let words: Vec<&str> = line.splitn(4, ' ').collect();
+            match words.as_slice() {
+                ["story", id, family, figures]
+                    if totals.is_empty() && is_id(id) && FAMILIES.contains(family) =>
+                {
+                    let Some(figures) = Figures::read(figures) else {
+                        return refuse("a story's figures are not of the summary's form");
+                    };
+                    summary.stories.push(StoryLine {
+                        id: id.to_string(),
+                        family: family.to_string(),
+                        figures,
+                    });
+                }
+                ["family" | "all", ..] if summary.skipped.is_empty() => totals.push((number, line)),
+                ["skipped", id] if is_id(id) && totals.len() == FAMILIES.len() + 1 => {
+                    summary.skipped.push(id.to_string())
+                }
+                _ => return refuse("not a line of the summary"),
+            }
+        }
+        let expected: Vec<String> = FAMILIES
+            .iter()
+            .map(|family| summary.total(Some(family)))
+            .chain(std::iter::once(summary.total(None)))
+            .collect();
+        for (i, expected) in expected.iter().enumerate() {
+            match totals.get(i) {
+                Some((_, line)) if line == expected => {}
+                Some((number, _)) => {
+                    return Err((
+                        *number,
+                        "the total is not the sum of the stories".to_string(),
+                    ));
+                }
+                None => {
+                    let last = text.lines().count();
+                    return Err((last + 1, "a line of totals is missing".to_string()));
+                }
+            }
+        }
+        if totals.len() > expected.len() {
+            return Err((
+                totals[expected.len()].0,
+                "a line of totals too many".to_string(),
+            ));
+        }
+        Ok(summary)
+    }
+}

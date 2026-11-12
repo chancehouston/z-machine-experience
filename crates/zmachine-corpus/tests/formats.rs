@@ -3,7 +3,7 @@
 
 use zmachine_corpus::ledger;
 use zmachine_corpus::manifest::{self, Tier};
-use zmachine_corpus::report::{Case, Outcomes, Reached, Report};
+use zmachine_corpus::report::{Case, Figures, Outcomes, Reached, Report, StoryLine, Summary};
 use zmachine_corpus::trial::Outcome;
 use zmachine_corpus::verdict::Reported;
 
@@ -385,4 +385,108 @@ fn an_opening_answer_may_be_a_space_or_an_empty_line() {
     assert_ne!(text, ENTRY);
     let stories = manifest::read(&text).expect("the manifest reads");
     assert_eq!(stories[1].opening, [" ", "", "n"]);
+}
+
+// ---------------------------------------------------------------------------
+// The summary (F§ "The summary"; FR-025)
+// ---------------------------------------------------------------------------
+
+// F§ "The summary": a story's line holds its report's figures.
+#[test]
+fn a_storys_line_of_the_summary_is_its_reports_figures() {
+    let line = sample().line();
+    assert_eq!((line.id.as_str(), line.family.as_str()), ("toy", "zil"));
+    assert_eq!(
+        line.figures,
+        Figures {
+            places: 5,
+            rooms: 2,
+            trials: 30,
+            // 8 confirmed of 8 + 1 + 2 reported as leading to a room.
+            fixed: (8, 11),
+            // 9 confirmed of 9 + 0 + 1 + 1 reported as not an exit.
+            none: (9, 11),
+            // 2 moved the player of 4 reported conditional.
+            conditional: (2, 4),
+            unknown: 3,
+            wrong_known: 1,
+            wrong_unexplained: 3,
+        }
+    );
+}
+
+fn story_line(id: &str, family: &str, scale: usize) -> StoryLine {
+    StoryLine {
+        id: id.to_string(),
+        family: family.to_string(),
+        figures: Figures {
+            places: scale,
+            rooms: 2 * scale,
+            trials: 30 * scale,
+            fixed: (8 * scale, 11 * scale),
+            none: (9 * scale, 11 * scale),
+            conditional: (2 * scale, 4 * scale),
+            unknown: 3 * scale,
+            wrong_known: scale,
+            wrong_unexplained: 0,
+        },
+    }
+}
+
+const SUMMARY: &str = "\
+story one zil places 1 rooms 2 trials 30 fixed 8/11 none 9/11 conditional 2/4 unknown 3 wrong-known 1 wrong-unexplained 0
+story two inform places 2 rooms 4 trials 60 fixed 16/22 none 18/22 conditional 4/8 unknown 6 wrong-known 2 wrong-unexplained 0
+story three zil places 3 rooms 6 trials 90 fixed 24/33 none 27/33 conditional 6/12 unknown 9 wrong-known 3 wrong-unexplained 0
+family zil stories 2 places 4 rooms 8 trials 120 fixed 32/44 none 36/44 conditional 8/16 unknown 12 wrong-known 4 wrong-unexplained 0
+family inform stories 1 places 2 rooms 4 trials 60 fixed 16/22 none 18/22 conditional 4/8 unknown 6 wrong-known 2 wrong-unexplained 0
+family none stories 0 places 0 rooms 0 trials 0 fixed 0/0 none 0/0 conditional 0/0 unknown 0 wrong-known 0 wrong-unexplained 0
+all stories 3 places 6 rooms 12 trials 180 fixed 48/66 none 54/66 conditional 12/24 unknown 18 wrong-known 6 wrong-unexplained 0
+skipped four
+";
+
+fn summary() -> Summary {
+    Summary {
+        stories: vec![
+            story_line("one", "zil", 1),
+            story_line("two", "inform", 2),
+            story_line("three", "zil", 3),
+        ],
+        skipped: vec!["four".to_string()],
+    }
+}
+
+// F§ "The summary": stories in the manifest's order, families in the order zil,
+// inform, none, then all; a skipped story has a line of its own and is in no
+// total.
+#[test]
+fn the_summary_is_written_as_the_format_gives_it_and_reads_back() {
+    assert_eq!(summary().write(), SUMMARY);
+    assert_eq!(Summary::read(SUMMARY), Ok(summary()));
+}
+
+#[test]
+fn a_summary_that_departs_from_the_format_is_refused_with_the_line() {
+    let refused = |line: usize, replacement: &str| {
+        let mut lines: Vec<&str> = SUMMARY.lines().collect();
+        lines[line - 1] = replacement;
+        Summary::read(&(lines.join("\n") + "\n"))
+            .expect_err("the summary is refused")
+            .0
+    };
+    assert_eq!(refused(1, "story one zil places one rooms 2"), 1);
+    assert_eq!(refused(2, "story West of House"), 2);
+    // A total that is not the sum of its stories.
+    let wrong = SUMMARY
+        .lines()
+        .nth(3)
+        .unwrap()
+        .replace("places 4", "places 5");
+    assert_eq!(refused(4, &wrong), 4);
+    let wrong = SUMMARY
+        .lines()
+        .nth(6)
+        .unwrap()
+        .replace("trials 180", "trials 181");
+    assert_eq!(refused(7, &wrong), 7);
+    assert_eq!(refused(8, "skipped Four Rooms"), 8);
 }

@@ -6,7 +6,7 @@ mod common;
 use common::*;
 use zmachine_corpus::corpus::{LEDGER, MANIFEST, REPORTS, present};
 use zmachine_corpus::manifest::{self, Tier};
-use zmachine_corpus::report::Report;
+use zmachine_corpus::report::{Report, Summary};
 use zmachine_introspect::Introspector;
 
 /// The words of the report format. A game's word that is one of these cannot be
@@ -64,10 +64,13 @@ fn every_report_is_of_the_format_and_nothing_else() {
     let files = report_files();
     assert!(!files.is_empty());
     for path in files {
+        let text = std::fs::read_to_string(&path).unwrap();
         if path.file_name().unwrap() == "summary.txt" {
+            // F§ "The summary": its lines are ids, families and figures.
+            let summary = Summary::read(&text).unwrap_or_else(|e| panic!("summary: {e:?}"));
+            assert_eq!(summary.write(), text);
             continue;
         }
-        let text = std::fs::read_to_string(&path).unwrap();
         let report = Report::read(&text).unwrap_or_else(|e| panic!("{}: {e:?}", path.display()));
         assert_eq!(report.write(), text, "{}", path.display());
         for word in text.split_whitespace() {
@@ -122,9 +125,13 @@ fn no_committed_storys_names_are_in_its_report_or_the_ledger() {
             phrases.len()
         );
 
-        let report = read_text(&format!("{REPORTS}/{}.txt", story.id)).to_lowercase();
+        // The story's own report, and the summary, whose words besides the
+        // format's are the stories' ids and figures written `8/11`.
+        let report = read_text(&format!("{REPORTS}/{}.txt", story.id)).to_lowercase()
+            + &read_text(&format!("{REPORTS}/summary.txt")).to_lowercase();
         for word in report.split_whitespace() {
-            if word == story.id {
+            if stories.iter().any(|s| s.id == word) || matches!(word, "all" | "stories" | "skipped")
+            {
                 continue;
             }
             assert!(

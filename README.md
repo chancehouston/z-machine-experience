@@ -165,6 +165,26 @@ dfrotz from Frotz 2.55 (`brew install frotz` on macOS) and are skipped otherwise
 cargo test --workspace --release -- --ignored
 ```
 
+## The corpus
+
+How often is introspection right about exits? `crates/zmachine-corpus` measures it: at
+each place a game is brought to, every direction is tried on a throwaway copy of the
+game, and what happened is set against what introspection reported. On fourteen story
+files and 11,258 trials, 96.5% of the exits reported as leading to a room did, and 98.2%
+of the directions reported as not an exit were not; every wrong report has its cause
+written down. The figures, what they mean and what they do not show are in
+[`stories/corpus/README.md`](stories/corpus/README.md).
+
+```text
+cargo run -q --release -p zmachine-corpus -- check
+cargo run -q --release -p zmachine-corpus -- run
+```
+
+Five of the stories are in the repository. The other nine are free to download but not to
+redistribute: they are fetched by name with `scripts/fetch-corpus.sh` into a folder the
+repository ignores, and are never committed. Where they are absent their tests are
+reported as ignored, not passed.
+
 ## Layout
 
 | Path | What it is |
@@ -177,6 +197,8 @@ cargo test --workspace --release -- --ignored
 | `scripts/` | Building and testing the app; regenerating the reference files. |
 | `crates/zmachine-cli` | `zm`, the command-line host. |
 | `crates/zmachine-testkit` | Builds small story files in memory, for tests. |
+| `crates/zmachine-corpus` | Testing tools: tries a game's exits on copies and judges what introspection reported. Nothing depends on it. |
+| `stories/corpus/` | The corpus: its manifest, the ledger of known wrong reports, and each story's figures. |
 | `stories/` | Story files that may be redistributed, each with its license record. |
 | `stories/zork1/fidelity/` | The Zork I walkthrough and what Frotz makes of it. |
 | `stories/advent/fidelity/` | The same for Adventure in versions 5 and 8, with undo and save files. |
@@ -187,6 +209,7 @@ cargo test --workspace --release -- --ignored
 | `specs/002-v5-v8/` | The same for versions 5 and 8, with the screen model's contract. |
 | `specs/003-introspection/` | The same for the introspection interface. |
 | `specs/004-first-demo/` | The same for the first demo, with the C interface, the screen's contract and screenshots. |
+| `specs/005-corpus-testing/` | The same for corpus testing, with the formats of its files and its commands. |
 
 ## How it fits together
 
@@ -252,10 +275,12 @@ contracts instead (`specs/002-v5-v8/contracts/`):
 ## Story files
 
 A story file is committed here only when its license permits redistribution, with the
-license and source recorded beside it. Four are included:
+license and source recorded beside it. Six are included:
 
 - **Zork I**, whose source was released under the MIT License in November 2025. See
   `stories/zork1/SOURCE.md`, including a caveat about the compiled file.
+- **Zork II** and **Zork III**, released the same way on the same day, for the corpus.
+  See `stories/zork2/SOURCE.md` and `stories/zork3/SOURCE.md`; the same caveat applies.
 - **czech**, a conformance test program by Amir Karger, whose license permits
   redistribution with its notice. See `stories/czech/SOURCE.md`.
 - **Advent**, the Inform 6 port of Colossal Cave, as a test fixture for versions 5 and 8.
@@ -264,6 +289,9 @@ license and source recorded beside it. Four are included:
   `stories/advent/SOURCE.md`.
 - **praxix**, a conformance test program by Zarf and Dannii, in the public domain. See
   `stories/praxix/SOURCE.md`.
+
+The corpus also uses nine story files that are free to download and are not committed;
+see `stories/corpus/README.md`.
 
 Commercial games are never committed or bundled. The MIT License on Zork's code does not
 grant the Zork trademark.

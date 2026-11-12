@@ -180,10 +180,16 @@ fn run_is_ok_after_write_and_differs_when_a_kept_figure_is_changed() {
     scratch.write("stories/toy/walk.txt", b"north\nsouth\n");
     scratch.add("toy", &toy.build(), "walkthrough: stories/toy/walk.txt\n");
 
-    // Nothing is kept yet.
+    // Nothing is kept yet: neither the report nor the summary.
     assert_eq!(
         command(&scratch.0, Mode::Run, &[]),
-        (vec!["toy differs".to_string()], 1)
+        (
+            vec![
+                "toy differs".to_string(),
+                "stories/corpus/reports/summary.txt differs".to_string()
+            ],
+            1
+        )
     );
     assert_eq!(
         command(&scratch.0, Mode::Write, &[]),
