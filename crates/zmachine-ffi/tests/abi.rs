@@ -357,18 +357,12 @@ fn the_header_and_the_library_agree() {
             "zmx_string_free"
         ]
     );
-    // The static library sits beside the test binaries' directory. Running the
-    // tests does not rebuild it, so build it here: a stale one would be checked
-    // in place of this source.
-    let exe = std::env::current_exe().unwrap();
-    let library = exe
-        .parent()
-        .unwrap()
-        .parent()
-        .unwrap()
-        .join("libzmachine_ffi.a");
+    // Build the static library here, since running the tests does not rebuild
+    // it and a stale one would be checked in place of this source; and ask
+    // cargo where it put it. Where cargo keeps its files has changed between
+    // versions, so the path is not worked out from this test's own.
     let built = std::process::Command::new(env!("CARGO"))
-        .args(["build", "-p", "zmachine-ffi"])
+        .args(["build", "-p", "zmachine-ffi", "--message-format=json"])
         .current_dir(ROOT)
         .output()
         .expect("running cargo");
@@ -377,6 +371,18 @@ fn the_header_and_the_library_agree() {
         "building the static library: {}",
         String::from_utf8_lossy(&built.stderr)
     );
+    let messages = String::from_utf8_lossy(&built.stdout);
+    let name = "libzmachine_ffi.a\"";
+    let library = messages
+        .lines()
+        .filter(|l| l.contains("\"reason\":\"compiler-artifact\""))
+        .find_map(|l| {
+            let end = l.find(name)? + name.len() - 1;
+            let start = l[..end].rfind('"')? + 1;
+            Some(std::path::PathBuf::from(&l[start..end]))
+        })
+        .expect("cargo names the static library it built");
+    assert!(library.is_file(), "{} is not there", library.display());
     let Ok(out) = std::process::Command::new("nm")
         .arg("-g")
         .arg(&library)
@@ -398,7 +404,18 @@ fn the_header_and_the_library_agree() {
         .collect();
     exported.sort();
     exported.dedup();
-    assert_eq!(exported, declared);
+    assert_eq!(
+        exported,
+        declared,
+        "nm -g {} gave {} lines and said: {}",
+        library.display(),
+        listing.lines().count(),
+        String::from_utf8_lossy(&out.stderr)
+            .lines()
+            .take(5)
+            .collect::<Vec<_>>()
+            .join(" | ")
+    );
 }
 
 // C§5, constitution Principle V: every `unsafe` in this crate says why it is
