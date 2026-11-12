@@ -21,6 +21,7 @@ mod ops_object;
 mod quetzal;
 mod random;
 mod text;
+mod version;
 
 #[cfg(test)]
 mod testing;
@@ -39,6 +40,8 @@ pub enum LoadError {
     TooShort,
     /// A header field points outside the file or breaks a rule of §11.
     BadHeader(HeaderField),
+    /// The file is larger than its version allows (§1.1.4).
+    TooLarge,
 }
 
 /// The header field a [`LoadError::BadHeader`] refers to.
@@ -51,17 +54,20 @@ pub enum HeaderField {
     Globals,
     StaticMemoryBase,
     Abbreviations,
+    TerminatingCharacters,
+    AlphabetTable,
+    HeaderExtension,
+    UnicodeTable,
 }
 
 impl std::fmt::Display for LoadError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            LoadError::UnsupportedVersion(v) => {
-                write!(
-                    f,
-                    "not a version 3 story file (its header says version {v})"
-                )
-            }
+            LoadError::UnsupportedVersion(v) => write!(
+                f,
+                "its header says version {v}, and this interpreter runs versions 3, 5 and 8"
+            ),
+            LoadError::TooLarge => write!(f, "larger than a story file of its version may be"),
             LoadError::TooShort => write!(f, "too short to be a story file"),
             LoadError::BadHeader(field) => {
                 write!(
@@ -193,12 +199,43 @@ pub struct LoadOptions {
     pub entropy: u32,
 }
 
+/// What a host tells a version 5 or 8 game about itself. None of it affects a
+/// version 3 game.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Settings {
+    /// Screen width in characters.
+    pub screen_columns: u16,
+    /// Screen height in lines.
+    pub screen_rows: u16,
+    /// The interpreter number of §11.1.3, which games may read.
+    pub interpreter_number: u8,
+    /// The interpreter version, a letter games may print.
+    pub interpreter_version: u8,
+    /// How many undo positions are kept. With 0, games are told undo is unavailable.
+    pub undo_slots: usize,
+}
+
+impl Default for Settings {
+    /// An 80 by 24 screen, interpreter number 1 and version `Z`, and the 25 undo
+    /// positions the reference interpreter keeps.
+    fn default() -> Self {
+        Settings {
+            screen_columns: 80,
+            screen_rows: 24,
+            interpreter_number: 1,
+            interpreter_version: b'Z',
+            undo_slots: 25,
+        }
+    }
+}
+
 /// A loaded story file and everything that changes while it runs.
 #[derive(Debug)]
 pub struct Machine {
     /// The story file as loaded, kept for restart, `verify` and save compression.
     story: Vec<u8>,
     header: Header,
+    settings: Settings,
     memory: Memory,
     /// Call frames, innermost last. The first is the main code, which is not a
     /// routine and cannot be returned from.
@@ -242,18 +279,28 @@ impl From<MemoryError> for FaultKind {
 }
 
 impl Machine {
-    /// Loads a version 3 story file.
+    /// Loads a story file of version 3, 5 or 8 with default [`Settings`].
     ///
     /// A header length or checksum that does not match the file is not an error
     /// here; the game's own `verify` reports it.
     pub fn load(story: Vec<u8>, options: LoadOptions) -> Result<Machine, LoadError> {
+        Self::load_with(story, options, Settings::default())
+    }
+
+    /// Loads a story file of version 3, 5 or 8.
+    pub fn load_with(
+        story: Vec<u8>,
+        options: LoadOptions,
+        settings: Settings,
+    ) -> Result<Machine, LoadError> {
         let header = header::parse(&story)?;
         let mut memory = Memory::new(story.clone(), header.static_base as usize);
-        header::apply_interpreter_fields(memory.dynamic_mut());
+        header::apply_interpreter_fields(memory.dynamic_mut(), &header, &settings);
         let pc = header.initial_pc as u32;
         Ok(Machine {
             story,
             header,
+            settings,
             memory,
             frames: vec![Frame::main()],
             pc,

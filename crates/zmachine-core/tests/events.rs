@@ -280,11 +280,12 @@ fn load_refuses_what_is_not_a_version_3_story() {
         seed: None,
         entropy: 7,
     };
-    let mut v5 = read_program(20).build();
-    v5[0] = 5;
+    // Version 4 is not run; versions 5 and 8 are, since feature 002.
+    let mut v4 = read_program(20).build();
+    v4[0] = 4;
     assert!(matches!(
-        Machine::load(v5, options),
-        Err(LoadError::UnsupportedVersion(5))
+        Machine::load(v4, options),
+        Err(LoadError::UnsupportedVersion(4))
     ));
     assert!(matches!(
         Machine::load(vec![3; 10], options),

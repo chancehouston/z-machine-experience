@@ -245,7 +245,7 @@ impl Machine {
         let original = u16::from_be_bytes([dynamic[FLAGS2 as usize], dynamic[FLAGS2 as usize + 1]]);
         let kept = original & !FLAGS2_SURVIVES_RESTART | flags & FLAGS2_SURVIVES_RESTART;
         dynamic[FLAGS2 as usize..FLAGS2 as usize + 2].copy_from_slice(&kept.to_be_bytes());
-        header::apply_interpreter_fields(dynamic);
+        header::apply_interpreter_fields(dynamic, &self.header, &self.settings);
 
         self.frames = vec![Frame::main()];
         self.pc = self.header.initial_pc as u32;
@@ -321,7 +321,7 @@ impl Machine {
         let then = u16::from_be_bytes([dynamic[FLAGS2 as usize], dynamic[FLAGS2 as usize + 1]]);
         let kept = then & !FLAGS2_SURVIVES_RESTART | now & FLAGS2_SURVIVES_RESTART;
         dynamic[FLAGS2 as usize..FLAGS2 as usize + 2].copy_from_slice(&kept.to_be_bytes());
-        header::apply_interpreter_fields(dynamic);
+        header::apply_interpreter_fields(dynamic, &self.header, &self.settings);
         self.frames = saved.frames;
 
         // Resume inside the `save` that made the file, reporting success: its

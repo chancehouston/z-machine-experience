@@ -69,9 +69,9 @@ fn refused() -> Vec<Case> {
         case("version 1", with_byte(0, 1), "version 1"),
         case("version 2", with_byte(0, 2), "version 2"),
         case("version 4", with_byte(0, 4), "version 4"),
-        case("version 5", with_byte(0, 5), "version 5"),
+        case("version 7", with_byte(0, 7), "version 7"),
         case("version 6", with_byte(0, 6), "version 6"),
-        case("version 8", with_byte(0, 8), "version 8"),
+        case("version 9", with_byte(0, 9), "version 9"),
         case(
             "high memory base outside the file",
             with_address_outside(0x04),

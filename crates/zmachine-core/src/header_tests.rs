@@ -43,10 +43,11 @@ fn parse_reads_every_field_from_its_offset() {
     assert_eq!(h.file_length as usize, image.len());
 }
 
-// §11.1: byte 0 is the version. data-model.md: "Must be 3, otherwise load is refused".
+// §11.1: byte 0 is the version. Versions 3, 5 and 8 are run (feature 002); every
+// other is refused.
 #[test]
 fn any_version_but_3_is_refused() {
-    for version in [0u8, 1, 2, 4, 5, 6, 7, 8, 9, 255] {
+    for version in [0u8, 1, 2, 4, 6, 7, 9, 255] {
         let mut image = image();
         image[0] = version;
         assert_eq!(parse(&image), Err(LoadError::UnsupportedVersion(version)));
