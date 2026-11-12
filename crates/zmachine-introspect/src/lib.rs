@@ -13,7 +13,7 @@ mod zil;
 
 pub use answer::{Answer, Exactness, Part, Tri, Unknown};
 
-use family::{Adapter, Place};
+use family::{Adapter, Place, Way};
 use table::{Bytes, Layout};
 use zmachine_core::View;
 
@@ -389,10 +389,64 @@ impl Introspector {
         if let Some(reason) = self.refusal(view) {
             return Answer::unknown(reason, Exactness::Exact);
         }
-        if let Err(reason) = self.place(Bytes::now(view)) {
-            return Answer::unknown(reason, Exactness::Exact);
+        let b = Bytes::now(view);
+        let room = match self.place(b) {
+            Ok(place) => place.room,
+            Err(reason) => return Answer::unknown(reason, Exactness::Exact),
+        };
+        // Each direction of the family, with what the room's table says of it.
+        let ways: Vec<(u8, &[String], Way)> = match &self.adapter {
+            Adapter::Inform(inform) => inform
+                .directions
+                .iter()
+                .map(|d| {
+                    (
+                        d.property,
+                        d.words.as_slice(),
+                        inform.way(&self.layout, b, room, d),
+                    )
+                })
+                .collect(),
+            Adapter::Zil(zil) => zil
+                .directions
+                .iter()
+                .map(|d| {
+                    (
+                        d.property,
+                        d.words.as_slice(),
+                        zil.way(&self.layout, b, room, d),
+                    )
+                })
+                .collect(),
+            Adapter::None => Vec::new(),
+        };
+        let mut exits = Exits::default();
+        for (direction, words, way) in ways {
+            let words = words.to_vec();
+            match way {
+                Way::None => {}
+                Way::Fixed(destination) => exits.exits.push(Exit {
+                    direction,
+                    words,
+                    kind: ExitKind::Fixed,
+                    destination: Some(destination),
+                    destination_name: Some(self.printed_name(b, destination)),
+                }),
+                Way::Conditional => exits.exits.push(Exit {
+                    direction,
+                    words,
+                    kind: ExitKind::Conditional,
+                    destination: None,
+                    destination_name: None,
+                }),
+                Way::Unknown(reason) => exits.unknown.push(UnknownDirection {
+                    direction,
+                    words,
+                    reason,
+                }),
+            }
         }
-        Answer::unknown(Unknown::Damaged, Exactness::Exact)
+        Answer::exact(exits)
     }
 
     /// The objects the player could plausibly act on (specification section 9).

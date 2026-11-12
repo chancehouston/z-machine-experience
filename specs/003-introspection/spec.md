@@ -385,8 +385,13 @@ from the document and the story file alone; the predictions match the implementa
   location is reported, never unknown, and agrees with the game by the check of FR-037
   with zero disagreements.
 - **SC-003**: Every move in both walkthroughs made through an exit reported with a
-  destination arrives at that destination: zero mismatches, over at least 100 such moves
-  in each game.
+  destination arrives at that destination: zero mismatches. Advent's walkthrough makes
+  only 67 such moves, so each game is also toured beyond its walkthrough by following
+  the reported exits, for at least 100 further moves; there, the only moves that may end
+  elsewhere are those the game's own code redirects on arrival to a room of the same
+  printed name, each of which the specification must name. (Revised in implementation:
+  the first wording asked for 100 moves in each walkthrough, which Advent's does not
+  have, and did not allow for the forest.)
 - **SC-004**: For at least 25 rooms in each game, chosen to include fixed exits,
   conditional exits, refusals and exits a stored value opens, the reported exits equal
   the list worked out by hand from the game's source. Each expectation names the point in

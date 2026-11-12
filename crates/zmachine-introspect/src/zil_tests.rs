@@ -181,12 +181,23 @@ fn exits_by_the_length_of_the_property() {
     // North: one byte, a room. South: two bytes, a message: not an exit. East:
     // three bytes, a routine. West: five bytes, a door. Down: four bytes, a flag,
     // which is not set.
-    let shape: Vec<(u8, ExitKind, Option<u16>)> = exits.exits.iter().map(|e| (e.direction, e.kind, e.destination)).collect();
+    let shape: Vec<(u8, ExitKind, Option<u16>)> = exits
+        .exits
+        .iter()
+        .map(|e| (e.direction, e.kind, e.destination))
+        .collect();
     assert_eq!(
         shape,
-        [(zl::NORTH, ExitKind::Fixed, Some(zl::HALL)), (zl::EAST, ExitKind::Conditional, None), (zl::WEST, ExitKind::Conditional, None)]
+        [
+            (zl::NORTH, ExitKind::Fixed, Some(zl::HALL)),
+            (zl::EAST, ExitKind::Conditional, None),
+            (zl::WEST, ExitKind::Conditional, None)
+        ]
     );
-    assert_eq!(exits.exits[0].destination_name, Some(Ok("Hall".to_string())));
+    assert_eq!(
+        exits.exits[0].destination_name,
+        Some(Ok("Hall".to_string()))
+    );
     assert!(exits.unknown.is_empty());
 }
 
@@ -201,12 +212,18 @@ fn a_flag_exit_follows_its_flag() {
     };
     assert_eq!(down(&Zil::new().machine()), None, "the flag is clear");
     let open = down(&after(vec![set_global(zl::TRAP_OPEN, 1)])).expect("the flag is set");
-    assert_eq!((open.kind, open.destination), (crate::ExitKind::Fixed, Some(zl::CELLAR)));
+    assert_eq!(
+        (open.kind, open.destination),
+        (crate::ExitKind::Fixed, Some(zl::CELLAR))
+    );
     assert_eq!(open.destination_name, Some(Ok("Cellar".to_string())));
     assert_eq!(open.words, ["down"]);
     // Any non-zero value opens it; the neighbouring global does not.
     assert!(down(&after(vec![set_global(zl::TRAP_OPEN, 0xFFFF)])).is_some());
-    assert!(down(&after(vec![set_global(zl::TRAP_OPEN + 16, 1)])).is_none(), "the byte is a variable number, not an index");
+    assert!(
+        down(&after(vec![set_global(zl::TRAP_OPEN + 16, 1)])).is_none(),
+        "the byte is a variable number, not an index"
+    );
     assert!(down(&after(vec![set_global(zl::TRAP_OPEN - 1, 1)])).is_none());
 }
 
@@ -214,11 +231,21 @@ fn a_flag_exit_follows_its_flag() {
 // outside a routine: the exit is conditional.
 #[test]
 fn a_flag_that_is_not_a_global_is_conditional() {
-    let m = after(vec![insert(zl::PLAYER, zl::CELLAR), set_global(0, zl::CELLAR)]);
+    let m = after(vec![
+        insert(zl::PLAYER, zl::CELLAR),
+        set_global(0, zl::CELLAR),
+    ]);
     let view = m.view();
     let exits = introspect(&m).exits(&view).value.unwrap();
     assert_eq!(exits.exits.len(), 1);
-    assert_eq!((exits.exits[0].direction, exits.exits[0].kind, exits.exits[0].destination), (zl::UP, crate::ExitKind::Conditional, None));
+    assert_eq!(
+        (
+            exits.exits[0].direction,
+            exits.exits[0].kind,
+            exits.exits[0].destination
+        ),
+        (zl::UP, crate::ExitKind::Conditional, None)
+    );
 }
 
 // I§8, I§3.2: every dictionary word for the direction, shortest first; and an
@@ -233,6 +260,10 @@ fn direction_words_and_an_exit_to_the_same_room() {
     let m = after(vec![insert(zl::PLAYER, zl::HALL), set_global(0, zl::HALL)]);
     let view = m.view();
     let exits = introspect(&m).exits(&view).value.unwrap();
-    let north = exits.exits.iter().find(|e| e.direction == zl::NORTH).unwrap();
+    let north = exits
+        .exits
+        .iter()
+        .find(|e| e.direction == zl::NORTH)
+        .unwrap();
     assert_eq!(north.destination, Some(zl::HALL));
 }

@@ -327,7 +327,98 @@ listing at every other.
 
 ## 8. `exits`
 
-The directions that lead out of the player's location.
+The directions that lead out of the room `location` reports. **Exact.** Unknown as a
+whole exactly when `location` is, for the same reason.
+
+The answer has two lists.
+
+`exits`, one entry for each direction that leads somewhere:
+
+| Field | Value |
+| --- | --- |
+| `direction` | The direction's number: the number of the property a room gives that exit in (section 3). Stable within a story file |
+| `words` | The dictionary words that name the direction, as stored, shortest first. May be empty |
+| `kind` | `fixed` or `conditional` |
+| `destination` | For a `fixed` exit, the object number of the room it leads to |
+| `destination_name` | For a `fixed` exit, that room's printed name; a part that may be unknown |
+
+`unknown`, one entry for each direction that could not be determined, with its
+`direction`, its `words` and a reason.
+
+A direction the room does not provide, or for which it stores only a refusal, is in
+neither list. No direction appears twice. An exit that leads back to the room it is in
+is reported like any other. Directions are listed in the family's order: for Inform 6
+the order of the compass's children, for ZIL from the highest direction number down.
+
+- A **`fixed`** exit is one whose destination the story file stores as a fact.
+- A **`conditional`** exit is one the game decides by running its own code. The
+  direction exists; where it leads, and whether the game will let the player through
+  now, cannot be read. It carries no destination.
+
+### 8.1 Inform 6
+
+For each direction, take the room's property of that number. If the room does not
+provide it, the direction is not an exit. Otherwise, in this order:
+
+| The property's value | Reported as |
+| --- | --- |
+| is not exactly two bytes | `unknown`, `not-determinable` |
+| is 0 | not an exit |
+| is the number of an object with attribute 5 (`door`) | `conditional` |
+| is the number of an object with no parent that has attribute 9 (`light`) or provides at least one direction property | `fixed`, to that object |
+| is the number of any other object | `conditional` |
+| is a routine (section 3.1) | `conditional` |
+| is a string (section 3.1) | not an exit: the string is the refusal the game prints |
+| is not determinable (section 3.1) | `unknown`, `not-determinable` |
+
+The door test comes before the room test because a door that stands in several rooms
+has no parent, as a room has none.
+
+### 8.2 ZIL
+
+For each direction, take the room's property of that number. If the room does not
+provide it, the direction is not an exit. Otherwise, by the length of the property:
+
+| Length | Contents | Reported as |
+| --- | --- | --- |
+| 1 | a room | `fixed`, to that room |
+| 2 | the address of a message | not an exit |
+| 3 | a routine, then a zero byte | `conditional` |
+| 4 | a room, a variable number, the address of a message | see below |
+| 5 | a room, a door object, the address of a message, a zero byte | `conditional` |
+
+A 4-byte exit is open while a variable is not zero. Its second byte is a Z-machine
+variable number, in which 16 is the first global variable:
+
+- if the byte is 16 or more and that global variable is not zero, the exit is `fixed`,
+  to the room in the first byte;
+- if the byte is 16 or more and the variable is zero, it is not an exit;
+- if the byte is less than 16 it names the stack or a local variable, which mean nothing
+  outside a routine, and the exit is `conditional`.
+
+Reading a variable is reading a stored fact, so this is exact. The variable is whatever
+it holds at the moment of the query: some games recompute such a variable only when the
+player next gives a command in that room, and the answer follows the stored value, not
+what it would be recomputed to.
+
+A 5-byte exit depends on whether a door is open. ZIL numbers its attributes game by
+game, so "open" cannot be read, and the exit is `conditional`.
+
+A 1-byte or 4-byte exit whose first byte is not the number of a room is `unknown`,
+`not-determinable`.
+
+### 8.3 The game has the last word
+
+The answer is what the room's own table says. A game's code runs when the player gives
+the command, and may still refuse a listed exit or send the player somewhere else. In
+particular, **code that runs on arriving in a room may move the player on**, so that a
+move through a `fixed` exit ends in a room other than its `destination`. Advent has
+one: two rooms both called "In Forest", where arriving in the first sends the player to
+the second half the time. The exit into the first is `fixed`, to the first.
+
+In the reference implementation's tests every move through a `fixed` exit arrived at its
+destination, over complete games of Zork I (171 such moves) and Advent (67) and over
+tours of several hundred more moves in each, except moves into that forest room.
 
 ## 9. `scope`
 

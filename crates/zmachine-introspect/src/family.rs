@@ -42,3 +42,15 @@ pub(crate) struct Place {
     pub holder: Part<Option<u16>>,
     pub lit: Tri,
 }
+
+/// What a room's table says of one direction.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum Way {
+    /// Leads to this room, as a stored fact.
+    Fixed(u16),
+    /// Decided by the game's code.
+    Conditional,
+    /// Not an exit: absent, refused, or closed by a stored value.
+    None,
+    Unknown(crate::Unknown),
+}

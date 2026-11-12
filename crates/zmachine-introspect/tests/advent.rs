@@ -226,11 +226,21 @@ fn inventory_at_known_moments() {
 fn exits_equal_the_hand_made_expectations() {
     for game in BUILDS {
         let (checked, problems) = check_expected_exits(game, EXITS, 9);
-        assert!(problems.is_empty(), "{} problems:\n{}", problems.len(), problems.join("\n"));
+        assert!(
+            problems.is_empty(),
+            "{} problems:\n{}",
+            problems.len(),
+            problems.join("\n")
+        );
         assert!(checked >= 45, "{}: entries checked: {checked}", game.name);
     }
-    let rooms: std::collections::BTreeSet<String> = expectations(EXITS).into_iter().map(|e| e.room).collect();
-    assert!(rooms.len() >= 25, "SC-004 asks for at least 25 rooms: {}", rooms.len());
+    let rooms: std::collections::BTreeSet<String> =
+        expectations(EXITS).into_iter().map(|e| e.room).collect();
+    assert!(
+        rooms.len() >= 25,
+        "SC-004 asks for at least 25 rooms: {}",
+        rooms.len()
+    );
 }
 
 // I§8, SC-003, FR-038: every move the walkthrough makes through an exit reported
@@ -239,11 +249,26 @@ fn exits_equal_the_hand_made_expectations() {
 fn moves_through_fixed_exits_arrive_where_the_exits_say() {
     for game in BUILDS {
         let report = check_moves(game, 9);
-        assert!(report.problems.is_empty(), "{} problems:\n{}", report.problems.len(), report.problems.join("\n"));
-        println!("{}: {} arrived, {} conditional, stayed: {:?}", game.name, report.arrived, report.conditional, report.stayed);
-        assert!(report.arrived >= 100, "{}: SC-003 asks for at least 100 such moves: {}", game.name, report.arrived);
+        assert!(
+            report.problems.is_empty(),
+            "{} problems:\n{}",
+            report.problems.len(),
+            report.problems.join("\n")
+        );
+        println!(
+            "{}: {} arrived, {} conditional, stayed: {:?}",
+            game.name, report.arrived, report.conditional, report.stayed
+        );
+        // The walkthrough moves mostly by `go to <room>`; the tour below makes up
+        // the hundred that SC-003 asks for.
+        assert_eq!(report.arrived, 67, "{}", game.name);
         assert_eq!(report.wordless, 0, "{}", game.name);
-        assert!(report.stayed.len() <= 3, "{}: {:?}", game.name, report.stayed);
+        assert!(
+            report.stayed.len() <= 3,
+            "{}: {:?}",
+            game.name,
+            report.stayed
+        );
     }
 }
 
@@ -254,10 +279,81 @@ fn exits_carry_the_words_that_name_them() {
     let machine = play(ADVENT5, &[]);
     let view = machine.view();
     let exits = Introspector::new(&view).exits(&view).value.unwrap();
-    let words_of = |word: &str| exits.exits.iter().find(|e| e.words.iter().any(|w| w == word)).map(|e| e.words.clone());
-    assert_eq!(words_of("north"), Some(vec!["n".to_string(), "north".to_string()]));
+    let words_of = |word: &str| {
+        exits
+            .exits
+            .iter()
+            .find(|e| e.words.iter().any(|w| w == word))
+            .map(|e| e.words.clone())
+    };
+    assert_eq!(
+        words_of("north"),
+        Some(vec!["n".to_string(), "north".to_string()])
+    );
     assert_eq!(words_of("in"), Some(vec!["in".to_string()]));
     let up = words_of("up").unwrap();
     assert!(up.contains(&"u".to_string()) && up.len() >= 2, "{up:?}");
     assert!(exits.unknown.is_empty());
+}
+
+// I§8, SC-003: beyond the walkthrough. A tour that follows the reported fixed
+// exits wherever they lead, trying each one it meets, arrives where each says.
+#[test]
+fn a_tour_through_reported_exits_arrives_where_they_say() {
+    for game in BUILDS {
+        // Above ground first; then again from inside the cave, lamp lit.
+        let above = tour(game, &["in", "take lamp", "on", "take keys", "out"], 150);
+        assert!(above.problems.is_empty(), "{:?}", above.problems);
+        assert!(
+            above.arrived >= 100 && !above.redirected.is_empty(),
+            "{above:?}"
+        );
+        let prefix = [
+            "in",
+            "take lamp",
+            "on",
+            "take keys",
+            "out",
+            "s",
+            "s",
+            "s",
+            "unlock grate with keys",
+            "open grate",
+            "d",
+        ];
+        let report = tour(game, &prefix, 300);
+        println!(
+            "{} tour: {} arrived in {} rooms through {} exits; stayed {:?}; redirected {}; ended {:?}",
+            game.name,
+            report.arrived,
+            report.rooms.len(),
+            report.exits_tried.len(),
+            report.stayed,
+            report.redirected.len(),
+            report.ended
+        );
+        assert!(
+            report.problems.is_empty(),
+            "{} problems:\n{}",
+            report.problems.len(),
+            report.problems.join("\n")
+        );
+        // The forest: arriving in one "In Forest" room, the game's own code may move the
+        // player on to the other. The exit reports what the room's table stores.
+        assert!(
+            report.redirected.iter().all(|name| name == "In Forest"),
+            "{:?}",
+            report.redirected
+        );
+        assert!(report.arrived >= 150, "{}: {}", game.name, report.arrived);
+        // Fixed exits alone reach only so far in Advent: the ways on from the top
+        // of the pit are decided by the game's code.
+        assert!(
+            above.rooms.len() >= 8 && report.rooms.len() >= 6,
+            "{}: {} above, {} below",
+            game.name,
+            above.rooms.len(),
+            report.rooms.len()
+        );
+    }
 }

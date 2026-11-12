@@ -1,6 +1,6 @@
 //! The adapter for Infocom's ZIL (specification section 3.2).
 
-use crate::family::{Place, has_inform_stamp};
+use crate::family::{Place, Way, has_inform_stamp};
 use crate::table::{Bytes, Layout};
 use crate::{Part, Tri, Unknown};
 
@@ -78,6 +78,8 @@ impl Zil {
                 .words
                 .sort_by(|a, b| a.len().cmp(&b.len()).then(a.cmp(b)));
         }
+        // In the order of a property table: highest number first.
+        directions.sort_by(|a, b| b.property.cmp(&a.property));
         let is_direction = |property: u8| directions.iter().any(|d| d.property == property);
         // Rule 4: every object with a direction property, parentless ones aside,
         // has one and the same parent, which itself has none.
@@ -175,6 +177,44 @@ impl Zil {
             [player] => Ok(*player),
             [] => Err(Unknown::NoPlayer),
             _ => Err(Unknown::AmbiguousPlayer),
+        }
+    }
+}
+
+impl Zil {
+    /// What a room gives for one direction, by the length of the property
+    /// (specification section 8.2).
+    pub fn way(&self, layout: &Layout, b: Bytes, room: u16, direction: &Direction) -> Way {
+        let exit = match layout.property(b, room, direction.property) {
+            None => return Way::Unknown(Unknown::Damaged),
+            Some(None) => return Way::None,
+            Some(Some(exit)) => exit,
+        };
+        let Some(data) = layout.data(b, &exit) else {
+            return Way::Unknown(Unknown::Damaged);
+        };
+        let to = |destination: u8| match layout.object(b, destination as u16) {
+            Some(node) if node.parent == self.rooms => Way::Fixed(destination as u16),
+            _ => Way::Unknown(Unknown::NotDeterminable),
+        };
+        match data.as_slice() {
+            // To a room.
+            [destination] => to(*destination),
+            // A message of refusal.
+            [_, _] => Way::None,
+            // A routine decides; so does a door.
+            [_, _, _] | [_, _, _, _, _] => Way::Conditional,
+            // To a room while a global variable is not zero. The byte is a
+            // Z-machine variable number: 16 is the first global.
+            [destination, variable, _, _] => match variable.checked_sub(16) {
+                None => Way::Conditional,
+                Some(index) => match layout.global(b, index as usize) {
+                    Some(0) => Way::None,
+                    Some(_) => to(*destination),
+                    None => Way::Unknown(Unknown::Damaged),
+                },
+            },
+            _ => Way::Unknown(Unknown::Damaged),
         }
     }
 }

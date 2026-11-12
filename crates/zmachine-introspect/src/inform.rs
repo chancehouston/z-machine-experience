@@ -3,7 +3,7 @@
 //! The numbers below are fixed by the order in which the library declares its
 //! attributes and properties; recognition checks that the story file agrees.
 
-use crate::family::{Place, has_inform_stamp};
+use crate::family::{Place, Way, has_inform_stamp};
 use crate::table::{Bytes, Layout};
 use crate::{Part, Tri, Unknown};
 
@@ -323,5 +323,51 @@ impl Inform {
             holder: Ok(holder.filter(|&h| h != room)),
             lit: Tri::from_bool(variable != self.darkness),
         })
+    }
+}
+
+impl Inform {
+    /// What a room gives for one direction (specification section 8.1).
+    pub fn way(&self, layout: &Layout, b: Bytes, room: u16, direction: &Direction) -> Way {
+        let exit = match layout.property(b, room, direction.property) {
+            None => return Way::Unknown(Unknown::Damaged),
+            Some(None) => return Way::None,
+            Some(Some(exit)) => exit,
+        };
+        if exit.len != 2 {
+            return Way::Unknown(Unknown::NotDeterminable);
+        }
+        let Some(value) = b.word(exit.at) else {
+            return Way::Unknown(Unknown::Damaged);
+        };
+        match self.classify(layout, value) {
+            Value::Zero | Value::Text => Way::None,
+            Value::Routine => Way::Conditional,
+            Value::NotDeterminable => Way::Unknown(Unknown::NotDeterminable),
+            Value::Object(object) => {
+                // A door first: one that is in several rooms has no parent either.
+                if layout.has_attribute(b, object, attribute::DOOR) != Some(false) {
+                    return Way::Conditional;
+                }
+                let parentless = layout
+                    .object(b, object)
+                    .is_some_and(|node| node.parent == 0);
+                if parentless && self.is_room(layout, b, object) {
+                    Way::Fixed(object)
+                } else {
+                    Way::Conditional
+                }
+            }
+        }
+    }
+
+    /// A parentless object is a room if it is lit or has an exit of its own.
+    fn is_room(&self, layout: &Layout, b: Bytes, object: u16) -> bool {
+        layout.has_attribute(b, object, attribute::LIGHT) == Some(true)
+            || layout.properties(b, object).is_some_and(|properties| {
+                properties
+                    .iter()
+                    .any(|p| self.directions.iter().any(|d| d.property == p.number))
+            })
     }
 }
