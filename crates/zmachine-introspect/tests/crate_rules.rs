@@ -20,7 +20,10 @@ fn sources() -> Vec<(String, String)> {
     files
 }
 
-// Guarantee 6: "No dependencies beyond `zmachine-core`".
+// Guarantee 6: "No dependencies beyond `zmachine-core`". Feature 006 added one,
+// by the project owner's decision of 2026-11-12: `sha2`, with which the crate
+// works out a story file's identity itself (specs/006-game-packs/research.md
+// R2), so that no host can put a game pack in force for the wrong file.
 #[test]
 fn the_crate_depends_only_on_the_core() {
     let manifest = std::fs::read_to_string(Path::new(CRATE).join("Cargo.toml")).unwrap();
@@ -35,7 +38,7 @@ fn the_crate_depends_only_on_the_core() {
         .map(str::trim)
         .filter(|n| !n.is_empty())
         .collect();
-    assert_eq!(names, ["zmachine-core"]);
+    assert_eq!(names, ["zmachine-core", "sha2"]);
 }
 
 // Guarantee 6: no `unsafe`, no input or output.

@@ -9,6 +9,7 @@ pub mod corpus;
 pub mod directions;
 pub mod ledger;
 pub mod manifest;
+pub mod packs;
 pub mod report;
 pub mod trial;
 pub mod verdict;

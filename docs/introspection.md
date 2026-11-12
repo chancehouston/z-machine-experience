@@ -1,6 +1,6 @@
 # Z-Machine Introspection Interface
 
-**Version**: 0.1.0 | **Status**: draft
+**Version**: 0.2.0 | **Status**: draft
 
 A specification for reading the state of a running Z-machine game without changing it:
 where the player is, which ways lead out, what is here and what is carried. It is
@@ -109,6 +109,9 @@ record descriptions in sections 4 to 9 give the fields and their order.
 - An answer is `{"exactness":"…","value":…}`.
 - In `scope`, the field `player` is the string `"known"` or an unknown.
 - In a conditional exit, `destination` and `destination_name` are `null`.
+- An exit's keys are, in order: `direction`, `words`, `kind`, `destination`,
+  `destination_name`, `door`, `state`, `source`. `door` and `state` are `null` unless
+  `kind` is `door` (section 12.5).
 
 So an inventory that is not known is
 
@@ -135,6 +138,7 @@ the game waits for a line or a key, one JSON object on one line:
 | `stop` | The number of this stop, counting from 1 |
 | `wants` | `line` or `key` |
 | `family` | `inform6`, `zil` or `unrecognised` |
+| `pack` | What became of the game pack the host was given: one word (section 12.2) |
 | `location`, `exits`, `inventory`, `scope` | The four answers |
 
 **The tables.** A host that reports a story file's tables writes one JSON object with
@@ -165,8 +169,8 @@ version 3 a word is stored cut to six letters. Advent's building has a way west 
 way out, and stores a refusal for `in`, which is therefore absent:
 
 ```text
-{"exactness":"exact","value":{"exits":[{"direction":31,"words":["n","north"],"kind":"fixed","destination":137,"destination_name":"North of House"},{"direction":29,"words":["w","west"],"kind":"fixed","destination":87,"destination_name":"Forest"}, … ,{"direction":25,"words":["se","southe"],"kind":"fixed","destination":209,"destination_name":"South of House"}],"unknown":[]}}
-{"exactness":"exact","value":{"exits":[{"direction":10,"words":["w","west"],"kind":"fixed","destination":30,"destination_name":"At End Of Road"},{"direction":18,"words":["out"],"kind":"fixed","destination":30,"destination_name":"At End Of Road"}],"unknown":[]}}
+{"exactness":"exact","value":{"exits":[{"direction":31,"words":["n","north"],"kind":"fixed","destination":137,"destination_name":"North of House","door":null,"state":null,"source":"file"},{"direction":29,"words":["w","west"],"kind":"fixed","destination":87,"destination_name":"Forest","door":null,"state":null,"source":"file"}, … ,{"direction":25,"words":["se","southe"],"kind":"fixed","destination":209,"destination_name":"South of House","door":null,"state":null,"source":"file"}],"unknown":[]}}
+{"exactness":"exact","value":{"exits":[{"direction":10,"words":["w","west"],"kind":"fixed","destination":30,"destination_name":"At End Of Road","door":null,"state":null,"source":"file"},{"direction":18,"words":["out"],"kind":"fixed","destination":30,"destination_name":"At End Of Road","door":null,"state":null,"source":"file"}],"unknown":[]}}
 ```
 
 `scope`. ZIL records neither light nor scenery; Inform 6 records both:
@@ -527,9 +531,12 @@ The answer has two lists.
 | --- | --- |
 | `direction` | The direction's number: the number of the property a room gives that exit in (section 3). Stable within a story file |
 | `words` | The dictionary words that name the direction, as stored, shortest first. May be empty |
-| `kind` | `fixed` or `conditional` |
-| `destination` | For a `fixed` exit, the object number of the room it leads to |
-| `destination_name` | For a `fixed` exit, that room's printed name; a part that may be unknown |
+| `kind` | `fixed`, `conditional` or `door` |
+| `destination` | For a `fixed` or a `door` exit, the object number of the room it leads to |
+| `destination_name` | For a `fixed` or a `door` exit, that room's printed name; a part that may be unknown |
+| `door` | For a `door` exit, the object number of the door; otherwise none |
+| `state` | For a `door` exit, `open` or `closed`; otherwise none |
+| `source` | `file` or `pack` (section 12.5) |
 
 `unknown`, one entry for each direction that could not be determined, with three
 fields: `direction`, `words`, and `reason`, which is the reason's word itself (in JSON a
@@ -544,6 +551,8 @@ the order of the compass's children, for ZIL from the highest direction number d
 - A **`conditional`** exit is one the game decides by running its own code. The
   direction exists; where it leads, and whether the game will let the player through
   now, cannot be read. It carries no destination.
+- A **`door`** exit is one through a door whose state can be read. It is reported only
+  with a game pack in force (section 12.3).
 
 ### 8.1 Inform 6
 
@@ -592,7 +601,9 @@ player next gives a command in that room, and the answer follows the stored valu
 what it would be recomputed to.
 
 A 5-byte exit depends on whether a door is open. ZIL numbers its attributes game by
-game, so "open" cannot be read, and the exit is `conditional`.
+game, so "open" cannot be read, and the exit is `conditional`. A game pack that says
+which attribute means open changes this (section 12.3), and one that names a variable
+as untrusted changes the 4-byte exit (section 12.4).
 
 The variable is tested before the room: a closed 4-byte exit is not an exit whatever its
 first byte holds. A 1-byte exit, or an open 4-byte exit, whose first byte is not the
@@ -738,6 +749,9 @@ point of the game the rules were checked against, and rests on the declaration o
 Section 3.2 describes version 3 story files and was checked against one of them. ZIL's
 later versions lay out the dictionary's data differently and are `unrecognised`.
 
+What differs between the games of one family, and so cannot be a rule of the family, is
+what game packs are for (section 12).
+
 ### 10.5 Exits are the room's table
 
 Section 8.3: a game's code may refuse a listed exit, or move the player elsewhere, when
@@ -767,3 +781,145 @@ While the major version is 0 the specification is a draft, and a minor version m
 change anything. The known limit of section 10.1 is to be closed before version 1.
 
 A host states the version its answers follow in the `spec` field (section 2.4).
+
+## 12. Game packs
+
+A game pack is a file of facts about exactly one story file: facts that the story file
+stores, but whose meaning differs from game to game within a family, so that no rule of
+section 3 can read them. A host may give a reader one pack for the story it is
+reading. Without a pack every answer is as sections 1 to 10 define it.
+
+### 12.1 The file
+
+A pack is text in UTF-8. Lines end in a line feed; a carriage return before it is
+ignored.
+
+A line that is empty, or holds only spaces, or starts with `#`, is skipped.
+
+Every other line is a key, a colon, one space and a value, with nothing after the value.
+
+The first four such lines are, in this order, `pack`, `sha256`, `release` and `serial`.
+
+The lines after them are entries, in any order.
+
+A reader that finds anything else refuses the whole pack: a key it does not know, a
+value out of range, a key repeated that may not be, a line it cannot read, an identity
+line missing or out of place. A pack is never applied in part.
+
+| Key | Value | Times |
+| --- | --- | --- |
+| `pack` | `1`, the version of this format | once |
+| `sha256` | 64 of the characters `0` to `9` and `a` to `f` | once |
+| `release` | a decimal number, 0 to 65535 | once |
+| `serial` | six characters, each a letter or a digit | once |
+| `open-attribute` | a decimal number, 0 to 31 | at most once |
+| `untrusted-variable` | a decimal number, 16 to 255 | any number of times; no value twice |
+
+A decimal number has no sign and no leading zero, other than `0` itself.
+
+```text
+# A pack for a story file that does not exist.
+pack: 1
+sha256: 0000000000000000000000000000000000000000000000000000000000000000
+release: 1
+serial: 000000
+open-attribute: 7
+untrusted-variable: 40
+```
+
+A pack has nowhere to hold a condition, a script, or any text of a game.
+
+### 12.2 Identity
+
+A story file's identity is three things: the SHA-256 digest of the file as shipped; the
+word at byte 2 of its header, its release; and the six bytes at 0x12 of its header,
+read as characters, its serial.
+
+A pack is **in force** for a story file exactly when all three equal the pack's.
+
+A reader that was given a pack says what became of it, in one word:
+
+| Word | When |
+| --- | --- |
+| `none` | No pack was given |
+| `in-force` | The pack is well formed and its identity is the story file's |
+| `not-matching` | The pack is well formed and its identity differs in any of the three |
+| `refused` | The pack is not well formed (section 12.1), or the last rule below refuses it |
+
+A host that writes one line for each stop (section 2.4) writes this word in the field
+`pack`.
+
+Only a pack in force changes any answer. In every other state every answer is what this
+specification defines without a pack.
+
+A pack that holds an entry is refused for a story file whose family is not `zil`: both
+kinds of entry are about ZIL's exits.
+
+A pack in force stays in force through restore, restart and undo. It belongs to the
+story file, not to a game in progress.
+
+### 12.3 `open-attribute`
+
+`open-attribute: A` says that, in this story file, attribute A is set on a door while
+the door is open. With it in force a 5-byte exit (section 8.2) is read as follows.
+
+The exit's first byte is a room and its second a door.
+
+If the second byte is not the number of an object, or the first is not the number of a
+room, the direction is `unknown`, `not-determinable`.
+
+Otherwise the exit's `kind` is `door`, its `destination` is the room, its `door` is the
+object, and its `state` is `open` if the door has attribute A at the moment of the
+query and `closed` if it has not.
+
+A closed door is in the `exits` list. It is not "not an exit": the way is there, and
+shut.
+
+### 12.4 `untrusted-variable`
+
+`untrusted-variable: N` says that the value stored in variable N is not to be relied
+on: the game computes it afresh before using it. N is a Z-machine variable number as a
+4-byte exit's second byte holds it, in which 16 is the first global variable.
+
+A 4-byte exit (section 8.2) whose second byte is N is `conditional`, whatever variable
+N holds.
+
+A 4-byte exit whose second byte is any other number is read as it is without a pack.
+
+### 12.5 The mark
+
+Every exit has a field `source`. It is `pack` if the exit would be different in any
+field were no pack in force, and `file` otherwise.
+
+So every `door` exit is `pack`; a `conditional` exit that is conditional by section
+12.4 is `pack`; every other exit is `file`; and when no pack is in force every exit is
+`file`.
+
+Every exit has the fields `door` and `state`, which are none unless its `kind` is
+`door`.
+
+The entries of the `unknown` list carry no mark.
+
+```text
+{"direction":22,"words":["e","east"],"kind":"door","destination":85,"destination_name":"…","door":243,"state":"closed","source":"pack"}
+{"direction":20,"words":["n","north"],"kind":"conditional","destination":null,"destination_name":null,"door":null,"state":null,"source":"pack"}
+{"direction":29,"words":["s","south"],"kind":"fixed","destination":12,"destination_name":"…","door":null,"state":null,"source":"file"}
+```
+
+### 12.6 What a pack may not do
+
+A pack changes the answer to no query but `exits`.
+
+An answer given with a pack in force is still a read of the story file's state at the
+moment of the query: sections 1.1, 1.2 and 1.7 hold unchanged, and nothing is run or
+tried.
+
+"Open" is the door's stored state. The game has the last word (section 8.3), and may
+still refuse an open door.
+
+### 12.7 What changed from version 0.1.0
+
+- An exit has three more fields: `door`, `state` and `source`.
+- `kind` has a third word, `door`.
+- A host's line for each stop has one more field, `pack`.
+- Sections 8.2 and 10.4 point here.

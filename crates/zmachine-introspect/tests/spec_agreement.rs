@@ -225,3 +225,36 @@ fn the_document_does_not_depend_on_this_implementation() {
         "the skeleton's note is gone"
     );
 }
+
+// Feature 006, FR-026: every part of section 12 (game packs) is cited by a test
+// of the interface, of `zm` or of the corpus.
+#[test]
+#[ignore = "closed by T047, when every part has its tests"]
+fn every_part_of_section_12_is_cited() {
+    let mut text = String::new();
+    for directory in [
+        "crates/zmachine-introspect/src",
+        "crates/zmachine-introspect/tests",
+        "crates/zmachine-cli/tests",
+        "crates/zmachine-corpus/tests",
+    ] {
+        for entry in std::fs::read_dir(format!("{ROOT}/{directory}")).unwrap() {
+            let path = entry.unwrap().path();
+            if path.extension().is_some_and(|e| e == "rs") && !path.ends_with("spec_agreement.rs")
+            {
+                text.push_str(&std::fs::read_to_string(&path).unwrap());
+            }
+        }
+    }
+    let parts: Vec<String> = sections(&specification())
+        .into_iter()
+        .map(|(n, _)| n)
+        .filter(|n| n.starts_with("12.") && n != "12.7")
+        .collect();
+    assert_eq!(parts.len(), 6, "{parts:?}");
+    let uncited: Vec<&String> = parts
+        .iter()
+        .filter(|n| !text.contains(&format!("I\u{a7}{n}")))
+        .collect();
+    assert!(uncited.is_empty(), "no test cites I\u{a7}{uncited:?}");
+}

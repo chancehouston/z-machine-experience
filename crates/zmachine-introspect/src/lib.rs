@@ -9,6 +9,7 @@ mod answer;
 mod family;
 mod inform;
 pub mod json;
+pub mod pack;
 mod table;
 mod zil;
 
@@ -36,7 +37,7 @@ mod table_tests;
 mod zil_tests;
 
 /// The version of `docs/introspection.md` this crate implements.
-pub const SPEC_VERSION: &str = "0.1.0";
+pub const SPEC_VERSION: &str = "0.2.0";
 
 /// The queries, as the specification names them and in its order.
 pub const QUERIES: [&str; 6] = [
