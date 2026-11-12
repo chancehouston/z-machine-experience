@@ -9,6 +9,7 @@ use crate::{Part, Tri, Unknown};
 
 pub(crate) mod attribute {
     pub const ANIMATE: u8 = 0;
+    pub const ABSENT: u8 = 1;
     pub const CONCEALED: u8 = 3;
     pub const CONTAINER: u8 = 4;
     pub const DOOR: u8 = 5;
@@ -369,5 +370,40 @@ impl Inform {
                     .iter()
                     .any(|p| self.directions.iter().any(|d| d.property == p.number))
             })
+    }
+}
+
+impl Inform {
+    /// How the contents of an object are reached, if they can be seen at all:
+    /// on a supporter, or inside something open or see-through (specification
+    /// section 9.1).
+    pub fn contents_reach(&self, layout: &Layout, b: Bytes, holder: u16) -> Option<crate::Reach> {
+        let has = |attribute: u8| layout.has_attribute(b, holder, attribute) == Some(true);
+        if has(attribute::SUPPORTER) {
+            Some(crate::Reach::On)
+        } else if has(attribute::OPEN) || has(attribute::TRANSPARENT) {
+            Some(crate::Reach::Inside)
+        } else {
+            None
+        }
+    }
+
+    /// Whether an unplaced object is present in a room by a plain `found_in`
+    /// list: an even number of bytes, every word an object number, one of them
+    /// the room. A routine there places nothing that can be read.
+    pub fn found_in(&self, layout: &Layout, b: Bytes, object: u16, room: u16) -> bool {
+        let Some(Some(list)) = layout.property(b, object, property::FOUND_IN) else {
+            return false;
+        };
+        if list.len % 2 != 0 || layout.has_attribute(b, object, attribute::ABSENT) != Some(false) {
+            return false;
+        }
+        let words: Option<Vec<u16>> = (0..list.len)
+            .step_by(2)
+            .map(|i| b.word(list.at + i))
+            .collect();
+        words.is_some_and(|words| {
+            words.iter().all(|&w| w >= 1 && w <= layout.last_object) && words.contains(&room)
+        })
     }
 }

@@ -349,7 +349,13 @@ fn in_scope(m: &Machine) -> Vec<(String, crate::Reach, Option<u16>)> {
     let view = m.view();
     let answer = introspect(m).scope(&view);
     assert_eq!(answer.exactness, crate::Exactness::Approximate);
-    answer.value.unwrap().objects.into_iter().map(|e| (e.name.unwrap(), e.reach, e.within)).collect()
+    answer
+        .value
+        .unwrap()
+        .objects
+        .into_iter()
+        .map(|e| (e.name.unwrap(), e.reach, e.within))
+        .collect()
 }
 
 // I§9.1: what is in the room; what is in an open container and on a supporter;
@@ -362,22 +368,37 @@ fn scope_in_a_lit_room() {
     let listed = in_scope(&m);
     let names: Vec<&str> = listed.iter().map(|(n, _, _)| n.as_str()).collect();
     // The cage is closed and opaque: it is listed, the lamp inside it is not.
-    assert!(names.contains(&"cage") && !names.contains(&"lamp"), "{names:?}");
+    assert!(
+        names.contains(&"cage") && !names.contains(&"lamp"),
+        "{names:?}"
+    );
     assert!(listed.contains(&("box".to_string(), InRoom, None)));
     assert!(listed.contains(&("coin".to_string(), Inside, Some(inf::BOX))));
     assert!(listed.contains(&("table".to_string(), InRoom, None)));
     assert!(listed.contains(&("plate".to_string(), On, Some(inf::TABLE))));
     assert!(listed.contains(&("hat".to_string(), InRoom, None)));
     // Present by `found_in`: the door and the stream both name the kitchen.
-    assert!(listed.contains(&("door".to_string(), InRoom, None)), "{names:?}");
-    assert!(listed.contains(&("stream".to_string(), InRoom, None)), "{names:?}");
+    assert!(
+        listed.contains(&("door".to_string(), InRoom, None)),
+        "{names:?}"
+    );
+    assert!(
+        listed.contains(&("stream".to_string(), InRoom, None)),
+        "{names:?}"
+    );
     // Neither the player nor the room is an entry.
     assert!(!names.contains(&"(self object)") && !names.contains(&"Kitchen"));
 
     // Opened, the cage shows what is in it; so does a transparent one, closed.
     for attribute in [14u8, 23] {
-        let m = after(vec![insert(inf::LAMP, inf::CAGE), set_attr(inf::CAGE, attribute)]);
-        assert!(in_scope(&m).contains(&("lamp".to_string(), Inside, Some(inf::CAGE))), "attribute {attribute}");
+        let m = after(vec![
+            insert(inf::LAMP, inf::CAGE),
+            set_attr(inf::CAGE, attribute),
+        ]);
+        assert!(
+            in_scope(&m).contains(&("lamp".to_string(), Inside, Some(inf::CAGE))),
+            "attribute {attribute}"
+        );
     }
 }
 
@@ -385,27 +406,49 @@ fn scope_in_a_lit_room() {
 // place nothing here.
 #[test]
 fn found_in_places_an_object_only_where_its_list_says() {
-    let m = after(vec![insert(inf::PLAYER, inf::HALL), set_global(inf::LOCATION, inf::HALL)]);
+    let m = after(vec![
+        insert(inf::PLAYER, inf::HALL),
+        set_global(inf::LOCATION, inf::HALL),
+    ]);
     let names: Vec<String> = in_scope(&m).into_iter().map(|(n, _, _)| n).collect();
-    assert_eq!(names, ["door"], "the door is in both rooms, the stream is not in the hall");
+    assert_eq!(
+        names,
+        ["door"],
+        "the door is in both rooms, the stream is not in the hall"
+    );
 
     let mut f = Inform::new();
     f.late(inf::STREAM, 39, Late::Routine(0));
-    let names: Vec<String> = in_scope(&f.machine()).into_iter().map(|(n, _, _)| n).collect();
-    assert!(!names.contains(&"stream".to_string()), "`found_in` is a routine: {names:?}");
+    let names: Vec<String> = in_scope(&f.machine())
+        .into_iter()
+        .map(|(n, _, _)| n)
+        .collect();
+    assert!(
+        !names.contains(&"stream".to_string()),
+        "`found_in` is a routine: {names:?}"
+    );
 }
 
 // I§9.1: what is carried is listed by the same rules, as `carried` or `worn`.
 #[test]
 fn scope_of_what_is_carried() {
     use crate::Reach::*;
-    let m = after(vec![insert(inf::BOX, inf::PLAYER), insert(inf::HAT, inf::PLAYER), set_attr(inf::HAT, 26), insert(inf::CAGE, inf::PLAYER), insert(inf::LAMP, inf::CAGE)]);
+    let m = after(vec![
+        insert(inf::BOX, inf::PLAYER),
+        insert(inf::HAT, inf::PLAYER),
+        set_attr(inf::HAT, 26),
+        insert(inf::CAGE, inf::PLAYER),
+        insert(inf::LAMP, inf::CAGE),
+    ]);
     let listed = in_scope(&m);
     assert!(listed.contains(&("box".to_string(), Carried, None)));
     assert!(listed.contains(&("coin".to_string(), Inside, Some(inf::BOX))));
     assert!(listed.contains(&("hat".to_string(), Worn, None)));
     assert!(listed.contains(&("cage".to_string(), Carried, None)));
-    assert!(!listed.iter().any(|(n, _, _)| n == "lamp"), "inside the closed cage");
+    assert!(
+        !listed.iter().any(|(n, _, _)| n == "lamp"),
+        "inside the closed cage"
+    );
 }
 
 // I§9.1: scenery and concealed are attributes 17 and 3; light is known.
@@ -416,21 +459,48 @@ fn scope_marks_scenery_and_concealed() {
     let scope = introspect(&m).scope(&view).value.unwrap();
     assert_eq!(scope.light, crate::Light::Lit);
     assert_eq!(scope.player, Ok(()));
-    let find = |name: &str| scope.objects.iter().find(|e| e.name.as_deref() == Ok(name)).unwrap();
-    assert_eq!((find("table").scenery, find("table").concealed), (Tri::Yes, Tri::No));
-    assert_eq!((find("plate").scenery, find("plate").concealed), (Tri::No, Tri::Yes));
-    assert_eq!((find("lamp").scenery, find("lamp").concealed), (Tri::No, Tri::No));
-    assert!(scope.objects.iter().all(|e| e.visibility == crate::Visibility::Visible));
+    let find = |name: &str| {
+        scope
+            .objects
+            .iter()
+            .find(|e| e.name.as_deref() == Ok(name))
+            .unwrap()
+    };
+    assert_eq!(
+        (find("table").scenery, find("table").concealed),
+        (Tri::Yes, Tri::No)
+    );
+    assert_eq!(
+        (find("plate").scenery, find("plate").concealed),
+        (Tri::No, Tri::Yes)
+    );
+    assert_eq!(
+        (find("lamp").scenery, find("lamp").concealed),
+        (Tri::No, Tri::No)
+    );
+    assert!(
+        scope
+            .objects
+            .iter()
+            .all(|e| e.visibility == crate::Visibility::Visible)
+    );
 }
 
 // I§9.1: in the dark, only what is carried.
 #[test]
 fn scope_in_the_dark() {
-    let m = after(vec![insert(inf::LAMP, inf::PLAYER), set_global(inf::LOCATION, inf::DARKNESS)]);
+    let m = after(vec![
+        insert(inf::LAMP, inf::PLAYER),
+        set_global(inf::LOCATION, inf::DARKNESS),
+    ]);
     let view = m.view();
     let scope = introspect(&m).scope(&view).value.unwrap();
     assert_eq!(scope.light, crate::Light::Dark);
-    let names: Vec<&str> = scope.objects.iter().map(|e| e.name.as_deref().unwrap()).collect();
+    let names: Vec<&str> = scope
+        .objects
+        .iter()
+        .map(|e| e.name.as_deref().unwrap())
+        .collect();
     assert_eq!(names, ["lamp"]);
 }
 

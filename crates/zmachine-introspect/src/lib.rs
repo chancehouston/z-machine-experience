@@ -265,6 +265,13 @@ pub struct Scope {
     pub objects: Vec<ScopeEntry>,
 }
 
+/// The state of a walk through the objects in scope.
+struct Walk {
+    entries: Vec<ScopeEntry>,
+    left_out: Vec<u16>,
+    budget: usize,
+}
+
 /// Reads a game's state. Made once for a story file; holds what was worked out
 /// from the file as shipped and nothing that changes during play.
 #[derive(Clone, Debug)]
@@ -455,10 +462,120 @@ impl Introspector {
         if let Some(reason) = self.refusal(view) {
             return Answer::unknown(reason, Exactness::Approximate);
         }
-        if let Err(reason) = self.place(Bytes::now(view)) {
-            return Answer::unknown(reason, Exactness::Approximate);
+        let b = Bytes::now(view);
+        match self.place(b).and_then(|place| self.scope_of(b, place)) {
+            Ok(scope) => Answer::approximate(scope),
+            Err(reason) => Answer::unknown(reason, Exactness::Approximate),
         }
-        Answer::unknown(Unknown::Damaged, Exactness::Approximate)
+    }
+
+    fn scope_of(&self, b: Bytes, place: Place) -> Part<Scope> {
+        let light = match place.lit {
+            Tri::Yes => Light::Lit,
+            Tri::No => Light::Dark,
+            Tri::Unknown => Light::Unknown,
+        };
+        // The player is never an entry. Where the player ties, every object that
+        // tied is left out, with what it holds: one of them is the player.
+        let left_out: Vec<u16> = match (&self.adapter, &place.player) {
+            (_, Ok(player)) => vec![*player],
+            (Adapter::Zil(zil), Err(Unknown::AmbiguousPlayer)) => {
+                zil.contenders(&self.layout, b, place.room)?
+            }
+            _ => Vec::new(),
+        };
+        let mut walk = Walk {
+            entries: Vec::new(),
+            left_out,
+            // No tree holds more objects than exist; the budget stops a loop.
+            budget: self.layout.last_object as usize,
+        };
+        if light != Light::Dark {
+            for object in self.children(b, place.room)? {
+                self.enter(
+                    b,
+                    object,
+                    Reach::InRoom,
+                    None,
+                    Visibility::Visible,
+                    &mut walk,
+                )?;
+            }
+            if let Adapter::Inform(inform) = &self.adapter {
+                for object in 1..=self.layout.last_object {
+                    let unplaced = self
+                        .layout
+                        .object(b, object)
+                        .is_some_and(|node| node.parent == 0);
+                    let listed = walk.entries.iter().any(|e| e.object == object);
+                    if unplaced
+                        && !listed
+                        && object != place.room
+                        && inform.found_in(&self.layout, b, object, place.room)
+                    {
+                        self.enter(
+                            b,
+                            object,
+                            Reach::InRoom,
+                            None,
+                            Visibility::Visible,
+                            &mut walk,
+                        )?;
+                    }
+                }
+            }
+        }
+        if let Ok(player) = place.player {
+            for object in self.children(b, player)? {
+                let worn = self.attribute(b, object, inform::attribute::WORN) == Tri::Yes;
+                let reach = if worn { Reach::Worn } else { Reach::Carried };
+                self.enter(b, object, reach, None, Visibility::Visible, &mut walk)?;
+            }
+        }
+        Ok(Scope {
+            light,
+            player: place.player.map(|_| ()),
+            objects: walk.entries,
+        })
+    }
+
+    /// Lists an object, then whatever of its contents can be reached.
+    fn enter(
+        &self,
+        b: Bytes,
+        object: u16,
+        reach: Reach,
+        within: Option<u16>,
+        visibility: Visibility,
+        walk: &mut Walk,
+    ) -> Part<()> {
+        if walk.left_out.contains(&object) {
+            return Ok(());
+        }
+        walk.budget = walk.budget.checked_sub(1).ok_or(Unknown::Damaged)?;
+        walk.entries.push(ScopeEntry {
+            object,
+            name: self.printed_name(b, object),
+            reach,
+            within,
+            visibility,
+            scenery: self.attribute(b, object, inform::attribute::SCENERY),
+            concealed: self.attribute(b, object, inform::attribute::CONCEALED),
+        });
+        // How this object's contents are reached, and whether that can be told.
+        let (inner, seen) = match &self.adapter {
+            Adapter::Inform(inform) => match inform.contents_reach(&self.layout, b, object) {
+                Some(reach) => (reach, Visibility::Visible),
+                // Closed and opaque, or not a holder of things: nothing shows.
+                None => return Ok(()),
+            },
+            // The family does not record whether a container is open.
+            _ => (Reach::Inside, Visibility::Unknown),
+        };
+        for child in self.children(b, object)? {
+            self.enter(b, child, inner, Some(object), seen, walk)?;
+        }
+        Ok(())
     }
 
     /// Every object of the game, by number (specification section 4).

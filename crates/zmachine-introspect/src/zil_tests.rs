@@ -281,8 +281,11 @@ fn scope_lists_everything_under_the_room() {
     let scope = answer.value.unwrap();
     assert_eq!(scope.light, crate::Light::Unknown);
     assert_eq!(scope.player, Ok(()));
-    let listed: Vec<(&str, crate::Reach, Option<u16>, Visibility)> =
-        scope.objects.iter().map(|e| (e.name.as_deref().unwrap(), e.reach, e.within, e.visibility)).collect();
+    let listed: Vec<(&str, crate::Reach, Option<u16>, Visibility)> = scope
+        .objects
+        .iter()
+        .map(|e| (e.name.as_deref().unwrap(), e.reach, e.within, e.visibility))
+        .collect();
     assert_eq!(
         listed,
         [
@@ -292,20 +295,41 @@ fn scope_lists_everything_under_the_room() {
             ("lamp", Carried, None, Visibility::Visible),
         ]
     );
-    assert!(scope.objects.iter().all(|e| e.scenery == Tri::Unknown && e.concealed == Tri::Unknown));
+    assert!(
+        scope
+            .objects
+            .iter()
+            .all(|e| e.scenery == Tri::Unknown && e.concealed == Tri::Unknown)
+    );
 }
 
 // I§9.2: when the player ties, the answer says so, nothing is marked carried, and
 // the objects that tied are left out with what they hold.
 #[test]
 fn scope_when_the_player_is_ambiguous() {
-    let m = after(vec![insert(zl::DIAMOND, zl::KITCHEN), set_global(30, zl::DIAMOND)]);
+    let m = after(vec![
+        insert(zl::DIAMOND, zl::KITCHEN),
+        set_global(30, zl::DIAMOND),
+    ]);
     let view = m.view();
     let scope = introspect(&m).scope(&view).value.unwrap();
     assert_eq!(scope.player, Err(Unknown::AmbiguousPlayer));
-    let names: Vec<&str> = scope.objects.iter().map(|e| e.name.as_deref().unwrap()).collect();
-    assert_eq!(names, ["sack", "garlic", "door"], "neither `you` nor the diamond, nor the lamp `you` holds");
-    assert!(scope.objects.iter().all(|e| e.reach != crate::Reach::Carried));
+    let names: Vec<&str> = scope
+        .objects
+        .iter()
+        .map(|e| e.name.as_deref().unwrap())
+        .collect();
+    assert_eq!(
+        names,
+        ["sack", "garlic", "door"],
+        "neither `you` nor the diamond, nor the lamp `you` holds"
+    );
+    assert!(
+        scope
+            .objects
+            .iter()
+            .all(|e| e.reach != crate::Reach::Carried)
+    );
 }
 
 // I§9.2: with no candidate for the player at all, the room's contents are still
@@ -316,7 +340,11 @@ fn scope_when_there_is_no_player() {
     let view = m.view();
     let scope = introspect(&m).scope(&view).value.unwrap();
     assert_eq!(scope.player, Err(Unknown::NoPlayer));
-    let names: Vec<&str> = scope.objects.iter().map(|e| e.name.as_deref().unwrap()).collect();
+    let names: Vec<&str> = scope
+        .objects
+        .iter()
+        .map(|e| e.name.as_deref().unwrap())
+        .collect();
     // `you` is in the room but no variable names it: an object like any other.
     assert_eq!(names, ["you", "lamp", "sack", "garlic", "door"]);
 }
@@ -335,5 +363,9 @@ fn a_crowded_room() {
     let m = f.machine();
     let view = m.view();
     let scope = introspect(&m).scope(&view).value.unwrap();
-    assert_eq!(scope.objects.len(), 202, "200 things, the boat, and the lamp carried");
+    assert_eq!(
+        scope.objects.len(),
+        202,
+        "200 things, the boat, and the lamp carried"
+    );
 }

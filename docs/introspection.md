@@ -422,7 +422,84 @@ tours of several hundred more moves in each, except moves into that forest room.
 
 ## 9. `scope`
 
-The objects the player could plausibly act on. Always approximate.
+The objects the player could plausibly act on: what is in the room, what is in or on
+those things, and what the player carries. **Always approximate**, and labelled so
+whether or not it is known.
+
+It is approximate because both families decide what is in scope, and what is lit, by
+running their own code, which rule 1.1 forbids. The answer is worked out from the object
+tree and the facts a family stores. It is unknown as a whole exactly when `location`
+is, for the same reason.
+
+| Field | Value |
+| --- | --- |
+| `light` | `lit`, `dark` or `unknown` |
+| `player` | `known`, or unknown with the reason the player could not be found |
+| `objects` | The entries, below |
+
+Each entry:
+
+| Field | Value |
+| --- | --- |
+| `object` | The object's number |
+| `name` | Its printed name; a part that may be unknown |
+| `reach` | `in-room`, `inside`, `on`, `carried` or `worn` |
+| `within` | For `inside` and `on`, the object it is in or on, which is itself an entry |
+| `visibility` | `visible`, or `unknown` where the family does not record whether its container is open |
+| `scenery` | `yes`, `no` or `unknown` |
+| `concealed` | `yes`, `no` or `unknown` |
+
+No object appears twice. The player is never an entry, nor is the room. The entries
+marked `carried` or `worn` are exactly the top level of `inventory` (section 7).
+
+**The answer marks; it does not filter.** Scenery, concealed things and things of
+unknown visibility are listed with their marks. Choosing what to show a player is the
+caller's business.
+
+Entries are in this order: the room's children in the tree's order, each followed at
+once by what is in or on it; then, for Inform 6, objects present by `found_in`, in
+order of number; then what the player carries, each followed by its contents.
+
+### 9.1 Inform 6
+
+- **Light.** `lit` or `dark`, from `location`'s `lit` (section 6.1). When `dark`, the
+  room's contents are not listed: only what the player carries.
+- **Contents.** An object's children are listed as `on` it if it has attribute 20
+  (`supporter`); otherwise as `inside` it if it has attribute 14 (`open`) or 23
+  (`transparent`); otherwise they are not listed. So what is in a closed, opaque
+  container is left out, and so is what a creature holds.
+- **Present in several rooms.** An object with no parent, without attribute 1
+  (`absent`), whose property 39 (`found_in`) is an even number of bytes, every word of
+  it an object number, one of them the room, is listed as `in-room`. Where `found_in`
+  holds a routine nothing can be read, and the object is listed only if the library has
+  already moved it into the room.
+- **What is carried.** The player's children, `worn` if they have attribute 26 and
+  `carried` otherwise, with their contents by the same rule.
+- **Marks.** `scenery` is attribute 17; `concealed` is attribute 3. `visibility` is
+  always `visible`.
+
+### 9.2 ZIL
+
+ZIL's compiler numbers attributes game by game, so a story file does not say which
+attribute means open, lit, invisible or a surface.
+
+- **Light** is `unknown`. The room's contents are listed regardless.
+- **Contents.** Every object under the room in the tree is listed. An object inside
+  another is `inside`, with `visibility` `unknown`: it may be in a closed container.
+  Nothing is `on` or `worn`.
+- **Marks.** `scenery` and `concealed` are `unknown`.
+- **When the player is unknown** (section 7.2), `player` gives the reason and nothing is
+  `carried`. If the reason is `ambiguous-player`, every object that tied is left out,
+  together with everything it holds: one of them is the player, whose possessions are
+  not the room's. If it is `no-player`, the room's contents are listed in full.
+
+### 9.3 What makes it approximate
+
+- A game can add objects to scope, or take them out, by code.
+- In Inform 6, an object placed by a `found_in` routine may not yet have been moved.
+- In ZIL, light and open containers are not known at all.
+- Objects a game keeps outside the room's tree but lets the player refer to anywhere
+  (the sky, the player's own hands) are not listed.
 
 ## 10. Known limits
 

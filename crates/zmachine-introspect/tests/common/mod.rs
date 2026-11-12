@@ -789,6 +789,11 @@ pub struct ScopeReport {
     pub most_objects: usize,
     pub nested: usize,
     pub player_unknown: usize,
+    /// Hand-made entries that fall on a prompt where the player is unknown. There
+    /// the answer leaves out the objects that tied for the player and all they
+    /// hold (specification section 9.2), so what the entry lists as carried
+    /// cannot be required; what it excludes is still checked.
+    pub entries_without_a_player: Vec<usize>,
     pub problems: Vec<String>,
 }
 
@@ -796,7 +801,11 @@ pub struct ScopeReport {
 /// each walkthrough line a hand-made entry names, everything it lists is in scope
 /// and nothing it excludes is; and at every command prompt the answer is
 /// approximate and well formed. `also` is given each answer for family checks.
-pub fn check_scopes(game: Game, scope_file: &str, mut also: impl FnMut(&Scope, &str) -> Vec<String>) -> ScopeReport {
+pub fn check_scopes(
+    game: Game,
+    scope_file: &str,
+    mut also: impl FnMut(&Scope, &str) -> Vec<String>,
+) -> ScopeReport {
     let expected = expectations(scope_file);
     let mut report = ScopeReport::default();
     walk(game, |machine, stop| {
@@ -805,10 +814,17 @@ pub fn check_scopes(game: Game, scope_file: &str, mut also: impl FnMut(&Scope, &
         }
         let view = machine.view();
         let i = Introspector::new(&view);
-        let here = format!("{} stop {} (line {:?})", game.name, stop.number, stop.line.as_ref().map(|l| l.0));
+        let here = format!(
+            "{} stop {} (line {:?})",
+            game.name,
+            stop.number,
+            stop.line.as_ref().map(|l| l.0)
+        );
         let answer = i.scope(&view);
         if answer.exactness != Exactness::Approximate {
-            report.problems.push(format!("{here}: scope is not labelled approximate"));
+            report
+                .problems
+                .push(format!("{here}: scope is not labelled approximate"));
         }
         let Ok(location) = i.location(&view).value else {
             return;
@@ -816,7 +832,9 @@ pub fn check_scopes(game: Game, scope_file: &str, mut also: impl FnMut(&Scope, &
         let scope = match answer.value {
             Ok(scope) => scope,
             Err(reason) => {
-                report.problems.push(format!("{here}: scope unknown: {reason:?}"));
+                report
+                    .problems
+                    .push(format!("{here}: scope unknown: {reason:?}"));
                 return;
             }
         };
@@ -829,33 +847,52 @@ pub fn check_scopes(game: Game, scope_file: &str, mut also: impl FnMut(&Scope, &
         let mut numbers: Vec<u16> = scope.objects.iter().map(|e| e.object).collect();
         numbers.sort_unstable();
         if numbers.windows(2).any(|pair| pair[0] == pair[1]) {
-            report.problems.push(format!("{here}: an object is listed twice"));
+            report
+                .problems
+                .push(format!("{here}: an object is listed twice"));
         }
         if numbers.contains(&location.room) {
-            report.problems.push(format!("{here}: the room is an entry"));
+            report
+                .problems
+                .push(format!("{here}: the room is an entry"));
         }
         for entry in &scope.objects {
             match (entry.reach, entry.within) {
                 (Reach::Inside | Reach::On, Some(within)) => {
                     report.nested += 1;
                     if !numbers.contains(&within) {
-                        report.problems.push(format!("{here}: {:?} is within {within}, which is not listed", entry.name));
+                        report.problems.push(format!(
+                            "{here}: {:?} is within {within}, which is not listed",
+                            entry.name
+                        ));
                     }
                 }
-                (Reach::Inside | Reach::On, None) => report.problems.push(format!("{here}: {:?} is within nothing", entry.name)),
-                (_, Some(_)) => report.problems.push(format!("{here}: {:?} is {:?} yet within something", entry.name, entry.reach)),
+                (Reach::Inside | Reach::On, None) => report
+                    .problems
+                    .push(format!("{here}: {:?} is within nothing", entry.name)),
+                (_, Some(_)) => report.problems.push(format!(
+                    "{here}: {:?} is {:?} yet within something",
+                    entry.name, entry.reach
+                )),
                 _ => {}
             }
         }
         // What is carried is the inventory, and the reverse.
-        let mut carried: Vec<u16> = scope.objects.iter().filter(|e| matches!(e.reach, Reach::Carried | Reach::Worn)).map(|e| e.object).collect();
+        let mut carried: Vec<u16> = scope
+            .objects
+            .iter()
+            .filter(|e| matches!(e.reach, Reach::Carried | Reach::Worn))
+            .map(|e| e.object)
+            .collect();
         carried.sort_unstable();
         match i.inventory(&view).value {
             Ok(inventory) => {
                 let mut held: Vec<u16> = inventory.iter().map(|c| c.object).collect();
                 held.sort_unstable();
                 if held != carried || scope.player.is_err() {
-                    report.problems.push(format!("{here}: carried {carried:?} against inventory {held:?}"));
+                    report.problems.push(format!(
+                        "{here}: carried {carried:?} against inventory {held:?}"
+                    ));
                 }
             }
             Err(reason) => {
@@ -866,22 +903,41 @@ pub fn check_scopes(game: Game, scope_file: &str, mut also: impl FnMut(&Scope, &
         }
         report.problems.extend(also(&scope, &here));
         // The hand-made expectations for this line.
-        let names: Vec<String> = scope.objects.iter().filter_map(|e| e.name.clone().ok()).collect();
+        let names: Vec<String> = scope
+            .objects
+            .iter()
+            .filter_map(|e| e.name.clone().ok())
+            .collect();
         let Some((line, _)) = &stop.line else { return };
         for entry in expected.iter().filter(|e| e.line == *line) {
             report.entries += 1;
             if location.name.as_deref() != Ok(entry.room.as_str()) {
-                report.problems.push(format!("{here}: expected to be in {:?}, the location is {:?}", entry.room, location.name));
+                report.problems.push(format!(
+                    "{here}: expected to be in {:?}, the location is {:?}",
+                    entry.room, location.name
+                ));
                 continue;
+            }
+            if scope.player.is_err() {
+                report.entries_without_a_player.push(*line);
             }
             for (key, list) in &entry.items {
                 for name in list.split(',').map(str::trim).filter(|n| !n.is_empty()) {
                     let listed = names.iter().any(|n| n == name);
                     match key.as_str() {
-                        "has" if !listed => report.problems.push(format!("{here} ({}): {name:?} should be in scope; listed {names:?}", entry.room)),
-                        "not" if listed => report.problems.push(format!("{here} ({}): {name:?} should not be in scope", entry.room)),
+                        "has" if scope.player.is_err() => {}
+                        "has" if !listed => report.problems.push(format!(
+                            "{here} ({}): {name:?} should be in scope; listed {names:?}",
+                            entry.room
+                        )),
+                        "not" if listed => report.problems.push(format!(
+                            "{here} ({}): {name:?} should not be in scope",
+                            entry.room
+                        )),
                         "has" | "not" => {}
-                        other => report.problems.push(format!("{here}: unknown key {other:?}")),
+                        other => report
+                            .problems
+                            .push(format!("{here}: unknown key {other:?}")),
                     }
                 }
             }

@@ -236,28 +236,61 @@ fn a_tour_through_reported_exits_arrives_where_they_say() {
 #[test]
 fn scope_holds_what_the_game_shows() {
     use zmachine_introspect::{Light, Reach, Visibility};
-    let report = check_scopes(ZORK1, "stories/zork1/introspection/scope.txt", |scope, here| {
-        let mut problems = Vec::new();
-        if scope.light != Light::Unknown {
-            problems.push(format!("{here}: ZIL does not record light"));
-        }
-        for entry in &scope.objects {
-            let nested = matches!(entry.reach, Reach::Inside | Reach::On);
-            if nested != (entry.visibility == Visibility::Unknown) {
-                problems.push(format!("{here}: {:?} is {:?} with visibility {:?}", entry.name, entry.reach, entry.visibility));
+    let report = check_scopes(
+        ZORK1,
+        "stories/zork1/introspection/scope.txt",
+        |scope, here| {
+            let mut problems = Vec::new();
+            if scope.light != Light::Unknown {
+                problems.push(format!("{here}: ZIL does not record light"));
             }
-            if entry.reach == Reach::On || entry.reach == Reach::Worn {
-                problems.push(format!("{here}: ZIL does not record surfaces or what is worn: {:?}", entry.name));
+            for entry in &scope.objects {
+                let nested = matches!(entry.reach, Reach::Inside | Reach::On);
+                if nested != (entry.visibility == Visibility::Unknown) {
+                    problems.push(format!(
+                        "{here}: {:?} is {:?} with visibility {:?}",
+                        entry.name, entry.reach, entry.visibility
+                    ));
+                }
+                if entry.reach == Reach::On || entry.reach == Reach::Worn {
+                    problems.push(format!(
+                        "{here}: ZIL does not record surfaces or what is worn: {:?}",
+                        entry.name
+                    ));
+                }
+                if entry.scenery != Tri::Unknown || entry.concealed != Tri::Unknown {
+                    problems.push(format!(
+                        "{here}: ZIL does not record scenery: {:?}",
+                        entry.name
+                    ));
+                }
             }
-            if entry.scenery != Tri::Unknown || entry.concealed != Tri::Unknown {
-                problems.push(format!("{here}: ZIL does not record scenery: {:?}", entry.name));
-            }
-        }
-        problems
-    });
-    assert!(report.problems.is_empty(), "{} problems:\n{}", report.problems.len(), report.problems.join("\n"));
-    assert!(report.entries >= 20, "SC-006 asks for at least 20 positions: {}", report.entries);
+            problems
+        },
+    );
+    assert!(
+        report.problems.is_empty(),
+        "{} problems:\n{}",
+        report.problems.len(),
+        report.problems.join("\n")
+    );
+    assert!(
+        report.entries >= 20,
+        "SC-006 asks for at least 20 positions: {}",
+        report.entries
+    );
     assert_eq!(report.prompts, 332);
-    assert_eq!(report.player_unknown, 6, "the six prompts where the player ties");
-    assert!(report.nested >= 200 && report.most_objects >= 10, "{report:?}");
+    assert_eq!(
+        report.player_unknown, 6,
+        "the six prompts where the player ties"
+    );
+    // One hand-made position falls on such a prompt: the Machine Room, with the
+    // newly made diamond lying beside the player. The answer there lists the
+    // room's fixtures and leaves out the diamond, the player and what the player
+    // holds; it says the player is unknown.
+    assert_eq!(report.entries_without_a_player, [245]);
+    assert!(
+        report.nested >= 200 && report.most_objects >= 10,
+        "{report:?}"
+    );
 }

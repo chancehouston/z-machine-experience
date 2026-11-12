@@ -153,6 +153,15 @@ impl Zil {
     /// variable other than global 0 holds. A tie is not broken (specification
     /// section 7).
     fn player(&self, layout: &Layout, b: Bytes, room: u16) -> Part<u16> {
+        match self.contenders(layout, b, room)?.as_slice() {
+            [player] => Ok(*player),
+            [] => Err(Unknown::NoPlayer),
+            _ => Err(Unknown::AmbiguousPlayer),
+        }
+    }
+
+    /// The objects that fit the rule for the player. More than one is a tie.
+    pub fn contenders(&self, layout: &Layout, b: Bytes, room: u16) -> Part<Vec<u16>> {
         let mut candidates = Vec::new();
         'candidate: for &object in &self.unplaced {
             let mut at = object;
@@ -169,15 +178,8 @@ impl Zil {
                 at = parent;
             }
         }
-        let held: Vec<u16> = candidates
-            .into_iter()
-            .filter(|&object| (1..240).any(|i| layout.global(b, i) == Some(object)))
-            .collect();
-        match held.as_slice() {
-            [player] => Ok(*player),
-            [] => Err(Unknown::NoPlayer),
-            _ => Err(Unknown::AmbiguousPlayer),
-        }
+        candidates.retain(|&object| (1..240).any(|i| layout.global(b, i) == Some(object)));
+        Ok(candidates)
     }
 }
 
