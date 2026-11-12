@@ -6,7 +6,10 @@ use zmachine_core::{LoadOptions, Machine};
 use zmachine_testkit::op;
 use zmachine_testkit::{Object5, Story5};
 
-const OPTIONS: LoadOptions = LoadOptions { seed: Some(1), entropy: 0 };
+const OPTIONS: LoadOptions = LoadOptions {
+    seed: Some(1),
+    entropy: 0,
+};
 
 /// 1 Room > (2 lamp > 4 battery, 3 box); 5 loose. Returns the image and the
 /// address of the first object's entry.
@@ -44,7 +47,10 @@ const CHILD: usize = 10;
 fn objects(image: Vec<u8>) -> Vec<crate::Object> {
     let m = Machine::load(image, OPTIONS).unwrap();
     let view = m.view();
-    Introspector::new(&view).object_tree(&view).value.expect("the tree is answered")
+    Introspector::new(&view)
+        .object_tree(&view)
+        .value
+        .expect("the tree is answered")
 }
 
 // I§4: the plain case, and an object with no name.
@@ -81,7 +87,11 @@ fn a_link_past_the_last_object_is_damaged() {
     assert_eq!(o[0].children, Err(Unknown::Damaged));
     let o = objects(with(&image, entries, 2, SIBLING, 0xFFFF));
     assert_eq!(o[0].children, Err(Unknown::Damaged));
-    assert_eq!(o[1].children, Ok(vec![4]), "the lamp's own children are intact");
+    assert_eq!(
+        o[1].children,
+        Ok(vec![4]),
+        "the lamp's own children are intact"
+    );
     let o = objects(with(&image, entries, 4, PARENT, 77));
     assert_eq!(o[3].parent, Err(Unknown::Damaged));
 }
@@ -92,7 +102,11 @@ fn a_link_past_the_last_object_is_damaged() {
 fn a_child_whose_parent_disagrees_is_damaged() {
     let (image, entries) = tree();
     let o = objects(with(&image, entries, 3, PARENT, 5));
-    assert_eq!(o[0].children, Err(Unknown::Damaged), "3 is in 1's chain but says its parent is 5");
+    assert_eq!(
+        o[0].children,
+        Err(Unknown::Damaged),
+        "3 is in 1's chain but says its parent is 5"
+    );
     assert_eq!(o[2].parent, Ok(Some(5)), "what is stored is reported");
     assert_eq!(o[4].children, Ok(vec![]), "5's own chain is empty");
 }
@@ -116,7 +130,13 @@ fn an_unsorted_dictionary_is_listed_in_table_order() {
     s.main(&op::op0(op::QUIT));
     let m = Machine::load(s.build(), OPTIONS).unwrap();
     let view = m.view();
-    let words: Vec<String> = Introspector::new(&view).dictionary(&view).value.unwrap().into_iter().map(|w| w.word).collect();
+    let words: Vec<String> = Introspector::new(&view)
+        .dictionary(&view)
+        .value
+        .unwrap()
+        .into_iter()
+        .map(|w| w.word)
+        .collect();
     assert_eq!(words, ["zebra", "apple", "mango"]);
 }
 
@@ -136,7 +156,11 @@ fn a_damaged_dictionary_is_damaged() {
         let m = Machine::load(damaged, OPTIONS).unwrap();
         let view = m.view();
         let answer = Introspector::new(&view).dictionary(&view);
-        assert_eq!(answer.value.err(), Some(Unknown::Damaged), "byte {offset} set to {value}");
+        assert_eq!(
+            answer.value.err(),
+            Some(Unknown::Damaged),
+            "byte {offset} set to {value}"
+        );
     }
 }
 
@@ -148,5 +172,9 @@ fn parts_of_speech_are_unknown_without_a_family() {
     let view = m.view();
     let words = Introspector::new(&view).dictionary(&view).value.unwrap();
     assert_eq!(words.len(), 3);
-    assert!(words.iter().all(|w| w.parts == Err(Unknown::UnrecognisedFamily) && w.direction.is_none()));
+    assert!(
+        words
+            .iter()
+            .all(|w| w.parts == Err(Unknown::UnrecognisedFamily) && w.direction.is_none())
+    );
 }

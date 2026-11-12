@@ -11,7 +11,12 @@ use common::*;
 fn the_driver_reproduces_the_reference_transcripts() {
     for game in GAMES {
         let replay = walk(game, |_, _| {});
-        assert_eq!(replay.transcript, read_text(game.reference), "{}", game.name);
+        assert_eq!(
+            replay.transcript,
+            read_text(game.reference),
+            "{}",
+            game.name
+        );
     }
 }
 
@@ -28,7 +33,10 @@ fn the_walkthroughs_have_the_expected_number_of_command_prompts() {
         .collect();
     assert!(counts[0].0 >= 320, "Zork I: {:?}", counts[0]);
     assert!(counts[1].0 >= 165, "Advent: {:?}", counts[1]);
-    assert_eq!(counts[1], counts[2], "the two builds of Advent stop at the same places");
+    assert_eq!(
+        counts[1], counts[2],
+        "the two builds of Advent stop at the same places"
+    );
     // Recorded: (command prompts, stops of every kind).
     assert_eq!(counts, [(332, 334), (172, 174), (172, 174)]);
 }
@@ -55,7 +63,11 @@ fn stops_carry_their_script_line_and_the_games_text() {
         assert_eq!(first.line, Some((1, "script".to_string())));
         assert!(headings > 100, "{}", game.name);
         if game.name != "zork1" {
-            assert!(first.status_row.contains("At End Of Road"), "{:?}", first.status_row);
+            assert!(
+                first.status_row.contains("At End Of Road"),
+                "{:?}",
+                first.status_row
+            );
         }
     }
 }
@@ -68,7 +80,12 @@ fn asking_a_copy_leaves_the_machine_alone() {
         let mut asked = false;
         let replay = walk(game, |machine, stop| {
             if stop.number == 1 {
-                assert_eq!(ask(machine, game.inventory), game.empty_handed, "{}", game.name);
+                assert_eq!(
+                    ask(machine, game.inventory),
+                    game.empty_handed,
+                    "{}",
+                    game.name
+                );
                 asked = true;
             } else if stop.command_prompt && stop.number % 40 == 0 {
                 let reply = ask(machine, game.inventory);
@@ -76,14 +93,24 @@ fn asking_a_copy_leaves_the_machine_alone() {
             }
         });
         assert!(asked);
-        assert_eq!(replay.transcript, read_text(game.reference), "{}: asking copies changed nothing", game.name);
+        assert_eq!(
+            replay.transcript,
+            read_text(game.reference),
+            "{}: asking copies changed nothing",
+            game.name
+        );
     }
 }
 
 // Save scripts: the driver collects the save files the game writes.
 #[test]
 fn the_driver_collects_save_files() {
-    let replay = replay(ZORK1.story, "stories/zork1/fidelity/saves/make_1.txt", ZORK1.seed, |_, _| {});
+    let replay = replay(
+        ZORK1.story,
+        "stories/zork1/fidelity/saves/make_1.txt",
+        ZORK1.seed,
+        |_, _| {},
+    );
     assert_eq!(replay.saves.len(), 1);
     assert_eq!(replay.saves[0].0, "save_1.qzl");
     assert_eq!(&replay.saves[0].1[..4], b"FORM");

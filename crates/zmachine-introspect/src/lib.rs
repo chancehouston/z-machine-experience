@@ -24,7 +24,14 @@ mod table_tests;
 pub const SPEC_VERSION: &str = "0.1.0";
 
 /// The queries, as the specification names them and in its order.
-pub const QUERIES: [&str; 6] = ["object_tree", "dictionary", "location", "inventory", "exits", "scope"];
+pub const QUERIES: [&str; 6] = [
+    "object_tree",
+    "dictionary",
+    "location",
+    "inventory",
+    "exits",
+    "scope",
+];
 
 /// The compiler and library a story file was made with, which decide how it keeps
 /// the player, rooms and exits (specification section 3).
@@ -111,7 +118,9 @@ pub struct Introspector {
 
 impl Introspector {
     pub fn new(view: &View<'_>) -> Introspector {
-        Introspector { layout: Layout::read(Bytes::shipped(view)) }
+        Introspector {
+            layout: Layout::read(Bytes::shipped(view)),
+        }
     }
 
     /// The version of the specification the answers follow.
@@ -119,13 +128,86 @@ impl Introspector {
         SPEC_VERSION
     }
 
+    /// The family the story file was recognised as (specification section 3).
+    pub fn family(&self) -> Family {
+        Family::Unrecognised
+    }
+
     /// Every object of the game, by number (specification section 4).
-    pub fn object_tree(&self, _view: &View<'_>) -> Answer<Vec<Object>> {
-        Answer::unknown(Unknown::Damaged, Exactness::Exact)
+    pub fn object_tree(&self, view: &View<'_>) -> Answer<Vec<Object>> {
+        let b = Bytes::now(view);
+        let objects = (1..=self.layout.last_object)
+            .map(|number| self.object(b, number))
+            .collect();
+        Answer::exact(objects)
+    }
+
+    fn object(&self, b: Bytes, number: u16) -> Object {
+        let node = self.layout.object(b, number);
+        let last = self.layout.last_object;
+        let parent = match node {
+            Some(node) if node.parent <= last => Ok((node.parent != 0).then_some(node.parent)),
+            _ => Err(Unknown::Damaged),
+        };
+        let name = self.layout.name(b, number);
+        Object {
+            number,
+            printed_name: self.printed_name(b, number),
+            name: name.unwrap_or_default(),
+            parent,
+            children: self.children(b, number),
+            attributes: self.layout.attributes(b, number).unwrap_or_default(),
+            properties: self
+                .layout
+                .properties(b, number)
+                .unwrap_or_default()
+                .iter()
+                .map(|p| p.number)
+                .collect(),
+        }
+    }
+
+    /// An object's children in the tree's order. The walk is bounded by the number
+    /// of objects; a link out of range, a loop, or a child that names another
+    /// parent makes the list `damaged`.
+    pub(crate) fn children(&self, b: Bytes, number: u16) -> Part<Vec<u16>> {
+        let node = self.layout.object(b, number).ok_or(Unknown::Damaged)?;
+        let mut children = Vec::new();
+        let mut next = node.child;
+        while next != 0 {
+            let child = self.layout.object(b, next).ok_or(Unknown::Damaged)?;
+            if child.parent != number || children.len() >= self.layout.last_object as usize {
+                return Err(Unknown::Damaged);
+            }
+            children.push(next);
+            next = child.sibling;
+        }
+        Ok(children)
+    }
+
+    /// What the game prints for an object.
+    pub(crate) fn printed_name(&self, b: Bytes, number: u16) -> Part<String> {
+        self.layout.name(b, number).ok_or(Unknown::Damaged)
     }
 
     /// Every word of the main dictionary, in its order (specification section 5).
-    pub fn dictionary(&self, _view: &View<'_>) -> Answer<Vec<Word>> {
-        Answer::unknown(Unknown::Damaged, Exactness::Exact)
+    pub fn dictionary(&self, view: &View<'_>) -> Answer<Vec<Word>> {
+        let b = Bytes::now(view);
+        let Some(dictionary) = self.layout.dictionary(b) else {
+            return Answer::unknown(Unknown::Damaged, Exactness::Exact);
+        };
+        let mut words = Vec::with_capacity(dictionary.count);
+        for i in 0..dictionary.count {
+            let entry = dictionary.first + i * dictionary.entry_len;
+            let Some(word) = self.layout.word(b, entry) else {
+                return Answer::unknown(Unknown::Damaged, Exactness::Exact);
+            };
+            words.push(Word {
+                word,
+                parts: Err(Unknown::UnrecognisedFamily),
+                direction: None,
+            });
+        }
+        Answer::exact(words)
     }
 }

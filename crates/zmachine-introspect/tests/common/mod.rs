@@ -62,9 +62,15 @@ pub fn read_text(relative: &str) -> String {
 }
 
 pub fn load(story: &str, seed: u32) -> Machine {
-    let options = LoadOptions { seed: Some(seed), entropy: 0 };
+    let options = LoadOptions {
+        seed: Some(seed),
+        entropy: 0,
+    };
     // The reference transcripts were made by an interpreter that calls itself `F`.
-    let settings = Settings { interpreter_version: b'F', ..Settings::default() };
+    let settings = Settings {
+        interpreter_version: b'F',
+        ..Settings::default()
+    };
     Machine::load_with(read(story), options, settings).unwrap_or_else(|e| panic!("{story}: {e}"))
 }
 
@@ -107,10 +113,18 @@ pub struct Replay {
 }
 
 /// Replays a script, calling `hook` at every stop before the stop is answered.
-pub fn replay(story: &str, script: &str, seed: u32, mut hook: impl FnMut(&Machine, &Stop)) -> Replay {
+pub fn replay(
+    story: &str,
+    script: &str,
+    seed: u32,
+    mut hook: impl FnMut(&Machine, &Stop),
+) -> Replay {
     let mut machine = load(story, seed);
     let script = read_text(script);
-    let mut lines = script.lines().enumerate().map(|(i, l)| (i + 1, l.to_string()));
+    let mut lines = script
+        .lines()
+        .enumerate()
+        .map(|(i, l)| (i + 1, l.to_string()));
     let mut replay = Replay::default();
     loop {
         let event = loop {
@@ -129,7 +143,11 @@ pub fn replay(story: &str, script: &str, seed: u32, mut hook: impl FnMut(&Machin
             Event::RestoreRequested => Wants::RestoreName,
             _ => Wants::Nothing,
         };
-        let line = if wants == Wants::Nothing { None } else { lines.next() };
+        let line = if wants == Wants::Nothing {
+            None
+        } else {
+            lines.next()
+        };
         replay.stops += 1;
         let stop = Stop {
             number: replay.stops,
@@ -171,7 +189,8 @@ pub fn walk(game: Game, hook: impl FnMut(&Machine, &Stop)) -> Replay {
 /// the prompt that follows it. The machine itself is not given the command.
 pub fn ask(machine: &Machine, command: &str) -> String {
     let mut copy = machine.clone();
-    copy.provide_line(command).expect("the machine is waiting for a line");
+    copy.provide_line(command)
+        .expect("the machine is waiting for a line");
     loop {
         match copy.run(1_000_000).expect("the copy runs") {
             Event::BudgetExhausted => continue,
@@ -184,5 +203,8 @@ pub fn ask(machine: &Machine, command: &str) -> String {
 
 /// The first line of a reply that is not blank.
 pub fn first_line(text: &str) -> &str {
-    text.lines().map(str::trim).find(|l| !l.is_empty()).unwrap_or("")
+    text.lines()
+        .map(str::trim)
+        .find(|l| !l.is_empty())
+        .unwrap_or("")
 }

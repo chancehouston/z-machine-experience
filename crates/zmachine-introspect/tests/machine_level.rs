@@ -54,7 +54,11 @@ impl Reference {
         if self.wide() {
             (self.w(e + 6), self.w(e + 8), self.w(e + 10))
         } else {
-            (self.m[e + 4] as usize, self.m[e + 5] as usize, self.m[e + 6] as usize)
+            (
+                self.m[e + 4] as usize,
+                self.m[e + 5] as usize,
+                self.m[e + 6] as usize,
+            )
         }
     }
     fn children(&self, n: usize) -> Vec<u16> {
@@ -79,7 +83,11 @@ impl Reference {
     }
     /// §3, default alphabet only: none of the committed story files has its own.
     fn decode(&self, z: &[usize], nested: bool) -> String {
-        const A: [&str; 3] = ["abcdefghijklmnopqrstuvwxyz", "ABCDEFGHIJKLMNOPQRSTUVWXYZ", " \n0123456789.,!?_#'\"/\\-:()"];
+        const A: [&str; 3] = [
+            "abcdefghijklmnopqrstuvwxyz",
+            "ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+            " \n0123456789.,!?_#'\"/\\-:()",
+        ];
         let (mut out, mut shift, mut i) = (String::new(), 0, 0);
         while i < z.len() {
             let c = z[i];
@@ -121,15 +129,21 @@ impl Reference {
     fn words(&self) -> Vec<String> {
         let d = self.w(0x08);
         let at = d + 1 + self.m[d] as usize;
-        let (len, count) = (self.m[at] as usize, (self.w(at + 1) as i16).unsigned_abs() as usize);
+        let (len, count) = (
+            self.m[at] as usize,
+            (self.w(at + 1) as i16).unsigned_abs() as usize,
+        );
         let text = if self.wide() { 6 } else { 4 };
         (0..count)
             .map(|i| {
                 let e = at + 3 + i * len;
-                let z: Vec<usize> = (0..text).step_by(2).flat_map(|k| {
-                    let x = self.w(e + k);
-                    [(x >> 10) & 31, (x >> 5) & 31, x & 31]
-                }).collect();
+                let z: Vec<usize> = (0..text)
+                    .step_by(2)
+                    .flat_map(|k| {
+                        let x = self.w(e + k);
+                        [(x >> 10) & 31, (x >> 5) & 31, x & 31]
+                    })
+                    .collect();
                 self.decode(&z, true)
             })
             .collect()
@@ -137,7 +151,10 @@ impl Reference {
 }
 
 fn digest(bytes: &[u8]) -> String {
-    Sha256::digest(bytes).iter().map(|b| format!("{b:02x}")).collect()
+    Sha256::digest(bytes)
+        .iter()
+        .map(|b| format!("{b:02x}"))
+        .collect()
 }
 
 // Constitution Principle VI: each story file is the one its record describes.
@@ -146,7 +163,10 @@ fn the_story_files_match_their_records() {
     for story in STORIES {
         let dir = story.rsplit_once('/').unwrap().0;
         let record = read_text(&format!("{dir}/SOURCE.md"));
-        assert!(record.contains(&digest(&read(story))), "{story} is not the file SOURCE.md records");
+        assert!(
+            record.contains(&digest(&read(story))),
+            "{story} is not the file SOURCE.md records"
+        );
     }
 }
 
@@ -161,15 +181,27 @@ fn the_object_tree_equals_an_independent_reading() {
         let answer = Introspector::new(&view).object_tree(&view);
         assert_eq!(answer.exactness, Exactness::Exact, "{story}");
         let objects = answer.value.unwrap_or_else(|e| panic!("{story}: {e:?}"));
-        assert_eq!(objects.len(), reference.count(), "{story}: how many objects");
+        assert_eq!(
+            objects.len(),
+            reference.count(),
+            "{story}: how many objects"
+        );
         assert!(objects.len() >= 5, "{story}");
         for (i, object) in objects.iter().enumerate() {
             let n = i + 1;
             assert_eq!(object.number as usize, n, "{story}");
             assert_eq!(object.name, reference.name(n), "{story}: object {n}");
             let (parent, _, _) = reference.links(n);
-            assert_eq!(object.parent, Ok((parent != 0).then_some(parent as u16)), "{story}: object {n}");
-            assert_eq!(object.children, Ok(reference.children(n)), "{story}: object {n}");
+            assert_eq!(
+                object.parent,
+                Ok((parent != 0).then_some(parent as u16)),
+                "{story}: object {n}"
+            );
+            assert_eq!(
+                object.children,
+                Ok(reference.children(n)),
+                "{story}: object {n}"
+            );
         }
     }
 }
@@ -182,12 +214,24 @@ fn known_objects_are_as_the_games_have_them() {
     let view = machine.view();
     let objects = Introspector::new(&view).object_tree(&view).value.unwrap();
     assert_eq!(objects.len(), 250);
-    let named = |name: &str| objects.iter().find(|o| o.name == name).unwrap_or_else(|| panic!("no {name}"));
+    let named = |name: &str| {
+        objects
+            .iter()
+            .find(|o| o.name == name)
+            .unwrap_or_else(|| panic!("no {name}"))
+    };
     let house = named("West of House");
     assert_eq!(house.printed_name, Ok("West of House".to_string()));
-    assert_eq!(house.properties, [31, 30, 29, 28, 27, 25, 24, 21, 17, 5], "table order, descending");
+    assert_eq!(
+        house.properties,
+        [31, 30, 29, 28, 27, 25, 24, 21, 17, 5],
+        "table order, descending"
+    );
     assert_eq!(named("brass lantern").number, named("brass lantern").number);
-    assert!(named("small mailbox").parent == Ok(Some(house.number)), "the mailbox starts at the house");
+    assert!(
+        named("small mailbox").parent == Ok(Some(house.number)),
+        "the mailbox starts at the house"
+    );
 
     let machine = load("stories/advent/advent.z5", 1);
     let view = machine.view();
@@ -209,7 +253,12 @@ fn the_dictionary_equals_an_independent_reading() {
         let reference = Reference { m: read(story) };
         let answer = Introspector::new(&view).dictionary(&view);
         assert_eq!(answer.exactness, Exactness::Exact, "{story}");
-        let words: Vec<String> = answer.value.unwrap_or_else(|e| panic!("{story}: {e:?}")).into_iter().map(|w| w.word).collect();
+        let words: Vec<String> = answer
+            .value
+            .unwrap_or_else(|e| panic!("{story}: {e:?}"))
+            .into_iter()
+            .map(|w| w.word)
+            .collect();
         assert_eq!(words, reference.words(), "{story}");
     }
     let machine = load("stories/zork1/zork1.z3", 1);
@@ -219,7 +268,10 @@ fn the_dictionary_equals_an_independent_reading() {
     for known in ["north", "lamp", "take", "mailbo", "xyzzy"] {
         assert!(words.iter().any(|w| w.word == known), "{known}");
     }
-    assert!(words.windows(2).all(|pair| pair[0].word != pair[1].word), "no word twice");
+    assert!(
+        words.windows(2).all(|pair| pair[0].word != pair[1].word),
+        "no word twice"
+    );
 }
 
 // I§1.7, I§4: the tree follows the game. After a `take`, the object's parent is
@@ -236,12 +288,19 @@ fn the_tree_follows_the_game_and_is_repeatable() {
             first = Some(tree.clone());
         }
         let objects = tree.value.unwrap();
-        let egg = objects.iter().find(|o| o.name == "jewel-encrusted egg").unwrap();
+        let egg = objects
+            .iter()
+            .find(|o| o.name == "jewel-encrusted egg")
+            .unwrap();
         if let Some((_, command)) = &stop.line {
             // Line 7 follows `take egg`.
             if stop.number == 7 {
                 let holder = egg.parent.clone().unwrap().unwrap();
-                assert_eq!(objects[holder as usize - 1].name, "cretin", "before {command}");
+                assert_eq!(
+                    objects[holder as usize - 1].name,
+                    "cretin",
+                    "before {command}"
+                );
                 seen_carried = true;
             }
         }
