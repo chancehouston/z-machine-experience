@@ -103,6 +103,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "zmachine-experience"
+version = "0.1.0"
+dependencies = [
+ "zmachine-core",
+ "zmachine-introspect",
+ "zmachine-testkit",
+]
+
+[[package]]
+name = "zmachine-ffi"
+version = "0.1.0"
+dependencies = [
+ "zmachine-experience",
+]
+
+[[package]]
 name = "zmachine-introspect"
 version = "0.1.0"
 dependencies = [
