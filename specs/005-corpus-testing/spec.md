@@ -247,6 +247,7 @@ each row equal those in that story's own report.
   | Conditional | any | conditional, with the outcome |
   | Unknown | any | unknown, with the outcome |
   | any | location unknown | no verdict, counted separately |
+  | Leads to the room the player is in | stayed | no verdict: a move to the same room cannot be told from staying |
 
 - **FR-007**: The counts of all verdicts for a story MUST add up to the number of trials
   run on it.

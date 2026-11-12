@@ -5,6 +5,7 @@
 //! interface reported. These are testing tools: no other crate depends on this
 //! one, and nothing here reaches a player.
 
+pub mod corpus;
 pub mod directions;
 pub mod ledger;
 pub mod manifest;

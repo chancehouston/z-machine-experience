@@ -1,7 +1,17 @@
 //! Bringing a game to places: the driver, a walkthrough, and the crawl
 //! (specs/005-corpus-testing/research.md R3, R5, R6).
 
+use std::collections::{BTreeMap, BTreeSet};
+
 use zmachine_core::{Event, Key, LoadError, LoadOptions, Machine, Settings};
+use zmachine_introspect::{Family, Introspector};
+
+use crate::directions::{Direction, directions};
+use crate::ledger::Ledger;
+use crate::manifest::Story;
+use crate::report::{Case, Outcomes, Report};
+use crate::trial::{LIMIT, Outcome, trial};
+use crate::verdict::{Reported, Verdict, judge, reported};
 
 /// Loads a story as the project's reference transcripts were made: a fixed seed,
 /// and an interpreter that calls itself `F`.
@@ -156,4 +166,153 @@ pub fn walkthrough(
     replay.transcript = driver.transcript.clone();
     replay.driver = Some(driver);
     replay
+}
+
+/// The crawl's budget where the manifest gives none (research R5).
+pub const ROOMS: usize = 400;
+pub const TRIALS: usize = 40_000;
+
+/// What the trials of a run have found so far.
+#[derive(Default)]
+struct Tally {
+    cases: BTreeMap<Case, usize>,
+    wordless: usize,
+    trials: usize,
+    /// Rooms a place has been in.
+    visited: BTreeSet<u16>,
+    /// Rooms a fixed exit, reported at a place, leads to.
+    named: BTreeSet<u16>,
+}
+
+/// The story's own tools, made once.
+struct Tools {
+    introspector: Introspector,
+    directions: Vec<Direction>,
+}
+
+impl Tally {
+    /// Runs a trial of every direction at a place. Returns the copies that
+    /// moved, each with the room it reached, in the order tried.
+    fn place(&mut self, tools: &Tools, machine: &Machine, address: u32) -> Vec<(u16, Machine)> {
+        let view = machine.view();
+        let here = tools
+            .introspector
+            .location(&view)
+            .value
+            .ok()
+            .map(|l| l.room);
+        let exits = tools.introspector.exits(&view).value;
+        if let Some(room) = here {
+            self.visited.insert(room);
+        }
+        let mut moved = Vec::new();
+        for direction in &tools.directions {
+            let Some(word) = &direction.word else {
+                self.wordless += 1;
+                continue;
+            };
+            let said = reported(&exits, direction.number);
+            if let Reported::Fixed(room) = said {
+                self.named.insert(room);
+            }
+            let (outcome, copy) = trial(machine, &tools.introspector, address, word, LIMIT);
+            self.trials += 1;
+            let case = Case {
+                room: here.unwrap_or(0),
+                direction: direction.number,
+                reported: said,
+                outcome,
+            };
+            *self.cases.entry(case).or_default() += 1;
+            if let Outcome::Moved(room) = outcome {
+                moved.push((room, copy));
+            }
+        }
+        moved
+    }
+}
+
+/// Runs one story: trials at every command prompt of its walkthrough, if it has
+/// one. `bytes` is the story file and `script` its walkthrough.
+pub fn run_story(story: &Story, bytes: Vec<u8>, script: Option<&str>, ledger: &Ledger) -> Report {
+    let mut report = Report {
+        id: story.id.clone(),
+        sha256: story.sha256.clone(),
+        version: bytes.first().copied().unwrap_or(0),
+        family: "none".to_string(),
+        seed: story.seed,
+        budget_rooms: story.rooms.unwrap_or(ROOMS),
+        budget_trials: story.trials.unwrap_or(TRIALS),
+        ..Report::default()
+    };
+    let mut tally = Tally::default();
+    let mut tools: Option<Tools> = None;
+    let replay = walkthrough(bytes, script.unwrap_or(""), story.seed, |driver, _| {
+        let tools = tools.get_or_insert_with(|| {
+            let view = driver.machine.view();
+            let introspector = Introspector::new(&view);
+            let directions = directions(&introspector, &view);
+            Tools {
+                introspector,
+                directions,
+            }
+        });
+        if let Some(address) = driver.command_address {
+            tally.place(tools, &driver.machine, address);
+        }
+    });
+    report.walkthrough = replay.command_prompts;
+    report.places = report.walkthrough + report.crawl;
+    if let Some(tools) = &tools {
+        report.family = match tools.introspector.family() {
+            Family::Zil => "zil",
+            Family::Inform6 => "inform",
+            Family::Unrecognised => "none",
+        }
+        .to_string();
+    }
+    tally.into_report(report, ledger)
+}
+
+impl Tally {
+    /// Fills a report's figures from the cases counted.
+    fn into_report(self, mut report: Report, ledger: &Ledger) -> Report {
+        report.trials = self.trials;
+        report.wordless = self.wordless;
+        report.rooms_visited = self.visited.len();
+        report.named_not_reached = self.named.difference(&self.visited).count();
+        for (case, count) in self.cases {
+            let outcomes = |o: &mut Outcomes| match case.outcome {
+                Outcome::Moved(_) => o.moved += count,
+                Outcome::Stayed => o.stayed += count,
+                Outcome::Question => o.question += count,
+                Outcome::Ended => o.ended += count,
+                Outcome::Fault => o.fault += count,
+                Outcome::Lost => {}
+            };
+            let fixed = matches!(case.reported, Reported::Fixed(_));
+            match judge(&case) {
+                Verdict::Confirmed if fixed => {
+                    report.fixed_confirmed += count;
+                    continue;
+                }
+                Verdict::Confirmed => {
+                    report.none_confirmed += count;
+                    continue;
+                }
+                Verdict::Wrong => match (fixed, ledger.knows(&report.id, &case)) {
+                    (true, true) => report.fixed_wrong_known += count,
+                    (true, false) => report.fixed_wrong_unexplained += count,
+                    (false, true) => report.none_wrong_known += count,
+                    (false, false) => report.none_wrong_unexplained += count,
+                },
+                Verdict::NoneOther => report.none_other += count,
+                Verdict::Conditional => outcomes(&mut report.conditional),
+                Verdict::Unknown => outcomes(&mut report.unknown),
+                Verdict::NoVerdict => report.no_verdict += count,
+            }
+            report.detail.push((case, count));
+        }
+        report
+    }
 }

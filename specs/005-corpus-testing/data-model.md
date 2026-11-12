@@ -83,6 +83,7 @@ From what was reported and the outcome (spec FR-006). Exactly one for each trial
 | `conditional` | any but `lost` | `conditional` |
 | `unknown` | any but `lost` | `unknown` |
 | any | `lost` | `no-verdict` |
+| `fixed R`, from room R itself | `stayed` | `no-verdict` |
 
 A `wrong` verdict is either **known** (the ledger holds its case) or **unexplained**
 (the test fails).

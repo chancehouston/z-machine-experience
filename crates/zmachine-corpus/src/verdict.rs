@@ -57,3 +57,13 @@ pub fn verdict(reported: Reported, outcome: Outcome) -> Verdict {
         (Reported::Unknown, _) => Verdict::Unknown,
     }
 }
+
+/// The verdict on a case, which knows the room the trial started in. An exit
+/// reported as leading to that same room has no verdict when the player is
+/// still there: a move to the room one is in cannot be told from staying.
+pub fn judge(case: &crate::report::Case) -> Verdict {
+    match (case.reported, case.outcome) {
+        (Reported::Fixed(to), Outcome::Stayed) if to == case.room => Verdict::NoVerdict,
+        (reported, outcome) => verdict(reported, outcome),
+    }
+}

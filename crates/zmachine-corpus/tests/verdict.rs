@@ -1,8 +1,9 @@
 //! What was reported, and the verdict of a trial on it
 //! (specs/005-corpus-testing/spec.md FR-006; data-model.md "Reported", "Verdict").
 
+use zmachine_corpus::report::Case;
 use zmachine_corpus::trial::Outcome;
-use zmachine_corpus::verdict::{Reported, Verdict, reported, verdict};
+use zmachine_corpus::verdict::{Reported, Verdict, judge, reported, verdict};
 use zmachine_introspect::{Exit, ExitKind, Exits, Unknown, UnknownDirection};
 
 fn exit(direction: u8, kind: ExitKind, destination: Option<u16>) -> Exit {
@@ -80,4 +81,36 @@ fn every_report_and_outcome_has_one_verdict() {
     for (said, happened, expected) in cases {
         assert_eq!(verdict(said, happened), expected, "{said:?} {happened:?}");
     }
+}
+
+// spec.md Edge Cases, FR-006: a move to the room the player is already in cannot
+// be told from staying. An exit reported as leading to the player's own room is
+// neither confirmed nor wrong when the player is still there: no verdict.
+#[test]
+fn an_exit_to_the_room_the_player_is_in_has_no_verdict_when_the_player_stays() {
+    let case = |room, reported, outcome| Case {
+        room,
+        direction: 31,
+        reported,
+        outcome,
+    };
+    assert_eq!(
+        judge(&case(7, Reported::Fixed(7), Outcome::Stayed)),
+        Verdict::NoVerdict
+    );
+    // From any other room the same report and outcome are wrong.
+    assert_eq!(
+        judge(&case(8, Reported::Fixed(7), Outcome::Stayed)),
+        Verdict::Wrong
+    );
+    // And it is wrong if the player ends up somewhere else.
+    assert_eq!(
+        judge(&case(7, Reported::Fixed(7), Outcome::Moved(9))),
+        Verdict::Wrong
+    );
+    // Otherwise a case is judged by its report and outcome alone.
+    assert_eq!(
+        judge(&case(7, Reported::None, Outcome::Stayed)),
+        Verdict::Confirmed
+    );
 }

@@ -333,3 +333,69 @@ pub const GAMES: [Game; 3] = [
         seed: 1,
     },
 ];
+
+// ---------------------------------------------------------------------------
+// A folder laid out like the repository, for tests of the commands
+// ---------------------------------------------------------------------------
+
+/// A new, empty folder under the system's temporary folder, removed when the
+/// value is dropped.
+pub struct Scratch(pub std::path::PathBuf);
+
+impl Scratch {
+    pub fn new(name: &str) -> Scratch {
+        static NEXT: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+        let n = NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        let path =
+            std::env::temp_dir().join(format!("zmachine-corpus-{}-{name}-{n}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&path);
+        std::fs::create_dir_all(path.join("stories/corpus/reports")).unwrap();
+        std::fs::write(path.join("stories/corpus/manifest.txt"), "").unwrap();
+        std::fs::write(path.join("stories/corpus/ledger.txt"), "").unwrap();
+        Scratch(path)
+    }
+
+    pub fn path(&self, relative: &str) -> std::path::PathBuf {
+        self.0.join(relative)
+    }
+
+    pub fn write(&self, relative: &str, bytes: &[u8]) {
+        let path = self.path(relative);
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::write(path, bytes).unwrap();
+    }
+
+    pub fn read(&self, relative: &str) -> String {
+        std::fs::read_to_string(self.path(relative)).unwrap_or_else(|e| panic!("{relative}: {e}"))
+    }
+
+    /// Adds a story built in memory as a committed story with a license record
+    /// beside it, and its entry to the manifest. `extra` is further lines of the
+    /// entry, each ending in a line feed.
+    pub fn add(&self, id: &str, image: &[u8], extra: &str) {
+        use sha2::{Digest, Sha256};
+        let digest: String = Sha256::digest(image)
+            .iter()
+            .map(|b| format!("{b:02x}"))
+            .collect();
+        self.write(&format!("stories/{id}/{id}.z3"), image);
+        self.write(&format!("stories/{id}/LICENSE"), b"A test's own.\n");
+        self.write(
+            &format!("stories/{id}/SOURCE.md"),
+            format!("| SHA-256 | `{digest}` |\n").as_bytes(),
+        );
+        let entry = format!(
+            "id: {id}\nsha256: {digest}\nsize: {}\nversion: 3\nfamily: zil\nsource: built in memory\n\
+             standing: a test's own\ntier: committed\npath: stories/{id}/{id}.z3\nseed: 1\n{extra}\n",
+            image.len()
+        );
+        let manifest = self.read("stories/corpus/manifest.txt") + &entry;
+        self.write("stories/corpus/manifest.txt", manifest.as_bytes());
+    }
+}
+
+impl Drop for Scratch {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all(&self.0);
+    }
+}

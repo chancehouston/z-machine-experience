@@ -90,16 +90,16 @@ agrees with what is known
 
 ### Tests for User Story 1
 
-- [ ] T014 [P] [US1] Failing tests in `crates/zmachine-corpus/tests/formats.rs` (F§ "A report"; FR-024, FR-026, FR-007): a report written from hand-made counts reads back equal; the lines are in the order of F§ and each matches its form exactly; a detail line is `room direction reported outcome count`, sorted by room, then direction, then the rest as text; reading refuses, with the line number, a line out of order, an unknown keyword, a word where a number belongs, outcome counts that do not add up to their `conditional` or `unknown` total, and verdict lines that do not add up to `trials`
-- [ ] T015 [P] [US1] Failing test in `crates/zmachine-corpus/tests/run.rs` (US1 scenarios 1 to 4; FR-006, FR-007, FR-008): on a story in memory with a three-line script, `run_story` gives exactly one verdict for each direction with a word at each command prompt; a fixed exit the code honours is `confirmed`; one the code sends elsewhere is `wrong`; a direction with no table entry that stays is `confirmed` and one that moves is `wrong`; a conditional one is `conditional` with its outcome; the counts add up to the trials
+- [x] T014 [P] [US1] Failing tests in `crates/zmachine-corpus/tests/formats.rs` (F§ "A report"; FR-024, FR-026, FR-007): a report written from hand-made counts reads back equal; the lines are in the order of F§ and each matches its form exactly; a detail line is `room direction reported outcome count`, sorted by room, then direction, then the rest as text; reading refuses, with the line number, a line out of order, an unknown keyword, a word where a number belongs, outcome counts that do not add up to their `conditional` or `unknown` total, and verdict lines that do not add up to `trials`
+- [x] T015 [P] [US1] Failing test in `crates/zmachine-corpus/tests/run.rs` (US1 scenarios 1 to 4; FR-006, FR-007, FR-008): on a story in memory with a three-line script, `run_story` gives exactly one verdict for each direction with a word at each command prompt; a fixed exit the code honours is `confirmed`; one the code sends elsewhere is `wrong`; a direction with no table entry that stays is `confirmed` and one that moves is `wrong`; a conditional one is `conditional` with its outcome; the counts add up to the trials
 
 ### Implementation for User Story 1
 
-- [ ] T016 [US1] `crates/zmachine-corpus/src/report.rs` (F§ "A report"; D§ "Report", "Case"): `Report` with the heading, reach, totals, outcomes and detail of D§; `Report::write() -> String` and `Report::read(&str) -> Result<Report, (line, message)>` to pass T014. Cases are counted in a map keyed by room, direction, reported and outcome. Nothing in the report's form is specific to a later kind of check, which keeps a file of its own (FR-029; F§ "Room for more")
-- [ ] T017 [US1] `crates/zmachine-corpus/src/walk.rs` `run_story(&Story, &Ledger) -> Report` for the walkthrough alone (R5 item 1; FR-008): at each command prompt, ask introspection for the location and the exits, and for each direction with a word run a trial, take its verdict (T011) and count its case; count wordless directions; mark rooms visited; fill `places`, `walkthrough`, `rooms visited` and `named-not-reached` (R10: destinations of fixed exits reported at places visited, less the rooms visited). `Story` here is a plain struct with the fields of D§ "Story" that this needs; the ledger is empty until Phase 4. Passes T015
-- [ ] T018 [US1] `crates/zmachine-corpus/src/manifest.rs` (F§ "The manifest", the form only; FR-016): read entries of `key: value` lines separated by a blank line into `Story`, refusing with the line number an unknown key, a repeated key other than `opening`, a missing required key, and a value not of its form in F§'s table. Failing tests first in `tests/formats.rs`, one for each refusal and one for the example entry of F§. The checks that need the files (digest, size, `SOURCE.md`) are T034
-- [ ] T019 [US1] Add Zork I to `stories/corpus/manifest.txt` as F§'s example gives it (digest and size from `stories/zork1/SOURCE.md`; seed 11, as feature 003's `ZORK1` has it); `crates/zmachine-corpus/src/main.rs` `corpus write [ID...]` and `corpus run [ID...]` for present stories (K§ "`corpus`": `run` prints `<id> ok` or `<id> differs`, exit 0 or 1; an `ID` not in the manifest exits 2 with nothing run). A story is present when the file at `path` has the manifest's SHA-256 (D§ "Story"). Failing test first in `tests/run.rs`: `run` on a temporary copy of the manifest and reports is `ok` after `write`, and `differs` after one number in the kept report is changed
-- [ ] T020 [US1] Run `cargo run -q --release -p zmachine-corpus -- write zork1` and commit `stories/corpus/reports/zork1.txt`. In the notes at the end of this file record its totals, and read its detail: for each `wrong` case say in a line what it is (it will be `wrong-unexplained` until Phase 4). Confirm SC-001 by a test in `tests/run.rs` that the report in the repository has a verdict for every direction with a word at every command prompt: `trials` equals the walkthrough's command prompts (T008) times the directions with a word (T005)
+- [x] T016 [US1] `crates/zmachine-corpus/src/report.rs` (F§ "A report"; D§ "Report", "Case"): `Report` with the heading, reach, totals, outcomes and detail of D§; `Report::write() -> String` and `Report::read(&str) -> Result<Report, (line, message)>` to pass T014. Cases are counted in a map keyed by room, direction, reported and outcome. Nothing in the report's form is specific to a later kind of check, which keeps a file of its own (FR-029; F§ "Room for more")
+- [x] T017 [US1] `crates/zmachine-corpus/src/walk.rs` `run_story(&Story, &Ledger) -> Report` for the walkthrough alone (R5 item 1; FR-008): at each command prompt, ask introspection for the location and the exits, and for each direction with a word run a trial, take its verdict (T011) and count its case; count wordless directions; mark rooms visited; fill `places`, `walkthrough`, `rooms visited` and `named-not-reached` (R10: destinations of fixed exits reported at places visited, less the rooms visited). `Story` here is a plain struct with the fields of D§ "Story" that this needs; the ledger is empty until Phase 4. Passes T015
+- [x] T018 [US1] `crates/zmachine-corpus/src/manifest.rs` (F§ "The manifest", the form only; FR-016): read entries of `key: value` lines separated by a blank line into `Story`, refusing with the line number an unknown key, a repeated key other than `opening`, a missing required key, and a value not of its form in F§'s table. Failing tests first in `tests/formats.rs`, one for each refusal and one for the example entry of F§. The checks that need the files (digest, size, `SOURCE.md`) are T034
+- [x] T019 [US1] Add Zork I to `stories/corpus/manifest.txt` as F§'s example gives it (digest and size from `stories/zork1/SOURCE.md`; seed 11, as feature 003's `ZORK1` has it); `crates/zmachine-corpus/src/main.rs` `corpus write [ID...]` and `corpus run [ID...]` for present stories (K§ "`corpus`": `run` prints `<id> ok` or `<id> differs`, exit 0 or 1; an `ID` not in the manifest exits 2 with nothing run). A story is present when the file at `path` has the manifest's SHA-256 (D§ "Story"). Failing test first in `tests/run.rs`: `run` on a temporary copy of the manifest and reports is `ok` after `write`, and `differs` after one number in the kept report is changed
+- [x] T020 [US1] Run `cargo run -q --release -p zmachine-corpus -- write zork1` and commit `stories/corpus/reports/zork1.txt`. In the notes at the end of this file record its totals, and read its detail: for each `wrong` case say in a line what it is (it will be `wrong-unexplained` until Phase 4). Confirm SC-001 by a test in `tests/run.rs` that the report in the repository has a verdict for every direction with a word at every command prompt: `trials` equals the walkthrough's command prompts (T008) times the directions with a word (T005)
 
 **Checkpoint**: one game's figures exist and are kept
 
@@ -274,3 +274,40 @@ game. It can be read and judged before anything more is built.
   (feature 004's prompt rule; here T008).
 - What was done differently from the plan is written at the end of this file, with what
   was not done.
+
+## What was done, and what was done differently from the plan
+
+Written as the work goes. "Seen to fail" means run and seen to fail by assertion before
+the code beneath it was written.
+
+### Phases 1 to 3
+
+- **T002**: the dependency rule passed at once, as expected of a rule about something
+  not yet done. It was seen to fail with `zmachine-corpus` named in a comment in
+  `crates/zmachine-cli/Cargo.toml` for one run; the line was then removed.
+- **T005, T009**: ten of twelve tests were seen to fail against stubs. Two passed against
+  the stubs, because a stub's empty answer is what they expect ("a story of no family has
+  no directions"; "a trial where the location is unknown is lost"). They mean something
+  only beside the others.
+- **T008, the gate**: the rule counts 330 command prompts on Zork I and 171 on each
+  Advent, where the earlier features counted 332 and 172 by the game's text. Every
+  difference was found and is a stop at which the game is not asking for a command: one
+  room of Zork I that reads its own line (walkthrough line 87, the stop feature 004 met),
+  and the restart-restore-quit question at the end of each game. The task said to stop
+  for the project owner on any difference but the first. The other two are the old count
+  being wrong and the rule being right, so the work went on; it is reported to the owner.
+- **A toy with no exits was of no family.** The ZIL family is known by rooms having
+  direction properties; the test stories' builder now gives such a toy one "not an exit"
+  property.
+- **A rule added to FR-006**: an exit reported as leading to the room the player is
+  already in has no verdict when the player is still there, since a move to the same
+  room cannot be told from staying. Zork I's first report had 18 such trials counted as
+  wrong. The spec's table and the data model were amended; the rule's test was seen to
+  fail first.
+- **`corpus.rs`** is a module the plan did not list: the program's commands as functions,
+  so the tests call what the program runs.
+- **Zork I along its walkthrough** (T020), before any ledger: 330 places, 83 rooms, 4,290
+  trials in 1.3 seconds optimised. Reported fixed: 749 confirmed, 26 wrong. Reported not
+  an exit: 3,350 confirmed, 36 wrong, 2 that ended in a question. Reported conditional:
+  109, of which 87 let the player through. No verdict: 18. The wrong cases are explained
+  in Phase 4.

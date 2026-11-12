@@ -1,1 +1,13 @@
 # The corpus: one entry for each story (specs/005-corpus-testing/contracts/formats.md, "The manifest").
+
+id: zork1
+sha256: 37084966477dff679282de42974b2077156b1bd68fad92a65d4ea94d8eb64d79
+size: 86838
+version: 3
+family: zil
+source: https://github.com/historicalsource/zork1 COMPILED/zork1.z3
+standing: MIT, Copyright (c) 2025 Microsoft; see stories/zork1/SOURCE.md
+tier: committed
+path: stories/zork1/zork1.z3
+seed: 11
+walkthrough: stories/zork1/fidelity/walkthrough.txt
