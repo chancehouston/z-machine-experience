@@ -1,0 +1,88 @@
+Here begins a transcript of interaction with
+ZORK I: The Great Underground Empire
+Infocom interactive fiction - a fantasy story
+Copyright (c) 1981, 1982, 1983, 1984, 1985, 1986 Infocom, Inc. All rights reserved.
+ZORK is a registered trademark of Infocom, Inc.
+Release 119 / Serial number 880429
+
+>restore
+Ok.
+
+>east
+East-West Passage
+
+>east
+Round Room
+
+>southeast
+Engravings Cave
+There are old engravings on the walls here.
+
+>east
+Dome Room
+
+>down
+Torch Room
+
+>south
+Temple
+There is a brass bell here.
+
+>take bell
+Taken.
+
+>south
+Altar
+On the two ends of the altar are burning candles.
+On the altar is a large black book, open to page 569.
+
+>take book
+Taken.
+
+>take candles
+Taken.
+
+>down
+Cave
+This is a tiny cave with entrances west and north, and a dark, forbidding staircase leading down.
+A gust of wind blows out your candles!
+
+>down
+Entrance to Hades
+You are outside a large gateway, on which is inscribed
+
+  Abandon every hope all ye who enter here!
+
+The gate is open; through it you can see a desolation, with a pile of mangled bodies in one corner. Thousands of voices, lamenting some hideous fate, can be heard.
+The way through the gate is barred by evil spirits, who jeer at your attempts to pass.
+
+>ring bell
+The bell suddenly becomes red hot and falls to the ground. The wraiths, as if paralyzed, stop their jeering and slowly turn to face you. On their ashen faces, the expression of a long-forgotten terror takes shape.
+In your confusion, the candles drop to the ground (and they are out).
+
+>take candles
+Taken.
+
+>light match
+One of the matches starts to burn.
+
+>light candles with match
+The candles are lit.
+The flames flicker wildly and appear to dance. The earth beneath your feet trembles, and your legs nearly buckle beneath you. The spirits cower at your unearthly power.
+The match has gone out.
+
+>read book
+Each word of the prayer reverberates through the hall in a deafening confusion. As the last word fades, a voice, loud and commanding, speaks: "Begone, fiends!" A heart-stopping scream fills the cavern, and the spirits, sensing a greater power, flee through the walls.
+
+>drop book
+Dropped.
+
+>south
+Land of the Dead
+You have entered the Land of the Living Dead. Thousands of lost souls can be heard weeping and moaning. In the corner are stacked the remains of dozens of previous adventurers less fortunate than yourself. A passage exits to the north.
+Lying in one corner of the room is a beautifully carved crystal skull. It appears to be grinning at you rather nastily.
+
+>take skull
+Taken.
+
+>

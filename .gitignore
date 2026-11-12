@@ -1,5 +1,6 @@
-# Story files: commercial games must never be committed (constitution, Principle VI).
-# Redistributable games that ship with the app are added explicitly with `git add -f`.
+# Story files are ignored by default (constitution, Principle VI). One whose license
+# permits redistribution is added explicitly with `git add -f`, beside its license record.
+/stories/local/
 *.z1
 *.z2
 *.z3
@@ -14,6 +15,9 @@
 
 # Rust
 target/
+
+# Local scratch folder
+/temp/
 
 # macOS
 .DS_Store

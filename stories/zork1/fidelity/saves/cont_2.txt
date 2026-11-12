@@ -1,0 +1,24 @@
+script
+cont_2
+restore
+save_2.qzl
+north
+take wrench
+take screwdriver
+push yellow button
+south
+south
+turn bolt with wrench
+drop wrench
+west
+wait
+wait
+north
+take trunk
+north
+take pump
+south
+south
+east
+down
+inflate plastic with pump

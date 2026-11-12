@@ -1,0 +1,101 @@
+Here begins a transcript of interaction with
+ZORK I: The Great Underground Empire
+Infocom interactive fiction - a fantasy story
+Copyright (c) 1981, 1982, 1983, 1984, 1985, 1986 Infocom, Inc. All rights reserved.
+ZORK is a registered trademark of Infocom, Inc.
+Release 119 / Serial number 880429
+
+>restore
+Ok.
+
+>up
+Attic
+This is the attic. The only exit is a stairway leading down.
+A large coil of rope is lying in the corner.
+On a table is a nasty-looking knife.
+
+>take rope
+Taken.
+
+>down
+Kitchen
+A bottle is sitting on the table.
+The glass bottle contains:
+  A quantity of water
+On the table is an elongated brown sack, smelling of hot peppers.
+
+>west
+Living Room
+There is a jewel-encrusted egg here.
+Your collection of treasures consists of:
+    A painting
+
+>open trap door
+The door reluctantly opens to reveal a rickety staircase descending into darkness.
+
+>down
+The trap door crashes shut, and you hear someone barring it.
+
+Cellar
+
+>north
+The Troll Room
+There is a sword here.
+There is a bloody axe here.
+
+>east
+East-West Passage
+This is a narrow east-west passageway. There is a narrow stairway leading down at the north end of the room.
+
+>east
+Round Room
+This is a circular stone room with passages in all directions. Several of them have unfortunately been blocked by cave-ins.
+
+>southeast
+Engravings Cave
+You have entered a low cave with passages leading northwest and east.
+There are old engravings on the walls here.
+
+>east
+Dome Room
+You are at the periphery of a large dome, which forms the ceiling of another room below. Protecting you from a precipitous drop is a wooden railing which circles the dome.
+
+>tie rope to railing
+The rope drops over the side and comes within ten feet of the floor.
+
+>down
+Torch Room
+This is a large room with a prominent doorway leading to a down staircase. Above you is a large dome. Up around the edge of the dome (20 feet up) is a wooden railing. In the center of the room sits a white marble pedestal.
+A piece of rope descends from the railing above, ending some five feet above your head.
+Sitting on the pedestal is a flaming torch, made of ivory.
+
+>take torch
+Taken.
+
+>turn off lamp
+The brass lantern is now off.
+
+>south
+Temple
+This is the north end of a large temple. On the east wall is an ancient inscription, probably a prayer in a long-forgotten language. Below the prayer is a staircase leading down. The west wall is solid granite. The exit to the north end of the room is through huge marble pillars.
+There is a brass bell here.
+
+>east
+Egyptian Room
+This is a room which looks like an Egyptian tomb. There is an ascending staircase to the west.
+The solid-gold coffin used for the burial of Ramses II is here.
+
+>take coffin
+Taken.
+
+>west
+Temple
+There is a brass bell here.
+
+>south
+Altar
+This is the south end of a large temple. In front of you is what appears to be an altar. In one corner is a small hole in the floor which leads into darkness. You probably could not get back up it.
+On the two ends of the altar are burning candles.
+On the altar is a large black book, open to page 569.
+
+>

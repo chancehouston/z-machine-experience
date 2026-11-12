@@ -1,0 +1,24 @@
+script
+cont_4
+restore
+save_4.qzl
+take torch
+south
+open lid
+put coal in machine
+close lid
+turn switch with screwdriver
+open lid
+take diamond
+drop screwdriver
+north
+put diamond in basket
+put torch in basket
+east
+take all
+drop matchbook
+wait
+east
+up
+up
+north

@@ -1,0 +1,24 @@
+script
+cont_1
+restore
+save_1.qzl
+up
+take rope
+down
+west
+open trap door
+down
+north
+east
+east
+southeast
+east
+tie rope to railing
+down
+take torch
+turn off lamp
+south
+east
+take coffin
+west
+south
