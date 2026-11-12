@@ -59,6 +59,7 @@ pub struct Story5 {
     prop_defaults: [u16; 63],
     objects: Vec<Object5>,
     words: Vec<String>,
+    word_data: Vec<(String, [u8; 3])>,
     unsorted_dictionary: bool,
     separators: Vec<u8>,
     abbreviations: Vec<(usize, String)>,
@@ -88,6 +89,7 @@ impl Story5 {
             prop_defaults: [0; 63],
             objects: Vec::new(),
             words: Vec::new(),
+            word_data: Vec::new(),
             unsorted_dictionary: false,
             separators: b".,\"".to_vec(),
             abbreviations: Vec::new(),
@@ -159,6 +161,27 @@ impl Story5 {
         self.data_still_open("dictionary words");
         self.words.push(word.to_string());
         self
+    }
+
+    /// Adds a dictionary word whose entry carries these three data bytes (§13.4),
+    /// as a compiler's parser tables would.
+    pub fn word_data(&mut self, word: &str, data: [u8; 3]) -> &mut Self {
+        self.word(word);
+        self.word_data.push((word.to_string(), data));
+        self
+    }
+
+    /// The address of a word's dictionary entry. Freezes the data layout.
+    pub fn word_address(&mut self, word: &str) -> u16 {
+        self.freeze();
+        let low = self.low.as_ref().unwrap();
+        let at = self.dictionary_at + 1 + low[self.dictionary_at] as usize;
+        let count = (i16::from_be_bytes([low[at + 1], low[at + 2]])).unsigned_abs() as usize;
+        let key = zencode_dict9(word);
+        let index = (0..count)
+            .find(|i| low[at + 3 + i * 9..at + 9 + i * 9] == key)
+            .unwrap_or_else(|| panic!("{word} is not in the dictionary"));
+        (at + 3 + index * 9) as u16
     }
 
     /// Writes the dictionary in the order words were added, with a negative entry
@@ -316,6 +339,15 @@ impl Story5 {
             &words,
             !self.unsorted_dictionary,
         ));
+        // Fill in the data bytes of the words that were given some.
+        let first = self.dictionary_at + 1 + self.separators.len() + 3;
+        let count = (low.len() - first) / 9;
+        for (word, data) in &self.word_data {
+            let key = zencode_dict9(word);
+            if let Some(i) = (0..count).find(|i| low[first + i * 9..first + i * 9 + 6] == key) {
+                low[first + i * 9 + 6..first + i * 9 + 9].copy_from_slice(data);
+            }
+        }
         let multiple = self.packed_multiplier();
         while !low.len().is_multiple_of(multiple) {
             low.push(0);

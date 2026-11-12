@@ -581,3 +581,33 @@ const V3_TRANSCRIPT_PROBES: [u64; 15] = [
     643607776771933347,
     6712874335486275676,
 ];
+
+// Feature 003: dictionary entries can carry data bytes, and a word's entry
+// address can be asked for, in both builders (§13.3, §13.4).
+#[test]
+fn dictionary_words_can_carry_data_bytes() {
+    let mut v3 = crate::Story::new();
+    v3.word("take").word_data("north", [0x13, 0x1F, 0]).word_data("down", [0x18, 0xFA, 0x16]);
+    v3.header_byte(0x3C, b'x');
+    let north = v3.word_address("north") as usize;
+    let take = v3.word_address("take") as usize;
+    v3.main(&crate::op::op0(crate::op::QUIT));
+    let image = v3.build();
+    assert_eq!(image[north..north + 4], crate::zencode_dict("north"));
+    assert_eq!(image[north + 4..north + 7], [0x13, 0x1F, 0]);
+    assert_eq!(image[take + 4..take + 7], [0, 0, 0]);
+    assert_eq!(image[0x3C], b'x');
+
+    for version in [5u8, 8] {
+        let mut v5 = crate::Story5::new(version);
+        v5.word("take").word_data("north", [0x80, 1, 2]);
+        let north = v5.word_address("north") as usize;
+        let take = v5.word_address("take") as usize;
+        v5.main(&crate::op::op0(crate::op::QUIT));
+        let image = v5.build();
+        assert_eq!(image[north..north + 6], crate::zencode_dict9("north"));
+        assert_eq!(image[north + 6..north + 9], [0x80, 1, 2]);
+        assert_eq!(image[take + 6..take + 9], [0, 0, 0]);
+    }
+}
+

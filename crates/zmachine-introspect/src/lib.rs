@@ -6,7 +6,10 @@
 #![forbid(unsafe_code)]
 
 mod answer;
+mod family;
+mod inform;
 mod table;
+mod zil;
 
 pub use answer::{Answer, Exactness, Part, Tri, Unknown};
 
@@ -15,6 +18,10 @@ use zmachine_core::View;
 
 #[cfg(test)]
 mod answer_tests;
+#[cfg(test)]
+mod family_tests;
+#[cfg(test)]
+mod fixtures;
 #[cfg(test)]
 mod lib_tests;
 #[cfg(test)]
@@ -109,6 +116,150 @@ pub struct Word {
     pub direction: Option<u8>,
 }
 
+/// Where the player is (specification section 6).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Location {
+    pub room: u16,
+    /// The room's printed name.
+    pub name: Part<String>,
+    /// What the player is in or on within the room, if anything.
+    pub holder: Part<Option<u16>>,
+    pub lit: Tri,
+}
+
+/// Something the player carries (specification section 7).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Carried {
+    pub object: u16,
+    pub name: Part<String>,
+    pub worn: Tri,
+    pub contents: Vec<Carried>,
+}
+
+/// Whether an exit's destination is a stored fact.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum ExitKind {
+    Fixed,
+    Conditional,
+}
+
+impl ExitKind {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            ExitKind::Fixed => "fixed",
+            ExitKind::Conditional => "conditional",
+        }
+    }
+}
+
+/// A way out of a room (specification section 8).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Exit {
+    /// The direction's number, stable within a story file.
+    pub direction: u8,
+    /// The dictionary words that name it, shortest first. May be empty.
+    pub words: Vec<String>,
+    pub kind: ExitKind,
+    /// The room it leads to, for a fixed exit.
+    pub destination: Option<u16>,
+    /// That room's printed name, for a fixed exit.
+    pub destination_name: Option<Part<String>>,
+}
+
+/// A direction whose exit could not be determined.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct UnknownDirection {
+    pub direction: u8,
+    pub words: Vec<String>,
+    pub reason: Unknown,
+}
+
+/// The exits of the player's location (specification section 8).
+#[derive(Clone, Debug, PartialEq, Eq, Default)]
+pub struct Exits {
+    pub exits: Vec<Exit>,
+    pub unknown: Vec<UnknownDirection>,
+}
+
+/// Whether the player's location is lit.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum Light {
+    Lit,
+    Dark,
+    Unknown,
+}
+
+impl Light {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Light::Lit => "lit",
+            Light::Dark => "dark",
+            Light::Unknown => "unknown",
+        }
+    }
+}
+
+/// How an object comes to be within reach.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum Reach {
+    InRoom,
+    Inside,
+    On,
+    Carried,
+    Worn,
+}
+
+impl Reach {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Reach::InRoom => "in-room",
+            Reach::Inside => "inside",
+            Reach::On => "on",
+            Reach::Carried => "carried",
+            Reach::Worn => "worn",
+        }
+    }
+}
+
+/// Whether an object inside another can be seen.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum Visibility {
+    Visible,
+    /// The family does not record whether its container is open.
+    Unknown,
+}
+
+impl Visibility {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Visibility::Visible => "visible",
+            Visibility::Unknown => "unknown",
+        }
+    }
+}
+
+/// One object within reach (specification section 9).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ScopeEntry {
+    pub object: u16,
+    pub name: Part<String>,
+    pub reach: Reach,
+    /// The object it is in or on.
+    pub within: Option<u16>,
+    pub visibility: Visibility,
+    pub scenery: Tri,
+    pub concealed: Tri,
+}
+
+/// The objects the player could plausibly act on (specification section 9).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Scope {
+    pub light: Light,
+    /// `Ok` when the player was found; otherwise nothing is marked carried.
+    pub player: Part<()>,
+    pub objects: Vec<ScopeEntry>,
+}
+
 /// Reads a game's state. Made once for a story file; holds what was worked out
 /// from the file as shipped and nothing that changes during play.
 #[derive(Clone, Debug)]
@@ -131,6 +282,28 @@ impl Introspector {
     /// The family the story file was recognised as (specification section 3).
     pub fn family(&self) -> Family {
         Family::Unrecognised
+    }
+
+    /// The room the player is in (specification section 6).
+    pub fn location(&self, _view: &View<'_>) -> Answer<Location> {
+        Answer::unknown(Unknown::Damaged, Exactness::Exact)
+    }
+
+    /// What the player carries (specification section 7).
+    pub fn inventory(&self, _view: &View<'_>) -> Answer<Vec<Carried>> {
+        Answer::unknown(Unknown::Damaged, Exactness::Exact)
+    }
+
+    /// The directions that lead out of the player's location (specification
+    /// section 8).
+    pub fn exits(&self, _view: &View<'_>) -> Answer<Exits> {
+        Answer::unknown(Unknown::Damaged, Exactness::Exact)
+    }
+
+    /// The objects the player could plausibly act on (specification section 9).
+    /// Always approximate.
+    pub fn scope(&self, _view: &View<'_>) -> Answer<Scope> {
+        Answer::unknown(Unknown::Damaged, Exactness::Approximate)
     }
 
     /// Every object of the game, by number (specification section 4).
