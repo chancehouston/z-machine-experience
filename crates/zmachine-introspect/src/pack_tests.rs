@@ -104,7 +104,7 @@ fn a_malformed_pack_is_refused_with_its_line() {
         (format!("open-attribute: 7\n{head}"), 1),
         (String::new(), 1),
         // A version of the format this reader does not know.
-        (head.replace("pack: 1", "pack: 2"), 1),
+        (head.replace("pack: 1", "pack: 3"), 1),
         (head.replace("pack: 1", "pack: 01"), 1),
         // Values out of range or of the wrong shape.
         (head.replace(&digest, &"0".repeat(63)), 2),
@@ -440,4 +440,191 @@ fn a_pack_changes_only_exits_and_reads_only() {
     assert_eq!(packed.exits(&view), packed.exits(&view));
     let after: Vec<Option<u8>> = (0..view.len()).map(|a| view.byte(a)).collect();
     assert_eq!(before, after);
+}
+
+// ---------------------------------------------------------------------------
+// The inventory (feature 007; specs/007-inventory-panel/contracts/answers.md)
+// ---------------------------------------------------------------------------
+
+/// The attribute the fixture's pack calls "see-through".
+const CLEAR: u8 = 8;
+
+/// What the player carries in a built story, with a pack of these entries.
+fn carried(built: &(Vec<u8>, Machine), version: u8, entries: &str) -> Vec<crate::Carried> {
+    let pack = format!("{}{entries}", identity(&built.0))
+        .replace("pack: 1\n", &format!("pack: {version}\n"));
+    let view = built.1.view();
+    let i = Introspector::with_pack(&view, &pack);
+    assert_eq!(i.pack(), PackState::InForce, "{pack}");
+    i.inventory(&view).value.unwrap()
+}
+
+/// The sack, carried, with the garlic in it and a diamond in the garlic.
+fn sack(mut setup: Vec<Vec<u8>>) -> (Vec<u8>, Machine) {
+    setup.insert(0, crate::fixtures::insert(zl::SACK, zl::PLAYER));
+    setup.insert(1, crate::fixtures::insert(zl::DIAMOND, zl::GARLIC));
+    fixture(setup)
+}
+
+/// The marks of the sack, the garlic in it and the diamond in the garlic.
+type Marks = (Option<crate::ContainerState>, crate::Tri, Source);
+fn marks(carried: &[crate::Carried]) -> [Marks; 3] {
+    let sack = &carried[0];
+    assert_eq!(sack.object, zl::SACK);
+    let garlic = &sack.contents[0];
+    let diamond = &garlic.contents[0];
+    [sack, garlic, diamond].map(|e| (e.state, e.seen, e.source))
+}
+
+// I§7.2, I§12.3 (A§10, 15): with `open-attribute` in force a carried thing that
+// holds something is open or closed, what an open one holds is seen, and what a
+// closed one holds is not. I§7 (A§3): a thing in a thing is seen only if every
+// thing it is in lets it be. A§5: what a pack changed says so.
+#[test]
+fn a_pack_says_whether_a_carried_container_is_open() {
+    use crate::ContainerState::{Closed, Open};
+    use crate::Tri::{No, Yes};
+    let open = format!("open-attribute: {OPEN}\n");
+    let pack = Source::Pack;
+    // Both closed: the garlic is not seen, nor the diamond in it.
+    assert_eq!(
+        marks(&carried(&sack(vec![]), 1, &open)),
+        [
+            (Some(Closed), Yes, pack),
+            (Some(Closed), No, pack),
+            (None, No, pack)
+        ]
+    );
+    // The sack open, the garlic closed.
+    assert_eq!(
+        marks(&carried(&sack(vec![set_attr(zl::SACK, OPEN)]), 1, &open)),
+        [
+            (Some(Open), Yes, pack),
+            (Some(Closed), Yes, pack),
+            (None, No, pack)
+        ]
+    );
+    // The garlic open in a closed sack: nothing inside the sack is seen.
+    assert_eq!(
+        marks(&carried(&sack(vec![set_attr(zl::GARLIC, OPEN)]), 1, &open)),
+        [
+            (Some(Closed), Yes, pack),
+            (Some(Open), No, pack),
+            (None, No, pack)
+        ]
+    );
+    // Both open.
+    let both = sack(vec![set_attr(zl::SACK, OPEN), set_attr(zl::GARLIC, OPEN)]);
+    assert_eq!(
+        marks(&carried(&both, 1, &open)),
+        [
+            (Some(Open), Yes, pack),
+            (Some(Open), Yes, pack),
+            (None, Yes, pack)
+        ]
+    );
+    // The lamp holds nothing and is at the top: nothing about it rests on the pack.
+    let lamp = carried(&both, 1, &open)[1].clone();
+    assert_eq!(
+        (lamp.object, lamp.state, lamp.seen, lamp.source),
+        (zl::LAMP, None, Yes, Source::File)
+    );
+    // The exits are as they were with this entry (I§12.3).
+    assert_eq!(
+        toward(&exits(&both, &open), zl::WEST).unwrap().kind,
+        ExitKind::Door
+    );
+}
+
+// I§7.2, I§12.8 (A§11, 12): with `transparent-attribute` in force, what a thing
+// with that attribute holds is seen, whatever its state.
+#[test]
+fn a_pack_says_which_containers_are_see_through() {
+    use crate::ContainerState::{Closed, Unknown};
+    use crate::Tri::{No, Yes};
+    let pack = Source::Pack;
+    let both = format!("open-attribute: {OPEN}\ntransparent-attribute: {CLEAR}\n");
+    // A closed, see-through sack: the garlic is seen; the garlic is closed and
+    // not see-through, so the diamond is not.
+    assert_eq!(
+        marks(&carried(&sack(vec![set_attr(zl::SACK, CLEAR)]), 2, &both)),
+        [
+            (Some(Closed), Yes, pack),
+            (Some(Closed), Yes, pack),
+            (None, No, pack)
+        ]
+    );
+    // Without the attribute it is as with `open-attribute` alone.
+    assert_eq!(
+        marks(&carried(&sack(vec![]), 2, &both))[1],
+        (Some(Closed), No, pack)
+    );
+    // With only `transparent-attribute`: a sack that has it shows what it holds
+    // and its state stays unknown; the garlic, which has it not, is as with no
+    // pack, so the diamond is unknown.
+    let only = format!("transparent-attribute: {CLEAR}\n");
+    assert_eq!(
+        marks(&carried(&sack(vec![set_attr(zl::SACK, CLEAR)]), 2, &only)),
+        [
+            (Some(Unknown), Yes, Source::File),
+            (Some(Unknown), Yes, pack),
+            (None, crate::Tri::Unknown, Source::File)
+        ]
+    );
+    assert_eq!(
+        marks(&carried(&sack(vec![]), 2, &only)),
+        [
+            (Some(Unknown), Yes, Source::File),
+            (Some(Unknown), crate::Tri::Unknown, Source::File),
+            (None, crate::Tri::Unknown, Source::File)
+        ]
+    );
+    // It changes nothing about exits (I§12.8).
+    let built = sack(vec![]);
+    let view = built.1.view();
+    let with = Introspector::with_pack(
+        &view,
+        &format!("{}{only}", identity(&built.0)).replace("pack: 1", "pack: 2"),
+    );
+    assert_eq!(with.pack(), PackState::InForce);
+    assert_eq!(with.exits(&view), Introspector::new(&view).exits(&view));
+}
+
+// I§12.1, I§12.2 (A§12 to 14): the format's version 2 adds one key. A reader of
+// version 2 reads versions 1 and 2, and refuses any other; the new key in a pack
+// of version 1 is a fault.
+#[test]
+fn the_formats_second_version_adds_one_key() {
+    let two = EXAMPLE.replace("pack: 1", "pack: 2");
+    let pack = Pack::parse(&format!("{two}transparent-attribute: 12\n")).unwrap();
+    assert_eq!((pack.version, pack.transparent_attribute), (2, Some(12)));
+    assert!(pack.has_entries());
+    let plain = Pack::parse(&two).unwrap();
+    assert_eq!((plain.version, plain.transparent_attribute), (2, None));
+    assert_eq!(Pack::parse(EXAMPLE).unwrap().version, 1);
+    for (text, line) in [
+        (EXAMPLE.replace("pack: 1", "pack: 3"), 1),
+        (EXAMPLE.replace("pack: 1", "pack: 0"), 1),
+        (format!("{EXAMPLE}transparent-attribute: 12\n"), 7),
+        (format!("{two}transparent-attribute: 32\n"), 7),
+        (
+            format!("{two}transparent-attribute: 12\ntransparent-attribute: 12\n"),
+            8,
+        ),
+        (format!("{two}transparent-attribute: glass\n"), 7),
+    ] {
+        match Pack::parse(&text) {
+            Ok(pack) => panic!("read as {pack:?}:\n{text}"),
+            Err(error) => assert_eq!(error.line, line, "{error}:\n{text}"),
+        }
+    }
+    // It is an entry, and so refused outside the ZIL family (I§12.2).
+    let image = Inform::new().build();
+    let machine = crate::fixtures::run(image.clone());
+    let text =
+        format!("{}transparent-attribute: 3\n", identity(&image)).replace("pack: 1", "pack: 2");
+    assert_eq!(
+        Introspector::with_pack(&machine.view(), &text).pack(),
+        PackState::Refused
+    );
 }

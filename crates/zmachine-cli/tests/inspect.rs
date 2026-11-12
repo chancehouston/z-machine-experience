@@ -109,7 +109,7 @@ fn inspect_writes_one_line_per_stop() {
                 n + 1
             );
             let start = format!(
-                r#"{{"spec":"0.2.0","stop":{},"wants":"line","family":"{family}","pack":"none","location":{{"exactness":"exact","value":"#,
+                r#"{{"spec":"0.3.0","stop":{},"wants":"line","family":"{family}","pack":"none","location":{{"exactness":"exact","value":"#,
                 n + 1
             );
             assert!(line.starts_with(&start), "{file}: {line}");
@@ -297,7 +297,7 @@ fn inspect_dash_writes_to_standard_error() {
     assert!(
         lines
             .iter()
-            .all(|l| l.starts_with(r#"{"spec":"0.2.0","stop":"#) && is_one_json_object(l))
+            .all(|l| l.starts_with(r#"{"spec":"0.3.0","stop":"#) && is_one_json_object(l))
     );
     let stdout = text(&out.stdout);
     assert!(
@@ -338,7 +338,7 @@ fn tree_and_dictionary_print_and_exit() {
     let stdout = text(&out.stdout);
     assert_eq!(stdout.lines().count(), 1);
     assert!(is_one_json_object(stdout.trim_end()));
-    assert!(stdout.starts_with(r#"{"spec":"0.2.0","family":"zil","object_tree":{"exactness":"exact","value":[{"number":1,"#), "{}", &stdout[..120]);
+    assert!(stdout.starts_with(r#"{"spec":"0.3.0","family":"zil","object_tree":{"exactness":"exact","value":[{"number":1,"#), "{}", &stdout[..120]);
     assert!(stdout.contains(r#""name":"West of House""#) && !stdout.contains("\"dictionary\""));
     assert!(
         !stdout.contains("ZORK I: The Great Underground Empire"),
@@ -347,7 +347,7 @@ fn tree_and_dictionary_print_and_exit() {
 
     let out = zm(&["--dictionary", &story("advent/advent.z8")], "");
     let stdout = text(&out.stdout);
-    assert!(stdout.starts_with(r#"{"spec":"0.2.0","family":"inform6","dictionary":{"exactness":"exact","value":[{"word":"#), "{}", &stdout[..120]);
+    assert!(stdout.starts_with(r#"{"spec":"0.3.0","family":"inform6","dictionary":{"exactness":"exact","value":[{"word":"#), "{}", &stdout[..120]);
     assert!(
         stdout.contains(r#"{"word":"north","parts":["noun","direction"],"direction":7}"#),
         "north is a direction"
@@ -360,7 +360,7 @@ fn tree_and_dictionary_print_and_exit() {
     assert_eq!(out.status.code(), Some(0));
     let stdout = text(&out.stdout);
     assert!(stdout.starts_with(
-        r#"{"spec":"0.2.0","family":"unrecognised","object_tree":{"exactness":"exact","value":[{"#
+        r#"{"spec":"0.3.0","family":"unrecognised","object_tree":{"exactness":"exact","value":[{"#
     ));
     assert!(stdout.contains(r#","dictionary":{"exactness":"exact","value":["#));
     assert!(is_one_json_object(stdout.trim_end()));
@@ -424,7 +424,7 @@ fn pack_gives_a_game_pack_and_the_line_says_what_became_of_it() {
     };
     let field = |written: &str| {
         let line = written.lines().next().unwrap().to_string();
-        let start = r#"{"spec":"0.2.0","stop":1,"wants":"line","family":"zil","pack":""#;
+        let start = r#"{"spec":"0.3.0","stop":1,"wants":"line","family":"zil","pack":""#;
         assert!(line.starts_with(start), "{line}");
         line[start.len()..].split('"').next().unwrap().to_string()
     };

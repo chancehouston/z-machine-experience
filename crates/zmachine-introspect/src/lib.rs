@@ -40,7 +40,7 @@ mod table_tests;
 mod zil_tests;
 
 /// The version of `docs/introspection.md` this crate implements.
-pub const SPEC_VERSION: &str = "0.2.0";
+pub const SPEC_VERSION: &str = "0.3.0";
 
 /// The queries, as the specification names them and in its order.
 pub const QUERIES: [&str; 6] = [
@@ -145,7 +145,33 @@ pub struct Carried {
     pub object: u16,
     pub name: Part<String>,
     pub worn: Tri,
+    /// Whether it is open, for a thing that holds something now; `None` for a
+    /// thing that holds nothing.
+    pub state: Option<ContainerState>,
+    /// Whether the game would show it among what is carried.
+    pub seen: Tri,
+    /// `Pack` when `state` or `seen` would be different with no game pack.
+    pub source: Source,
+    /// Everything it holds, whatever its marks.
     pub contents: Vec<Carried>,
+}
+
+/// Whether a thing that holds something is open (specification section 7).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum ContainerState {
+    Open,
+    Closed,
+    Unknown,
+}
+
+impl ContainerState {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            ContainerState::Open => "open",
+            ContainerState::Closed => "closed",
+            ContainerState::Unknown => "unknown",
+        }
+    }
 }
 
 /// Whether an exit's destination is a stored fact.
@@ -433,7 +459,7 @@ impl Introspector {
             .and_then(|player| {
                 // No tree holds more objects than exist; the budget stops a loop.
                 let mut budget = self.layout.last_object as usize;
-                self.carried(b, player, &mut budget)
+                self.carried(b, player, Tri::Yes, &mut budget)
             });
         match carried {
             Ok(carried) => Answer::exact(carried),
@@ -441,19 +467,75 @@ impl Introspector {
         }
     }
 
-    /// The children of an object, each with its own, as things carried.
-    fn carried(&self, b: Bytes, holder: u16, budget: &mut usize) -> Part<Vec<Carried>> {
+    /// The children of an object, each with its own, as things carried, with
+    /// their marks (specification section 7). `seen` is whether what `holder`
+    /// holds is seen.
+    fn carried(&self, b: Bytes, holder: u16, seen: Tri, budget: &mut usize) -> Part<Vec<Carried>> {
         let mut out = Vec::new();
         for object in self.children(b, holder)? {
             *budget = budget.checked_sub(1).ok_or(Unknown::Damaged)?;
+            let holds = !self.children(b, object)?.is_empty();
+            let (state, lets_see) = self.container(b, object);
+            let within = match (seen, lets_see) {
+                (Tri::Yes, Tri::Yes) => Tri::Yes,
+                (Tri::No, _) | (_, Tri::No) => Tri::No,
+                _ => Tri::Unknown,
+            };
+            let state = if holds { state } else { None };
+            // What the answer would be with no pack: for ZIL, a state that is
+            // unknown and, inside anything, a seeing that is unknown.
+            let zil = matches!(self.adapter, Adapter::Zil(_));
+            let nested = holder != self.player_of(b).unwrap_or(0);
+            let changed = zil
+                && (state.is_some_and(|s| s != ContainerState::Unknown)
+                    || (nested && seen != Tri::Unknown));
             out.push(Carried {
                 object,
                 name: self.printed_name(b, object),
                 worn: self.attribute(b, object, inform::attribute::WORN),
-                contents: self.carried(b, object, budget)?,
+                state,
+                seen,
+                source: if changed { Source::Pack } else { Source::File },
+                contents: self.carried(b, object, within, budget)?,
             });
         }
         Ok(out)
+    }
+
+    /// The player's object number, where it can be told.
+    fn player_of(&self, b: Bytes) -> Option<u16> {
+        self.place(b).ok().and_then(|place| place.player.ok())
+    }
+
+    /// For an object that may hold things: its state, and whether what it holds
+    /// can be seen (specification sections 7.1 and 7.2).
+    fn container(&self, b: Bytes, object: u16) -> (Option<ContainerState>, Tri) {
+        let has = |attribute: u8| self.layout.has_attribute(b, object, attribute) == Some(true);
+        match &self.adapter {
+            Adapter::Inform(_) => {
+                use inform::attribute::{OPEN, SUPPORTER, TRANSPARENT};
+                if has(SUPPORTER) {
+                    (None, Tri::Yes)
+                } else if has(OPEN) {
+                    (Some(ContainerState::Open), Tri::Yes)
+                } else {
+                    (
+                        Some(ContainerState::Closed),
+                        Tri::from_bool(has(TRANSPARENT)),
+                    )
+                }
+            }
+            Adapter::Zil(_) => {
+                let clear = self.entries.transparent_attribute.is_some_and(has);
+                match self.entries.open_attribute {
+                    Some(open) if has(open) => (Some(ContainerState::Open), Tri::Yes),
+                    Some(_) => (Some(ContainerState::Closed), Tri::from_bool(clear)),
+                    None if clear => (Some(ContainerState::Unknown), Tri::Yes),
+                    None => (Some(ContainerState::Unknown), Tri::Unknown),
+                }
+            }
+            Adapter::None => (Some(ContainerState::Unknown), Tri::Unknown),
+        }
     }
 
     /// An attribute whose number the Inform library fixes; unknown in a family

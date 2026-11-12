@@ -8,6 +8,7 @@
 
 mod compass;
 mod json;
+mod strip;
 mod transcript;
 
 #[cfg(test)]

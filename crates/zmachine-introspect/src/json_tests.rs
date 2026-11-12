@@ -259,6 +259,8 @@ fn a_location() {
 }
 
 // I§2, I§7: an inventory nests contents.
+// Feature 007 (specs/007-inventory-panel/contracts/answers.md A§7; I§2.3, I§7):
+// an entry's seven keys in order; `state` is null for a thing that holds nothing.
 #[test]
 fn an_inventory() {
     let mut f = Inform::new();
@@ -268,7 +270,7 @@ fn an_inventory() {
     assert_eq!(
         json,
         format!(
-            r#"{{"exactness":"exact","value":[{{"object":{},"name":"box","worn":"no","contents":[{{"object":{},"name":"coin","worn":"no","contents":[]}}]}}]}}"#,
+            r#"{{"exactness":"exact","value":[{{"object":{},"name":"box","worn":"no","state":"open","seen":"yes","source":"file","contents":[{{"object":{},"name":"coin","worn":"no","state":null,"seen":"yes","source":"file","contents":[]}}]}}]}}"#,
             inf::BOX,
             inf::COIN
         )

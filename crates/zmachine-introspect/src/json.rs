@@ -5,9 +5,9 @@
 //! `{"unknown":"<reason>"}`.
 
 use crate::{
-    Answer, Carried, DoorState, Exactness, Exit, ExitKind, Exits, Family, Light, Location, Object,
-    PackState, PartOfSpeech, Reach, Scope, ScopeEntry, Source, Tri, Unknown, UnknownDirection,
-    Visibility, Word,
+    Answer, Carried, ContainerState, DoorState, Exactness, Exit, ExitKind, Exits, Family, Light,
+    Location, Object, PackState, PartOfSpeech, Reach, Scope, ScopeEntry, Source, Tri, Unknown,
+    UnknownDirection, Visibility, Word,
 };
 
 /// Something the specification gives a JSON form.
@@ -149,6 +149,7 @@ as_word!(
     PartOfSpeech,
     ExitKind,
     DoorState,
+    ContainerState,
     Source,
     PackState,
     Light,
@@ -217,6 +218,9 @@ impl Json for Carried {
                 ("object", &self.object),
                 ("name", &self.name),
                 ("worn", &self.worn),
+                ("state", &self.state),
+                ("seen", &self.seen),
+                ("source", &self.source),
                 ("contents", &self.contents),
             ],
         );
