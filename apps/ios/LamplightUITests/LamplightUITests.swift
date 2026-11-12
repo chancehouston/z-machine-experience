@@ -402,6 +402,25 @@ final class LamplightUITests: XCTestCase {
         XCTAssertFalse(element(app, "compass.note").exists)
     }
 
+    // S§ "With the keyboard showing": sending does not put the keyboard away,
+    // and nothing typed after Return is lost. Found by playing by hand: Return
+    // took the focus from the field for a moment, and "examine window" typed
+    // straight after it arrived as "e window".
+    @MainActor
+    func testTypingStraightThroughReturn() {
+        let app = launch()
+        _ = turn(app, 0)
+        let field = element(app, "field.command")
+        field.tap()
+        field.typeText("open mailbox\nread leaflet\nnorth\n")
+        XCTAssertTrue(turn(app, 3).hasPrefix("North of House"))
+        XCTAssertEqual(element(app, "turn.1.command").label, "open mailbox")
+        XCTAssertEqual(element(app, "turn.2.command").label, "read leaflet")
+        XCTAssertEqual(element(app, "turn.3.command").label, "north")
+        XCTAssertEqual(value(app, "status.moves"), "3")
+        XCTAssertFalse(element(app, "button.send").isEnabled, "the field is empty")
+    }
+
     // SC-001; S§ launch arguments. The limit is the specification's two seconds.
     // TEST_RUNNER_LAUNCH_LIMIT_MILLIS gives another, for a machine that is not
     // the measure of the app: a shared CI runner took 2122 ms.

@@ -6,7 +6,10 @@ struct GameView: View {
     @State private var game = Game()
     @State private var line = ""
     @State private var showingAbout = false
-    @FocusState private var typing: Bool
+    @State private var typing = false
+    /// Lines typed and not yet sent: one is sent at a time, in order.
+    @State private var waitingLines: [String] = []
+    @State private var sending = false
 
     /// `-showLaunchTime` adds the time the launch took to the screen.
     private let showsLaunchTime = ProcessInfo.processInfo.arguments.contains("-showLaunchTime")
@@ -67,18 +70,23 @@ struct GameView: View {
                     .accessibilityLabel("Show compass")
                     .accessibilityIdentifier("button.compass")
                 }
-                TextField(
-                    showing.waiting == .command ? "Type a command" : "Type your answer",
-                    text: $line
+                CommandField(
+                    placeholder: showing.waiting == .command
+                        ? "Type a command" : "Type your answer",
+                    text: $line,
+                    focused: $typing,
+                    onReturn: send
                 )
-                .focused($typing)
-                .textInputAutocapitalization(.never)
-                .autocorrectionDisabled()
-                .submitLabel(.send)
-                .onSubmit(send)
-                .textFieldStyle(.roundedBorder)
                 .accessibilityIdentifier("field.command")
-                Button(action: send) {
+                .onChange(of: game.busy) { sendNextLine() }
+                // When the game ends the field goes, and the keyboard with it:
+                // a new game starts with the compass showing.
+                .onDisappear { typing = false }
+                Button {
+                    let typed = line
+                    line = ""
+                    send(typed)
+                } label: {
                     Image(systemName: "arrow.up.circle.fill")
                         .font(.title)
                 }
@@ -107,16 +115,29 @@ struct GameView: View {
     }
 
     /// The one place a typed line is sent from: the field's text, as it is.
-    private func send() {
-        let typed = line
-        guard !typed.isEmpty, !game.busy else {
-            typing = true
+    /// Sending does not put the keyboard away.
+    private func send(_ typed: String) {
+        typing = true
+        guard !typed.isEmpty else { return }
+        waitingLines.append(typed)
+        sendNextLine()
+    }
+
+    /// Sends the oldest waiting line, once the command before it has been
+    /// answered. Lines still waiting when the game ends are dropped.
+    private func sendNextLine() {
+        guard !sending, !game.busy, !waitingLines.isEmpty else { return }
+        guard let waiting = game.showing?.waiting, waiting == .command || waiting == .answer else {
+            waitingLines.removeAll()
             return
         }
-        line = ""
-        // Sending does not put the keyboard away.
-        typing = true
-        Task { await game.send(typed: typed) }
+        let typed = waitingLines.removeFirst()
+        sending = true
+        Task {
+            await game.send(typed: typed)
+            sending = false
+            sendNextLine()
+        }
     }
 }
 
