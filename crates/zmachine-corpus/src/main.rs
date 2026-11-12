@@ -20,6 +20,11 @@ fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let root = std::env::current_dir().expect("a current directory");
     let (lines, status) = match args.first().map(String::as_str) {
+        Some("check") if args.len() == 1 => {
+            let failures = zmachine_corpus::manifest::check(&root);
+            let status = !failures.is_empty() as i32;
+            (failures, status)
+        }
         Some("run") => command(&root, Mode::Run, &args[1..]),
         Some("write") => command(&root, Mode::Write, &args[1..]),
         Some("explain") => match (

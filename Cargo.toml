@@ -15,3 +15,15 @@ edition = "2024"
 license = "MIT"
 repository = "https://github.com/chancehouston/z-machine-experience"
 rust-version = "1.99"
+
+# The corpus tests run whole games many times over (feature 005). The crates that
+# do the running are optimised in test builds too; checks for overflow and debug
+# assertions stay on.
+[profile.dev.package.zmachine-core]
+opt-level = 2
+
+[profile.dev.package.zmachine-introspect]
+opt-level = 2
+
+[profile.dev.package.zmachine-corpus]
+opt-level = 2

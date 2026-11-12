@@ -12,6 +12,10 @@ publish = false
 name = "corpus"
 path = "src/main.rs"
 
+[[test]]
+name = "corpus"
+harness = false
+
 [dependencies]
 zmachine-core = { path = "../zmachine-core" }
 zmachine-introspect = { path = "../zmachine-introspect" }

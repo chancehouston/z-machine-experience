@@ -191,3 +191,115 @@ fn story(entry: &[(usize, &str, &str)]) -> Result<Story, Refusal> {
     }
     Ok(story)
 }
+
+/// Checks the manifest and the ledger's form, and the manifest against the
+/// files it names (contracts/formats.md, "The manifest check"). Returns each
+/// failure as `file:line: why`.
+pub fn check(root: &std::path::Path) -> Vec<String> {
+    use crate::corpus::{MANIFEST, load, sha256};
+    let (stories, _) = match load(root) {
+        Ok(loaded) => loaded,
+        Err(why) => return vec![why],
+    };
+    let mut failures = Vec::new();
+    for (i, story) in stories.iter().enumerate() {
+        let mut fail = |why: String| failures.push(format!("{MANIFEST}:{}: {why}", story.line));
+        if stories[..i].iter().any(|s| s.id == story.id) {
+            fail(format!("`{}` is the id of another entry", story.id));
+        }
+        if stories[..i].iter().any(|s| s.sha256 == story.sha256) {
+            fail("the digest is the digest of another entry".to_string());
+        }
+        let path = root.join(&story.path);
+        let bytes = std::fs::read(&path).ok();
+        match story.tier {
+            Tier::Fetched => {
+                if tracked(root, &story.path) == Some(true) {
+                    fail("a fetched story's file is tracked by the repository".to_string());
+                }
+                // Absent, or some other file: the story is skipped, not failed.
+                let Some(bytes) = bytes.filter(|b| sha256(b) == story.sha256) else {
+                    continue;
+                };
+                describes(story, &bytes, &mut fail);
+            }
+            Tier::Committed => {
+                let Some(bytes) = bytes else {
+                    fail("the file is absent".to_string());
+                    continue;
+                };
+                let digest = sha256(&bytes);
+                if digest != story.sha256 {
+                    fail(format!("the file's digest is {digest}"));
+                    continue;
+                }
+                describes(story, &bytes, &mut fail);
+                let beside = path.parent().unwrap_or(root);
+                match std::fs::read_to_string(beside.join("SOURCE.md")) {
+                    Err(_) => fail("there is no SOURCE.md beside the file".to_string()),
+                    Ok(record) if !record.contains(&story.sha256) => {
+                        fail("SOURCE.md does not hold the digest".to_string())
+                    }
+                    Ok(_) => {}
+                }
+                let licensed = std::fs::read_dir(beside).is_ok_and(|entries| {
+                    entries.flatten().any(|entry| {
+                        let name = entry.file_name();
+                        let name = name.to_string_lossy();
+                        name == "LICENSE" || name.starts_with("COPYING")
+                    })
+                });
+                if !licensed {
+                    fail("there is no license text beside the file".to_string());
+                }
+            }
+        }
+    }
+    failures
+}
+
+/// Whether the file is what the entry says of it: its size, version and family.
+fn describes(story: &Story, bytes: &[u8], fail: &mut impl FnMut(String)) {
+    if bytes.len() as u64 != story.size {
+        fail(format!("the file's size is {}", bytes.len()));
+    }
+    let version = bytes.first().copied().unwrap_or(0);
+    if version != story.version {
+        fail(format!("the file's version is {version}"));
+    }
+    let family = match crate::walk::load(bytes.to_vec(), story.seed) {
+        Ok(machine) => {
+            let view = machine.view();
+            match zmachine_introspect::Introspector::new(&view).family() {
+                zmachine_introspect::Family::Zil => "zil",
+                zmachine_introspect::Family::Inform6 => "inform",
+                zmachine_introspect::Family::Unrecognised => "none",
+            }
+        }
+        Err(_) => {
+            fail("the file does not load".to_string());
+            return;
+        }
+    };
+    if family != story.family {
+        fail(format!("introspection finds the family {family}"));
+    }
+}
+
+/// Whether the repository tracks the path; `None` where that cannot be asked
+/// (no `git`, or not a repository).
+fn tracked(root: &std::path::Path, path: &str) -> Option<bool> {
+    let status = std::process::Command::new("git")
+        .arg("-C")
+        .arg(root)
+        .args(["ls-files", "--error-unmatch", "--", path])
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .status()
+        .ok()?;
+    match status.code() {
+        Some(0) => Some(true),
+        Some(1) => Some(false),
+        _ => None,
+    }
+}

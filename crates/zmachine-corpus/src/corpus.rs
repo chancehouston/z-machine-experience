@@ -208,3 +208,36 @@ pub fn explain(root: &Path, id: &str, room: u16, direction: u8) -> (Vec<String>,
     }
     (lines, 0)
 }
+
+/// The corpus as a test run: one line for each story of the manifest, in the
+/// form the standard test runner uses, then the line of totals. Returns the
+/// lines and whether every story that ran passed (research R16). An absent
+/// story is ignored, which is not passed.
+pub fn corpus_lines(root: &Path) -> (Vec<String>, bool) {
+    let stories = match load(root) {
+        Ok((stories, _)) => stories,
+        Err(why) => return (vec![why, "test result: FAILED.".to_string()], false),
+    };
+    let mut lines = Vec::new();
+    let (mut passed, mut failed, mut ignored) = (0, 0, 0);
+    for story in &stories {
+        let (said, status) = command(root, Mode::Run, std::slice::from_ref(&story.id));
+        if said == [format!("{} skipped", story.id)] {
+            lines.push(format!("test {} ... ignored, story absent", story.id));
+            ignored += 1;
+        } else if status == 0 {
+            lines.push(format!("test {} ... ok", story.id));
+            passed += 1;
+        } else {
+            lines.push(format!("test {} ... FAILED", story.id));
+            lines.extend(said.iter().map(|line| format!("    {line}")));
+            failed += 1;
+        }
+    }
+    let result = if failed == 0 { "ok" } else { "FAILED" };
+    lines.push(String::new());
+    lines.push(format!(
+        "test result: {result}. {passed} passed; {failed} failed; {ignored} ignored"
+    ));
+    (lines, failed == 0)
+}
