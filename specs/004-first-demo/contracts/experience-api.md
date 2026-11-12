@@ -69,5 +69,5 @@ pub struct StartError { pub message: String }
    "extras":[]}}
 ```
 
-Fields are always present; none is `null`. The twelve places are always listed, in the
+Every field is always present; one with no value is `null`, never left out. The twelve places are always listed, in the
 order of the data model.
