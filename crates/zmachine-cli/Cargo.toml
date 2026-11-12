@@ -16,6 +16,7 @@ path = "src/main.rs"
 
 [dependencies]
 zmachine-core = { path = "../zmachine-core" }
+zmachine-introspect = { path = "../zmachine-introspect" }
 
 [dev-dependencies]
 zmachine-testkit = { path = "../zmachine-testkit" }

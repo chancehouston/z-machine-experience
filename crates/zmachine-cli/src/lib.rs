@@ -11,10 +11,12 @@ use std::fs::File;
 use std::io::{BufRead, Write};
 use std::path::{Path, PathBuf};
 use zmachine_core::{DiagnosticKind, Event, HostError, Key, LoadOptions, Machine, Settings};
+use zmachine_introspect::{Introspector, json};
 
 pub const USAGE: &str = "\
 usage: zm [--script FILE] [--seed N] [--width N] [--dir DIR] [--max-instructions N]
-          [--upper] [--style MODE] [--interpreter-version C] STORY
+          [--upper] [--style MODE] [--interpreter-version C] [--inspect FILE] STORY
+       zm [--tree] [--dictionary] STORY
        zm --version
        zm --help
 
@@ -27,6 +29,10 @@ usage: zm [--script FILE] [--seed N] [--width N] [--dir DIR] [--max-instructions
   --upper                show what the game draws outside its main text, above each prompt
   --style MODE           ansi, plain or auto: how bold, italic and reverse text is shown (default auto)
   --interpreter-version C  the letter a game may print as the interpreter's version (default Z)
+  --inspect FILE         each time the game waits for input, write one line of JSON to FILE: where the
+                         player is, the exits, what is carried and what is in reach (- for standard error)
+  --tree                 print the story's object tree as JSON and exit
+  --dictionary           print the story's dictionary as JSON and exit
 ";
 
 /// Exit status when the game quit or the input ended.
@@ -55,6 +61,12 @@ pub struct Config {
     pub style: StyleMode,
     /// The letter the game is told is the interpreter's version (§11.1.3).
     pub interpreter_version: u8,
+    /// Where to write a line of introspection at each stop; `-` is standard error.
+    pub inspect: Option<PathBuf>,
+    /// Print the object tree and exit.
+    pub tree: bool,
+    /// Print the dictionary and exit.
+    pub dictionary: bool,
 }
 
 /// How styled text is written to the terminal.
@@ -85,6 +97,9 @@ pub fn parse_args(args: &[String]) -> Result<Invocation, String> {
         upper: false,
         style: StyleMode::Auto,
         interpreter_version: b'Z',
+        inspect: None,
+        tree: false,
+        dictionary: false,
     };
     let mut story = None;
     let mut args = args.iter();
@@ -122,6 +137,9 @@ pub fn parse_args(args: &[String]) -> Result<Invocation, String> {
                     })?);
             }
             "--upper" => config.upper = true,
+            "--tree" => config.tree = true,
+            "--dictionary" => config.dictionary = true,
+            "--inspect" => config.inspect = Some(PathBuf::from(value("--inspect")?)),
             "--style" => {
                 let text = value("--style")?;
                 config.style = match text.as_str() {
@@ -422,6 +440,45 @@ pub fn play(
         }
     };
 
+    // The introspection interface (docs/introspection.md). It reads the machine
+    // through a shared reference and changes nothing about the game.
+    let introspector = Introspector::new(&machine.view());
+    if config.tree || config.dictionary {
+        let json = json::tables(
+            &introspector,
+            &machine.view(),
+            config.tree,
+            config.dictionary,
+        );
+        writeln!(out, "{json}")?;
+        return Ok(EXIT_OK);
+    }
+    // Where `--inspect` writes: a file of its own, emptied now, or standard error.
+    let mut inspect_file = match config.inspect.as_deref() {
+        Some(path) if path.as_os_str() != "-" => match File::create(path) {
+            Ok(file) => Some(file),
+            Err(e) => {
+                writeln!(err, "zm: cannot write {}: {e}", path.display())?;
+                return Ok(EXIT_USAGE);
+            }
+        },
+        _ => None,
+    };
+    // Stops for input, counted from 1.
+    let mut stop = 0usize;
+    let mut inspect =
+        |machine: &Machine, wants: &str, err: &mut dyn Write| -> std::io::Result<()> {
+            stop += 1;
+            if config.inspect.is_none() {
+                return Ok(());
+            }
+            let line = json::stop_line(&introspector, &machine.view(), stop, wants);
+            match inspect_file.as_mut() {
+                Some(file) => writeln!(file, "{line}"),
+                None => writeln!(err, "{line}"),
+            }
+        };
+
     let stem = config
         .story
         .file_stem()
@@ -523,6 +580,7 @@ pub fn play(
             Event::LineWanted { .. } => {
                 out.write_all(term::render(&wrapper.flush()).as_bytes())?;
                 out.flush()?;
+                inspect(&machine, "line", err)?;
                 // Keys left over from a line read for single keys are dropped.
                 keys.clear();
                 let Some(line) = read_input_line(input, err)? else {
@@ -555,6 +613,7 @@ pub fn play(
             Event::KeyWanted => {
                 out.write_all(term::render(&wrapper.flush()).as_bytes())?;
                 out.flush()?;
+                inspect(&machine, "key", err)?;
                 // The reference's rule: the next unused character of the current
                 // line, and an empty line is the return key.
                 if keys.is_empty() {

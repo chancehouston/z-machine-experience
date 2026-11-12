@@ -294,3 +294,56 @@ impl Json for Scope {
         );
     }
 }
+
+/// One line for a stop of the game, as a host that watches a game writes it:
+/// the specification's version, the stop's number, what the game wants (`line`
+/// or `key`), the family, and the answers to `location`, `exits`, `inventory`
+/// and `scope` (specification section 2.4).
+pub fn stop_line(
+    introspector: &crate::Introspector,
+    view: &zmachine_core::View<'_>,
+    stop: usize,
+    wants: &str,
+) -> String {
+    let mut out = String::new();
+    object(
+        &mut out,
+        &[
+            ("spec", &introspector.spec_version()),
+            ("stop", &stop),
+            ("wants", &wants),
+            ("family", &introspector.family()),
+            ("location", &introspector.location(view)),
+            ("exits", &introspector.exits(view)),
+            ("inventory", &introspector.inventory(view)),
+            ("scope", &introspector.scope(view)),
+        ],
+    );
+    out
+}
+
+/// The object tree, the dictionary, or both, as one object with the
+/// specification's version and the family (specification section 2.4).
+pub fn tables(
+    introspector: &crate::Introspector,
+    view: &zmachine_core::View<'_>,
+    tree: bool,
+    dictionary: bool,
+) -> String {
+    let (objects, words) = (
+        introspector.object_tree(view),
+        introspector.dictionary(view),
+    );
+    let version = introspector.spec_version();
+    let family = introspector.family();
+    let mut fields: Vec<(&str, &dyn Json)> = vec![("spec", &version), ("family", &family)];
+    if tree {
+        fields.push(("object_tree", &objects));
+    }
+    if dictionary {
+        fields.push(("dictionary", &words));
+    }
+    let mut out = String::new();
+    object(&mut out, &fields);
+    out
+}
