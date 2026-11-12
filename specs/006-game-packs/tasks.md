@@ -434,8 +434,11 @@ started.
   doors. Typed `open window`: both are open ways. West, west: in the next room Down is
   still "may be blocked". VoiceOver was not listened to; the UI test reads the
   accessibility label ("West, closed door") and value (`door`).
-- **Launch time** (T058's stop point) is in the notes below once the whole UI suite has
-  run.
+- **The whole UI suite** passes on the iOS 27 simulator: 23 tests, one skipped as
+  before, none failed. On iOS 26 only the door test was run. `testLaunchTime` passes
+  with the pack passed and the story hashed, so launch is within its two seconds on the
+  owner's Mac (T058's stop point is not met); the test asserts the limit and does not
+  print the figure, and a before-and-after of ten runs was not taken.
 
 ### Not done, and limits
 
