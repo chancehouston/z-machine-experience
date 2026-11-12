@@ -282,3 +282,251 @@ fn strings_and_scratch_data_are_placed_where_reported() {
     let at = s as usize * 2;
     assert_eq!(&image[at..at + 4], &[0x35, 0x51, 0xC6, 0x85]);
 }
+
+// ---------------------------------------------------------------------------
+// Versions 5 and 8 (feature 002, T008)
+// ---------------------------------------------------------------------------
+
+use crate::{zencode_dict9, Object5, Story5};
+
+fn advent(version: u8) -> Vec<u8> {
+    let path = format!("{}/../../stories/advent/advent.z{version}", env!("CARGO_MANIFEST_DIR"));
+    std::fs::read(path).expect("stories/advent is committed")
+}
+
+/// The six-byte encoded form of every word in a version 5 or 8 dictionary (§13.2,
+/// §13.4).
+fn dictionary_keys9(story: &[u8], dictionary: usize) -> Vec<[u8; 6]> {
+    let separators = story[dictionary] as usize;
+    let entry_len = story[dictionary + 1 + separators] as usize;
+    let count = (word(story, dictionary + 2 + separators) as i16).unsigned_abs() as usize;
+    let first = dictionary + 4 + separators;
+    (0..count)
+        .map(|i| story[first + i * entry_len..][..6].try_into().unwrap())
+        .collect()
+}
+
+/// A simple checksum of an image, to notice any change at all.
+fn fingerprint(bytes: &[u8]) -> u64 {
+    bytes.iter().fold(0xcbf29ce484222325u64, |h, &b| (h ^ b as u64).wrapping_mul(0x100000001b3))
+}
+
+// Guarantee 6 of the core contract depends on this: adding versions 5 and 8 must
+// not change a single byte of the version 3 images the first feature's tests and
+// fixtures were made from.
+#[test]
+fn version_3_images_are_byte_for_byte_what_they_were() {
+    assert_eq!(fingerprint(&crate::programs::random_probe()), V3_RANDOM_PROBE);
+    let probes: Vec<u64> =
+        crate::programs::transcript_probes().iter().take(15).map(|p| fingerprint(&p.image)).collect();
+    assert_eq!(probes, V3_TRANSCRIPT_PROBES);
+}
+
+// §13.4: version 5 dictionary words are 9 Z-characters in 6 bytes, padded with 5s,
+// with the end bit on the third word only.
+#[test]
+fn zencode_dict9_pads_and_truncates_to_nine_zchars() {
+    // "hello": 13,10,17 / 17,20,5 / 5,5,5 with the end bit.
+    assert_eq!(zencode_dict9("hello"), [0x35, 0x51, 0x46, 0x85, 0x94, 0xA5]);
+    assert_eq!(zencode_dict9("a"), [0x18, 0xA5, 0x14, 0xA5, 0x94, 0xA5]);
+    assert_eq!(zencode_dict9("lanternfish"), zencode_dict9("lanternfi"));
+    assert_ne!(zencode_dict9("lanternf"), zencode_dict9("lanternfi"));
+}
+
+// The same encoder must produce what the Inform compiler produced: these words are
+// in Advent's vocabulary, in both builds, and a made-up one is not.
+#[test]
+fn zencode_dict9_agrees_with_advents_dictionary() {
+    for version in [5u8, 8] {
+        let story = advent(version);
+        let keys = dictionary_keys9(&story, word(&story, 0x08));
+        for w in ["lantern", "xyzzy", "plugh", "inventory", "building", "north", "take", "i"] {
+            assert!(keys.contains(&zencode_dict9(w)), "{w} should be in Advent z{version}");
+        }
+        assert!(!keys.contains(&zencode_dict9("qqqqqqqqq")));
+        assert!(keys.windows(2).all(|w| w[0] < w[1]), "Inform sorts its dictionary");
+    }
+}
+
+// §12.3.2: Advent's own object table has 14-byte entries whose links are object
+// numbers and whose property addresses lie in dynamic memory. This checks the
+// layout the builder writes against a real compiler's.
+#[test]
+fn advents_object_table_has_the_layout_the_builder_writes() {
+    let story = advent(5);
+    let table = word(&story, 0x0A);
+    let static_base = word(&story, 0x0E);
+    let first = table + 63 * 2;
+    // §12.3.2: the first object's property table follows the last object entry.
+    let count = (word(&story, first + 12) - first) / 14;
+    assert!(count > 200, "Advent has a few hundred objects, found {count}");
+    for n in 0..count {
+        let e = first + n * 14;
+        for link in [6, 8, 10] {
+            assert!(word(&story, e + link) <= count, "object {} link at +{link}", n + 1);
+        }
+        let props = word(&story, e + 12);
+        assert!(props > e && props < static_base, "object {} property table", n + 1);
+    }
+}
+
+// §11.1, §1.2.3: header fields of a built version 5 image; packed addresses are
+// byte addresses divided by 4.
+#[test]
+fn built_version_5_image_has_a_coherent_header() {
+    let mut story = Story5::new(5);
+    story.release(7).serial("261111");
+    story.word("north");
+    assert_eq!(story.object(Object5::new("lamp")), 1);
+    let routine = story.routine(2, &op::op0(op::RTRUE));
+    let main_at = story.next_code_address();
+    story.main(&op::op0(op::QUIT));
+    let image = story.build();
+
+    assert_eq!(image[0], 5);
+    assert_eq!(word(&image, 0x02), 7);
+    assert_eq!(&image[0x12..0x18], b"261111");
+    assert_eq!(word(&image, 0x06), main_at as usize);
+    assert_eq!(word(&image, 0x0C), GLOBALS as usize);
+    assert_eq!(image.len() % 4, 0);
+    // §11.1.6: the length is stored divided by 4.
+    assert_eq!(word(&image, 0x1A) * 4, image.len());
+    let sum = image[0x40..].iter().fold(0u32, |a, &b| a + b as u32) & 0xFFFF;
+    assert_eq!(word(&image, 0x1C), sum as usize);
+
+    // §5.2.1: a version 5 routine is its local count and then code.
+    let at = routine as usize * 4;
+    assert_eq!(&image[at..at + 2], &[2, 0xB0]);
+    assert_eq!(dictionary_keys9(&image, word(&image, 0x08)), vec![zencode_dict9("north")]);
+}
+
+// §1.2.3, §11.1.6: version 8 divides packed addresses and the length by 8.
+#[test]
+fn built_version_8_image_uses_multiples_of_8() {
+    let mut story = Story5::new(8);
+    let s = story.string("hello");
+    let routine = story.routine(0, &op::op0(op::RTRUE));
+    story.main(&op::op0(op::QUIT));
+    let image = story.build();
+    assert_eq!(image[0], 8);
+    assert_eq!(image.len() % 8, 0);
+    assert_eq!(word(&image, 0x1A) * 8, image.len());
+    assert_eq!(&image[s as usize * 8..][..4], &[0x35, 0x51, 0xC6, 0x85]);
+    assert_eq!(&image[routine as usize * 8..][..2], &[0, 0xB0]);
+}
+
+// §12.3.2, §12.4.2: 14-byte entries after 63 default words; 48 attribute bits;
+// word links; property size in one byte for lengths 1 and 2, two for longer.
+#[test]
+fn built_version_5_objects_follow_the_layout() {
+    let mut story = Story5::new(5);
+    story.prop_default(63, 0xBEEF);
+    let mut a = Object5::new("ab");
+    a.attributes = 1 << 47 | 1; // attributes 0 and 47
+    a.child = 0x0102;
+    a.props = vec![
+        (40, vec![0x12, 0x34]),
+        (33, vec![9, 8, 7]),
+        (5, vec![0x7F]),
+        (2, vec![0xAA; 64]),
+    ];
+    story.object(a);
+    story.main(&op::op0(op::QUIT));
+    let image = story.build();
+
+    let table = word(&image, 0x0A);
+    assert_eq!(word(&image, table + 2 * 62), 0xBEEF);
+    let e = table + 126;
+    assert_eq!(&image[e..e + 6], &[0x80, 0, 0, 0, 0, 0x01]);
+    assert_eq!(&image[e + 6..e + 12], &[0, 0, 0, 0, 1, 2], "parent, sibling, child as words");
+    let p = word(&image, e + 12);
+    assert_eq!(image[p], 1, "name is one word long");
+    // Descending order. Length 2: bit 6 set. Length 3: two bytes, second has the length.
+    assert_eq!(&image[p + 3..p + 6], &[0x40 | 40, 0x12, 0x34]);
+    assert_eq!(&image[p + 6..p + 11], &[0x80 | 33, 0x80 | 3, 9, 8, 7]);
+    assert_eq!(&image[p + 11..p + 13], &[5, 0x7F]);
+    // §12.4.2.1.1: a length of 64 is stored as 0.
+    assert_eq!(&image[p + 13..p + 15], &[0x80 | 2, 0x80]);
+    assert_eq!(image[p + 15 + 64], 0, "the terminator follows 64 bytes of data");
+}
+
+// §4.3.4: extended form is 0xBE, the opcode number, a types byte, the operands.
+#[test]
+fn extended_form_bytes() {
+    assert_eq!(op::ext(op::SAVE_UNDO, &[]), vec![0xBE, 9, 0xFF]);
+    assert_eq!(
+        op::ext(op::LOG_SHIFT, &[Arg::L(0x1234), Arg::S(3)]),
+        vec![0xBE, 2, 0b00_01_11_11, 0x12, 0x34, 3]
+    );
+}
+
+// §4.4.3.1: call_vs2 and call_vn2 have two bytes of operand types.
+#[test]
+fn double_variable_form_bytes() {
+    let args: Vec<Arg> = (1..=8).map(Arg::S).collect();
+    assert_eq!(
+        op::var2(op::CALL_VS2, &args),
+        vec![0xEC, 0x55, 0x55, 1, 2, 3, 4, 5, 6, 7, 8]
+    );
+    assert_eq!(
+        op::var2(op::CALL_VN2, &[Arg::L(0x0400), Arg::V(1), Arg::S(2), Arg::S(3), Arg::S(4)]),
+        vec![0xFA, 0b00_10_01_01, 0b01_11_11_11, 4, 0, 1, 2, 3, 4]
+    );
+}
+
+// §15 read: the version 5 text buffer has its capacity in byte 0 and the number of
+// characters already present in byte 1.
+#[test]
+fn version_5_buffers() {
+    let mut story = Story5::new(5);
+    let text = story.text_buffer(20, "abc");
+    let parse = story.parse_buffer(4);
+    story.main(&op::op0(op::QUIT));
+    let image = story.build();
+    assert_eq!(&image[text as usize..][..5], &[20, 3, b'a', b'b', b'c']);
+    assert_eq!(image[parse as usize], 4);
+}
+
+// §13.2: an unsorted dictionary has a negative entry count.
+#[test]
+fn dictionary_bytes_sorted_and_unsorted() {
+    let sorted = Story5::dictionary_bytes(".", &["zebra", "apple"], true);
+    assert_eq!(&sorted[..5], &[1, b'.', 9, 0, 2]);
+    assert_eq!(&sorted[5..11], &zencode_dict9("apple"));
+    let unsorted = Story5::dictionary_bytes(".", &["zebra", "apple"], false);
+    assert_eq!(&unsorted[3..5], &(-2i16).to_be_bytes());
+    assert_eq!(&unsorted[5..11], &zencode_dict9("zebra"));
+}
+
+// A version 8 image can exceed version 5's limit, with code beyond 256K.
+#[test]
+fn a_version_8_image_can_be_larger_than_256k() {
+    let mut story = Story5::new(8);
+    story.main(&op::op0(op::QUIT));
+    story.filler(300 * 1024);
+    let far = story.routine(0, &op::op0(op::RTRUE));
+    let image = story.build();
+    assert!(image.len() > 256 * 1024);
+    assert!(far as usize * 8 > 256 * 1024);
+    assert_eq!(&image[far as usize * 8..][..2], &[0, 0xB0]);
+}
+
+// Recorded before any version 5 code was added to the testkit.
+const V3_RANDOM_PROBE: u64 = 5417669845303728571;
+const V3_TRANSCRIPT_PROBES: [u64; 15] = [
+    454429368906337069,
+    420175888543861311,
+    14197230477765710539,
+    1667820991696585850,
+    2577020743345998557,
+    982986369477493244,
+    688989483018303118,
+    13572019307251096689,
+    7685274411442232617,
+    2311778466523503765,
+    7388862359471212685,
+    11988781680383080542,
+    14388547041347996110,
+    643607776771933347,
+    6712874335486275676,
+];

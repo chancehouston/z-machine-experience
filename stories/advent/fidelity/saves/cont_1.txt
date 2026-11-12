@@ -1,0 +1,24 @@
+script
+cont_1
+restore
+save_1.qzl
+go to inside
+off
+drop all but lamp
+take food and bottle
+fill bottle
+on
+go to mountain king
+take keys
+sw
+w
+attack dragon
+yes
+take rug
+n
+d
+s
+d
+water plant
+go to inside
+fill bottle

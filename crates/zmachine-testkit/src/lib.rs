@@ -19,10 +19,12 @@
 pub mod op;
 pub mod programs;
 mod story;
+mod story5;
 mod zenc;
 
 pub use story::{GLOBALS, Object, SCRATCH, SCRATCH_LEN, Story};
-pub use zenc::{zencode, zencode_dict};
+pub use story5::{Object5, Story5};
+pub use zenc::{zencode, zencode_dict, zencode_dict9};
 
 #[cfg(test)]
 mod tests;

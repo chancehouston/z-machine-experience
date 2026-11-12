@@ -1,0 +1,24 @@
+script
+cont_3
+restore
+save_3.qzl
+take magazines
+e
+drop magazines
+go to complex junction
+n
+open clam with trident
+d
+d
+take pearl
+go to inside
+off
+drop pillow
+drop all but lamp
+on
+go to giant room
+take nest
+go to inside
+off
+drop nest
+score

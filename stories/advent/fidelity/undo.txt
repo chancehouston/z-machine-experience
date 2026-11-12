@@ -1,0 +1,66 @@
+script
+undo
+in
+take keys
+drop keys
+take food
+wait
+drop food
+take bottle
+drop bottle
+take lamp
+drop lamp
+wait
+take keys
+drop keys
+take food
+wait
+drop food
+take bottle
+drop bottle
+take lamp
+drop lamp
+wait
+take keys
+drop keys
+take food
+wait
+drop food
+take bottle
+drop bottle
+take lamp
+drop lamp
+wait
+undo
+undo
+undo
+undo
+undo
+undo
+undo
+undo
+undo
+undo
+undo
+undo
+undo
+undo
+undo
+undo
+undo
+undo
+undo
+undo
+undo
+undo
+undo
+undo
+undo
+undo
+undo
+undo
+undo
+undo
+score
+quit
+y

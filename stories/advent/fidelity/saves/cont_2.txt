@@ -1,0 +1,24 @@
+script
+cont_2
+restore
+save_2.qzl
+ne
+ne
+e
+ne
+e
+take spices
+w
+s
+se
+s
+e
+give food to bear
+unlock chain with keys
+take chain
+go to inside
+off
+drop rug, spices, chain and keys
+fee
+fie
+foe
