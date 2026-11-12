@@ -33,9 +33,8 @@ snapshot changes.
 The app's resources hold `story.pack` beside `story.z3`. Like the story, it is copied
 there by `scripts/build-ios.sh` and is not committed; the script copies it only if it
 names the story it is copied beside. At a new session the app reads it, if it is there,
-and passes its text unread. A closed door is drawn as a solid upright panel with the
-direction's arrow and a knob, where the other states are discs, a dot or a dashed ring,
-and is read
+and passes its text unread. A closed door is drawn as an outlined upright panel with the
+direction's arrow, where the other states are discs, a dot or a dashed ring, and is read
 aloud as "(direction), closed door".
 
 ## `zm`
