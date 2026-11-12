@@ -117,7 +117,13 @@ pub const NOTE_NONE: &str = "No exits here";
 impl Compass {
     /// A compass that offers nothing.
     pub(crate) fn idle() -> Compass {
-        Compass { offered: false, known: false, note: None, places: Vec::new(), extras: Vec::new() }
+        Compass {
+            offered: false,
+            known: false,
+            note: None,
+            places: Vec::new(),
+            extras: Vec::new(),
+        }
     }
 
     pub fn place(&self, place: Place) -> Option<&CompassPlace> {

@@ -39,7 +39,11 @@ pub fn quit() -> Vec<u8> {
 /// `instruction` with branch data that skips `skipped` when the condition equals
 /// `on_true`, then `skipped`.
 pub fn skip_if(instruction: Vec<u8>, on_true: bool, skipped: &[u8]) -> Vec<u8> {
-    cat(&[instruction, op::branch(on_true, skipped.len() as i16 + 2), skipped.to_vec()])
+    cat(&[
+        instruction,
+        op::branch(on_true, skipped.len() as i16 + 2),
+        skipped.to_vec(),
+    ])
 }
 
 /// A jump back over `code` to its own start, placed after it.
@@ -67,7 +71,15 @@ pub fn story3(build: impl FnOnce(&dyn Fn() -> Vec<u8>) -> Vec<u8>) -> Vec<u8> {
 /// Asks for a command, then asks a question from a second read, for ever:
 /// "> " read A; "Sure? >" read B; "Done." and round again.
 pub fn asker() -> Vec<u8> {
-    story3(|read| forever(cat(&[print("Ready.\n\n>"), read(), print("Sure? >"), read(), print("Done.\n")])))
+    story3(|read| {
+        forever(cat(&[
+            print("Ready.\n\n>"),
+            read(),
+            print("Sure? >"),
+            read(),
+            print("Done.\n"),
+        ]))
+    })
 }
 
 /// Reads a command, then quits.
@@ -77,7 +89,16 @@ pub fn quitter() -> Vec<u8> {
 
 /// Reads a command, then divides by zero.
 pub fn faulter() -> Vec<u8> {
-    story3(|read| cat(&[print(">"), read(), print("About to fail. "), op::op2(op::DIV, S(1), S(0)), op::store(16), quit()]))
+    story3(|read| {
+        cat(&[
+            print(">"),
+            read(),
+            print("About to fail. "),
+            op::op2(op::DIV, S(1), S(0)),
+            op::store(16),
+            quit(),
+        ])
+    })
 }
 
 /// Reads a command, then loops without ever stopping.
@@ -107,7 +128,12 @@ pub fn roller() -> Vec<u8> {
     story3(|read| {
         let mut code = cat(&[print(">"), read()]);
         for _ in 0..12 {
-            code.extend(cat(&[op::var(op::RANDOM, &[L(1000)]), op::store(16), print_num(V(16)), print(" ")]));
+            code.extend(cat(&[
+                op::var(op::RANDOM, &[L(1000)]),
+                op::store(16),
+                print_num(V(16)),
+                print(" "),
+            ]));
         }
         forever(code)
     })
@@ -135,5 +161,7 @@ pub fn session(story: Vec<u8>) -> Session {
 
 /// Sends a typed line against the current stamp.
 pub fn say(session: &mut Session, line: &str) {
-    session.send_line(session.stamp(), line).unwrap_or_else(|e| panic!("{line:?} was refused: {e:?}"));
+    session
+        .send_line(session.stamp(), line)
+        .unwrap_or_else(|e| panic!("{line:?} was refused: {e:?}"));
 }

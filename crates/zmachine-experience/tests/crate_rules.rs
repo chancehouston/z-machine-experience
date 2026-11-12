@@ -25,10 +25,17 @@ fn sources() -> Vec<(String, String)> {
 #[test]
 fn the_crate_depends_only_on_the_layers_beneath() {
     let manifest = std::fs::read_to_string(Path::new(CRATE).join("Cargo.toml")).unwrap();
-    let section = manifest.split("\n[dependencies]").nth(1).expect("a dependencies section");
+    let section = manifest
+        .split("\n[dependencies]")
+        .nth(1)
+        .expect("a dependencies section");
     let section = section.split("\n[").next().unwrap();
-    let names: Vec<&str> =
-        section.lines().filter_map(|l| l.split('=').next()).map(str::trim).filter(|n| !n.is_empty()).collect();
+    let names: Vec<&str> = section
+        .lines()
+        .filter_map(|l| l.split('=').next())
+        .map(str::trim)
+        .filter(|n| !n.is_empty())
+        .collect();
     assert_eq!(names, ["zmachine-core", "zmachine-introspect"]);
 }
 
@@ -38,8 +45,25 @@ fn the_crate_has_no_unsafe_io_clock_or_random_source() {
     for (name, text) in sources() {
         for (number, line) in text.lines().enumerate() {
             let code = line.split("//").next().unwrap_or("");
-            for banned in ["unsafe ", "std::fs", "std::io", "std::net", "std::env", "std::time", "std::process", "rand::", "RandomState", "println!", "eprintln!", "print!("] {
-                assert!(!code.contains(banned), "src/{name}:{}: {banned} in {line:?}", number + 1);
+            for banned in [
+                "unsafe ",
+                "std::fs",
+                "std::io",
+                "std::net",
+                "std::env",
+                "std::time",
+                "std::process",
+                "rand::",
+                "RandomState",
+                "println!",
+                "eprintln!",
+                "print!(",
+            ] {
+                assert!(
+                    !code.contains(banned),
+                    "src/{name}:{}: {banned} in {line:?}",
+                    number + 1
+                );
             }
         }
     }
@@ -55,10 +79,20 @@ fn the_crate_knows_no_game() {
         for (number, line) in text.lines().enumerate() {
             let lower = line.to_ascii_lowercase();
             for game in ["zork", "advent", "czech", "praxix", "colossal"] {
-                assert!(!lower.contains(game), "src/{name}:{}: names a game: {line:?}", number + 1);
+                assert!(
+                    !lower.contains(game),
+                    "src/{name}:{}: names a game: {line:?}",
+                    number + 1
+                );
             }
-            let digits = line.split(|c: char| !c.is_ascii_digit()).any(|run| run.len() == 6);
-            assert!(!digits, "src/{name}:{}: a six-digit literal: {line:?}", number + 1);
+            let digits = line
+                .split(|c: char| !c.is_ascii_digit())
+                .any(|run| run.len() == 6);
+            assert!(
+                !digits,
+                "src/{name}:{}: a six-digit literal: {line:?}",
+                number + 1
+            );
         }
     }
 }

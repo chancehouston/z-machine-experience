@@ -13,7 +13,14 @@ const ZORK1: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../stories/zork1/zo
 
 fn zork() -> Machine {
     let story = std::fs::read(ZORK1).unwrap();
-    Machine::load(story, LoadOptions { seed: Some(11), entropy: 0 }).unwrap()
+    Machine::load(
+        story,
+        LoadOptions {
+            seed: Some(11),
+            entropy: 0,
+        },
+    )
+    .unwrap()
 }
 
 fn to_prompt(m: &mut Machine) -> Event {
@@ -50,12 +57,19 @@ fn a_line_request_reports_the_read_that_made_it() {
     let first = sread(text, parse);
     let second = sread(text, parse);
     let back = -((first.len() + second.len() + 3) as i16) + 2;
-    story.main(&cat(&[first.clone(), second, op::op1(op::JUMP, L(back as u16))]));
+    story.main(&cat(&[
+        first.clone(),
+        second,
+        op::op1(op::JUMP, L(back as u16)),
+    ]));
     let image = story.build();
     let start = u16::from_be_bytes([image[6], image[7]]) as u32;
     let mut m = Machine::load(image.clone(), OPTIONS).unwrap();
 
-    assert!(matches!(run_until_event(&mut m, BIG), Event::LineWanted { .. }));
+    assert!(matches!(
+        run_until_event(&mut m, BIG),
+        Event::LineWanted { .. }
+    ));
     let a = m.waiting_at().expect("a line is wanted");
     assert_eq!(a, start, "the first read is the first instruction");
     // VAR form of opcode 4 (sread): 0xE4.
@@ -63,13 +77,19 @@ fn a_line_request_reports_the_read_that_made_it() {
     m.provide_line("look").unwrap();
     assert_eq!(m.waiting_at(), None, "answered: no longer waiting");
 
-    assert!(matches!(run_until_event(&mut m, BIG), Event::LineWanted { .. }));
+    assert!(matches!(
+        run_until_event(&mut m, BIG),
+        Event::LineWanted { .. }
+    ));
     let b = m.waiting_at().unwrap();
     assert_eq!(b, start + first.len() as u32);
     assert_ne!(a, b);
     m.provide_line("look").unwrap();
 
-    assert!(matches!(run_until_event(&mut m, BIG), Event::LineWanted { .. }));
+    assert!(matches!(
+        run_until_event(&mut m, BIG),
+        Event::LineWanted { .. }
+    ));
     assert_eq!(m.waiting_at(), Some(a), "the first read, reached again");
 }
 
@@ -79,7 +99,11 @@ fn a_line_request_reports_the_read_that_made_it() {
 fn a_key_request_reports_its_instruction_and_other_stops_report_nothing() {
     let mut story = Story5::new(5);
     let key = read_char(g(0));
-    story.main(&cat(&[key.clone(), to(op::ext(op::EXT_SAVE, &[]), g(1)), quit()]));
+    story.main(&cat(&[
+        key.clone(),
+        to(op::ext(op::EXT_SAVE, &[]), g(1)),
+        quit(),
+    ]));
     let image = story.build();
     let start = u16::from_be_bytes([image[6], image[7]]) as u32;
     let mut m = Machine::load(image.clone(), OPTIONS).unwrap();
@@ -88,7 +112,10 @@ fn a_key_request_reports_its_instruction_and_other_stops_report_nothing() {
     // VAR form of opcode 22 (read_char): 0xF6.
     assert_eq!(image[start as usize], 0xF6);
     m.provide_key(Key::Return).unwrap();
-    assert!(matches!(run_until_event(&mut m, BIG), Event::SaveRequested(_)));
+    assert!(matches!(
+        run_until_event(&mut m, BIG),
+        Event::SaveRequested(_)
+    ));
     assert_eq!(m.waiting_at(), None, "a save is not a request for input");
     m.save_result(false).unwrap();
     assert_eq!(run_until_event(&mut m, BIG), Event::Finished);

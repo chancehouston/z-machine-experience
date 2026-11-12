@@ -13,6 +13,9 @@ mod transcript;
 pub use compass::{Compass, CompassPlace, Extra, NOTE_NONE, NOTE_UNKNOWN, Place, PlaceState};
 pub use transcript::{Source, Turn};
 
+use zmachine_core::{Event, HostError, Key, LoadOptions, Machine, StatusKind, StatusLine};
+use zmachine_introspect::Introspector;
+
 /// Where a game's randomness comes from.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Seed {
@@ -82,43 +85,257 @@ pub struct Status {
     pub minutes: Option<u16>,
 }
 
+/// How many instructions a game may run without stopping before the layer gives
+/// it up as not responding.
+pub const INSTRUCTION_CEILING: u64 = 50_000_000;
+
+/// How many instructions to run between checks on the ceiling.
+const SLICE: u64 = 1_000_000;
+
+/// The largest fixed seed the core accepts.
+const MAX_SEED: u32 = 2_147_483_647;
+
 /// One game being played.
 #[derive(Clone, Debug)]
 pub struct Session {
+    /// The story file, kept for starting a new game.
+    story: Vec<u8>,
+    machine: Machine,
+    introspector: Introspector,
     turns: Vec<Turn>,
     generation: u64,
     waiting: Waiting,
+    /// The game wants a single key, not a line.
+    wants_key: bool,
+    /// Where the game first asked for a line: its command prompt (research R6).
+    command_address: Option<u32>,
     message: Option<String>,
     status: Option<Status>,
     compass: Compass,
+    ceiling: u64,
+}
+
+fn load(story: &[u8], seed: Seed) -> Result<Machine, StartError> {
+    let options = match seed {
+        Seed::Fixed(seed) if seed > MAX_SEED => {
+            return Err(StartError {
+                message: format!("a fixed seed must be 0 to {MAX_SEED}, not {seed}"),
+            });
+        }
+        Seed::Fixed(seed) => LoadOptions {
+            seed: Some(seed),
+            entropy: 0,
+        },
+        Seed::Fresh(entropy) => LoadOptions {
+            seed: None,
+            entropy,
+        },
+    };
+    Machine::load(story.to_vec(), options).map_err(|e| StartError {
+        message: format!("The story file is {e}."),
+    })
 }
 
 impl Session {
     /// Loads the story file and runs it to its first stop.
-    pub fn new(_story: Vec<u8>, _seed: Seed) -> Result<Session, StartError> {
-        Err(StartError { message: "not yet built".to_string() })
+    pub fn new(story: Vec<u8>, seed: Seed) -> Result<Session, StartError> {
+        let machine = load(&story, seed)?;
+        let introspector = Introspector::new(&machine.view());
+        let mut session = Session {
+            story,
+            machine,
+            introspector,
+            turns: Vec::new(),
+            generation: 1,
+            waiting: Waiting::Command,
+            wants_key: false,
+            command_address: None,
+            message: None,
+            status: None,
+            compass: Compass::idle(),
+            ceiling: INSTRUCTION_CEILING,
+        };
+        session.open();
+        Ok(session)
+    }
+
+    /// Lowers or raises the instruction ceiling. A host has no need to; tests do.
+    pub fn set_instruction_ceiling(&mut self, instructions: u64) {
+        self.ceiling = instructions;
+    }
+
+    /// Runs a freshly loaded game to its first stop and records the opening.
+    fn open(&mut self) {
+        let text = self.advance();
+        self.turns = vec![Turn {
+            number: 0,
+            command: None,
+            source: None,
+            text,
+        }];
+    }
+
+    /// Runs the game until it wants input, ends or fails, and returns what it
+    /// printed. Requests to save, restore or keep a transcript are declined here
+    /// and are not stops (research R7).
+    fn advance(&mut self) -> String {
+        let mut text = String::new();
+        let mut run = 0u64;
+        self.wants_key = false;
+        loop {
+            let event = match self.machine.run(SLICE) {
+                Ok(event) => event,
+                // The layer answers every event in turn, so this cannot happen;
+                // if it does, the game cannot go on.
+                Err(_) => {
+                    self.fail("The game cannot continue.".to_string());
+                    break;
+                }
+            };
+            text.push_str(&self.machine.take_output());
+            self.machine.take_transcript();
+            self.machine.take_diagnostics();
+            if let Some(line) = self.machine.take_status() {
+                self.status = Some(status_of(line));
+            }
+            // An answer the layer gives is one the core's interface offers every
+            // host; none can be refused here, since each matches its event.
+            let _ = match event {
+                Event::BudgetExhausted => {
+                    run += SLICE;
+                    if run >= self.ceiling {
+                        self.fail("The game is not responding.".to_string());
+                        break;
+                    }
+                    continue;
+                }
+                Event::SaveRequested(_) => self.machine.save_result(false),
+                Event::RestoreRequested => self.machine.provide_restore(None),
+                Event::TranscriptRequested => self.machine.transcript_result(false),
+                Event::LineWanted { .. } => {
+                    let here = self.machine.waiting_at();
+                    let command = *self.command_address.get_or_insert(here.unwrap_or(0));
+                    self.waiting = if here == Some(command) {
+                        Waiting::Command
+                    } else {
+                        Waiting::Answer
+                    };
+                    break;
+                }
+                Event::KeyWanted => {
+                    self.wants_key = true;
+                    self.waiting = Waiting::Answer;
+                    break;
+                }
+                Event::Finished => {
+                    self.waiting = Waiting::Ended;
+                    break;
+                }
+                Event::Fault(fault) => {
+                    self.fail(format!("The story file stopped: {fault}."));
+                    break;
+                }
+            };
+            run = 0;
+        }
+        self.compass = Compass::idle();
+        text
+    }
+
+    fn fail(&mut self, message: String) {
+        self.waiting = Waiting::Fault;
+        self.message = Some(message);
+    }
+
+    /// The one way a line reaches the game (constitution Principle III).
+    fn give(&mut self, line: &str, source: Source) {
+        let given = if self.wants_key {
+            // The game wants one key: the first character, or return.
+            let key = line.chars().next().map_or(Key::Return, Key::Char);
+            match self.machine.provide_key(key) {
+                Err(HostError::UnrepresentableKey) => self.machine.provide_key(Key::Char('?')),
+                other => other,
+            }
+        } else {
+            self.machine.provide_line(line)
+        };
+        if given.is_err() {
+            self.fail("The game cannot continue.".to_string());
+            return;
+        }
+        let text = self.advance();
+        self.turns.push(Turn {
+            number: self.turns.len(),
+            command: Some(line.to_string()),
+            source: Some(source),
+            text,
+        });
+    }
+
+    /// Checks that a command was made against the current turn of a game that is
+    /// waiting.
+    fn check(&self, at: Stamp) -> Result<(), Refused> {
+        if at != self.stamp() {
+            return Err(Refused::Stale);
+        }
+        match self.waiting {
+            Waiting::Command | Waiting::Answer => Ok(()),
+            Waiting::Ended | Waiting::Fault => Err(Refused::NotWaiting),
+        }
     }
 
     /// Gives the game a line the player typed.
-    pub fn send_line(&mut self, _at: Stamp, _line: &str) -> Result<(), Refused> {
-        Err(Refused::NotWaiting)
+    pub fn send_line(&mut self, at: Stamp, line: &str) -> Result<(), Refused> {
+        self.check(at)?;
+        if line.contains(['\n', '\r']) {
+            return Err(Refused::BadLine);
+        }
+        self.give(line, Source::Typed);
+        Ok(())
     }
 
     /// The player tapped a place on the compass.
-    pub fn tap(&mut self, _at: Stamp, _place: Place) -> Result<(), Refused> {
-        Err(Refused::NotWaiting)
+    pub fn tap(&mut self, at: Stamp, _place: Place) -> Result<(), Refused> {
+        self.check(at)?;
+        Err(Refused::NotOffered)
     }
 
     /// The player tapped an extra, by its index.
-    pub fn tap_extra(&mut self, _at: Stamp, _index: usize) -> Result<(), Refused> {
-        Err(Refused::NotWaiting)
+    pub fn tap_extra(&mut self, at: Stamp, _index: usize) -> Result<(), Refused> {
+        self.check(at)?;
+        Err(Refused::NotOffered)
     }
 
     /// Abandons the game and starts a new one from the same story file.
-    pub fn new_game(&mut self, _seed: Seed) {}
+    pub fn new_game(&mut self, seed: Seed) {
+        self.generation += 1;
+        self.message = None;
+        self.status = None;
+        self.command_address = None;
+        match load(&self.story, seed) {
+            Ok(machine) => {
+                self.machine = machine;
+                self.open();
+            }
+            // The story file loaded before; only a bad seed can bring this.
+            Err(error) => {
+                self.turns = vec![Turn {
+                    number: 0,
+                    command: None,
+                    source: None,
+                    text: String::new(),
+                }];
+                self.compass = Compass::idle();
+                self.fail(error.message);
+            }
+        }
+    }
 
     pub fn stamp(&self) -> Stamp {
-        Stamp { generation: self.generation, turn_count: self.turns.len() }
+        Stamp {
+            generation: self.generation,
+            turn_count: self.turns.len(),
+        }
     }
 
     pub fn waiting(&self) -> Waiting {
@@ -145,5 +362,19 @@ impl Session {
     /// Everything the screen needs, with the turns from `since` onward, as JSON.
     pub fn snapshot_json(&self, since: usize) -> String {
         json::snapshot(self, since)
+    }
+}
+
+fn status_of(line: StatusLine) -> Status {
+    let (score, moves, hours, minutes) = match line.kind {
+        StatusKind::Score { score, turns } => (Some(score), Some(turns), None, None),
+        StatusKind::Time { hours, minutes } => (None, None, Some(hours), Some(minutes)),
+    };
+    Status {
+        place: line.location,
+        score,
+        moves,
+        hours,
+        minutes,
     }
 }

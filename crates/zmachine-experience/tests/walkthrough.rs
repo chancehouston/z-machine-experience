@@ -26,7 +26,9 @@ pub fn commands() -> Vec<String> {
 fn reference_from_first_command(first: &str) -> String {
     let reference = read_text(REFERENCE);
     let marker = format!("\n>{first}\n");
-    let at = reference.find(&marker).expect("the first command is in the reference");
+    let at = reference
+        .find(&marker)
+        .expect("the first command is in the reference");
     reference[at + 1..].to_string()
 }
 
@@ -35,7 +37,11 @@ fn reference_from_first_command(first: &str) -> String {
 fn shown(session: &Session) -> String {
     let mut text = String::from(">");
     for turn in &session.turns()[1..] {
-        text.push_str(turn.command.as_deref().expect("every turn after the opening has a command"));
+        text.push_str(
+            turn.command
+                .as_deref()
+                .expect("every turn after the opening has a command"),
+        );
         text.push('\n');
         text.push_str(&turn.text);
     }
@@ -47,7 +53,11 @@ fn assert_same(ours: &str, reference: &str) {
     if ours == reference {
         return;
     }
-    let at = ours.bytes().zip(reference.bytes()).position(|(a, b)| a != b).unwrap_or(ours.len().min(reference.len()));
+    let at = ours
+        .bytes()
+        .zip(reference.bytes())
+        .position(|(a, b)| a != b)
+        .unwrap_or(ours.len().min(reference.len()));
     let from = at.saturating_sub(120);
     let end = |s: &str| (at + 120).min(s.len());
     panic!(
@@ -66,11 +76,21 @@ fn the_walkthrough_typed_gives_the_reference_text() {
     let commands = commands();
     assert_eq!(commands.len(), 331);
     let mut session = game(SEED);
-    assert!(session.turns()[0].text.ends_with('>'), "the opening ends with the prompt");
+    assert!(
+        session.turns()[0].text.ends_with('>'),
+        "the opening ends with the prompt"
+    );
     for command in &commands {
         say(&mut session, command);
     }
-    assert_eq!(session.waiting(), Waiting::Ended, "the walkthrough ends by quitting");
+    assert_eq!(
+        session.waiting(),
+        Waiting::Ended,
+        "the walkthrough ends by quitting"
+    );
     assert_eq!(session.turns().len(), 332);
-    assert_same(&shown(&session), &reference_from_first_command(&commands[0]));
+    assert_same(
+        &shown(&session),
+        &reference_from_first_command(&commands[0]),
+    );
 }
