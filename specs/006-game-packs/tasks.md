@@ -429,7 +429,10 @@ started.
   Of four sketches (the outlined panel, an arrow stopped at a bar, a disc with a door
   badge, a solid door with a knob) the owner chose the solid door on 2026-11-12, saw
   it in the app, and said the first was better. The drawing is the first one the owner
-  saw: the outlined panel with the arrow, and no knob.
+  saw: the outlined panel with the arrow, and no knob. The owner settled it there on
+  2026-11-12, with a reason worth keeping: what the interface calls a door is any way
+  that can be shut (a window, a gate, a grating), so the drawing should not look too
+  much like a door. An open one stays an ordinary open way. It can change later.
 - **An earlier UI test changed in value, by design.** `testCompassAtTheOpening` said
   the way west behind the house "may be blocked"; with the pack it is a closed door.
   This is FR-030, not a form change.
