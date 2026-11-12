@@ -107,23 +107,81 @@ fn snake(camel: &str) -> String {
     out
 }
 
-/// The instructions the decoder knows, read from its `Opcode` enum.
-fn decoder_instructions() -> BTreeSet<String> {
+const MARKER: &str = "// -- versions 5 and 8 only --";
+
+/// The instruction names in the decoder's `Opcode` enum: those of version 3, and
+/// those that exist only from version 5, which follow a marker line.
+fn decoder_instructions() -> (BTreeSet<String>, BTreeSet<String>) {
     let text = source("src/decode.rs");
-    let start = text
-        .find("pub(crate) enum Opcode {")
-        .expect("the Opcode enum")
-        + "pub(crate) enum Opcode {".len();
+    let start =
+        text.find("pub(crate) enum Opcode {").expect("the Opcode enum") + "pub(crate) enum Opcode {".len();
     let end = start + text[start..].find("\n}").expect("the end of the enum");
-    text[start..end]
-        .lines()
-        .filter(|line| !line.trim_start().starts_with("//"))
-        .flat_map(|line| line.split(','))
-        .map(str::trim)
-        .filter(|name| !name.is_empty())
-        .map(snake)
-        .collect()
+    let (v3, later) = text[start..end].split_once(MARKER).expect("the version marker in the enum");
+    let names = |block: &str| -> BTreeSet<String> {
+        block
+            .lines()
+            .filter(|line| !line.trim_start().starts_with("//"))
+            .flat_map(|line| line.split(','))
+            .map(str::trim)
+            .filter(|name| !name.is_empty())
+            .map(snake)
+            .collect()
+    };
+    (names(v3), names(later))
 }
+
+/// The version 3 instructions that version 5 does not have (§14): `sread` is
+/// replaced by `aread`, and `pop` and `show_status` are withdrawn.
+const NOT_IN_VERSION_5: [&str; 3] = ["sread", "pop", "show_status"];
+
+/// (instruction, file, test function, text the test's body must contain) for the
+/// instructions that exist only from version 5. Feature 002.
+#[rustfmt::skip]
+const COVERAGE_V5: &[(&str, &str, &str, &str)] = &[
+    // 2OP
+    ("call2s",          DECODE5, DECODE5_TEST, "Call2s,"),
+    ("call2n",          DECODE5, DECODE5_TEST, "Call2n,"),
+    ("set_colour",      DECODE5, DECODE5_TEST, "SetColour,"),
+    ("throw",           DECODE5, DECODE5_TEST, "Throw,"),
+    // 1OP
+    ("call1s",          DECODE5, DECODE5_TEST, "Call1s,"),
+    ("call1n",          DECODE5, DECODE5_TEST, "Call1n,"),
+    // 0OP
+    ("catch",           DECODE5, DECODE5_TEST, "Catch,"),
+    ("piracy",          DECODE5, DECODE5_TEST, "Piracy,"),
+    // VAR
+    ("aread",           DECODE5, DECODE5_TEST, "Aread,"),
+    ("call_vs2",        DECODE5, DECODE5_TEST, "CallVs2,"),
+    ("erase_window",    DECODE5, DECODE5_TEST, "EraseWindow,"),
+    ("erase_line",      DECODE5, DECODE5_TEST, "EraseLine,"),
+    ("set_cursor",      DECODE5, DECODE5_TEST, "SetCursor,"),
+    ("get_cursor",      DECODE5, DECODE5_TEST, "GetCursor,"),
+    ("set_text_style",  DECODE5, DECODE5_TEST, "SetTextStyle,"),
+    ("buffer_mode",     DECODE5, DECODE5_TEST, "BufferMode,"),
+    ("read_char",       DECODE5, DECODE5_TEST, "ReadChar,"),
+    ("scan_table",      DECODE5, DECODE5_TEST, "ScanTable,"),
+    ("call_vn",         DECODE5, DECODE5_TEST, "CallVn,"),
+    ("call_vn2",        DECODE5, DECODE5_TEST, "CallVn2,"),
+    ("tokenise",        DECODE5, DECODE5_TEST, "Tokenise,"),
+    ("encode_text",     DECODE5, DECODE5_TEST, "EncodeText,"),
+    ("copy_table",      DECODE5, DECODE5_TEST, "CopyTable,"),
+    ("print_table",     DECODE5, DECODE5_TEST, "PrintTable,"),
+    ("check_arg_count", DECODE5, DECODE5_TEST, "CheckArgCount,"),
+    // EXT
+    ("log_shift",       DECODE5, DECODE5_TEST, "LogShift,"),
+    ("art_shift",       DECODE5, DECODE5_TEST, "ArtShift,"),
+    ("set_font",        DECODE5, DECODE5_TEST, "SetFont,"),
+    ("save_undo",       DECODE5, DECODE5_TEST, "SaveUndo,"),
+    ("restore_undo",    DECODE5, DECODE5_TEST, "RestoreUndo,"),
+    ("print_unicode",   DECODE5, DECODE5_TEST, "PrintUnicode,"),
+    ("check_unicode",   DECODE5, DECODE5_TEST, "CheckUnicode,"),
+    ("set_true_colour", DECODE5, DECODE5_TEST, "SetTrueColour,"),
+];
+
+/// Until an instruction's behavior has a test of its own, its row points at the
+/// test that it decodes correctly.
+const DECODE5: &str = "src/decode5_tests.rs";
+const DECODE5_TEST: &str = "every_version_5_instruction_decodes_with_the_right_store_and_branch";
 
 // §14: version 3 has 68 instructions. The table covers exactly the set the decoder
 // implements, so adding an instruction without a test fails here.
@@ -132,8 +190,8 @@ fn the_table_lists_exactly_the_instructions_the_decoder_implements() {
     let listed: BTreeSet<String> = COVERAGE.iter().map(|row| row.0.to_string()).collect();
     assert_eq!(COVERAGE.len(), 68, "version 3 has 68 instructions");
     assert_eq!(listed.len(), 68, "no instruction is listed twice");
-    let implemented = decoder_instructions();
-    assert_eq!(implemented.len(), 68, "the decoder's Opcode enum");
+    let (implemented, _) = decoder_instructions();
+    assert_eq!(implemented.len(), 68, "the decoder's version 3 instructions");
     assert_eq!(listed, implemented);
 }
 
@@ -155,12 +213,27 @@ fn comment_and_body(text: &str, function: &str) -> Option<(String, String)> {
     Some((comment.join("\n"), text[at..body_end].to_string()))
 }
 
-// SC-004, FR-027: each instruction's test exists, cites the Standard, and uses the
-// instruction.
+// §14: version 5 has 98 instructions: version 3's less three, plus 33 that exist
+// only from version 5. The second table covers exactly the 33 the decoder adds, so
+// adding an instruction without a row fails here. (002 SC-005)
+#[test]
+fn the_version_5_table_lists_exactly_the_instructions_the_decoder_adds() {
+    let (v3, added) = decoder_instructions();
+    let listed: BTreeSet<String> = COVERAGE_V5.iter().map(|row| row.0.to_string()).collect();
+    assert_eq!(listed.len(), COVERAGE_V5.len(), "no instruction is listed twice");
+    assert_eq!(listed, added);
+    for name in NOT_IN_VERSION_5 {
+        assert!(v3.contains(name), "{name} is a version 3 instruction");
+    }
+    assert_eq!(v3.len() - NOT_IN_VERSION_5.len() + added.len(), 98, "version 5 has 98 instructions");
+}
+
+// SC-004, FR-027, 002 SC-005: each instruction's test exists, cites the Standard,
+// and uses the instruction.
 #[test]
 fn every_instruction_has_a_test_that_cites_the_standard() {
     let mut problems = Vec::new();
-    for &(instruction, file, function, evidence) in COVERAGE {
+    for &(instruction, file, function, evidence) in COVERAGE.iter().chain(COVERAGE_V5) {
         let text = source(file);
         let Some((comment, body)) = comment_and_body(&text, function) else {
             problems.push(format!("{instruction}: no test `{function}` in {file}"));

@@ -1,6 +1,7 @@
 //! Instruction decoding (§4), for version 3.
 
 use crate::memory::{Memory, MemoryError};
+use crate::version::Version;
 
 /// One operand as encoded, before any variable is read (§4.2).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -27,7 +28,13 @@ pub(crate) struct Branch {
     pub target: BranchTarget,
 }
 
-/// The 68 instructions of version 3 (§14).
+/// The instructions of versions 3, 5 and 8 (§14).
+///
+/// The 68 of version 3 come first, under their version 3 names. The 33 names that
+/// exist only from version 5 follow the marker line. Version 5 has 98 instructions:
+/// these 101 names less `sread`, `pop` and `show_status`. `Call` is `call` in
+/// version 3 and `call_vs` in version 5; `Not`, `Save` and `Restore` keep their
+/// names but move to other opcode numbers.
 #[rustfmt::skip]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub(crate) enum Opcode {
@@ -43,6 +50,24 @@ pub(crate) enum Opcode {
     // VAR
     Call, Storew, Storeb, PutProp, Sread, PrintChar, PrintNum, Random, Push, Pull, SplitWindow,
     SetWindow, OutputStream, InputStream, SoundEffect,
+    // -- versions 5 and 8 only --
+    Call2s, Call2n, SetColour, Throw,
+    Call1s, Call1n,
+    Catch, Piracy,
+    Aread, CallVs2, EraseWindow, EraseLine, SetCursor, GetCursor, SetTextStyle, BufferMode,
+    ReadChar, ScanTable, CallVn, CallVn2, Tokenise, EncodeText, CopyTable, PrintTable,
+    CheckArgCount,
+    LogShift, ArtShift, SetFont, SaveUndo, RestoreUndo, PrintUnicode, CheckUnicode,
+    SetTrueColour,
+}
+
+/// What an extended opcode number means in versions 5 and 8 (§14.2).
+enum Extended {
+    Instruction(Opcode),
+    /// Numbers above 28 "should be simply ignored" (§14.2.1).
+    Ignored,
+    /// Numbers that are instructions only in version 6.
+    Unknown,
 }
 
 impl Opcode {
@@ -142,11 +167,115 @@ impl Opcode {
         })
     }
 
-    /// Whether the instruction is followed by a store variable (§4.6, §14).
-    pub fn stores(self) -> bool {
+    /// The 2OP instruction with this number in the given version.
+    fn two_op_in(number: u8, v: Version) -> Option<Opcode> {
         use Opcode::*;
+        match (v.is_v3(), number) {
+            (false, 25) => Some(Call2s),
+            (false, 26) => Some(Call2n),
+            (false, 27) => Some(SetColour),
+            (false, 28) => Some(Throw),
+            _ => Self::two_op(number),
+        }
+    }
+
+    /// The 1OP instruction with this number in the given version. From version 5,
+    /// 1OP:15 is `call_1n`; `not` moves to VAR:24.
+    fn one_op_in(number: u8, v: Version) -> Option<Opcode> {
+        use Opcode::*;
+        match (v.is_v3(), number) {
+            (false, 8) => Some(Call1s),
+            (false, 15) => Some(Call1n),
+            _ => Self::one_op(number),
+        }
+    }
+
+    /// The 0OP instruction with this number in the given version. From version 5,
+    /// 0OP:5 and 0OP:6 are not instructions (`save` and `restore` are extended);
+    /// 0OP:9 is `catch`; 0OP:12, `show_status`, is illegal but §15 says to treat it
+    /// as doing nothing; 0OP:15 is `piracy`. 0OP:14 is the extended prefix and is
+    /// handled before this is reached.
+    fn zero_op_in(number: u8, v: Version) -> Option<Opcode> {
+        use Opcode::*;
+        match (v.is_v3(), number) {
+            (false, 5 | 6) => None,
+            (false, 9) => Some(Catch),
+            (false, 12) => Some(Nop),
+            (false, 15) => Some(Piracy),
+            _ => Self::zero_op(number),
+        }
+    }
+
+    /// The VAR instruction with this number in the given version.
+    fn var_in(number: u8, v: Version) -> Option<Opcode> {
+        use Opcode::*;
+        if v.is_v3() {
+            return Self::var(number);
+        }
+        Some(match number {
+            4 => Aread,
+            12 => CallVs2,
+            13 => EraseWindow,
+            14 => EraseLine,
+            15 => SetCursor,
+            16 => GetCursor,
+            17 => SetTextStyle,
+            18 => BufferMode,
+            22 => ReadChar,
+            23 => ScanTable,
+            24 => Not,
+            25 => CallVn,
+            26 => CallVn2,
+            27 => Tokenise,
+            28 => EncodeText,
+            29 => CopyTable,
+            30 => PrintTable,
+            31 => CheckArgCount,
+            _ => return Self::var(number),
+        })
+    }
+
+    fn extended(number: u8) -> Extended {
+        use Opcode::*;
+        Extended::Instruction(match number {
+            0 => Save,
+            1 => Restore,
+            2 => LogShift,
+            3 => ArtShift,
+            4 => SetFont,
+            9 => SaveUndo,
+            10 => RestoreUndo,
+            11 => PrintUnicode,
+            12 => CheckUnicode,
+            13 => SetTrueColour,
+            29.. => return Extended::Ignored,
+            _ => return Extended::Unknown,
+        })
+    }
+
+    /// Whether the instruction is followed by a store variable (§4.6, §14). From
+    /// version 5 `save` and `restore` store a result.
+    pub fn stores(self, v: Version) -> bool {
+        use Opcode::*;
+        if matches!(self, Save | Restore) {
+            return !v.is_v3();
+        }
         matches!(
             self,
+            Call2s
+                | Call1s
+                | Catch
+                | Aread
+                | CallVs2
+                | ReadChar
+                | ScanTable
+                | LogShift
+                | ArtShift
+                | SetFont
+                | SaveUndo
+                | RestoreUndo
+                | CheckUnicode
+                |
             Or | And
                 | Loadw
                 | Loadb
@@ -171,11 +300,18 @@ impl Opcode {
 
     /// Whether the instruction is followed by branch data (§4.7, §14). In version 3
     /// `save` and `restore` branch.
-    pub fn branches(self) -> bool {
+    pub fn branches(self, v: Version) -> bool {
         use Opcode::*;
+        if matches!(self, Save | Restore) {
+            return v.is_v3();
+        }
         matches!(
             self,
-            Je | Jl
+            ScanTable
+                | CheckArgCount
+                | Piracy
+                | Je
+                | Jl
                 | Jg
                 | DecChk
                 | IncChk
@@ -243,6 +379,27 @@ impl Cursor<'_> {
         DecodeError::ReadOutsideFile(self.start)
     }
 
+    /// Reads `type_bytes` bytes of 2-bit operand types and then the operands they
+    /// describe, stopping at the first type that says "omitted" (§4.4.3).
+    fn variable_operands(
+        &mut self,
+        operands: &mut Vec<Operand>,
+        type_bytes: usize,
+    ) -> Result<(), DecodeError> {
+        let mut types = Vec::with_capacity(8);
+        for _ in 0..type_bytes {
+            let byte = self.byte()?;
+            types.extend([6, 4, 2, 0].map(|shift| byte >> shift & 0b11));
+        }
+        for bits in types {
+            if bits == 0b11 {
+                break;
+            }
+            operands.push(self.operand(bits)?);
+        }
+        Ok(())
+    }
+
     fn operand(&mut self, type_bits: u8) -> Result<Operand, DecodeError> {
         Ok(match type_bits {
             0b00 => Operand::Large(self.word()?),
@@ -287,7 +444,17 @@ pub(crate) fn decode_branch(memory: &Memory, address: u32) -> Result<(Branch, u3
 }
 
 /// Decodes the instruction at `address`.
+#[cfg(test)]
 pub(crate) fn decode(memory: &Memory, address: u32) -> Result<Instruction, DecodeError> {
+    decode_for(memory, address, Version::V3)
+}
+
+/// Decodes the instruction at `address` as an instruction of the given version.
+pub(crate) fn decode_for(
+    memory: &Memory,
+    address: u32,
+    v: Version,
+) -> Result<Instruction, DecodeError> {
     let mut c = Cursor {
         memory,
         start: address,
@@ -295,26 +462,33 @@ pub(crate) fn decode(memory: &Memory, address: u32) -> Result<Instruction, Decod
     };
     let unknown = DecodeError::UnknownInstruction(address);
     let first = c.byte()?;
-    let mut operands = Vec::with_capacity(4);
+    let mut operands = Vec::with_capacity(8);
 
     let opcode = match first >> 6 {
+        // Extended form (§4.3.4), from version 5: 0xBE, then the opcode number, then
+        // operands as in variable form.
+        _ if first == 0xBE && !v.is_v3() => {
+            let number = c.byte()?;
+            let opcode = match Opcode::extended(number) {
+                Extended::Instruction(opcode) => opcode,
+                Extended::Ignored => Opcode::Nop,
+                Extended::Unknown => return Err(unknown),
+            };
+            c.variable_operands(&mut operands, 1)?;
+            opcode
+        }
         // Variable form (§4.3.3): bit 5 picks 2OP or VAR.
         0b11 => {
             let number = first & 0x1F;
             let opcode = if first & 0x20 == 0 {
-                Opcode::two_op(number)
+                Opcode::two_op_in(number, v)
             } else {
-                Opcode::var(number)
+                Opcode::var_in(number, v)
             }
             .ok_or(unknown)?;
-            let types = c.byte()?;
-            for shift in [6, 4, 2, 0] {
-                let bits = types >> shift & 0b11;
-                if bits == 0b11 {
-                    break;
-                }
-                operands.push(c.operand(bits)?);
-            }
+            // §4.4.3.1: the two double-variable calls have two bytes of types.
+            let type_bytes = if matches!(opcode, Opcode::CallVs2 | Opcode::CallVn2) { 2 } else { 1 };
+            c.variable_operands(&mut operands, type_bytes)?;
             opcode
         }
         // Short form (§4.3.1): operand type in bits 4-5, 11 meaning none.
@@ -322,16 +496,16 @@ pub(crate) fn decode(memory: &Memory, address: u32) -> Result<Instruction, Decod
             let number = first & 0x0F;
             let bits = first >> 4 & 0b11;
             if bits == 0b11 {
-                Opcode::zero_op(number).ok_or(unknown)?
+                Opcode::zero_op_in(number, v).ok_or(unknown)?
             } else {
-                let opcode = Opcode::one_op(number).ok_or(unknown)?;
+                let opcode = Opcode::one_op_in(number, v).ok_or(unknown)?;
                 operands.push(c.operand(bits)?);
                 opcode
             }
         }
         // Long form (§4.3.2): always 2OP, each operand a small constant or variable.
         _ => {
-            let opcode = Opcode::two_op(first & 0x1F).ok_or(unknown)?;
+            let opcode = Opcode::two_op_in(first & 0x1F, v).ok_or(unknown)?;
             for bit in [0x40, 0x20] {
                 let bits = if first & bit == 0 { 0b01 } else { 0b10 };
                 operands.push(c.operand(bits)?);
@@ -340,7 +514,7 @@ pub(crate) fn decode(memory: &Memory, address: u32) -> Result<Instruction, Decod
         }
     };
 
-    let store = if opcode.stores() {
+    let store = if opcode.stores(v) {
         Some(c.byte()?)
     } else {
         None
@@ -348,7 +522,7 @@ pub(crate) fn decode(memory: &Memory, address: u32) -> Result<Instruction, Decod
 
     let mut branch = None;
     let mut branch_data = None;
-    if opcode.branches() {
+    if opcode.branches(v) {
         branch_data = Some(c.at);
         branch = Some(c.branch()?);
     }
@@ -385,3 +559,7 @@ impl From<MemoryError> for DecodeError {
 #[cfg(test)]
 #[path = "decode_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "decode5_tests.rs"]
+mod tests5;

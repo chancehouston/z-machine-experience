@@ -245,7 +245,7 @@ impl Machine {
     }
 
     fn step(&mut self) -> X<Flow> {
-        let ins = decode::decode(&self.memory, self.pc).map_err(|e| match e {
+        let ins = decode::decode_for(&self.memory, self.pc, self.header.v).map_err(|e| match e {
             DecodeError::UnknownInstruction(_) => FaultKind::UnknownInstruction,
             DecodeError::ReadOutsideFile(_) => FaultKind::ReadOutsideFile,
         })?;
@@ -414,6 +414,8 @@ impl Machine {
                 self.pending = Some(ins);
                 return Ok(Flow::Stop(Event::RestoreRequested));
             }
+            // The instructions of versions 5 and 8 are decoded but not yet executed.
+            _ => return Err(FaultKind::UnknownInstruction),
         }
         Ok(Flow::Continue)
     }
