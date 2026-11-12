@@ -1293,3 +1293,382 @@ reported: none
 outcome: moved 213
 cause: The room's own routine, by chance, moves the player to another room on a walk in
   any direction, exit or not.
+
+# Zork II, by the crawl alone. Each cause was found by `corpus explain` (T037).
+
+story: zork2
+room: 144
+direction: 18
+reported: none
+outcome: moved 224
+cause: The room's own routine replaces the direction given with one chosen by chance, so
+  the player goes somewhere the direction's entry in the table does not say.
+
+story: zork2
+room: 144
+direction: 19
+reported: none
+outcome: moved 224
+cause: The room's own routine replaces the direction given with one chosen by chance, so
+  the player goes somewhere the direction's entry in the table does not say.
+
+story: zork2
+room: 144
+direction: 20
+reported: none
+outcome: moved 218
+cause: The room's own routine replaces the direction given with one chosen by chance, so
+  the player goes somewhere the direction's entry in the table does not say.
+
+story: zork2
+room: 144
+direction: 21
+reported: none
+outcome: moved 224
+cause: The room's own routine replaces the direction given with one chosen by chance, so
+  the player goes somewhere the direction's entry in the table does not say.
+
+story: zork2
+room: 144
+direction: 24
+reported: fixed 206
+outcome: moved 224
+cause: The room's own routine replaces the direction given with one chosen by chance, so
+  the player goes somewhere the direction's entry in the table does not say.
+
+story: zork2
+room: 144
+direction: 25
+reported: fixed 238
+outcome: moved 224
+cause: The room's own routine replaces the direction given with one chosen by chance, so
+  the player goes somewhere the direction's entry in the table does not say.
+
+story: zork2
+room: 144
+direction: 26
+reported: fixed 172
+outcome: moved 224
+cause: The room's own routine replaces the direction given with one chosen by chance, so
+  the player goes somewhere the direction's entry in the table does not say.
+
+story: zork2
+room: 144
+direction: 27
+reported: fixed 212
+outcome: moved 224
+cause: The room's own routine replaces the direction given with one chosen by chance, so
+  the player goes somewhere the direction's entry in the table does not say.
+
+story: zork2
+room: 144
+direction: 28
+reported: fixed 159
+outcome: moved 224
+cause: The room's own routine replaces the direction given with one chosen by chance, so
+  the player goes somewhere the direction's entry in the table does not say.
+
+story: zork2
+room: 144
+direction: 29
+reported: fixed 207
+outcome: moved 224
+cause: The room's own routine replaces the direction given with one chosen by chance, so
+  the player goes somewhere the direction's entry in the table does not say.
+
+story: zork2
+room: 144
+direction: 31
+reported: fixed 30
+outcome: moved 224
+cause: The room's own routine replaces the direction given with one chosen by chance, so
+  the player goes somewhere the direction's entry in the table does not say.
+
+story: zork2
+room: 158
+direction: 18
+reported: none
+outcome: moved 224
+cause: The player is in the dark, where the game kills the player on a walk in any direction,
+  exit or not; the game's routine for death then moves the player.
+
+story: zork2
+room: 158
+direction: 19
+reported: none
+outcome: moved 224
+cause: The player is in the dark, where the game kills the player on a walk in any direction,
+  exit or not; the game's routine for death then moves the player.
+
+story: zork2
+room: 158
+direction: 20
+reported: none
+outcome: moved 224
+cause: The player is in the dark, where the game kills the player on a walk in any direction,
+  exit or not; the game's routine for death then moves the player.
+
+story: zork2
+room: 158
+direction: 21
+reported: none
+outcome: moved 224
+cause: The player is in the dark, where the game kills the player on a walk in any direction,
+  exit or not; the game's routine for death then moves the player.
+
+story: zork2
+room: 158
+direction: 22
+reported: none
+outcome: moved 224
+cause: The player is in the dark, where the game kills the player on a walk in any direction,
+  exit or not; the game's routine for death then moves the player.
+
+story: zork2
+room: 158
+direction: 23
+reported: none
+outcome: moved 224
+cause: The player is in the dark, where the game kills the player on a walk in any direction,
+  exit or not; the game's routine for death then moves the player.
+
+story: zork2
+room: 158
+direction: 24
+reported: fixed 212
+outcome: moved 224
+cause: The player is in the dark, where the game kills the player on a walk in any direction,
+  exit or not; the game's routine for death then moves the player.
+
+story: zork2
+room: 158
+direction: 26
+reported: none
+outcome: moved 224
+cause: The player is in the dark, where the game kills the player on a walk in any direction,
+  exit or not; the game's routine for death then moves the player.
+
+story: zork2
+room: 158
+direction: 28
+reported: none
+outcome: moved 224
+cause: The player is in the dark, where the game kills the player on a walk in any direction,
+  exit or not; the game's routine for death then moves the player.
+
+story: zork2
+room: 158
+direction: 29
+reported: none
+outcome: moved 224
+cause: The player is in the dark, where the game kills the player on a walk in any direction,
+  exit or not; the game's routine for death then moves the player.
+
+story: zork2
+room: 158
+direction: 30
+reported: none
+outcome: moved 224
+cause: The player is in the dark, where the game kills the player on a walk in any direction,
+  exit or not; the game's routine for death then moves the player.
+
+story: zork2
+room: 158
+direction: 31
+reported: none
+outcome: moved 224
+cause: The player is in the dark, where the game kills the player on a walk in any direction,
+  exit or not; the game's routine for death then moves the player.
+
+story: zork2
+room: 212
+direction: 18
+reported: none
+outcome: moved 224
+cause: The player is in the dark, where the game kills the player on a walk in any direction,
+  exit or not; the game's routine for death then moves the player.
+
+story: zork2
+room: 212
+direction: 19
+reported: none
+outcome: moved 224
+cause: The player is in the dark, where the game kills the player on a walk in any direction,
+  exit or not; the game's routine for death then moves the player.
+
+story: zork2
+room: 212
+direction: 20
+reported: none
+outcome: moved 224
+cause: The player is in the dark, where the game kills the player on a walk in any direction,
+  exit or not; the game's routine for death then moves the player.
+
+story: zork2
+room: 212
+direction: 21
+reported: none
+outcome: moved 224
+cause: The player is in the dark, where the game kills the player on a walk in any direction,
+  exit or not; the game's routine for death then moves the player.
+
+story: zork2
+room: 212
+direction: 23
+reported: none
+outcome: moved 224
+cause: The player is in the dark, where the game kills the player on a walk in any direction,
+  exit or not; the game's routine for death then moves the player.
+
+story: zork2
+room: 212
+direction: 24
+reported: fixed 144
+outcome: moved 224
+cause: The player is in the dark, where the game kills the player on a walk in any direction,
+  exit or not; the game's routine for death then moves the player.
+
+story: zork2
+room: 212
+direction: 25
+reported: none
+outcome: moved 224
+cause: The player is in the dark, where the game kills the player on a walk in any direction,
+  exit or not; the game's routine for death then moves the player.
+
+story: zork2
+room: 212
+direction: 26
+reported: none
+outcome: moved 224
+cause: The player is in the dark, where the game kills the player on a walk in any direction,
+  exit or not; the game's routine for death then moves the player.
+
+story: zork2
+room: 212
+direction: 27
+reported: fixed 158
+outcome: moved 224
+cause: The player is in the dark, where the game kills the player on a walk in any direction,
+  exit or not; the game's routine for death then moves the player.
+
+story: zork2
+room: 212
+direction: 28
+reported: none
+outcome: moved 224
+cause: The player is in the dark, where the game kills the player on a walk in any direction,
+  exit or not; the game's routine for death then moves the player.
+
+story: zork2
+room: 212
+direction: 31
+reported: none
+outcome: moved 224
+cause: The player is in the dark, where the game kills the player on a walk in any direction,
+  exit or not; the game's routine for death then moves the player.
+
+story: zork2
+room: 228
+direction: 29
+reported: fixed 210
+outcome: moved 51
+cause: The destination's own routine, run at arrival, sends the player on to another room.
+
+# Zork III, by the crawl alone (T038).
+
+story: zork3
+room: 217
+direction: 7
+reported: none
+outcome: moved 211
+cause: The player is in the dark, where the game kills the player on a walk in any direction,
+  exit or not; the game's routine for death then moves the player.
+
+story: zork3
+room: 217
+direction: 20
+reported: none
+outcome: moved 211
+cause: The player is in the dark, where the game kills the player on a walk in any direction,
+  exit or not; the game's routine for death then moves the player.
+
+story: zork3
+room: 217
+direction: 21
+reported: none
+outcome: moved 211
+cause: The player is in the dark, where the game kills the player on a walk in any direction,
+  exit or not; the game's routine for death then moves the player.
+
+story: zork3
+room: 217
+direction: 22
+reported: none
+outcome: moved 211
+cause: The player is in the dark, where the game kills the player on a walk in any direction,
+  exit or not; the game's routine for death then moves the player.
+
+story: zork3
+room: 217
+direction: 23
+reported: none
+outcome: moved 211
+cause: The player is in the dark, where the game kills the player on a walk in any direction,
+  exit or not; the game's routine for death then moves the player.
+
+story: zork3
+room: 217
+direction: 24
+reported: none
+outcome: moved 211
+cause: The player is in the dark, where the game kills the player on a walk in any direction,
+  exit or not; the game's routine for death then moves the player.
+
+story: zork3
+room: 217
+direction: 25
+reported: none
+outcome: moved 211
+cause: The player is in the dark, where the game kills the player on a walk in any direction,
+  exit or not; the game's routine for death then moves the player.
+
+story: zork3
+room: 217
+direction: 26
+reported: none
+outcome: moved 211
+cause: The player is in the dark, where the game kills the player on a walk in any direction,
+  exit or not; the game's routine for death then moves the player.
+
+story: zork3
+room: 217
+direction: 27
+reported: none
+outcome: moved 211
+cause: The player is in the dark, where the game kills the player on a walk in any direction,
+  exit or not; the game's routine for death then moves the player.
+
+story: zork3
+room: 217
+direction: 28
+reported: fixed 55
+outcome: moved 211
+cause: The player is in the dark, where the game kills the player on a walk in any direction,
+  exit or not; the game's routine for death then moves the player.
+
+story: zork3
+room: 217
+direction: 29
+reported: fixed 112
+outcome: moved 211
+cause: The player is in the dark, where the game kills the player on a walk in any direction,
+  exit or not; the game's routine for death then moves the player.
+
+story: zork3
+room: 217
+direction: 30
+reported: fixed 93
+outcome: moved 211
+cause: The player is in the dark, where the game kills the player on a walk in any direction,
+  exit or not; the game's routine for death then moves the player.

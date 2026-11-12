@@ -35,3 +35,25 @@ tier: committed
 path: stories/advent/advent.z8
 seed: 1
 walkthrough: stories/advent/fidelity/walkthrough.txt
+
+id: zork2
+sha256: 3ae7d5558943e9721f3e4b273c8a7faec1a03a604e1ae4ee1cde472c21cb24ac
+size: 92524
+version: 3
+family: zil
+source: https://github.com/historicalsource/zork2 COMPILED/zork2.z3
+standing: MIT, Copyright (c) 2025 Microsoft; see stories/zork2/SOURCE.md
+tier: committed
+path: stories/zork2/zork2.z3
+seed: 1
+
+id: zork3
+sha256: b637a242865d059890184164ce8dec28554cc80901dcbf26c740b2d1ed0d4eb8
+size: 87984
+version: 3
+family: zil
+source: https://github.com/historicalsource/zork3 COMPILED/zork3.z3
+standing: MIT, Copyright (c) 2025 Microsoft; see stories/zork3/SOURCE.md
+tier: committed
+path: stories/zork3/zork3.z3
+seed: 1

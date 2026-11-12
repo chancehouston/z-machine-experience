@@ -1,0 +1,48 @@
+story zork2
+sha256 3ae7d5558943e9721f3e4b273c8a7faec1a03a604e1ae4ee1cde472c21cb24ac
+version 3 family zil seed 1
+places 15 walkthrough 0 crawl 15
+rooms visited 15 named-not-reached 7
+budget rooms 400 trials 40000 reached no
+trials 210 wordless 0
+fixed confirmed 26 wrong-known 11 wrong-unexplained 0
+none confirmed 149 wrong-known 24 wrong-unexplained 0 other 0
+conditional 0 moved 0 stayed 0 question 0 ended 0 fault 0
+unknown 0 moved 0 stayed 0 question 0 ended 0 fault 0
+no-verdict 0
+detail
+144 18 none moved 224 1
+144 19 none moved 224 1
+144 20 none moved 218 1
+144 21 none moved 224 1
+144 24 fixed 206 moved 224 1
+144 25 fixed 238 moved 224 1
+144 26 fixed 172 moved 224 1
+144 27 fixed 212 moved 224 1
+144 28 fixed 159 moved 224 1
+144 29 fixed 207 moved 224 1
+144 31 fixed 30 moved 224 1
+158 18 none moved 224 1
+158 19 none moved 224 1
+158 20 none moved 224 1
+158 21 none moved 224 1
+158 22 none moved 224 1
+158 23 none moved 224 1
+158 24 fixed 212 moved 224 1
+158 26 none moved 224 1
+158 28 none moved 224 1
+158 29 none moved 224 1
+158 30 none moved 224 1
+158 31 none moved 224 1
+212 18 none moved 224 1
+212 19 none moved 224 1
+212 20 none moved 224 1
+212 21 none moved 224 1
+212 23 none moved 224 1
+212 24 fixed 144 moved 224 1
+212 25 none moved 224 1
+212 26 none moved 224 1
+212 27 fixed 158 moved 224 1
+212 28 none moved 224 1
+212 31 none moved 224 1
+228 29 fixed 210 moved 51 1
