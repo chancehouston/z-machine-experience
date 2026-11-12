@@ -328,6 +328,14 @@ impl From<MemoryError> for FaultKind {
     }
 }
 
+// A deliberately wrong stand-in, so that the tests of `Clone` are seen to fail.
+impl Clone for Machine {
+    fn clone(&self) -> Self {
+        let options = LoadOptions { seed: Some(1), entropy: 0 };
+        Machine::load_with(self.story.clone(), options, self.settings).expect("it loaded before")
+    }
+}
+
 impl Machine {
     /// Loads a story file of version 3, 5 or 8 with default [`Settings`].
     ///
