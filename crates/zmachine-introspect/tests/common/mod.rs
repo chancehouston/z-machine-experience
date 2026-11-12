@@ -208,3 +208,207 @@ pub fn first_line(text: &str) -> &str {
         .find(|l| !l.is_empty())
         .unwrap_or("")
 }
+
+// ---------------------------------------------------------------------------
+// Checks of the answers against the games' own text
+// (specs/003-introspection/plan.md, "How the evidence is gathered")
+// ---------------------------------------------------------------------------
+
+use zmachine_introspect::{Carried, Introspector, Location, Tri, Unknown};
+
+/// One entry of a hand-made `exits.txt` or `scope.txt`: the walkthrough line the
+/// game is waiting for, the room, and the indented `key: value` lines under it.
+#[derive(Clone, Debug)]
+pub struct Expectation {
+    pub line: usize,
+    pub room: String,
+    pub items: Vec<(String, String)>,
+}
+
+/// Reads a hand-made expectations file (see the README beside each).
+pub fn expectations(relative: &str) -> Vec<Expectation> {
+    let mut entries: Vec<Expectation> = Vec::new();
+    for (number, raw) in read_text(relative).lines().enumerate() {
+        let line = raw.trim_end();
+        if line.trim().is_empty() || line.trim_start().starts_with('#') {
+            continue;
+        }
+        if let Some(rest) = line.strip_prefix("at line ") {
+            let (at, room) = rest.split_once(" | ").unwrap_or_else(|| panic!("{relative}:{}: {raw:?}", number + 1));
+            entries.push(Expectation { line: at.trim().parse().unwrap(), room: room.trim().to_string(), items: vec![] });
+        } else {
+            let (key, value) = line.trim().split_once(':').unwrap_or_else(|| panic!("{relative}:{}: {raw:?}", number + 1));
+            let entry = entries.last_mut().unwrap_or_else(|| panic!("{relative}:{}: no entry yet", number + 1));
+            entry.items.push((key.trim().to_string(), value.trim().to_string()));
+        }
+    }
+    entries
+}
+
+/// Room names taken from the hand-made exit expectations: the rooms the entries
+/// are in and the rooms their fixed exits lead to. Independent of the queries.
+pub fn known_room_names(exits_file: &str) -> std::collections::BTreeSet<String> {
+    let mut names = std::collections::BTreeSet::new();
+    for entry in expectations(exits_file) {
+        names.insert(entry.room);
+        for (_, value) in entry.items {
+            if let Some(room) = value.strip_prefix("fixed ") {
+                names.insert(room.to_string());
+            }
+        }
+    }
+    names
+}
+
+/// What the location checks found over a whole walkthrough.
+#[derive(Debug, Default)]
+pub struct LocationReport {
+    pub prompts: usize,
+    pub headings: usize,
+    pub changes: usize,
+    pub dark: usize,
+    pub lit: usize,
+    pub held: usize,
+    pub problems: Vec<String>,
+}
+
+/// SC-002, FR-037: at every command prompt the location is known and agrees with
+/// the game, by checks that do not read what the query reads. `says_dark` tells
+/// whether the game's reply or the answer says the room is dark.
+pub fn check_locations(game: Game, exits_file: &str, says_dark: impl Fn(&Stop, &Location) -> bool) -> LocationReport {
+    let rooms = known_room_names(exits_file);
+    let mut report = LocationReport::default();
+    let mut previous: Option<u16> = None;
+    walk(game, |machine, stop| {
+        if !stop.command_prompt {
+            return;
+        }
+        report.prompts += 1;
+        let view = machine.view();
+        let answer = Introspector::new(&view).location(&view);
+        let here = format!("{} stop {} (line {:?})", game.name, stop.number, stop.line);
+        if answer.exactness != zmachine_introspect::Exactness::Exact {
+            report.problems.push(format!("{here}: not exact"));
+        }
+        let location = match answer.value {
+            Ok(location) => location,
+            Err(reason) => {
+                report.problems.push(format!("{here}: location unknown: {reason:?}"));
+                return;
+            }
+        };
+        let name = location.name.clone().unwrap_or_else(|e| format!("<{e:?}>"));
+        match location.lit {
+            Tri::No => report.dark += 1,
+            Tri::Yes => report.lit += 1,
+            Tri::Unknown => {}
+        }
+        report.held += matches!(location.holder, Ok(Some(_))) as usize;
+        // A reply that opens with a room's name names the reported room.
+        let heading = first_line(&stop.text);
+        if rooms.contains(heading) {
+            report.headings += 1;
+            if heading != name {
+                report.problems.push(format!("{here}: the game says {heading:?}, the answer {name:?}"));
+            }
+        }
+        // A change of room is announced: the game prints its name, or says it is dark.
+        if previous.is_some_and(|room| room != location.room) {
+            report.changes += 1;
+            let announced = stop.text.lines().any(|l| l.trim() == name);
+            if !announced && !says_dark(stop, &location) {
+                report.problems.push(format!("{here}: moved to {name:?} unannounced: {:?}", first_line(&stop.text)));
+            }
+        }
+        // Versions 5 and 8: the status row the library draws from its own variable.
+        if game.name != "zork1" {
+            let row = stop.status_row.trim_start();
+            let expected = if location.lit == Tri::No { "Darkness" } else { name.as_str() };
+            if !row.starts_with(expected) {
+                report.problems.push(format!("{here}: the status row is {row:?}, the answer {expected:?}"));
+            }
+        }
+        previous = Some(location.room);
+    });
+    report
+}
+
+fn flatten<'a>(carried: &'a [Carried], out: &mut Vec<&'a Carried>) {
+    for item in carried {
+        out.push(item);
+        flatten(&item.contents, out);
+    }
+}
+
+/// What the inventory checks found over a whole walkthrough.
+#[derive(Debug, Default)]
+pub struct InventoryReport {
+    pub prompts: usize,
+    pub compared: usize,
+    pub empty: usize,
+    pub most_carried: usize,
+    /// Stops where the inventory was unknown, with the reason.
+    pub unknown: Vec<(usize, Unknown)>,
+    /// Stops where the game's reply to `inventory` was not an inventory.
+    pub not_an_inventory: Vec<usize>,
+    pub problems: Vec<String>,
+}
+
+/// SC-005: at every command prompt, what the query reports is what the game says
+/// when a copy of it is asked. `heading` begins the game's listing.
+pub fn check_inventories(game: Game, heading: &str) -> InventoryReport {
+    let mut report = InventoryReport::default();
+    walk(game, |machine, stop| {
+        if !stop.command_prompt {
+            return;
+        }
+        report.prompts += 1;
+        let reply = ask(machine, game.inventory);
+        let listing = reply.starts_with(heading);
+        if !listing && reply != game.empty_handed {
+            report.not_an_inventory.push(stop.number);
+            return;
+        }
+        let view = machine.view();
+        let answer = Introspector::new(&view).inventory(&view);
+        let here = format!("{} stop {} (line {:?})", game.name, stop.number, stop.line);
+        let carried = match answer.value {
+            Ok(carried) => carried,
+            Err(reason) => {
+                report.unknown.push((stop.number, reason));
+                return;
+            }
+        };
+        report.compared += 1;
+        report.most_carried = report.most_carried.max(carried.len());
+        if carried.is_empty() || !listing {
+            report.empty += 1;
+            if !(carried.is_empty() && !listing) {
+                report.problems.push(format!("{here}: answer {carried:?} against reply {reply:?}"));
+            }
+            return;
+        }
+        let mut all = Vec::new();
+        flatten(&carried, &mut all);
+        let names: Vec<String> = all.iter().filter_map(|c| c.name.clone().ok()).collect();
+        // Everything the game lists is something reported.
+        for line in reply.lines().skip(1) {
+            let item = line.trim();
+            if !line.starts_with("  ") || item.ends_with(':') {
+                continue;
+            }
+            if !names.iter().any(|n| !n.is_empty() && item.contains(n.as_str())) {
+                report.problems.push(format!("{here}: the game lists {item:?}, not among {names:?}"));
+            }
+        }
+        // Everything reported as carried directly is something the game lists.
+        for item in &carried {
+            match &item.name {
+                Ok(name) if reply.contains(name.as_str()) => {}
+                Ok(name) => report.problems.push(format!("{here}: {name:?} is reported but not in {reply:?}")),
+                Err(_) => {}
+            }
+        }
+    });
+    report
+}

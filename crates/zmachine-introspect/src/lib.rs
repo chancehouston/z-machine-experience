@@ -24,9 +24,13 @@ mod family_tests;
 #[cfg(test)]
 mod fixtures;
 #[cfg(test)]
+mod inform_tests;
+#[cfg(test)]
 mod lib_tests;
 #[cfg(test)]
 mod table_tests;
+#[cfg(test)]
+mod zil_tests;
 
 /// The version of `docs/introspection.md` this crate implements.
 pub const SPEC_VERSION: &str = "0.1.0";
