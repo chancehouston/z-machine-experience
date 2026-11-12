@@ -92,7 +92,7 @@ impl Machine {
 
     /// Prints the Z-string at a byte address.
     pub(crate) fn print_at(&mut self, address: u32) -> X<()> {
-        let (text, _) = text::decode_string(&self.memory, address, self.header.abbreviations)?;
+        let (text, _) = self.charset.decode(&self.memory, address, self.header.abbreviations)?;
         self.emit(&text);
         Ok(())
     }
@@ -101,7 +101,7 @@ impl Machine {
     pub(crate) fn print_zscii(&mut self, code: u16) {
         // The reference counts a print of ZSCII 0 as output for this purpose.
         self.line_open = true;
-        if let Some(ch) = text::zscii_to_char(code) {
+        if let Some(ch) = self.charset.zscii_to_char(code) {
             let mut buffer = [0u8; 4];
             self.emit(ch.encode_utf8(&mut buffer));
         }
@@ -111,7 +111,7 @@ impl Machine {
     pub(crate) fn object_name(&self, object: u16) -> X<String> {
         match self.objects().name_address(&self.memory, object)? {
             Some(address) => {
-                Ok(text::decode_string(&self.memory, address, self.header.abbreviations)?.0)
+                Ok(self.charset.decode(&self.memory, address, self.header.abbreviations)?.0)
             }
             None => Ok(String::new()),
         }
@@ -203,11 +203,16 @@ impl Machine {
         let zscii: Vec<u8> = line
             .chars()
             .take(max_len)
-            .map(text::char_to_zscii)
+            .map(|ch| self.charset.input_zscii(ch))
             .collect();
-        let result = dictionary::store_line(&mut self.memory, text, &zscii).and_then(|()| {
-            dictionary::tokenise(&mut self.memory, self.header.dictionary, text, parse)
-        });
+        let lexer = dictionary::Lexer {
+            version: self.header.v,
+            charset: &self.charset,
+            dictionary: self.header.dictionary,
+            skip_unknown: false,
+        };
+        let result = dictionary::store_line(&mut self.memory, text, &zscii)
+            .and_then(|()| lexer.tokenise(&mut self.memory, text, parse));
         if let Err(kind) = result {
             self.pending_fault = Some(Fault {
                 kind,

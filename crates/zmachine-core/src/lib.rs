@@ -237,6 +237,8 @@ pub struct Machine {
     header: Header,
     settings: Settings,
     memory: Memory,
+    /// The character tables in force: the defaults, or the game's own.
+    charset: text::Charset,
     /// Call frames, innermost last. The first is the main code, which is not a
     /// routine and cannot be returned from.
     frames: Vec<Frame>,
@@ -297,10 +299,12 @@ impl Machine {
         let mut memory = Memory::new(story.clone(), header.static_base as usize);
         header::apply_interpreter_fields(memory.dynamic_mut(), &header, &settings);
         let pc = header.initial_pc as u32;
+        let charset = text::Charset::read(&memory, header.alphabet_table, header.unicode_table);
         Ok(Machine {
             story,
             header,
             settings,
+            charset,
             memory,
             frames: vec![Frame::main()],
             pc,
