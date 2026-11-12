@@ -95,3 +95,59 @@ pub fn output_of_story(story: &mut Story) -> String {
     assert_eq!(run_until_event(&mut machine, BIG), Event::Finished);
     machine.take_output()
 }
+
+// ---------------------------------------------------------------------------
+// Versions 5 and 8 (feature 002)
+// ---------------------------------------------------------------------------
+
+use zmachine_testkit::Story5;
+
+pub fn load5(story: &mut Story5) -> Machine {
+    Machine::load(story.build(), OPTIONS).expect("test story loads")
+}
+
+/// `instruction` followed by its store variable.
+pub fn to(instruction: Vec<u8>, variable: u8) -> Vec<u8> {
+    cat(&[instruction, op::store(variable)])
+}
+
+/// Runs a version 5 story to its end, answering nothing, and returns the screen
+/// text.
+pub fn output_of_story5(story: &mut Story5) -> String {
+    let mut machine = load5(story);
+    assert_eq!(run_until_event(&mut machine, BIG), Event::Finished);
+    machine.take_output()
+}
+
+/// Runs `code` followed by `quit` as the main code of a version 5 story.
+pub fn out5(code: &[u8]) -> String {
+    let mut story = Story5::new(5);
+    story.main(&cat(&[code.to_vec(), quit()]));
+    output_of_story5(&mut story)
+}
+
+/// `print_num` of global `n`, then a space.
+pub fn show(n: u8) -> Vec<u8> {
+    cat(&[print_num(V(g(n))), print(" ")])
+}
+
+/// A version 5 story with a location object and standard buffers: a text buffer of
+/// `capacity` characters holding `preloaded`, and a parse buffer for five words.
+/// The dictionary holds "look" and "north".
+pub fn story5_with_buffers(capacity: u8, preloaded: &str) -> (Story5, u16, u16) {
+    let mut story = Story5::new(5);
+    story.word("look").word("north");
+    let text = story.text_buffer(capacity, preloaded);
+    let parse = story.parse_buffer(5);
+    (story, text, parse)
+}
+
+/// `aread text parse -> variable`
+pub fn aread(text: u16, parse: u16, variable: u8) -> Vec<u8> {
+    to(op::var(op::AREAD, &[L(text), L(parse)]), variable)
+}
+
+/// `read_char 1 -> variable`
+pub fn read_char(variable: u8) -> Vec<u8> {
+    to(op::var(op::READ_CHAR, &[S(1)]), variable)
+}

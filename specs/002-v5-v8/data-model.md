@@ -121,7 +121,8 @@ Flags 2 keeps its current bits.
 | locals | Up to 15; arguments beyond the routine's locals are discarded (§6.4.4.1) |
 
 `catch` stores the number of routine calls in progress, not counting the main code, which
-is the value Frotz uses and so the value found in saves (Quetzal §6.2). `throw` returns
+is the value Frotz uses and so the value found in saves (Quetzal §6.2). Observed with
+dfrotz: 1 in a routine called from the main code, 2 one call deeper, and so on. `throw` returns
 from the frame so numbered; a number with no such frame is a fault. A call in a
 discarding form made between the `catch` and the `throw` stores nothing.
 
@@ -197,7 +198,7 @@ Where the spec names a situation and leaves the outcome to the Standard, this is
 | `show_status` in version 5 | Nothing happens (§15) |
 | An extended opcode above 28 | Ignored (§14.2.1) |
 | `throw` to a frame that no longer exists | Fault |
-| More arguments than the routine has locals | The extras are discarded (§6.4.4.1). Whether `check_arg_count` then counts them is not stated by the Standard; the task that implements it follows Frotz and records what Frotz does |
+| More arguments than the routine has locals | The extras are discarded (§6.4.4.1), but `check_arg_count` counts every argument that was passed. Observed with dfrotz: a routine with three locals called with five arguments reports arguments 1 to 5 as given |
 | Object, property and attribute numbers at the top of version 5's range | Object 65535, property 63, attribute 47 are valid; attribute 48 and above is ignored as attribute 32 is in version 3 |
 
 ## Undo position

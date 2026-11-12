@@ -362,6 +362,10 @@ pub fn play(
                 writeln!(err, "zm: the story file stopped: {fault}")?;
                 return Ok(EXIT_FAULT);
             }
+            // Key input is wired up with the rest of version 5 support.
+            Event::KeyWanted => {
+                machine.provide_key(zmachine_core::Key::Return).expect("a key was wanted")
+            }
             Event::TranscriptRequested => {
                 out.write_all(wrapper.flush().as_bytes())?;
                 out.flush()?;

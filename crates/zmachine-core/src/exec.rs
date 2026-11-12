@@ -48,6 +48,7 @@ pub(crate) enum State {
     AwaitingSaveResult,
     AwaitingRestoreData,
     AwaitingTranscriptAnswer,
+    AwaitingKey,
     Finished,
     Faulted,
 }
@@ -137,7 +138,7 @@ impl Machine {
     }
 
     /// Stores an instruction's result in its store variable.
-    fn store(&mut self, ins: &Instruction, value: u16) -> X<()> {
+    pub(crate) fn store(&mut self, ins: &Instruction, value: u16) -> X<()> {
         match ins.store {
             Some(variable) => self.write_variable(variable, value),
             None => Ok(()),
@@ -187,16 +188,22 @@ impl Machine {
         if self.frames.len() > MAX_CALL_DEPTH {
             return Err(FaultKind::CallStackOverflow);
         }
-        // §1.2.3: a version 3 packed address is half the byte address.
-        let address = packed as u32 * 2;
+        // §1.2.3: a packed address is the byte address over 2, 4 or 8.
+        let v = self.header.v;
+        let address = v.unpack(packed);
         let count = self.memory.read_byte(address)? as usize;
         if count > 15 {
             return Err(FaultKind::InvalidVariable);
         }
-        // §5.2.1: in version 3 the initial values of the locals follow the count.
-        let mut locals = Vec::with_capacity(count);
-        for i in 0..count {
-            locals.push(self.memory.read_word(address + 1 + 2 * i as u32)?);
+        // §5.2.1: in version 3 the initial values of the locals follow the count;
+        // from version 5 locals start at zero.
+        let mut locals = vec![0u16; count];
+        let mut code = address + 1;
+        if v.routines_have_initial_values() {
+            for local in locals.iter_mut() {
+                *local = self.memory.read_word(code)?;
+                code += 2;
+            }
         }
         // §6.4.4: arguments are written into the first locals; extras are dropped.
         let arguments = &operands[1..];
@@ -208,9 +215,11 @@ impl Machine {
             result: ins.store,
             locals,
             stack: Vec::new(),
-            arg_count: arguments.len().min(count) as u8,
+            // Version 3 has nothing that reads this; versions 5 and 8 count every
+            // argument passed, as `check_arg_count` reports them (data-model.md).
+            arg_count: if v.is_v3() { arguments.len().min(count) as u8 } else { arguments.len() as u8 },
         });
-        self.pc = address + 1 + 2 * count as u32;
+        self.pc = code;
         Ok(())
     }
 
@@ -253,7 +262,7 @@ impl Machine {
 
         // §4.2.3: operands are evaluated in order, so stack operands pop left to
         // right.
-        let mut operands = [0u16; 4];
+        let mut operands = [0u16; 8];
         let count = ins.operands.len();
         for (slot, operand) in operands.iter_mut().zip(&ins.operands) {
             *slot = match *operand {
@@ -263,7 +272,7 @@ impl Machine {
             };
         }
         // An operand the instruction needs but the story omitted reads as 0.
-        let [a, b, c, _] = operands;
+        let [a, b, c, d, ..] = operands;
         let given = &operands[..count];
         // For the instructions that name a variable by number (§6.3.4).
         let named = a as u8;
@@ -370,23 +379,34 @@ impl Machine {
                 }
             }
             PrintAddr => self.print_at(a as u32)?,
-            PrintPaddr => self.print_at(a as u32 * 2)?,
+            PrintPaddr => self.print_at(self.header.v.unpack(a))?,
             PrintChar => self.print_zscii(a),
             PrintNum => self.emit(&(a as i16).to_string()),
             NewLine => self.emit("\n"),
+            // §15 show_status: illegal after version 3, where it is to be ignored.
             ShowStatus => {
                 self.flush_chunk();
-                self.update_status()?;
+                if self.header.v.is_v3() {
+                    self.update_status()?;
+                }
             }
-            SplitWindow => self.flush_chunk(),
+            SplitWindow => {
+                self.flush_chunk();
+                if !self.header.v.is_v3() {
+                    self.screen.split(a);
+                }
+            }
             SetWindow => {
                 // The word in progress belongs to the window it was printed in.
                 self.flush_chunk();
                 self.window = a;
+                if a == 1 && !self.header.v.is_v3() {
+                    self.screen.select_upper();
+                }
             }
             OutputStream => {
                 self.flush_chunk();
-                self.output_stream(a as i16)?;
+                self.output_stream(a as i16, b)?;
             }
             // §10.2, §15 sound_effect: command files and bleeps are not offered.
             InputStream | SoundEffect => {}
@@ -404,6 +424,9 @@ impl Machine {
                 let intact = self.verify();
                 self.branch(&ins, intact)?;
             }
+            // The forms of save and restore that take a table are optional (§15);
+            // they are not offered, and report failure.
+            Save | Restore if count > 0 && !self.header.v.is_v3() => self.store(&ins, 0)?,
             Save => {
                 let event = self.begin_save(ins);
                 return Ok(Flow::Stop(event));
@@ -414,8 +437,93 @@ impl Machine {
                 self.pending = Some(ins);
                 return Ok(Flow::Stop(Event::RestoreRequested));
             }
-            // The instructions of versions 5 and 8 are decoded but not yet executed.
-            _ => return Err(FaultKind::UnknownInstruction),
+
+            // ---- Versions 5 and 8 ----
+            Call2s | Call1s | CallVs2 | Call2n | Call1n | CallVn | CallVn2 => {
+                self.call(&ins, given)?
+            }
+            CheckArgCount => {
+                let passed = self.frames.last().map_or(0, |f| f.arg_count) as u16;
+                self.branch(&ins, a >= 1 && a <= passed)?;
+            }
+            // Quetzal §6.2: the number of routine calls in progress.
+            Catch => self.store(&ins, (self.frames.len() - 1) as u16)?,
+            Throw => {
+                let frame = b as usize;
+                if frame >= self.frames.len() {
+                    return Err(FaultKind::InvalidFrame);
+                }
+                self.frames.truncate(frame + 1);
+                self.return_from_routine(a)?;
+            }
+            LogShift => self.store(&ins, math::log_shift(a, b))?,
+            ArtShift => self.store(&ins, math::art_shift(a, b))?,
+            CopyTable => self.copy_table(a, b, c)?,
+            ScanTable => {
+                let form = if count > 3 { d } else { 0x82 };
+                let found = self.scan_table(a, b, c, form)?;
+                self.store(&ins, found)?;
+                self.branch(&ins, found != 0)?;
+            }
+            PrintTable => {
+                let height = if count > 2 { c } else { 1 };
+                self.print_table(a, b, height, d)?;
+            }
+            EncodeText => self.encode_text(a, b, c, d)?,
+            Tokenise => self.tokenise_instruction(&ins, given)?,
+            Aread => {
+                let event = self.begin_aread(ins, a, b)?;
+                return Ok(Flow::Stop(event));
+            }
+            ReadChar => {
+                self.flush_chunk();
+                self.state = State::AwaitingKey;
+                self.pending = Some(ins);
+                return Ok(Flow::Stop(Event::KeyWanted));
+            }
+            SetTextStyle => self.style.apply(a),
+            BufferMode => {
+                self.flush_chunk();
+                self.buffering = a != 0;
+            }
+            EraseWindow => self.erase_window(a as i16),
+            EraseLine => {
+                if a == 1 && self.window == 1 {
+                    self.screen.erase_line();
+                }
+            }
+            SetCursor => {
+                if self.window == 1 {
+                    self.flush_chunk();
+                    self.screen.set_cursor(a, b);
+                }
+            }
+            GetCursor => {
+                // The lower window has no layout in the core; it reports 1, 1.
+                let (row, column) = if self.window == 1 { self.screen.cursor() } else { (1, 1) };
+                self.memory.write_word(a as u32, row)?;
+                self.memory.write_word(a as u32 + 2, column)?;
+            }
+            // §15 set_font: the previous font, or 0 if the one asked for is not
+            // offered. Only font 1 is; font 0 asks which is current.
+            SetFont => self.store(&ins, if a <= 1 { 1 } else { 0 })?,
+            PrintUnicode => {
+                if let Some(ch) = char::from_u32(a as u32) {
+                    let mut buffer = [0u8; 4];
+                    self.emit(ch.encode_utf8(&mut buffer));
+                }
+            }
+            CheckUnicode => {
+                let ch = char::from_u32(a as u32);
+                let readable = ch.is_some_and(|c| self.charset.zscii_for(c).is_some());
+                self.store(&ins, ch.is_some() as u16 | (readable as u16) << 1)?;
+            }
+            // Colour is reported unavailable; any request is accepted and ignored.
+            SetColour | SetTrueColour => {}
+            // §15 piracy: "the game disc is believed to be genuine".
+            Piracy => self.branch(&ins, true)?,
+            SaveUndo => self.save_undo(&ins)?,
+            RestoreUndo => self.restore_undo(&ins)?,
         }
         Ok(Flow::Continue)
     }

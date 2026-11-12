@@ -72,6 +72,7 @@ fn exercise(image: Vec<u8>, saved: Option<&[u8]>) -> End {
             Event::BudgetExhausted => {}
             Event::LineWanted { .. } => m.provide_line(lines[turn % lines.len()]).unwrap(),
             Event::TranscriptRequested => m.transcript_result(turn % 2 == 0).unwrap(),
+            Event::KeyWanted => m.provide_key(zmachine_core::Key::Char('y')).unwrap(),
             Event::SaveRequested(bytes) => {
                 last_save = Some(bytes);
                 m.save_result(true).unwrap();

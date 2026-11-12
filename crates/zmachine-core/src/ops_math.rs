@@ -56,6 +56,29 @@ pub(crate) fn je(operands: &[u16]) -> bool {
     }
 }
 
+/// §15 log_shift: left by a positive count, right by a negative one, filling with
+/// zeros. A count of 16 or more leaves nothing.
+pub(crate) fn log_shift(value: u16, places: u16) -> u16 {
+    let places = places as i16;
+    let by = places.unsigned_abs() as u32;
+    match places {
+        0 => value,
+        1.. => value.checked_shl(by).unwrap_or(0),
+        _ => value.checked_shr(by).unwrap_or(0),
+    }
+}
+
+/// §15 art_shift: as `log_shift`, but a right shift copies the sign bit.
+pub(crate) fn art_shift(value: u16, places: u16) -> u16 {
+    let places = places as i16;
+    let by = places.unsigned_abs() as u32;
+    match places {
+        0 => value,
+        1.. => value.checked_shl(by).unwrap_or(0),
+        _ => ((value as i16) >> by.min(15)) as u16,
+    }
+}
+
 pub(crate) fn jl(a: u16, b: u16) -> bool {
     (a as i16) < (b as i16)
 }

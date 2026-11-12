@@ -340,6 +340,9 @@ pub(crate) struct Instruction {
     pub opcode: Opcode,
     pub operands: Vec<Operand>,
     pub store: Option<u8>,
+    /// Address of the store-variable byte, when the instruction stores. A version 5
+    /// save or undo position records this address as its program counter.
+    pub store_data: Option<u32>,
     pub branch: Option<Branch>,
     /// Address of the branch data, when the instruction branches. A version 3 save
     /// records this address as its program counter.
@@ -514,11 +517,8 @@ pub(crate) fn decode_for(
         }
     };
 
-    let store = if opcode.stores(v) {
-        Some(c.byte()?)
-    } else {
-        None
-    };
+    let store_data = opcode.stores(v).then_some(c.at);
+    let store = if store_data.is_some() { Some(c.byte()?) } else { None };
 
     let mut branch = None;
     let mut branch_data = None;
@@ -539,6 +539,7 @@ pub(crate) fn decode_for(
         opcode,
         operands,
         store,
+        store_data,
         branch,
         branch_data,
         text,
