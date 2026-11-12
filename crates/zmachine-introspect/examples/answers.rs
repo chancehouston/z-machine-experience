@@ -22,7 +22,10 @@ fn main() {
     let story = std::fs::read(story).expect("read the story file");
     let script = std::fs::read_to_string(script).expect("read the script");
     let line: usize = line.parse().expect("a line number");
-    let options = LoadOptions { seed: Some(seed.parse().expect("a seed")), entropy: 0 };
+    let options = LoadOptions {
+        seed: Some(seed.parse().expect("a seed")),
+        entropy: 0,
+    };
     let mut machine = Machine::load(story, options).expect("load the story file");
     let mut commands = script.lines().skip(2).take(line.saturating_sub(3));
     loop {

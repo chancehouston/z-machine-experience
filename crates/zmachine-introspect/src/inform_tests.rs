@@ -248,6 +248,23 @@ fn direction_words() {
     assert_eq!(exits.exits[0].words, ["n", "north"]);
     assert_eq!(exits.exits[1].words, ["in"]);
 
+    // Words of one length are in alphabetical order, whatever order `name` has.
+    let mut f = Inform::new();
+    f.words.extend([
+        ("up", [0x80, 0, 0]),
+        ("no", [0x80, 0, 0]),
+        ("abc", [0x80, 0, 0]),
+    ]);
+    f.late(
+        inf::N,
+        1,
+        Late::Words(vec!["up", "north", "abc", "no", "n"]),
+    );
+    let m = f.machine();
+    let view = m.view();
+    let exits = introspect(&m).exits(&view).value.unwrap();
+    assert_eq!(exits.exits[0].words, ["n", "no", "up", "abc", "north"]);
+
     let mut f = Inform::new();
     f.words.retain(|(w, _)| *w != "in");
     f.words.push(("in", [0x80, 0, 0]));

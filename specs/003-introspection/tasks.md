@@ -200,7 +200,7 @@ the games' own text at every prompt
 
 - [x] T053 [US6] Failing tests in `crates/zmachine-introspect/tests/spec_agreement.rs` (SC-011, FR-030, FR-031): the query names in `docs/introspection.md`'s section headings equal `QUERIES`, in order; the document's version equals `SPEC_VERSION` and the `spec` field `zm` prints; every unknown reason and every field name of the JSON renderings appears in the document, and every reason and field the document lists is one the implementation can produce; every "I§" citation in the crate's tests names a section that exists; the document contains no Rust type name and no path into `crates/` (FR-029)
 - [x] T054 [US6] Complete `docs/introspection.md` until T053 passes: sections 1 and 2 in full, with the JSON form of every answer and one worked example per query from each game; section 10, every known limit (change of player in Inform; ties for the player in ZIL; a translated library's compass; library and ZIL versions not tested; what makes scope approximate; that exits are the room's table and the game has the last word); section 11, what kind of change moves which part of the version
-- [ ] T055 [US6] The blind reading (SC-012): give an independent reviewer, with no access to `crates/zmachine-introspect/src`, the document and the story files, and ask for the six answers at five named walkthrough steps in each of Zork I and Advent, worked out from the bytes of saved states; compare with `zm --inspect`. For every difference decide from the document's text which is right; correct the document where it was unclear and the implementation, test first, where it was wrong. Record the outcome, and each difference found, at the end of this file
+- [x] T055 [US6] The blind reading (SC-012): give an independent reviewer, with no access to `crates/zmachine-introspect/src`, the document and the story files, and ask for the six answers at five named walkthrough steps in each of Zork I and Advent, worked out from the bytes of saved states; compare with `zm --inspect`. For every difference decide from the document's text which is right; correct the document where it was unclear and the implementation, test first, where it was wrong. Record the outcome, and each difference found, at the end of this file
 
 ---
 
@@ -378,4 +378,41 @@ commit message.
   from the games' sources and Frotz's transcripts, without sight of the crate.
 - **An example program** (`examples/answers.rs`) was added to print all six answers at
   one moment, for the blind reading. It is not part of the library.
+
+## The blind reading (T055, SC-012)
+
+An independent reader, with no access to the crate's source or tests, to this feature's
+design documents, or to `zm`'s introspection options, wrote its own program from
+`docs/introspection.md` and the Standard alone, and produced all six answers and the
+family at five walkthrough positions in each of Zork I (lines 3, 12, 60, 150, 245) and
+Advent version 5 (lines 3, 6, 43, 90, 150). Its states came from save files written by
+playing the games. Its output was compared with this implementation's by a script,
+field for field, in order.
+
+**Result: 69 of the 70 answers were identical**, including the complete object trees
+(250 and 277 objects), the complete dictionaries with parts of speech, every exit, every
+scope entry, and the tie for the player at Zork I line 245.
+
+**The one difference**: at Advent line 3, the words for "down" came out
+`["d","down","below","floor"]` here and `["d","down","floor","below"]` there. The
+document said "shortest first" and nothing about words of equal length. The
+implementation orders them alphabetically; the reader kept the story file's order. The
+document was silent, so the document was corrected: it now says alphabetical. A unit
+test of that order was added. The implementation was not changed.
+
+**Ambiguities the reader reported that did not cause a difference**, each now settled in
+the document: what is read from the file as shipped and what from memory now; the
+wording of the printed-name rule; the fields of an entry in the exits' `unknown` list;
+the order of the two tests on a 4-byte ZIL exit; which variables count in the ZIL player
+rule; how names and dictionary words are decoded; that a `found_in` object is followed
+by its contents; how the player inside a vehicle is passed over in scope; and
+visibility for objects directly in a ZIL room.
+
+**What this does and does not show.** It shows the document is enough to reproduce the
+answers at these ten states, which exercise both families, flag exits, a tie, a maze
+room with a different printed name, and objects placed by `found_in`. It does not
+exercise darkness, a player in a vehicle, damaged files, or any `not-determinable`
+value, none of which occurs at those states. The reader was an AI agent working in one
+sitting, not a person implementing over days; a human implementer may trip on things it
+did not.
 

@@ -212,6 +212,16 @@ The family is a fact about a story file, not a query. It is one of `inform6`, `z
 - **The rules name no game.** They do not consult a file's name, serial number, release
   or checksum.
 
+**What is read from where.** Everything this section defines is worked out once from
+the story file as shipped: the family, the directions with their words and their order,
+the object that holds a ZIL game's rooms, the bounds S and R, and the objects that start
+unplaced (section 7.2). Everything else in sections 4 to 9 is read from memory as it is
+at the moment of the query, including whether an object is a room: in ZIL, that its
+parent is now the object that holds the rooms.
+
+**The order of a direction's words.** Wherever a direction's words are listed they are
+shortest first, and words of the same length are in alphabetical order.
+
 The rules are deliberately stricter than is needed to tell the families apart: each also
 checks a convention that a later query relies on, so that a file which keeps the
 convention differently is `unrecognised` and not misread.
@@ -260,10 +270,10 @@ child without `name` whose direction is 17 or 18, the word is `in` or `out`
 respectively, provided the dictionary holds that word with the verb bit (0x01) set in
 its first data byte; otherwise the direction has no words.
 
-**Printed names.** An object's printed name is the text at its `short_name` property
-(46) when that property is two bytes and holds a string (below); unknown
-(`not-determinable`) when it holds anything else that is not an object number 0; and
-the stored name when the object does not provide the property.
+**Printed names.** If an object does not provide property 46 (`short_name`), its printed
+name is its stored name. If it provides it as exactly two bytes: a value of 0 gives the
+stored name; a string (below) gives that string's text; any other value is
+`not-determinable`. A `short_name` of any other length is `not-determinable`.
 
 **Telling a routine from a string.** A two-byte property value that is not an object
 number is the packed address of a routine or of a string, and nothing in the header says
@@ -338,12 +348,16 @@ Each entry has:
 What a number means, for an attribute or a property, is a matter for the family and is
 not part of this answer.
 
+Names are decoded as the Standard prescribes (§3), with the story file's abbreviations
+and, where its header names them, its own alphabet table and Unicode table. If an
+object's entry cannot be read its `name` is empty and its lists are empty.
+
 **When a part is `damaged`:**
 
 - `parent` is `damaged` if the stored number is beyond the last object.
-- `children` is `damaged` if following the child and sibling links reaches a number that
-  is 0 where it should not be or beyond the last object, visits more objects than exist,
-  or reaches an object whose own `parent` is some other object. The two stored facts
+- `children` is `damaged` if following the child and sibling links reaches a number
+  beyond the last object, visits more objects than exist, or reaches an object whose own
+  `parent` is some other object. A link of 0 ends the list. The two stored facts
   then disagree and neither is preferred.
 - The other objects' entries are unaffected. The walk for one object never takes more
   steps than there are objects.
@@ -391,6 +405,11 @@ is one ZIL's parser ignores.
 `direction` is the direction's number for a `direction` word: in ZIL the second data
 byte when the low two bits of the first are set and the third otherwise (section 3.2);
 in Inform 6 the direction whose words include this one.
+
+A word is decoded from the Z-characters its entry stores, as the Standard prescribes
+(§3) but without abbreviations; padding, and a shift or escape left incomplete at the
+end, produce nothing. A word in the words of two directions takes the first, in the
+family's order of directions.
 
 A dictionary marked unsorted (a negative count, Standard §13.2) is listed in table
 order like any other.
@@ -481,8 +500,8 @@ game, so the player is found by elimination:
 2. Of those, keep each that is now inside the room of section 6.2: following its
    `parent` reaches the room before reaching an object with no parent or another object
    of step 1.
-3. Of those, keep each whose number is held by at least one global variable other than
-   variable 0.
+3. Of those, keep each whose number is, in memory now, the value of at least one of
+   global variables 1 to 239.
 
 If exactly one object remains, it is the player. If none, the answer is `no-player`. If
 more than one, it is `ambiguous-player`: **a tie is never broken.** Other objects that a
@@ -512,8 +531,9 @@ The answer has two lists.
 | `destination` | For a `fixed` exit, the object number of the room it leads to |
 | `destination_name` | For a `fixed` exit, that room's printed name; a part that may be unknown |
 
-`unknown`, one entry for each direction that could not be determined, with its
-`direction`, its `words` and a reason.
+`unknown`, one entry for each direction that could not be determined, with three
+fields: `direction`, `words`, and `reason`, which is the reason's word itself (in JSON a
+plain string, not an unknown object: the entry as a whole is the unknown).
 
 A direction the room does not provide, or for which it stores only a refusal, is in
 neither list. No direction appears twice. An exit that leads back to the room it is in
@@ -561,7 +581,7 @@ A 4-byte exit is open while a variable is not zero. Its second byte is a Z-machi
 variable number, in which 16 is the first global variable:
 
 - if the byte is 16 or more and that global variable is not zero, the exit is `fixed`,
-  to the room in the first byte;
+  to the room in the first byte, or `unknown` if that byte is not a room's number;
 - if the byte is 16 or more and the variable is zero, it is not an exit;
 - if the byte is less than 16 it names the stack or a local variable, which mean nothing
   outside a routine, and the exit is `conditional`.
@@ -574,8 +594,9 @@ what it would be recomputed to.
 A 5-byte exit depends on whether a door is open. ZIL numbers its attributes game by
 game, so "open" cannot be read, and the exit is `conditional`.
 
-A 1-byte or 4-byte exit whose first byte is not the number of a room is `unknown`,
-`not-determinable`.
+The variable is tested before the room: a closed 4-byte exit is not an exit whatever its
+first byte holds. A 1-byte exit, or an open 4-byte exit, whose first byte is not the
+number of a room is `unknown`, `not-determinable`.
 
 ### 8.3 The game has the last word
 
@@ -619,7 +640,9 @@ Each entry:
 | `scenery` | `yes`, `no` or `unknown` |
 | `concealed` | `yes`, `no` or `unknown` |
 
-No object appears twice. The player is never an entry, nor is the room. The entries
+No object appears twice. The player is never an entry, nor is the room: wherever the
+player stands in the room's tree, inside a vehicle for instance, the player and all the
+player holds are passed over there, and the vehicle's other contents are listed. The entries
 marked `carried` or `worn` are exactly the top level of `inventory` (section 7).
 
 **The answer marks; it does not filter.** Scenery, concealed things and things of
@@ -628,7 +651,8 @@ caller's business.
 
 Entries are in this order: the room's children in the tree's order, each followed at
 once by what is in or on it; then, for Inform 6, objects present by `found_in`, in
-order of number; then what the player carries, each followed by its contents.
+order of number, each followed by its contents; then what the player carries, each
+followed by its contents.
 
 ### 9.1 Inform 6
 
@@ -640,7 +664,8 @@ order of number; then what the player carries, each followed by its contents.
   container is left out, and so is what a creature holds.
 - **Present in several rooms.** An object with no parent, without attribute 1
   (`absent`), whose property 39 (`found_in`) is an even number of bytes, every word of
-  it an object number, one of them the room, is listed as `in-room`. Where `found_in`
+  it an object number from 1 to the last object, one of them the room, is listed as
+  `in-room`, unless it is already listed. Where `found_in`
   holds a routine nothing can be read, and the object is listed only if the library has
   already moved it into the room.
 - **What is carried.** The player's children, `worn` if they have attribute 26 and
@@ -656,11 +681,12 @@ attribute means open, lit, invisible or a surface.
 - **Light** is `unknown`. The room's contents are listed regardless.
 - **Contents.** Every object under the room in the tree is listed. An object inside
   another is `inside`, with `visibility` `unknown`: it may be in a closed container.
-  Nothing is `on` or `worn`.
+  An object directly in the room, or carried directly, is `visible`. Nothing is `on` or
+  `worn`.
 - **Marks.** `scenery` and `concealed` are `unknown`.
 - **When the player is unknown** (section 7.2), `player` gives the reason and nothing is
-  `carried`. If the reason is `ambiguous-player`, every object that tied is left out,
-  together with everything it holds: one of them is the player, whose possessions are
+  `carried`. If the reason is `ambiguous-player`, every object that tied is left out
+  wherever it is, together with everything it holds; what it is inside is still listed: one of them is the player, whose possessions are
   not the room's. If it is `no-player`, the room's contents are listed in full.
 
 ### 9.3 What makes it approximate
