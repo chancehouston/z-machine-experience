@@ -29,5 +29,6 @@ target/
 /apps/ios/*.xcodeproj
 /apps/ios/Frameworks/
 /apps/ios/Lamplight/Resources/story.z3
+/apps/ios/Lamplight/Resources/story.pack
 /apps/ios/Lamplight/Resources/story-license.txt
 xcuserdata/

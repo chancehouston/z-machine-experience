@@ -222,3 +222,52 @@ fn the_app_says_nothing_of_its_own_about_exits() {
         }
     }
 }
+
+// Feature 006, FR-032: the app carries the pack of the story it carries, and
+// applies it only by the identity rule, which is the layer's. The build copies
+// the pack beside the story after checking that the pack is that story's; the
+// app reads it by the story's resource name and hands its text over unread.
+#[test]
+fn the_app_carries_its_storys_pack_and_reads_none_of_it() {
+    let root = concat!(env!("CARGO_MANIFEST_DIR"), "/../..");
+    let script = std::fs::read_to_string(format!("{root}/scripts/build-ios.sh")).unwrap();
+    assert!(
+        script.contains(r#"cp "$pack" "$resources/story.pack""#),
+        "the build copies the pack beside the story"
+    );
+    assert!(
+        script.contains(r#"grep -qx "sha256: $actual" "$pack""#),
+        "and only if the pack names the story it is copied beside"
+    );
+    let project = std::fs::read_to_string(format!("{APP}/project.yml")).unwrap();
+    assert!(
+        project.contains("Lamplight/Resources/story.pack"),
+        "the pack is a resource"
+    );
+    let ignore = std::fs::read_to_string(format!("{root}/.gitignore")).unwrap();
+    assert!(
+        ignore.contains("/apps/ios/Lamplight/Resources/story.pack"),
+        "the copy is generated, not committed"
+    );
+
+    let sources = app_swift();
+    let source = |name: &str| &sources.iter().find(|(n, _)| n == name).unwrap().1;
+    let game = source("Lamplight/Game.swift");
+    assert!(
+        game.contains(r#"Bundle.main.url(forResource: name, withExtension: "pack")"#),
+        "the pack is found by the story's resource name"
+    );
+    let engine = source("Lamplight/Engine.swift");
+    assert!(engine.contains("zmx_session_new_with_pack("));
+    assert!(
+        !engine.contains("zmx_session_new("),
+        "one way of starting a session"
+    );
+    // No source of the app reads a pack's contents: no key of the format is
+    // written anywhere in it.
+    for (name, text) in &sources {
+        for key in ["sha256", "open-attribute", "untrusted-variable"] {
+            assert!(!text.contains(key), "apps/ios/{name} holds {key:?}");
+        }
+    }
+}

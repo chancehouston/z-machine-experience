@@ -25,6 +25,9 @@ targets:
         buildPhase: resources
       - path: Lamplight/Resources/story-license.txt
         buildPhase: resources
+      - path: Lamplight/Resources/story.pack
+        buildPhase: resources
+        optional: true
     dependencies:
       - framework: Frameworks/ZMX.xcframework
         embed: false

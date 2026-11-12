@@ -12,15 +12,16 @@ actor Engine {
     private let session: OpaquePointer
 
     /// Loads the story and runs it to its first stop. With no seed, the game's
-    /// randomness comes from the system's generator.
-    init(story: Data, seed: UInt32?) throws(StartFailure) {
+    /// randomness comes from the system's generator. `pack` is the text of the
+    /// story's game pack, if it has one: the layer decides whether it applies.
+    init(story: Data, pack: String?, seed: UInt32?) throws(StartFailure) {
         var generator = SystemRandomNumberGenerator()
         let entropy = UInt32.random(in: .min ... .max, using: &generator)
         var error: UnsafeMutablePointer<CChar>?
         let made = story.withUnsafeBytes { bytes in
-            zmx_session_new(
+            zmx_session_new_with_pack(
                 bytes.bindMemory(to: UInt8.self).baseAddress, bytes.count,
-                seed ?? 0, seed == nil ? 0 : 1, entropy, &error)
+                seed ?? 0, seed == nil ? 0 : 1, entropy, pack, &error)
         }
         guard let made else {
             let message = error.map { String(cString: $0) } ?? ""

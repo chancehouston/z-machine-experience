@@ -76,7 +76,8 @@ struct CompassView: View {
 
 /// One of the twelve controls, drawn from its state:
 /// open, a filled disc with the arrow; maybe, an outlined disc with the arrow
-/// and a question mark; closed and idle, a faint dot; unknown, a dashed ring.
+/// and a question mark; door (a closed door), an outlined upright panel with
+/// the arrow; closed and idle, a faint dot; unknown, a dashed ring.
 struct CompassControl: View {
     /// The side of the square a control is tapped in. It does not grow with the
     /// text size.
@@ -135,6 +136,18 @@ struct CompassControl: View {
                         .frame(width: 15, height: 15)
                         .background(Circle().fill(.tint))
                         .offset(x: 4, y: -4)
+                }
+        case .door:
+            // A closed door: a panel, not a disc, so that its shape tells it
+            // from the other states without colour.
+            RoundedRectangle(cornerRadius: 4)
+                .strokeBorder(.tint, lineWidth: 2)
+                .frame(width: 24, height: 30)
+                .overlay {
+                    Image(systemName: symbol.name)
+                        .font(.system(size: 12, weight: .semibold))
+                        .rotationEffect(.degrees(symbol.turned))
+                        .foregroundStyle(.tint)
                 }
         case .closed, .idle:
             Circle().fill(.secondary.opacity(0.4)).frame(width: 7, height: 7)
