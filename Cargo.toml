@@ -6,6 +6,7 @@ members = [
     "crates/zmachine-experience",
     "crates/zmachine-ffi",
     "crates/zmachine-testkit",
+    "crates/zmachine-corpus",
     "crates/zmachine-cli",
 ]
 

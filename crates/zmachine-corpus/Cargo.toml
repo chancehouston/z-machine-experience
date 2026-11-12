@@ -1,0 +1,21 @@
+[package]
+name = "zmachine-corpus"
+version = "0.1.0"
+description = "Testing tools: tries a game's exits on copies and sets what happened against what introspection reported. Nothing depends on this crate."
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+publish = false
+
+[[bin]]
+name = "corpus"
+path = "src/main.rs"
+
+[dependencies]
+zmachine-core = { path = "../zmachine-core" }
+zmachine-introspect = { path = "../zmachine-introspect" }
+sha2 = "0.10"
+
+[dev-dependencies]
+zmachine-testkit = { path = "../zmachine-testkit" }
