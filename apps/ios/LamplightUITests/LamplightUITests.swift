@@ -307,4 +307,171 @@ final class LamplightUITests: XCTestCase {
         XCTAssertTrue(license.label.contains("MIT License"), license.label)
         XCTAssertTrue(license.label.contains("Permission is hereby granted"))
     }
+
+    /// A hand-made snapshot: a compass with every place in one state, given
+    /// extras and a note. Debug builds draw it in place of a game when it is
+    /// passed in the environment (S§ "For automated tests").
+    private func handMade(
+        state: String, spokenTail: String, offered: Bool = true, known: Bool,
+        note: String?, extras: String = ""
+    ) -> String {
+        let labels = [
+            "North", "Northeast", "East", "Southeast", "South", "Southwest", "West", "Northwest",
+            "Up", "Down", "In", "Out",
+        ]
+        let drawn = zip(places, labels).map { place, label in
+            """
+            {"place":"\(place)","label":"\(label)","state":"\(state)","command":null,\
+            "leads_to":null,"spoken":"\(label), \(spokenTail)"}
+            """
+        }.joined(separator: ",")
+        let noteJSON = note.map { "\"\($0)\"" } ?? "null"
+        return """
+            {"generation":1,"turn_count":1,"waiting":"command","message":null,\
+            "status":{"place":"A Place","score":null,"moves":null,"hours":9,"minutes":5},\
+            "turns":[{"number":0,"command":null,"source":null,"text":"Ready.\\n\\n>"}],\
+            "compass":{"offered":\(offered),"known":\(known),"note":\(noteJSON),\
+            "places":[\(drawn)],"extras":[\(extras)]}}
+            """
+    }
+
+    @MainActor
+    private func launch(drawing snapshot: String) -> XCUIApplication {
+        let app = XCUIApplication()
+        app.launchEnvironment["LAMPLIGHT_FIXTURE_SNAPSHOT"] = snapshot
+        app.launch()
+        return app
+    }
+
+    // FR-014; US4 scenario 1. No room on the bundled game's walkthrough has
+    // unknown exits, so the compass is drawn from a hand-made snapshot.
+    @MainActor
+    func testUnknownExitsAreSaidToBeUnknown() {
+        var app = launch(drawing: handMade(
+            state: "unknown", spokenTail: "unknown", known: false,
+            note: "Exits unknown: type a direction"))
+        _ = turn(app, 0)
+        XCTAssertEqual(element(app, "compass.note").label, "Exits unknown: type a direction")
+        for place in places {
+            XCTAssertEqual(value(app, "compass.\(place)"), "unknown", place)
+            XCTAssertFalse(element(app, "compass.\(place)").isEnabled, place)
+        }
+        XCTAssertEqual(element(app, "compass.north").label, "North, unknown")
+        XCTAssertTrue(element(app, "field.command").isEnabled, "typing is still offered")
+        XCTAssertEqual(element(app, "status.time").label, "9:05")
+        XCTAssertFalse(element(app, "status.score").exists)
+        app.terminate()
+
+        // Known, with nothing open, says something else.
+        app = launch(drawing: handMade(
+            state: "closed", spokenTail: "no exit", known: true, note: "No exits here"))
+        _ = turn(app, 0)
+        XCTAssertEqual(element(app, "compass.note").label, "No exits here")
+        XCTAssertEqual(value(app, "compass.north"), "closed")
+    }
+
+    // FR-013; US2 scenario 7. The bundled game's first extra way out is over a
+    // hundred commands in, so the row is drawn from a hand-made snapshot; that
+    // a tap on an extra reaches the game is tested in the layer and bindings.
+    @MainActor
+    func testExtraWaysOutAreARowOfButtons() {
+        let extras = """
+            {"label":"Land","state":"open","command":"land","leads_to":"Sandy Beach",\
+            "spoken":"Land, to Sandy Beach"},\
+            {"label":"Cross","state":"maybe","command":"cross","leads_to":null,\
+            "spoken":"Cross, may be blocked"},\
+            {"label":"Launch","state":"closed","command":null,"leads_to":null,\
+            "spoken":"Launch, no exit"}
+            """
+        let app = launch(drawing: handMade(
+            state: "closed", spokenTail: "no exit", known: true, note: nil, extras: extras))
+        _ = turn(app, 0)
+        let land = element(app, "compass.extra.0")
+        XCTAssertTrue(land.exists)
+        XCTAssertEqual(land.label, "Land, to Sandy Beach")
+        XCTAssertEqual(land.value as? String, "open")
+        XCTAssertTrue(land.isEnabled && land.isHittable)
+        XCTAssertEqual(value(app, "compass.extra.1"), "maybe")
+        XCTAssertTrue(element(app, "compass.extra.1").isEnabled)
+        XCTAssertFalse(element(app, "compass.extra.2").isEnabled)
+        XCTAssertFalse(element(app, "compass.extra.3").exists)
+        XCTAssertFalse(element(app, "compass.note").exists)
+    }
+
+    // SC-001; S§ launch arguments.
+    @MainActor
+    func testLaunchTime() {
+        let app = launch(["-seed", "11", "-showLaunchTime"])
+        let shown = element(app, "debug.launchMillis")
+        XCTAssertTrue(shown.waitForExistence(timeout: 5))
+        let millis = Int(shown.label) ?? -1
+        XCTAssertGreaterThan(millis, 0, shown.label)
+        XCTAssertLessThan(millis, 2000, shown.label)
+    }
+
+    // SC-007: after thirty commands every turn can still be reached.
+    @MainActor
+    func testALongSession() {
+        let app = launch()
+        _ = turn(app, 0)
+        let lines = [
+            "open mailbox", "read leaflet", "inventory", "look", "north", "look", "north", "look",
+            "south", "south", "examine house", "west", "look", "take mailbox", "open door",
+            "south", "look", "east", "look", "open window", "in", "look", "take all", "west",
+            "look", "east", "inventory", "diagnose", "score", "look",
+        ]
+        XCTAssertEqual(lines.count, 30)
+        for (index, line) in lines.enumerated() {
+            type(app, line)
+            _ = turn(app, index + 1)
+        }
+        XCTAssertTrue(element(app, "turn.30.text").isHittable, "the newest turn is in view")
+        let transcript = element(app, "transcript")
+        let first = element(app, "turn.0.text")
+        var swipes = 0
+        while !first.isHittable && swipes < 40 {
+            transcript.swipeDown(velocity: .fast)
+            swipes += 1
+        }
+        XCTAssertTrue(first.isHittable, "the opening can be reached")
+        for number in 0...30 {
+            XCTAssertTrue(element(app, "turn.\(number).text").exists, "turn \(number)")
+        }
+        // The next turn brings the newest text back into view.
+        type(app, "look")
+        _ = turn(app, 31)
+        XCTAssertTrue(element(app, "turn.31.text").isHittable)
+    }
+
+    // SC-010; FR-030; S§ "At large text sizes".
+    @MainActor
+    func testTheLargestTextSize() {
+        let app = launch([
+            "-seed", "11",
+            "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL",
+        ])
+        _ = turn(app, 0)
+        var frames: [(String, CGRect)] = []
+        for place in places {
+            let control = element(app, "compass.\(place)")
+            XCTAssertTrue(control.isHittable, place)
+            XCTAssertGreaterThanOrEqual(control.frame.width, 44, place)
+            XCTAssertGreaterThanOrEqual(control.frame.height, 44, place)
+            frames.append((place, control.frame))
+        }
+        for identifier in ["field.command", "button.send", "button.about", "status.place"] {
+            XCTAssertTrue(element(app, identifier).isHittable, identifier)
+            frames.append((identifier, element(app, identifier).frame))
+        }
+        let screen = app.windows.firstMatch.frame
+        for (index, (name, frame)) in frames.enumerated() {
+            XCTAssertTrue(screen.contains(frame), "\(name) is on the screen: \(frame)")
+            for (other, otherFrame) in frames[(index + 1)...] {
+                XCTAssertFalse(
+                    frame.insetBy(dx: 0.5, dy: 0.5).intersects(otherFrame),
+                    "\(name) \(frame) overlaps \(other) \(otherFrame)")
+            }
+        }
+        XCTAssertEqual(element(app, "compass.north").label, "North, to North of House")
+    }
 }
