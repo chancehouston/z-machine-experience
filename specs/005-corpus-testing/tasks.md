@@ -489,3 +489,15 @@ them a misreading of an exit table.
   stubs (T005, T009), "the same twice" (T027), and the two no-text checks (T036). Each
   is recorded above with what was done to show it can fail, except "the same twice",
   which is now exercised by the crawl.
+
+### After the pull request was opened
+
+- **One earlier test was changed, by the project owner's decision (2026-11-12).** On the
+  first CI run of this branch the macOS job failed in feature 003's timing test,
+  `all_six_queries_take_under_five_milliseconds`: one prompt of Advent took 7.1 ms on the
+  shared runner, with a mean of 0.53 ms. Nothing in this feature changes the
+  introspection crate or the release profile the test runs in; on this Mac it measures
+  0.29 ms. The test keeps five milliseconds by default and reads another limit from
+  `QUERY_LIMIT_MILLIS`; CI sets 50. It was checked both ways here: it passes by default
+  and fails with a limit of 0. This is the one edit to a test of an earlier feature, and
+  the guard at the top of this file stopped for the owner before it was made.
