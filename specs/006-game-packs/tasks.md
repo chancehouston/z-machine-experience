@@ -74,7 +74,7 @@ work" 1), and the fixtures every story's tests need exist
 - [x] T005 In `docs/introspection.md`: version line to `0.2.0`; I§2.3 gains the key order of P§22 and says `door` and `state` are `null` unless `kind` is `door`; I§2.4's table gains the `pack` field after `family` (P§9); I§8's table of an exit gains `door`, `state`, `source` and the word `door` for `kind`; I§8.2's paragraph on the 5-byte exit and its paragraph on the 4-byte exit each end by pointing to section 12; I§10.4 gains the sentence of P§ "What changed"; the worked examples of I§2.5 gain the three keys with `null`, `null`, `"file"` (FR-025)
 - [x] T006 Failing test in `crates/zmachine-introspect/tests/spec_agreement.rs` (FR-026, R14): every statement of section 12 is cited by some test as "I§12.n", by reading the section's subsection numbers from the document and searching `crates/*/tests` and `crates/*/src/*_tests.rs`; fails now, listing all seven subsections as uncited. It stays failing until Phase 6 closes it (T047); mark it `#[ignore = "closed by T047"]` after the failure is recorded, so the workspace stays green in between
 - [x] T007 [P] Add a door fixture to `crates/zmachine-introspect/src/fixtures.rs`: a ZIL-shaped story with rooms A and B, a door object, a 5-byte exit from A to B through the door, a 4-byte exit from A to B on global variable 20 (variable number 36), commands that set and clear attribute 7 of the door and that set and clear the variable, and a chosen release and serial in its header. A unit test in `crates/zmachine-introspect/src/zil_tests.rs` shows it is recognised as `zil` and that with no pack both exits are what I§8.2 says today
-- [ ] T008 [P] Add the same shape to `crates/zmachine-corpus/tests/common/mod.rs` as a second toy story (the room behind the door reachable; a second toy whose 4-byte exit's variable is recomputed by the room one command late, as feature 005's stale toy if one exists, else new), with a helper that writes a pack for a toy by computing its digest, release and serial
+- [x] T008 [P] Add the same shape to `crates/zmachine-corpus/tests/common/mod.rs` as a second toy story (the room behind the door reachable; a second toy whose 4-byte exit's variable is recomputed by the room one command late, as feature 005's stale toy if one exists, else new), with a helper that writes a pack for a toy by computing its digest, release and serial
 
 **Checkpoint**: The format is published; fixtures exist; the workspace is green
 
@@ -122,20 +122,20 @@ marked; without one, nothing changes
 
 ### Tests for User Story 2
 
-- [ ] T023 [P] [US2] Failing tests in `crates/zmachine-corpus/tests/verdict.rs` (R10; D§ "Reported"): `reported` gives `Open(R)`, `Closed(R)` and `Distrusted` for the three marked exits and the earlier four values for exits whose `source` is `file`; the verdict table of R10, every row; `distrusted` is never `wrong`
-- [ ] T024 [P] [US2] Failing tests in `crates/zmachine-corpus/tests/formats.rs` (K§ "The corpus's files"; FR-022): a report writes and reads the `pack` line in each of its four forms; detail lines with `open R`, `closed R` and `distrusted` write and read; the verdict counts still add up to the trials; a ledger entry with `reported: open 5` or `closed 5` is read; one with `reported: distrusted` is refused with its line number
-- [ ] T025 [P] [US2] Failing tests in `crates/zmachine-corpus/tests/check.rs` (R9; FR-023; K§ "The corpus program"), each on a scratch repository layout: `corpus check` passes with no packs; and fails, naming the file, for a malformed pack (with the line), a pack whose digest is no story's, two packs with one digest, a pack whose file name is not its story's id, a pack with an entry for a story of family `inform`, and, where the story is present, a wrong release or serial; and it prints each ledger entry whose reported value is `open R` or `closed R` (FR-019)
-- [ ] T026 [P] [US2] Failing tests in `crates/zmachine-corpus/tests/proof.rs` (R11; FR-016, FR-017; D§ "Proof"; US2 scenarios 1 to 3), on the toy stories of T008: with the right attribute and the door seen in both states the entry is `proven` and the run passes; with a wrong attribute it is `contradicted`, the run fails, and the output names the entry, the room, the direction, what was reported and the outcome; with the door seen only closed, `not-proven` and the run fails; with a wrong report on a marked answer that the ledger holds, `proven`; the run prints `ID entry KEY VALUE: OUTCOME` for each entry
-- [ ] T027 [US2] Failing test in `crates/zmachine-corpus/tests/proof.rs` (SC-004; R5, R11): on Zork I, judging only the door-exit trials along the walkthrough, a pack naming attribute 11 has every trial confirmed, 57 in all with both states seen, and a pack naming each of the other 31 attributes has at least one wrong. **Stop** if 11 does not agree with every trial
-- [ ] T028 [P] [US2] Failing test in `crates/zmachine-corpus/tests/corpus.rs` (FR-020; US2 scenario 5; R16 of feature 005): the corpus target prints a line for each pack; a pack whose story is absent reads `ignored, story absent`; shown with a scratch layout that has a pack and no story file
+- [x] T023 [P] [US2] Failing tests in `crates/zmachine-corpus/tests/verdict.rs` (R10; D§ "Reported"): `reported` gives `Open(R)`, `Closed(R)` and `Distrusted` for the three marked exits and the earlier four values for exits whose `source` is `file`; the verdict table of R10, every row; `distrusted` is never `wrong`
+- [x] T024 [P] [US2] Failing tests in `crates/zmachine-corpus/tests/formats.rs` (K§ "The corpus's files"; FR-022): a report writes and reads the `pack` line in each of its four forms; detail lines with `open R`, `closed R` and `distrusted` write and read; the verdict counts still add up to the trials; a ledger entry with `reported: open 5` or `closed 5` is read; one with `reported: distrusted` is refused with its line number
+- [x] T025 [P] [US2] Failing tests in `crates/zmachine-corpus/tests/check.rs` (R9; FR-023; K§ "The corpus program"), each on a scratch repository layout: `corpus check` passes with no packs; and fails, naming the file, for a malformed pack (with the line), a pack whose digest is no story's, two packs with one digest, a pack whose file name is not its story's id, a pack with an entry for a story of family `inform`, and, where the story is present, a wrong release or serial; and it prints each ledger entry whose reported value is `open R` or `closed R` (FR-019)
+- [x] T026 [P] [US2] Failing tests in `crates/zmachine-corpus/tests/proof.rs` (R11; FR-016, FR-017; D§ "Proof"; US2 scenarios 1 to 3), on the toy stories of T008: with the right attribute and the door seen in both states the entry is `proven` and the run passes; with a wrong attribute it is `contradicted`, the run fails, and the output names the entry, the room, the direction, what was reported and the outcome; with the door seen only closed, `not-proven` and the run fails; with a wrong report on a marked answer that the ledger holds, `proven`; the run prints `ID entry KEY VALUE: OUTCOME` for each entry
+- [x] T027 [US2] Failing test in `crates/zmachine-corpus/tests/proof.rs` (SC-004; R5, R11): on Zork I, judging only the door-exit trials along the walkthrough, a pack naming attribute 11 has every trial confirmed, 57 in all with both states seen, and a pack naming each of the other 31 attributes has at least one wrong. **Stop** if 11 does not agree with every trial
+- [x] T028 [P] [US2] Failing test in `crates/zmachine-corpus/tests/corpus.rs` (FR-020; US2 scenario 5; R16 of feature 005): the corpus target prints a line for each pack; a pack whose story is absent reads `ignored, story absent`; shown with a scratch layout that has a pack and no story file
 
 ### Implementation for User Story 2
 
-- [ ] T029 [US2] The three reported values and their verdicts in `crates/zmachine-corpus/src/verdict.rs`; the `pack` line and the new detail values in `crates/zmachine-corpus/src/report.rs`; the new reported values in `crates/zmachine-corpus/src/ledger.rs`; T023 and T024 pass. Kept reports are not rewritten yet
-- [ ] T030 [US2] Finding and checking packs in `crates/zmachine-corpus/src/packs.rs` and `corpus check` in `crates/zmachine-corpus/src/corpus.rs` (R9); T025 passes
-- [ ] T031 [US2] A story's run takes its pack: `crates/zmachine-corpus/src/walk.rs` makes the introspector with `with_pack` when the story has one, and fills the report's `pack` line; proof of an `open-attribute` entry in `crates/zmachine-corpus/src/packs.rs`; `corpus run` prints each proof and fails on any outcome but `proven`; a pass limited to door-exit trials along a walkthrough for T027; T026, T027 and T028 pass
-- [ ] T032 [US2] Write `packs/zork1.pack` with the identity of `stories/zork1/zork1.z3` and `open-attribute: 11` only. Run `corpus run zork1` over walkthrough and crawl. For each wrong report on a marked answer, find its cause with `corpus explain`; if the cause is plainly not the entry (darkness, a timed event, another obstacle) add it to `stories/corpus/ledger.txt` with that cause; **stop** for the owner if a cause might be the entry (FR-019). Record in the notes the trials reported `open` and `closed`, and how many trials are still `conditional` against SC-001's 56
-- [ ] T033 [US2] `corpus write`: rewrite every kept report with its `pack` line (`pack none` for each story without a pack); confirm by `git diff --stat` that for every story but `zork1` the only change is that one line, and record it; update `stories/corpus/reports/summary.txt`; `cargo test --workspace` passes; quickstart steps 2 and 4
+- [x] T029 [US2] The three reported values and their verdicts in `crates/zmachine-corpus/src/verdict.rs`; the `pack` line and the new detail values in `crates/zmachine-corpus/src/report.rs`; the new reported values in `crates/zmachine-corpus/src/ledger.rs`; T023 and T024 pass. Kept reports are not rewritten yet
+- [x] T030 [US2] Finding and checking packs in `crates/zmachine-corpus/src/packs.rs` and `corpus check` in `crates/zmachine-corpus/src/corpus.rs` (R9); T025 passes
+- [x] T031 [US2] A story's run takes its pack: `crates/zmachine-corpus/src/walk.rs` makes the introspector with `with_pack` when the story has one, and fills the report's `pack` line; proof of an `open-attribute` entry in `crates/zmachine-corpus/src/packs.rs`; `corpus run` prints each proof and fails on any outcome but `proven`; a pass limited to door-exit trials along a walkthrough for T027; T026, T027 and T028 pass
+- [x] T032 [US2] Write `packs/zork1.pack` with the identity of `stories/zork1/zork1.z3` and `open-attribute: 11` only. Run `corpus run zork1` over walkthrough and crawl. For each wrong report on a marked answer, find its cause with `corpus explain`; if the cause is plainly not the entry (darkness, a timed event, another obstacle) add it to `stories/corpus/ledger.txt` with that cause; **stop** for the owner if a cause might be the entry (FR-019). Record in the notes the trials reported `open` and `closed`, and how many trials are still `conditional` against SC-001's 56
+- [x] T033 [US2] `corpus write`: rewrite every kept report with its `pack` line (`pack none` for each story without a pack); confirm by `git diff --stat` that for every story but `zork1` the only change is that one line, and record it; update `stories/corpus/reports/summary.txt`; `cargo test --workspace` passes; quickstart steps 2 and 4
 
 **Checkpoint**: Zork I's `open-attribute` entry is proven in CI, and a wrong one fails
 
@@ -150,17 +150,17 @@ proven by a second run with packs set aside; the ledger's stale-flag entries go
 
 ### Tests for User Story 3
 
-- [ ] T034 [P] [US3] Failing tests in `crates/zmachine-introspect/tests/packs.rs`, section "an untrusted variable" (P§17, 18, 20; FR-008, FR-011; R6; US3 scenarios 1 and 2): on the door fixture with `untrusted-variable: 36` in force, the 4-byte exit is `conditional`, `source` `pack`, with the variable zero and with it not zero; with `untrusted-variable: 37` instead it follows the stored variable as I§8.2 says and is `source` `file`; a pack with both entries applies both
-- [ ] T035 [P] [US3] Failing tests in `crates/zmachine-corpus/tests/proof.rs` (R11; FR-018; US2 scenario 4): on the stale toy of T008, naming its variable is `proven` (wrong without the pack at a room and direction that is `distrusted` with it); naming a variable that guards an exit which is never wrong is `unneeded` and the run fails; naming a variable no exit uses is `unneeded`
-- [ ] T036 [P] [US3] Failing tests in `crates/zmachine-corpus/tests/nopack.rs` (FR-021; SC-005, SC-006; K§ "The corpus program"): for a story with a pack, `corpus write` writes `reports/nopack/<id>.txt` and `corpus run` compares both; on the toys, the run with packs set aside gives the verdict counts of a run of the same toy with no pack file at all; on Zork I and both builds of Advent the walkthrough's transcript is the same, byte for byte, with trials run with the pack and without
+- [x] T034 [P] [US3] Failing tests in `crates/zmachine-introspect/tests/packs.rs`, section "an untrusted variable" (P§17, 18, 20; FR-008, FR-011; R6; US3 scenarios 1 and 2): on the door fixture with `untrusted-variable: 36` in force, the 4-byte exit is `conditional`, `source` `pack`, with the variable zero and with it not zero; with `untrusted-variable: 37` instead it follows the stored variable as I§8.2 says and is `source` `file`; a pack with both entries applies both
+- [x] T035 [P] [US3] Failing tests in `crates/zmachine-corpus/tests/proof.rs` (R11; FR-018; US2 scenario 4): on the stale toy of T008, naming its variable is `proven` (wrong without the pack at a room and direction that is `distrusted` with it); naming a variable that guards an exit which is never wrong is `unneeded` and the run fails; naming a variable no exit uses is `unneeded`
+- [x] T036 [P] [US3] Failing tests in `crates/zmachine-corpus/tests/nopack.rs` (FR-021; SC-005, SC-006; K§ "The corpus program"): for a story with a pack, `corpus write` writes `reports/nopack/<id>.txt` and `corpus run` compares both; on the toys, the run with packs set aside gives the verdict counts of a run of the same toy with no pack file at all; on Zork I and both builds of Advent the walkthrough's transcript is the same, byte for byte, with trials run with the pack and without
 
 ### Implementation for User Story 3
 
-- [ ] T037 [US3] The 4-byte rule with untrusted variables in `crates/zmachine-introspect/src/zil.rs` (P§17, 18); T034 passes
-- [ ] T038 [US3] The second run, the kept `nopack` report and proof of an `untrusted-variable` entry in `crates/zmachine-corpus/src/packs.rs`, `walk.rs` and `corpus.rs` (R11); T035 and T036 pass
-- [ ] T039 [US3] Add `untrusted-variable: 99` and `untrusted-variable: 136` to `packs/zork1.pack` (R6; FR-027). Run `corpus run zork1`: both `proven`. Compare the two runs' details: list in the notes every room and direction that became `distrusted`; **stop** for the owner if any of them was `confirmed` in every trial without the pack and lies outside rooms 129 and 249, since the entry then costs right answers (R6, "not measured")
-- [ ] T040 [US3] Remove from `stories/corpus/ledger.txt` the five entries whose cause is a flag the room sets afresh (FR-029; SC-003); `corpus check` and `corpus run zork1` pass with no stale entry; `corpus write`; confirm `reports/nopack/zork1.txt` has the verdict counts of feature 005's `zork1.txt` as it was at the start of this feature (`git show main:stories/corpus/reports/zork1.txt`), and record both sets of figures (SC-005)
-- [ ] T041 [US3] Record in the notes Zork I's figures with the pack against SC-001, SC-002 and SC-003; `cargo test --workspace` passes; quickstart steps 5 and 6
+- [x] T037 [US3] The 4-byte rule with untrusted variables in `crates/zmachine-introspect/src/zil.rs` (P§17, 18); T034 passes
+- [x] T038 [US3] The second run, the kept `nopack` report and proof of an `untrusted-variable` entry in `crates/zmachine-corpus/src/packs.rs`, `walk.rs` and `corpus.rs` (R11); T035 and T036 pass
+- [x] T039 [US3] Add `untrusted-variable: 99` and `untrusted-variable: 136` to `packs/zork1.pack` (R6; FR-027). Run `corpus run zork1`: both `proven`. Compare the two runs' details: list in the notes every room and direction that became `distrusted`; **stop** for the owner if any of them was `confirmed` in every trial without the pack and lies outside rooms 129 and 249, since the entry then costs right answers (R6, "not measured")
+- [x] T040 [US3] Remove from `stories/corpus/ledger.txt` the five entries whose cause is a flag the room sets afresh (FR-029; SC-003); `corpus check` and `corpus run zork1` pass with no stale entry; `corpus write`; confirm `reports/nopack/zork1.txt` has the verdict counts of feature 005's `zork1.txt` as it was at the start of this feature (`git show main:stories/corpus/reports/zork1.txt`), and record both sets of figures (SC-005)
+- [x] T041 [US3] Record in the notes Zork I's figures with the pack against SC-001, SC-002 and SC-003; `cargo test --workspace` passes; quickstart steps 5 and 6
 
 **Checkpoint**: Zork I's pack is complete and proven; the ledger holds no stale flag
 
@@ -175,17 +175,17 @@ text; every statement of section 12 has a test
 
 ### Tests for User Story 4
 
-- [ ] T042 [P] [US4] Failing tests in `crates/zmachine-corpus/tests/formats.rs` and `crates/zmachine-corpus/tests/crawl.rs` (R12; D§ "Story"): the manifest reads `first`, repeated, in order; refuses `first` together with `walkthrough`, with the line number; on a toy, each prompt a `first` command is given at is a place with trials, and the crawl then starts from every place so far; a toy whose door is opened by a `first` command has trials in both states
-- [ ] T043 [P] [US4] Failing test in `crates/zmachine-corpus/tests/no_text.rs` (R13; FR-003; SC-008; US4 scenario 4): every file under `packs/` is read by the test's own reader: each line is blank, a comment, or a known key with a value of digits or lower-case hexadecimal digits only (six letters or digits for `serial`); no comment holds a word of four letters or more from any committed story's dictionary or object names, the format's own words excepted. Show it can fail with a scratch pack holding a game's word in a comment and one holding a word as a value
-- [ ] T044 [P] [US4] Failing test in `crates/zmachine-corpus/tests/crate_rules.rs` (R15; FR-035): no file under `crates/zmachine-introspect/src`, `crates/zmachine-experience/src`, `crates/zmachine-ffi/src` or `crates/zmachine-cli/src`, other than `*_tests.rs` and `fixtures.rs`, holds any manifest story's digest, its id as a whole word, or its serial. Show it can fail by adding a digest to a comment for one run
+- [x] T042 [P] [US4] Failing tests in `crates/zmachine-corpus/tests/formats.rs` and `crates/zmachine-corpus/tests/crawl.rs` (R12; D§ "Story"): the manifest reads `first`, repeated, in order; refuses `first` together with `walkthrough`, with the line number; on a toy, each prompt a `first` command is given at is a place with trials, and the crawl then starts from every place so far; a toy whose door is opened by a `first` command has trials in both states
+- [x] T043 [P] [US4] Failing test in `crates/zmachine-corpus/tests/no_text.rs` (R13; FR-003; SC-008; US4 scenario 4): every file under `packs/` is read by the test's own reader: each line is blank, a comment, or a known key with a value of digits or lower-case hexadecimal digits only (six letters or digits for `serial`); no comment holds a word of four letters or more from any committed story's dictionary or object names, the format's own words excepted. Show it can fail with a scratch pack holding a game's word in a comment and one holding a word as a value
+- [x] T044 [P] [US4] Failing test in `crates/zmachine-corpus/tests/crate_rules.rs` (R15; FR-035): no file under `crates/zmachine-introspect/src`, `crates/zmachine-experience/src`, `crates/zmachine-ffi/src` or `crates/zmachine-cli/src`, other than `*_tests.rs` and `fixtures.rs`, holds any manifest story's digest, its id as a whole word, or its serial. Show it can fail by adding a digest to a comment for one run
 
 ### Implementation for User Story 4
 
-- [ ] T045 [US4] The key `first` in `crates/zmachine-corpus/src/manifest.rs` and its use in `crates/zmachine-corpus/src/walk.rs`; the manifest's table in `specs/005-corpus-testing/contracts/formats.md` is not edited (it is that feature's record); `stories/corpus/README.md` gains the key; T042 passes
-- [ ] T046 [US4] **Needs Mini-Zork's file present.** With `corpus explain` and a scratch test, find the fewest commands from the opening that bring Mini-Zork to a room with a door and open it; add them as `first` lines to `minizork` in `stories/corpus/manifest.txt`; write `packs/minizork.pack` with the file's identity and `open-attribute: 10` (FR-028); `corpus run minizork` gives the entry `proven`; `corpus write`. **Stop** for the owner if no short sequence is found, or if the proof is anything but `proven`: the pack is then not kept (R12, "Risk"). Record the trials in each state. No word the game printed goes in any tracked file
-- [ ] T047 [US4] Remove the `#[ignore]` from T006's test; add the citation "I§12.n" to each test of Phases 3 to 6 that serves a statement of section 12 until the test passes; read section 12 against the code once more and correct the document where the code, proven by tests, says otherwise (FR-024, FR-026)
-- [ ] T048 [US4] T043 and T044 pass on the real packs and sources. A test in `crates/zmachine-corpus/tests/check.rs` asserts that `packs/zork1.pack` and `packs/minizork.pack`, where both are read, name different attributes as `open-attribute` (SC-007)
-- [ ] T049 [US4] SC-009 by hand: following only `docs/introspection.md` section 12, write a pack for the door fixture of T008 into a scratch folder and run the check on it; record what, if anything, the section left unclear and correct the section
+- [x] T045 [US4] The key `first` in `crates/zmachine-corpus/src/manifest.rs` and its use in `crates/zmachine-corpus/src/walk.rs`; the manifest's table in `specs/005-corpus-testing/contracts/formats.md` is not edited (it is that feature's record); `stories/corpus/README.md` gains the key; T042 passes
+- [x] T046 [US4] **Needs Mini-Zork's file present.** With `corpus explain` and a scratch test, find the fewest commands from the opening that bring Mini-Zork to a room with a door and open it; add them as `first` lines to `minizork` in `stories/corpus/manifest.txt`; write `packs/minizork.pack` with the file's identity and `open-attribute: 10` (FR-028); `corpus run minizork` gives the entry `proven`; `corpus write`. **Stop** for the owner if no short sequence is found, or if the proof is anything but `proven`: the pack is then not kept (R12, "Risk"). Record the trials in each state. No word the game printed goes in any tracked file
+- [x] T047 [US4] Remove the `#[ignore]` from T006's test; add the citation "I§12.n" to each test of Phases 3 to 6 that serves a statement of section 12 until the test passes; read section 12 against the code once more and correct the document where the code, proven by tests, says otherwise (FR-024, FR-026)
+- [x] T048 [US4] T043 and T044 pass on the real packs and sources. A test in `crates/zmachine-corpus/tests/check.rs` asserts that `packs/zork1.pack` and `packs/minizork.pack`, where both are read, name different attributes as `open-attribute` (SC-007)
+- [x] T049 [US4] SC-009 by hand: following only `docs/introspection.md` section 12, write a pack for the door fixture of T008 into a scratch folder and run the check on it; record what, if anything, the section left unclear and correct the section
 
 **Checkpoint**: Two packs, two numbers, one format; the specification is the contract
 
@@ -219,11 +219,11 @@ text; every statement of section 12 has a test
 
 ## Phase 8: Polish & Cross-Cutting Concerns
 
-- [ ] T060 [P] Extend `crates/zmachine-introspect/tests/speed.rs` (SC-011): the exits query with Zork I's pack in force, at every stop of the walkthrough, within the limit that test already holds to
-- [ ] T061 [P] Measure the corpus on the committed stories in a release build, with Zork I run twice, and record it against ten minutes on CI (plan, "Performance Goals"); if it is over, say so and stop
-- [ ] T062 [P] `README.md`: the layout row for `packs/`, a short section on game packs pointing to `docs/introspection.md` section 12, and the corpus section's figures with packs. `stories/corpus/README.md`: the figures with packs beside those without, what a pack changed, and that Mini-Zork's pack is proven only where its file is
-- [ ] T063 [P] Check `.github/workflows/ci.yml`: the corpus step still runs the committed stories, now with Zork I's proof; no step fetches anything; no change unless T061 needs the optimised run
-- [ ] T064 Write the list this file ends with: every test of features 001 to 005 that was edited, its file, and the one reason (a form changed: which); confirm from `git diff main --stat -- crates/zmachine-core` that the core is untouched (SC-012, FR-034)
+- [x] T060 [P] Extend `crates/zmachine-introspect/tests/speed.rs` (SC-011): the exits query with Zork I's pack in force, at every stop of the walkthrough, within the limit that test already holds to
+- [x] T061 [P] Measure the corpus on the committed stories in a release build, with Zork I run twice, and record it against ten minutes on CI (plan, "Performance Goals"); if it is over, say so and stop
+- [x] T062 [P] `README.md`: the layout row for `packs/`, a short section on game packs pointing to `docs/introspection.md` section 12, and the corpus section's figures with packs. `stories/corpus/README.md`: the figures with packs beside those without, what a pack changed, and that Mini-Zork's pack is proven only where its file is
+- [x] T063 [P] Check `.github/workflows/ci.yml`: the corpus step still runs the committed stories, now with Zork I's proof; no step fetches anything; no change unless T061 needs the optimised run
+- [x] T064 Write the list this file ends with: every test of features 001 to 005 that was edited, its file, and the one reason (a form changed: which); confirm from `git diff main --stat -- crates/zmachine-core` that the core is untouched (SC-012, FR-034)
 - [ ] T065 Run every step of `quickstart.md` and record each result; `cargo test --workspace`, `cargo clippy --workspace --all-targets` and `cargo fmt --check` pass; `scripts/test-ios.sh 26` and `scripts/test-ios.sh 27` pass
 - [ ] T066 Write "What was done, and what was done differently from the plan" at the end of this file: each stop point met and how it was resolved, each decision of the plan that changed, the figures against SC-001 to SC-012, and what was not done
 
@@ -305,8 +305,115 @@ constitution's amendment.
 
 ## Tests of earlier features edited because a form changed
 
-To be filled by T018 to T020, T029, T033 and T064.
+Each edit adds what the new form has and changes no value that was there, but for the
+first, which records a rule the owner changed.
+
+| File | What changed | Why |
+| --- | --- | --- |
+| `crates/zmachine-introspect/tests/crate_rules.rs` | The crate's dependencies are the core and `sha2` | The owner's decision that the interface works out a story's identity itself (research R2). This is a rule, not a form |
+| `crates/zmachine-introspect/src/json_tests.rs` | An exit's keys gain `door`, `state`, `source` | I§2.3 |
+| `crates/zmachine-introspect/tests/common/mod.rs` | Two matches on an exit's kind gain the `door` arm | The kind has a third word |
+| `crates/zmachine-introspect/tests/spec_agreement.rs` | None of its tests changed; one was added | |
+| `crates/zmachine-introspect/tests/speed.rs` | The interface is made with the story's pack where there is one | SC-011 |
+| `crates/zmachine-cli/tests/inspect.rs` | The line starts `"spec":"0.2.0"` and has `"pack":"none"` after `family` | I§2.4, version 0.2.0 |
+| `crates/zmachine-experience/src/compass_tests.rs` | Hand-built exits gain the three fields | The exit has more fields |
+| `crates/zmachine-experience/tests/walkthrough.rs` | A match on an exit's kind gains the `door` arm | The kind has a third word |
+| `crates/zmachine-corpus/tests/verdict.rs` | A hand-built exit gains the three fields | The same |
+| `crates/zmachine-corpus/tests/formats.rs` | The sample report gains `pack`, `entries`, `marked`, all empty | The report has more fields; its written text is unchanged |
+| `crates/zmachine-corpus/tests/crawl.rs`, `tests/run.rs` | A hand-built story gains `first`, empty | The manifest has one more key |
+| `crates/zmachine-corpus/tests/no_text.rs` | The reports' word list gains eight words; the no-pack reports are read too | The report's new lines |
+
+No test of the core changed, and no transcript. `git diff main --stat -- crates/zmachine-core`
+is empty. The kept reports of every story but `zork1` and `minizork` are byte for byte
+what they were.
 
 ## What was done, and what was done differently from the plan
 
-To be written by T066.
+Phases 1 to 6 and the parts of Phase 8 that do not need the app are done, for the first
+of the two pull requests the owner chose. Phase 7 (the compass and the app) is not
+started.
+
+### The figures
+
+| Criterion | Result |
+| --- | --- |
+| SC-001 | Zork I: 58 trials of doors, all reported open or closed. Trials reported conditional: 113 without the pack, 55 with it |
+| SC-002 | No door report on Zork I is wrong: 52 open and 6 closed, all confirmed. The ledger holds no entry on a marked answer |
+| SC-003 | The ledger holds no entry whose cause is a stale flag (five removed) |
+| SC-004 | Attribute 11 is proven; each of the other 31 is contradicted, each over a whole run (a run takes 0.4 s, so the shortcut the plan had was not needed) |
+| SC-005 | Zork I's report with packs set aside is feature 005's, line for line, apart from five trials now "wrong-unexplained" that were "wrong-known", their ledger entries being gone. Mini-Zork's is not feature 005's: see below. Every other story has no pack and its report is unchanged |
+| SC-006 | All three walkthroughs give their reference transcripts with a pack's queries and trials at every prompt |
+| SC-007 | Zork I names attribute 11, Mini-Zork 10; both proven, Mini-Zork where its file is |
+| SC-008 | A test reads each pack by its own grammar and searches its comments for every committed story's words |
+| SC-009 | Both packs were written by hand from section 12's table and example, and the check accepted each at the first attempt. This is the author checking the author's own text; a reader new to it has not tried |
+| SC-010 | Not done: Phase 7 |
+| SC-011 | With Zork I's pack: slowest prompt 0.27 ms, preparing 0.37 ms including the digest (limit 5 ms and 50 ms) |
+| SC-012 | The table above |
+
+### Stop points met
+
+- **T039, a variable that costs right answers.** Variable 136 guards an exit in a third
+  room (room 8, direction 29) that was confirmed in all 6 of its trials without the
+  pack. In all, the two variables make 24 trials distrusted: 5 that were wrong and 19
+  that were right. The owner was asked and chose, on 2026-11-12, to keep both.
+- **T027, T032, T046** were not met: attribute 11 agrees with every door trial over the
+  walkthrough and the crawl; no door report is wrong; and three commands open a door in
+  Mini-Zork.
+
+### Done differently from the plan
+
+- **A report says nothing of packs unless its run was given one.** The plan had one new
+  line in every report. As built, a run with no pack writes the report it wrote before,
+  byte for byte, so no kept report changed but the two stories' that have packs, and
+  "absent means unchanged" can be seen in the diff. `contracts/commands.md` is
+  corrected.
+- **A run that was given a pack has four lines, not one**: the pack's state, and the
+  trials reported open, closed and distrusted, counted apart from the rest.
+- **The summary folds marked trials in with their like**, to keep its form: open with
+  "leads to a room", closed with "not an exit", distrusted with "conditional".
+- **An untrusted variable is proven by a run with that one entry left out**, not by the
+  run with all packs set aside: with two variables in a pack, the second run could not
+  say which exits hang on which. Zork I is therefore run four times; all four take
+  under two seconds.
+- **The rules' tests are unit tests** in `crates/zmachine-introspect/src/pack_tests.rs`,
+  not in `tests/packs.rs`, because the fixtures are private to the crate. `tests/packs.rs`
+  holds the tests on the real games.
+- **T007 needed no new fixture**: feature 003's ZIL fixture already has a door exit and
+  an exit on a variable.
+- **Mini-Zork's walk changed.** Its three first commands open a window, and the crawl
+  then reaches 15 rooms where it reached 12. One of the new rooms is dark: twelve wrong
+  reports there have the cause Zork I's dark rooms have, and are in the ledger. Its
+  report with packs set aside is therefore not feature 005's report. The commands are in
+  the manifest; they are the project's words. Nothing the game printed is in any tracked
+  file.
+
+### Where a test did not fail first
+
+- T014's unit test (a pack changes no query but exits, and only reads) passed against
+  the stubs: there was nothing yet to break it. It guards what came after.
+- Four of the first rule tests failed for a reason of their own: they gave one story's
+  pack to another build of the fixture, which is another story file. The interface was
+  right to refuse; the tests were corrected.
+- The tests on the real games (T012, T021), of the pack check (T025), of the reports
+  with packs set aside (T036) and of the source rule (T044) were written after their
+  code and passed at once. T021 was shown able to fail by naming attribute 12, and T044
+  by writing a story's id into a source file for one run. The others were not shown to
+  fail; each asserts specific refusals or figures that a wrong implementation would not
+  give.
+- The `pack` field of `zm`'s line was written into the JSON before `zm`'s test of it,
+  which then failed on the missing option and not on the field.
+
+### Not done, and limits
+
+- **Phase 7**, the compass and the app: the second pull request. Until then the
+  experience layer treats a door as it treats a conditional exit, and gives the
+  interface no pack, so the app is as it was. The app's UI tests were not rerun for
+  this pull request; no file of the app changed.
+- **T065** in full: quickstart steps 1 to 7 pass; step 8 is Phase 7.
+- **Mini-Zork's pack is proven only where its file is.** In CI its test is "ignored,
+  story absent".
+- **Whether a ledger cause "is the entry" is still a person's judgment** (FR-019). No
+  entry on a marked answer exists yet, so the question has not arisen.
+- **The corpus on CI** was not timed there. Here the corpus crate's tests take 30
+  seconds in a debug build, compiling included.
+- **This cannot merge before the constitution's amendment** (pull request 8).

@@ -1,8 +1,9 @@
 # The corpus
 
 How often the introspection interface is right about exits, measured on fourteen story
-files. Built by feature 005 (`specs/005-corpus-testing/`). The figures below are those of
-`reports/summary.txt` as written on 2026-11-12.
+files. Built by feature 005 (`specs/005-corpus-testing/`); feature 006
+(`specs/006-game-packs/`) added game packs and their proof. The figures below are those
+of `reports/summary.txt` as written on 2026-11-12, with the packs in force.
 
 ## What is measured
 
@@ -18,12 +19,17 @@ for that direction at that place:
 | Not an exit | arrived somewhere | wrong |
 | Conditional ("may be blocked") | anything | counted by what happened; never wrong |
 | Unknown | anything | counted by what happened; never wrong |
+| A door, open, to room X (with a game pack) | arrived in X | confirmed |
+| A door, open, to room X | anything else | wrong |
+| A door, closed | stayed where it was | confirmed |
+| A door, closed | arrived somewhere | wrong |
 
 A wrong report fails the tests until its cause is written in `ledger.txt`.
 
 Places are reached by replaying a walkthrough where the repository holds one (Zork I and
 Advent), and otherwise by a crawl that walks outward through every direction that moved
-the player.
+the player. The manifest may give a story a few first commands (`first`), each of which
+makes a place before the crawl starts.
 
 ## The files
 
@@ -33,6 +39,8 @@ the player.
 | `ledger.txt` | Each known wrong report, by story, room and direction, with its cause |
 | `reports/<id>.txt` | One story's figures, and each case that was not confirmed |
 | `reports/summary.txt` | One line for each story, each family, and all |
+| `reports/nopack/<id>.txt` | For a story that has a game pack: its figures with packs set aside |
+| `../../packs/<id>.pack` | A story's game pack (`docs/introspection.md`, section 12) |
 
 Reports hold numbers and identifiers only: no room's name, no object's name and no line
 of any game's text. Rooms and directions are by number. The formats are in
@@ -42,20 +50,25 @@ of any game's text. Rooms and directions are by number. The formats are in
 
 | | Stories | Places | Rooms | Trials | Reported as leading to a room: confirmed | Reported as not an exit: confirmed | Reported conditional: let the player through |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| ZIL family | 6 | 414 | 167 | 5,368 | 937 of 987 (94.9%) | 4,112 of 4,223 (97.4%) | 101 of 138 (73%) |
+| ZIL family | 6 | 418 | 170 | 5,420 | 997 of 1,045 (95.4%) | 4,132 of 4,252 (97.2%) | 58 of 103 (56%) |
 | Inform family | 5 | 496 | 284 | 5,890 | 1,348 of 1,382 (97.5%) | 4,335 of 4,379 (99.0%) | 51 of 95 (54%) |
 | No family | 3 | 3 | 3 | 0 | | | |
-| All | 14 | 913 | 454 | 11,258 | 2,285 of 2,369 (96.5%) | 8,447 of 8,602 (98.2%) | 152 of 233 (65%) |
+| All | 14 | 917 | 457 | 11,310 | 2,345 of 2,427 (96.6%) | 8,467 of 8,631 (98.1%) | 109 of 198 (55%) |
 
-**Of the exits reported conditional, how many let the player through?** In the ZIL
-family about three in four; in the Inform family about one in two. Where the compass
-says "may be blocked", the way is more often open than not.
+In this table a door reported open counts with the exits reported as leading to a room,
+a door reported closed with those reported as not an exit, and an exit on an untrusted
+variable with the conditional. Each story's own report counts them apart.
+
+**Of the exits reported conditional, how many let the player through?** In both
+families a little over one in two. Before game packs the ZIL figure was about three in
+four (101 of 138): most of those were Zork I's doors standing open, which its pack now
+reports as open.
 
 **Of all directions tried, how many could introspection not answer?** None was reported
 unknown in a story it recognised. But three of the fourteen stories it did not recognise
 at all, and on those every direction is unanswered: no trial was run on them.
 
-**Every wrong report is explained.** There are 227 wrong trials, all in the ledger. Not
+**Every wrong report is explained.** There are 234 wrong trials, all in the ledger. Not
 one is a misreading of a room's exit table. Each is the game's code doing something the
 table does not say:
 
@@ -65,13 +78,48 @@ table does not say:
   be entered only in a vehicle;
 - an obstacle's routine, or one that runs before the walk, refuses or redirects it,
   sometimes by chance;
-- the destination's routine sends the player on at arrival;
-- a flag exit whose flag the room sets afresh when a command begins, so that the stored
-  value is one command out of date.
+- the destination's routine sends the player on at arrival.
 
-The last is the one that bears on a decision already made: feature 003 chose to trust a
-flag exit's stored flag. In Zork I there are two rooms where it is stale, in both
-directions.
+Feature 005 found one more: a flag exit whose flag the room sets afresh when a command
+begins, so that the stored value is one command out of date. Zork I has two rooms where
+it is stale. Its game pack now names those two variables as untrusted, the exits that
+hang on them are reported conditional, and those five entries have left the ledger.
+
+## Game packs
+
+A game pack states facts about one story file that no rule of its family can read
+(`docs/introspection.md`, section 12). Two stories have one, in `packs/`:
+
+| Story | Entry | Proven by |
+| --- | --- | --- |
+| `zork1` | attribute 11 means open | 58 trials of doors: 52 open and 6 closed, all confirmed |
+| `zork1` | variables 99 and 136 are untrusted | each has a report that is wrong without it |
+| `minizork` | attribute 10 means open | 6 trials of doors: 4 open and 2 closed, all confirmed |
+
+`corpus run` proves every entry, and fails on one that is contradicted, not proven or
+unneeded. An "open" entry is proven only when a door has been seen both open and closed
+with no wrong report on a door left unexplained. A pack that names any other of Zork I's
+32 attributes is contradicted.
+
+What Zork I's pack changed, over the same 4,628 trials:
+
+| | Without the pack | With it |
+| --- | --- | --- |
+| Reported conditional | 113 | 55 |
+| Doors reported open or closed | 0 | 58, all confirmed |
+| On an untrusted variable (conditional) | 0 | 24 |
+| Wrong, with a cause in the ledger | 101 | 96 |
+
+The 24 are a cost as well as a gain: 5 of those trials were wrong before, and 19 were
+right, 6 of them in a third room that the same variable guards and that was never
+wrong. The project owner chose to keep both entries: the stored value cannot be relied
+on, wherever it is read.
+
+Mini-Zork's story file is fetched, so its pack is proven only where the file is present;
+elsewhere its test is reported as "ignored, story absent". Its doors are reached closed
+by walking, so its manifest entry gives three first commands that open one. Because that
+changed its walk, its figures with packs set aside are not those of feature 005; Zork
+I's are, trial for trial.
 
 ## What the figures do not show
 
@@ -93,7 +141,7 @@ directions.
   | anchorhead | 31 | 1 |
   | sampler1 | 22 | 0 |
   | zork2 | 15 | 7 |
-  | minizork | 12 | 0 |
+  | minizork (first commands and crawl) | 15 | 0 |
   | adventureland | 8 | 0 |
   | advent-zil | 7 | 0 |
   | zork3 | 2 | 3 |

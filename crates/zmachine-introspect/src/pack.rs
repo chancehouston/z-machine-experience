@@ -94,12 +94,10 @@ impl Pack {
             let (key, value) = line
                 .split_once(": ")
                 .ok_or_else(|| fault("not a key, a colon, a space and a value"))?;
-            if let Some(expected) = IDENTITY.get(read) {
-                if key != *expected {
-                    return Err(fault(
-                        "the first four lines are pack, sha256, release and serial, in that order",
-                    ));
-                }
+            if IDENTITY.get(read).is_some_and(|expected| key != *expected) {
+                return Err(fault(
+                    "the first four lines are pack, sha256, release and serial, in that order",
+                ));
             }
             read += 1;
             match key {

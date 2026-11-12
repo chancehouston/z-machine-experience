@@ -19,9 +19,18 @@ fn all_six_queries_take_under_five_milliseconds() {
         .unwrap_or(5);
     for game in [ZORK1, ADVENT5, ADVENT8] {
         let machine = load(game.story, game.seed);
+        // With the story's game pack, where the repository holds one (feature
+        // 006, SC-011): preparing then includes working out the story's digest.
+        let pack = std::fs::read_to_string(format!("{ROOT}/packs/{}.pack", game.name)).ok();
         let started = Instant::now();
-        let prepared = Introspector::new(&machine.view());
+        let prepared = match &pack {
+            Some(text) => Introspector::with_pack(&machine.view(), text),
+            None => Introspector::new(&machine.view()),
+        };
         let preparing = started.elapsed();
+        if game.name == ZORK1.name {
+            assert_eq!(prepared.pack(), zmachine_introspect::PackState::InForce);
+        }
         assert!(
             preparing < Duration::from_millis(50),
             "{}: preparing took {preparing:?}",
