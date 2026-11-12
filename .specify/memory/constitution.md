@@ -59,13 +59,38 @@ reproducible from its command script.
   interpreter could implement it. The spec is the contract; our core is one
   implementation of it.
 - Location, exits and scope are library conventions, not Z-machine concepts. They are
-  provided by adapters per compiler family (Infocom/ZIL, Inform 6 library). Per-game
-  code and per-game data files are prohibited.
+  provided by adapters per compiler family (Infocom/ZIL, Inform 6 library).
+- Per-game code is prohibited. Per-game data is permitted only as a **game pack**, and a
+  game pack MUST keep every one of these rules:
+  - **Identity.** A pack names exactly one story file, by SHA-256 digest, release and
+    serial number, and applies only when all three match.
+  - **Facts only.** A pack's entries come from a fixed vocabulary that the introspection
+    spec defines: which attribute means "open", which means "lit", the property and
+    attribute numbers a family's rules assume, a flag whose stored value is not to be
+    trusted, and the like. A pack MUST NOT hold conditions, scripts or any text of a
+    game.
+  - **Published.** The pack format is part of the introspection spec, written so another
+    interpreter could read the same packs.
+  - **Verified.** Every entry MUST have a test against the story file it names. An entry
+    that bears on exits MUST be checked by corpus trials, and an entry that a trial
+    contradicts fails the build.
+  - **Marked.** An answer that depended on a pack MUST say so.
+  - **Absent means unchanged.** Without a pack, every answer is what the introspection
+    spec defines without one, including "unknown".
+- Authored presentation content (art, map layouts, icons) is not a game pack and is not
+  permitted by this principle. It is to be decided by a separate amendment.
 - Every query MUST be able to answer "unknown". When an adapter cannot answer, the UI
-  degrades to typing; it MUST NOT guess.
+  degrades to typing; it MUST NOT guess. A pack supplies a fact; it does not license a
+  guess.
 
 Rationale: a generic, honest interface is what makes the experience layer portable to
-other games and, eventually, other interpreters.
+other games and, eventually, other interpreters. Game packs were admitted in version
+2.0.0 because corpus testing showed two things: the same stored fact means different
+things from game to game, so a rule per family cannot always read it (in Zork I one
+attribute predicted all 57 trials of door exits along the walkthrough, and no rule of
+the family says which attribute that is); and a pack's entry can be proven by trials
+instead of taken on trust. Publishing the format keeps packs portable; verifying each
+entry keeps them honest.
 
 ### V. Strict Layering
 
@@ -133,4 +158,4 @@ not the game's fame.
 - Every plan and every review MUST verify compliance. A deviation MUST be written down
   in the plan with its justification and the simpler alternative that was rejected.
 
-**Version**: 1.1.0 | **Ratified**: 2026-11-11 | **Last Amended**: 2026-11-11
+**Version**: 2.0.0 | **Ratified**: 2026-11-11 | **Last Amended**: 2026-11-12
