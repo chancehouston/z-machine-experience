@@ -45,3 +45,27 @@ for make in "$fid"/saves/make_*.txt; do
     cp "$work/cont_$n.scr" "$fid/saves/cont_$n.scr"
     echo "wrote save point $n"
 done
+
+# ---- Advent, versions 5 and 8 (feature 002) ----
+adv="$root/stories/advent"
+afid="$adv/fidelity"
+aseed=$(cat "$afid/seed.txt")
+for ver in 5 8; do
+    astory="$adv/advent.z$ver"
+    w=$(mktemp -d)
+    name=$(sed -n '2p' "$afid/walkthrough.txt")
+    (cd "$w" && dfrotz -m -q -w 80 -S 0 -s "$aseed" "$astory" < "$afid/walkthrough.txt" >/dev/null 2>&1) || true
+    cp "$w/$name.scr" "$afid/reference_z$ver.scr"
+    (cd "$w" && dfrotz -m -q -w 80 -S 0 -s "$aseed" "$astory" < "$afid/undo.txt" >/dev/null 2>&1) || true
+    cp "$w/undo.scr" "$afid/undo_z$ver.scr"
+    for make in "$afid"/saves/make_*.txt; do
+        n=$(basename "$make" .txt | sed 's/^make_//')
+        rm -f "$w/save_$n.qzl"
+        (cd "$w" && dfrotz -m -q -w 80 -S 0 -s "$aseed" "$astory" < "$make" >/dev/null 2>&1) || true
+        cp "$w/save_$n.qzl" "$afid/saves/frotz_z${ver}_$n.qzl"
+        (cd "$w" && dfrotz -m -q -w 80 -S 0 -s "$aseed" "$astory" < "$afid/saves/cont_$n.txt" >/dev/null 2>&1) || true
+        cp "$w/cont_$n.scr" "$afid/saves/cont_z${ver}_$n.scr"
+    done
+    rm -rf "$w"
+    echo "wrote Advent version $ver references"
+done

@@ -1,0 +1,119 @@
+Start of a transcript of
+ADVENTURE
+The Interactive Original
+By Will Crowther (1976) and Don Woods (1977)
+Reconstructed in three steps by:
+Donald Ekman, David M. Baggett (1993) and Graham Nelson (1994)
+[In memoriam Stephen Bishop (1820?-1857): GN]
+
+Release 9 / Serial number 060321 / Inform v6.44 Library v6.12.8 S
+Standard interpreter 1.1 (1F) / Library Serial Number 251226
+
+>restore
+Ok.
+
+>go to inside
+
+Inside Building
+You are inside a building, a well house for a large spring.
+
+There is tasty food here.
+
+There is an empty bottle here.
+
+>off
+You switch the brass lantern off.
+
+>drop all but lamp
+treasure chest: Safely deposited.
+diamonds: Safely deposited.
+rare coins: Safely deposited.
+bars of silver: Safely deposited.
+precious jewelry: Safely deposited.
+large gold nugget: Safely deposited.
+
+[The score has just gone up by thirty-two points.]
+
+>take food and bottle
+tasty food: Taken.
+small bottle: Taken.
+
+>fill bottle
+The bottle is now full of water.
+
+>on
+You switch the brass lantern on.
+
+>go to mountain king
+
+Hall of the Mountain King
+You are in the hall of the mountain king, with passages off in all directions.
+
+A cheerful little bird is sitting here singing.
+
+You can also see a set of keys and a wicker cage (which is empty) here.
+
+>take keys
+Taken.
+
+>sw
+
+Secret E/W Canyon Above Tight Canyon
+You are in a secret canyon which here runs E/W. It crosses over a very tight canyon 15 feet below. If you go down you may not be able to get back up.
+
+>w
+
+Secret Canyon
+You are in a secret canyon which exits to the north and east.
+
+A huge green fierce dragon bars the way!
+The dragon is sprawled out on the Persian rug!
+
+>attack dragon
+With what? Your bare hands?
+
+>yes
+Congratulations! You have just vanquished a dragon with your bare hands! (Unbelievable, isn't it?)
+
+>take rug
+Taken!
+
+[The score has just gone up by seven points.]
+
+>n
+
+Secret N/S Canyon
+You are in a secret N/S canyon above a large room.
+
+>d
+
+Slab Room
+You are in a large low circular chamber whose floor is an immense slab fallen from the ceiling (slab room). East and west there once were large passages, but they are now filled with boulders. Low small passages go north and south, and the south one quickly bends west around the boulders.
+
+>s
+
+At West End of Twopit Room
+You are at the west end of the twopit room. There is a large hole in the wall above the pit at this end of the room.
+
+>d
+
+In West Pit
+You are at the bottom of the western pit in the twopit room. There is a large hole in the wall about 25 feet above you.
+There is a tiny little plant in the pit, murmuring "Water, water, ..."
+
+>water plant
+The plant spurts into furious growth for a few seconds.
+
+There is a 12-foot-tall beanstalk stretching up out of the pit, bellowing "Water!! Water!!"
+
+>go to inside
+
+Inside Building
+You are inside a building, a well house for a large spring.
+
+You can see a large gold nugget, some precious jewelry, some bars of silver, many rare coins, some diamonds and a treasure chest here.
+
+>fill bottle
+The bottle is now full of water.
+
+>
