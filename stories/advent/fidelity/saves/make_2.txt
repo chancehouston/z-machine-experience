@@ -1,0 +1,87 @@
+version
+in
+take keys
+take lamp
+w
+s
+s
+s
+unlock grate with keys
+d
+w
+take cage
+on
+w
+w
+w
+take bird
+w
+d
+s
+take nugget
+n
+d
+release bird
+drop cage and keys
+s
+take jewelry
+n
+n
+take silver
+s
+w
+take coins
+w
+w
+e
+e
+take diamonds
+w
+s
+e
+s
+n
+take chest
+go to inside
+off
+drop all but lamp
+take food and bottle
+fill bottle
+on
+go to mountain king
+take keys
+sw
+w
+attack dragon
+yes
+take rug
+n
+d
+s
+d
+water plant
+go to inside
+fill bottle
+go to in west pit
+water plant
+u
+e
+d
+fill bottle
+go to in west pit
+climb plant
+w
+take nest
+n
+oil door
+drop bottle
+n
+take trident
+w
+d
+sw
+u
+ne
+give nest to troll
+save
+save_2.qzl

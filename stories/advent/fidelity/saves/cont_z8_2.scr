@@ -1,0 +1,116 @@
+Start of a transcript of
+ADVENTURE
+The Interactive Original
+By Will Crowther (1976) and Don Woods (1977)
+Reconstructed in three steps by:
+Donald Ekman, David M. Baggett (1993) and Graham Nelson (1994)
+[In memoriam Stephen Bishop (1820?-1857): GN]
+
+Release 9 / Serial number 060321 / Inform v6.44 Library v6.12.8 S
+Standard interpreter 1.1 (1F) / Library Serial Number 251226
+
+>restore
+Ok.
+
+>ne
+
+On NE Side of Chasm
+You are on the far side of the chasm. A northeast path leads away from the chasm on this side.
+A rickety wooden bridge extends across the chasm, vanishing into the mist. 
+
+A sign posted on the bridge reads, "Stop! Pay troll!"
+The troll is nowhere to be seen.
+
+>ne
+
+In Corridor
+You're in a long east/west corridor. A faint rumbling noise can be heard in the distance.
+
+>e
+
+At Fork in Path
+The path forks here. The left fork leads northeast. A dull rumbling seems to get louder in that direction. The right fork leads southeast down a gentle slope. The main corridor enters from the west.
+
+>ne
+
+At Junction With Warm Walls
+The walls are quite warm here. From the north can be heard a steady roar, so loud that the entire cave seems to be trembling. Another passage leads south, and a low crawl goes east.
+
+>e
+
+In Chamber of Boulders
+You are in a small chamber filled with large boulders. The walls are very warm, causing the air in the room to be almost stifling from the heat. The only exit is a crawl heading west, through which is coming a low rumbling.
+
+You can see a selection of rare spices here.
+
+>take spices
+Taken!
+
+[The score has just gone up by seven points.]
+
+>w
+
+At Junction With Warm Walls
+The walls are quite warm here. From the north can be heard a steady roar, so loud that the entire cave seems to be trembling. Another passage leads south, and a low crawl goes east.
+
+>s
+
+At Fork in Path
+The path forks here. The left fork leads northeast. A dull rumbling seems to get louder in that direction. The right fork leads southeast down a gentle slope. The main corridor enters from the west.
+
+>se
+
+In Limestone Passage
+You are walking along a gently sloping north/south passage lined with oddly shaped limestone formations.
+
+>s
+
+In Front of Barren Room
+You are standing at the entrance to a large, barren room. A sign posted above the entrance reads: "Caution! Bear in room!"
+
+>e
+
+In Barren Room
+You are inside a barren room. The center of the room is completely empty except for some dust. Marks in the dust lead away toward the far end of the room. The only exit is the way you came in.
+There is a ferocious cave bear eyeing you from the far end of the room!
+The bear is held back by a solid gold chain.
+
+>give food to bear
+The bear eagerly wolfs down your food, after which he seems to calm down considerably and even becomes rather friendly.
+
+>unlock chain with keys
+You unlock the chain, and set the tame bear free.
+
+>take chain
+Taken!
+
+[The score has just gone up by seven points.]
+
+>go to inside
+
+Inside Building
+You are inside a building, a well house for a large spring.
+
+You can see a large gold nugget, some precious jewelry, some bars of silver, many rare coins, some diamonds and a treasure chest here.
+
+>off
+You switch the brass lantern off.
+
+>drop rug, spices, chain and keys
+Persian rug: Safely deposited.
+rare spices: Safely deposited.
+golden chain: Safely deposited.
+set of keys: Dropped.
+
+[The score has just gone up by twenty-seven points.]
+
+>fee
+Ok.
+
+>fie
+Ok.
+
+>foe
+Ok.
+
+>

@@ -162,13 +162,14 @@ fn width_controls_wrapping() {
 #[test]
 fn files_that_are_not_version_3_stories_are_refused() {
     let dir = scratch_dir("refuse");
-    let mut v5 = echo_story();
-    v5[0] = 5;
+    // Version 4 is not run; versions 5 and 8 are, since feature 002.
+    let mut v4 = echo_story();
+    v4[0] = 4;
     let truncated = echo_story()[..40].to_vec();
     let unrelated =
         b"#!/bin/sh\necho this is a shell script, not a story file, and it is long enough\n";
     for (bytes, reason) in [
-        (&v5[..], "version 5"),
+        (&v4[..], "version 4"),
         (&truncated[..], "too short"),
         (&unrelated[..], "version"),
     ] {

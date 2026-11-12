@@ -2,12 +2,12 @@
 
 use crate::decode::{Instruction, Opcode};
 use crate::exec::X;
-use crate::objects::{self, Objects};
+use crate::objects::Objects;
 use crate::{Diagnostic, DiagnosticKind, Machine};
 
 impl Machine {
     pub(crate) fn objects(&self) -> Objects {
-        Objects::new(self.header.objects)
+        Objects::for_version(self.header.objects, self.header.v)
     }
 
     /// Records that an instruction was applied to object 0. There is no object 0
@@ -33,7 +33,7 @@ impl Machine {
 
         // get_prop_len takes an address, not an object.
         if ins.opcode == GetPropLen {
-            let len = objects::get_prop_len(&self.memory, a)?;
+            let len = objects.prop_len(&self.memory, a)?;
             return self.write_result(ins, len);
         }
 

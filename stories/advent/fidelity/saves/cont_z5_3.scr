@@ -1,0 +1,121 @@
+Start of a transcript of
+ADVENTURE
+The Interactive Original
+By Will Crowther (1976) and Don Woods (1977)
+Reconstructed in three steps by:
+Donald Ekman, David M. Baggett (1993) and Graham Nelson (1994)
+[In memoriam Stephen Bishop (1820?-1857): GN]
+
+Release 9 / Serial number 060321 / Inform v6.44 Library v6.12.8 S
+Standard interpreter 1.1 (1F) / Library Serial Number 251226
+
+>restore
+Ok.
+
+>take magazines
+Taken.
+
+>e
+
+At Witt's End
+You are at Witt's End. Passages lead off in *all* directions.
+
+>drop magazines
+You really are at wit's end.
+
+[The score has just gone up by one point.]
+
+>go to complex junction
+
+At Complex Junction
+You are at a complex junction. A low hands and knees passage from the north joins a higher crawl from the east to make a walking passage going west. There is also a large room above. The air is damp here.
+
+>n
+
+Shell Room
+You're in a large room carved out of sedimentary rock. The floor and walls are littered with bits of shells imbedded in the stone. A shallow passage proceeds downward, and a somewhat steeper one leads up. A low hands and knees passage enters from the south.
+There is an enormous clam here with its shell tightly closed.
+
+>open clam with trident
+A glistening pearl falls out of the clam and rolls away. Goodness, this must really be an oyster. (I never was very good at identifying bivalves.) Whatever it is, it has now snapped shut again.
+
+>d
+
+Ragged Corridor
+You are in a long sloping corridor with ragged sharp walls.
+
+>d
+
+Cul-de-Sac
+You are in a cul-de-sac about eight feet across.
+
+Off to one side lies a glistening pearl!
+
+>take pearl
+Taken!
+
+A sepulchral voice reverberating through the cave says, "Cave closing soon. All adventurers exit immediately through main office."
+
+[The score has just gone up by thirty-two points.]
+
+>go to inside
+
+Inside Building
+You are inside a building, a well house for a large spring.
+A solid golden chain lies in coils on the ground!
+The Persian rug is spread out on the floor here.
+
+You can also see a selection of rare spices, a large gold nugget, some precious jewelry, some bars of silver, many rare coins, some diamonds and a treasure chest here.
+
+>off
+You switch the brass lantern off.
+
+>drop pillow
+Dropped.
+
+>drop all but lamp
+glistening pearl: Safely deposited.
+ming vase: (coming to rest, delicately, on the velvet pillow)
+Safely deposited.
+platinum pyramid: Safely deposited.
+jeweled trident: Safely deposited.
+emerald the size of a plover's egg: Safely deposited.
+
+[The score has just gone up by forty-five points.]
+
+>on
+You switch the brass lantern on.
+
+>go to giant room
+
+Giant Room
+You are in the giant room. The ceiling here is too high up for your lamp to show it. Cavernous passages lead east, north, and south. On the west wall is scrawled the inscription, "Fee fie foe foo" [sic].
+
+You can see a nest of golden eggs here.
+
+>take nest
+Taken!
+
+[The score has just gone up by five points.]
+
+>go to inside
+
+Inside Building
+You are inside a building, a well house for a large spring.
+A solid golden chain lies in coils on the ground!
+The Persian rug is spread out on the floor here.
+
+You can also see an emerald the size of a plover's egg, a jeweled trident, a platinum pyramid, a ming vase, a glistening pearl, a velvet pillow, a selection of rare spices, a large gold nugget, some precious jewelry, some bars of silver, many rare coins, some diamonds and a treasure chest here.
+
+>off
+You switch the brass lantern off.
+
+>drop nest
+Safely deposited.
+
+[The score has just gone up by nine points.]
+
+>score
+You have so far scored 305 out of a possible 350, in 146 turns, earning you the rank of Master, second class.
+
+>

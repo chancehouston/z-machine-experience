@@ -4,23 +4,29 @@
 //! randomness lives here; the core does none of it.
 
 pub mod ledger;
+pub mod term;
 
+use std::collections::VecDeque;
 use std::fs::File;
 use std::io::{BufRead, Write};
 use std::path::{Path, PathBuf};
-use zmachine_core::{DiagnosticKind, Event, LoadOptions, Machine};
+use zmachine_core::{DiagnosticKind, Event, HostError, Key, LoadOptions, Machine, Settings};
 
 pub const USAGE: &str = "\
-usage: zm [--script FILE] [--seed N] [--width N] [--dir DIR] [--max-instructions N] STORY
+usage: zm [--script FILE] [--seed N] [--width N] [--dir DIR] [--max-instructions N]
+          [--upper] [--style MODE] [--interpreter-version C] STORY
        zm --version
        zm --help
 
-  STORY                  a Z-machine version 3 story file
+  STORY                  a Z-machine version 3, 5 or 8 story file
   --script FILE          read input lines from FILE instead of the terminal (- for standard input)
   --seed N               random seed, 0 to 2147483647, for a repeatable run
   --width N              wrap terminal output at N columns; 0 turns wrapping off (default 80)
   --dir DIR              directory for transcript and save files (default: current directory)
   --max-instructions N   stop with a fault after N instructions without a request for input
+  --upper                show what the game draws outside its main text, above each prompt
+  --style MODE           ansi, plain or auto: how bold, italic and reverse text is shown (default auto)
+  --interpreter-version C  the letter a game may print as the interpreter's version (default Z)
 ";
 
 /// Exit status when the game quit or the input ended.
@@ -44,6 +50,20 @@ pub struct Config {
     pub width: usize,
     pub dir: PathBuf,
     pub max_instructions: Option<u64>,
+    /// Print the game's canvas above each prompt.
+    pub upper: bool,
+    pub style: StyleMode,
+    /// The letter the game is told is the interpreter's version (§11.1.3).
+    pub interpreter_version: u8,
+}
+
+/// How styled text is written to the terminal.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum StyleMode {
+    /// Escape codes when standard output is a terminal.
+    Auto,
+    Ansi,
+    Plain,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -62,6 +82,9 @@ pub fn parse_args(args: &[String]) -> Result<Invocation, String> {
         width: 80,
         dir: PathBuf::from("."),
         max_instructions: None,
+        upper: false,
+        style: StyleMode::Auto,
+        interpreter_version: b'Z',
     };
     let mut story = None;
     let mut args = args.iter();
@@ -97,6 +120,27 @@ pub fn parse_args(args: &[String]) -> Result<Invocation, String> {
                     Some(text.parse().map_err(|_| {
                         format!("--max-instructions must be a number, not {text:?}")
                     })?);
+            }
+            "--upper" => config.upper = true,
+            "--style" => {
+                let text = value("--style")?;
+                config.style = match text.as_str() {
+                    "auto" => StyleMode::Auto,
+                    "ansi" => StyleMode::Ansi,
+                    "plain" => StyleMode::Plain,
+                    _ => return Err(format!("--style must be ansi, plain or auto, not {text:?}")),
+                };
+            }
+            "--interpreter-version" => {
+                let text = value("--interpreter-version")?;
+                config.interpreter_version = match text.as_bytes() {
+                    [letter] if letter.is_ascii_graphic() => *letter,
+                    _ => {
+                        return Err(format!(
+                            "--interpreter-version must be one printable character, not {text:?}"
+                        ));
+                    }
+                };
             }
             other if other.starts_with("--") => return Err(format!("unknown option {other}")),
             other => {
@@ -156,6 +200,8 @@ impl Wrapper {
                     self.end_word(&mut out);
                     self.spaces += 1;
                 }
+                // A change of style takes no room on the line (see `term`).
+                _ if term::is_marker(ch) => self.word.push(ch),
                 _ => {
                     // A word longer than a whole line is broken where it must be.
                     if self.word_len == self.width {
@@ -191,6 +237,9 @@ impl Wrapper {
 
     fn end_word(&mut self, out: &mut String) {
         if self.word_len == 0 {
+            // Nothing but changes of style, which are passed on as they are.
+            out.push_str(&self.word);
+            self.word.clear();
             return;
         }
         if self.column > 0 && self.column + self.spaces + self.word_len > self.width {
@@ -226,6 +275,78 @@ fn read_line(input: &mut dyn BufRead) -> std::io::Result<Option<String>> {
     }
     line.truncate(line.trim_end_matches(['\n', '\r']).len());
     Ok(Some(line))
+}
+
+/// Whether a line is a command to dfrotz itself rather than input: a backslash
+/// followed by a lower-case letter (contracts/cli.md).
+fn is_dfrotz_command(line: &str) -> bool {
+    let mut chars = line.chars();
+    chars.next() == Some('\\') && chars.next().is_some_and(|c| c.is_ascii_lowercase())
+}
+
+/// Reads the next line that is input for the game, refusing dfrotz's own commands.
+fn read_input_line(
+    input: &mut dyn BufRead,
+    err: &mut dyn Write,
+) -> std::io::Result<Option<String>> {
+    loop {
+        match read_line(input)? {
+            Some(line) if is_dfrotz_command(&line) => writeln!(
+                err,
+                "zm: skipped the line {line:?}: a backslash and a lower-case letter is a command to dfrotz, which zm does not take"
+            )?,
+            other => return Ok(other),
+        }
+    }
+}
+
+/// Turns dfrotz's escapes in an input line into keys: `\\_` return, `\\[` escape,
+/// `\\?` delete, `\\^` `\\.` `\\<` `\\>` the arrows, `\\1` to `\\9` and `\\0`
+/// function keys 1 to 10, `\\\\` a backslash. An escape dfrotz does not know is
+/// reported and dropped, as dfrotz does.
+fn keys_of_line(line: &str, err: &mut dyn Write) -> std::io::Result<Vec<Key>> {
+    let mut keys = Vec::new();
+    let mut chars = line.chars();
+    while let Some(ch) = chars.next() {
+        if ch != '\\' {
+            keys.push(Key::Char(ch));
+            continue;
+        }
+        keys.push(match chars.next() {
+            // A backslash at the end of the line stands for the return that ends it.
+            None | Some('_') => Key::Return,
+            Some('\\') => Key::Char('\\'),
+            Some('?') => Key::Delete,
+            Some('[') => Key::Escape,
+            Some('^') => Key::Up,
+            Some('.') => Key::Down,
+            Some('<') => Key::Left,
+            Some('>') => Key::Right,
+            Some('0') => Key::Function(10),
+            Some(digit @ '1'..='9') => Key::Function(digit as u8 - b'0'),
+            Some(other) => {
+                writeln!(err, "zm: unknown escape \\{other} in an input line")?;
+                continue;
+            }
+        });
+    }
+    Ok(keys)
+}
+
+/// The text of a line of input: its characters, with `\\\\` read as one backslash.
+/// A line ends with return, so any other special key in it is reported and dropped.
+fn text_of_line(line: &str, err: &mut dyn Write) -> std::io::Result<String> {
+    if !line.contains('\\') {
+        return Ok(line.to_string());
+    }
+    let mut text = String::new();
+    for key in keys_of_line(line, err)? {
+        match key {
+            Key::Char(ch) => text.push(ch),
+            _ => writeln!(err, "zm: a special key inside a line of input was dropped")?,
+        }
+    }
+    Ok(text)
 }
 
 /// Resolves a file name the player gave inside `dir`. A name that could lead
@@ -282,7 +403,18 @@ pub fn play(
         seed: config.seed,
         entropy: os_entropy(),
     };
-    let mut machine = match Machine::load(story, options) {
+    // §8.4: the game is told the screen's size. With wrapping off it is told 80.
+    let columns = if config.width == 0 {
+        80
+    } else {
+        config.width.min(255) as u16
+    };
+    let settings = Settings {
+        screen_columns: columns,
+        interpreter_version: config.interpreter_version,
+        ..Settings::default()
+    };
+    let mut machine = match Machine::load_with(story, options, settings) {
         Ok(machine) => machine,
         Err(e) => {
             writeln!(err, "zm: {}: {e}", config.story.display())?;
@@ -300,6 +432,16 @@ pub fn play(
     let mut wrapper = Wrapper::new(config.width);
     // Instructions run since the game last asked for input.
     let mut since_input: u64 = 0;
+    // Keys from the current input line that the game has not yet asked for.
+    let mut keys: VecDeque<Key> = VecDeque::new();
+    // `main` settles `auto` by looking at the terminal; here it means plain.
+    let ansi = config.style == StyleMode::Ansi;
+    // The styles of the text last written, as a marker character.
+    let mut style_mark = term::marker(Default::default());
+    // What `--upper` last printed, so that it is printed again only when changed.
+    let mut shown_canvas = String::new();
+    // Whether the last thing written to `out` ended a line.
+    let mut at_line_start = true;
     loop {
         let slice = match config.max_instructions {
             Some(max) => SLICE.min(max - since_input),
@@ -308,7 +450,48 @@ pub fn play(
         let event = machine
             .run(slice)
             .expect("the driver answers every event in turn");
-        out.write_all(wrapper.push(&machine.take_output()).as_bytes())?;
+        let text = if ansi {
+            let mut text = String::new();
+            for run in machine.take_styled_output() {
+                let mark = term::marker(run.style);
+                if mark != style_mark && !run.text.is_empty() {
+                    style_mark = mark;
+                    text.push(mark);
+                }
+                text.push_str(&run.text);
+            }
+            text
+        } else {
+            machine.take_output()
+        };
+        let mut pending = wrapper.push(&text);
+        if matches!(event, Event::LineWanted { .. } | Event::KeyWanted) {
+            // The game is waiting: its prompt must appear, and with `--upper` so
+            // must what it has drawn, above the line the prompt is on.
+            pending.push_str(&wrapper.flush());
+            let canvas = match config.upper {
+                true => term::canvas(machine.screen(), ansi),
+                false => String::new(),
+            };
+            if canvas != shown_canvas {
+                let cut = pending.rfind('\n').map_or(0, |i| i + 1);
+                let (head, prompt) = pending.split_at(cut);
+                let mut shown = term::render(head);
+                if !(shown.ends_with('\n') || shown.is_empty() && at_line_start) {
+                    shown.push('\n');
+                }
+                let rule = "-".repeat(machine.screen().width() as usize);
+                shown.push_str(&format!("{rule}\n{canvas}{rule}\n"));
+                shown.push_str(prompt);
+                pending = shown;
+                shown_canvas = canvas;
+            }
+        }
+        let pending = term::render(&pending);
+        if let Some(last) = pending.chars().last() {
+            at_line_start = last == '\n';
+        }
+        out.write_all(pending.as_bytes())?;
         let recorded = machine.take_transcript();
         if let Some(file) = transcript.as_mut() {
             file.write_all(recorded.as_bytes())?;
@@ -328,7 +511,7 @@ pub fn play(
                 if let Some(max) = config.max_instructions
                     && since_input >= max
                 {
-                    out.write_all(wrapper.flush().as_bytes())?;
+                    out.write_all(term::render(&wrapper.flush()).as_bytes())?;
                     out.flush()?;
                     writeln!(
                         err,
@@ -338,32 +521,62 @@ pub fn play(
                 }
             }
             Event::LineWanted { .. } => {
-                out.write_all(wrapper.flush().as_bytes())?;
+                out.write_all(term::render(&wrapper.flush()).as_bytes())?;
                 out.flush()?;
-                let Some(line) = read_line(input)? else {
+                // Keys left over from a line read for single keys are dropped.
+                keys.clear();
+                let Some(line) = read_input_line(input, err)? else {
                     // The input ended while the game was waiting: a normal end.
                     return Ok(EXIT_OK);
                 };
                 if echo_input {
                     writeln!(out, "{line}")?;
                 }
+                at_line_start = true;
                 wrapper.line_ended();
+                let line = text_of_line(&line, err)?;
                 machine.provide_line(&line).expect("a line was wanted");
                 since_input = 0;
             }
             Event::Finished => {
-                out.write_all(wrapper.flush().as_bytes())?;
+                out.write_all(term::render(&wrapper.flush()).as_bytes())?;
+                if style_mark != term::marker(Default::default()) {
+                    out.write_all(term::RESET.as_bytes())?;
+                }
                 out.flush()?;
                 return Ok(EXIT_OK);
             }
             Event::Fault(fault) => {
-                out.write_all(wrapper.flush().as_bytes())?;
+                out.write_all(term::render(&wrapper.flush()).as_bytes())?;
                 out.flush()?;
                 writeln!(err, "zm: the story file stopped: {fault}")?;
                 return Ok(EXIT_FAULT);
             }
+            Event::KeyWanted => {
+                out.write_all(term::render(&wrapper.flush()).as_bytes())?;
+                out.flush()?;
+                // The reference's rule: the next unused character of the current
+                // line, and an empty line is the return key.
+                if keys.is_empty() {
+                    let Some(line) = read_input_line(input, err)? else {
+                        return Ok(EXIT_OK);
+                    };
+                    keys.extend(keys_of_line(&line, err)?);
+                    if keys.is_empty() {
+                        keys.push_back(Key::Return);
+                    }
+                }
+                let key = keys.pop_front().expect("a key was just queued");
+                match machine.provide_key(key) {
+                    // A character the game cannot be given reads as a question mark.
+                    Err(HostError::UnrepresentableKey) => machine.provide_key(Key::Char('?')),
+                    other => other,
+                }
+                .expect("a key was wanted");
+                since_input = 0;
+            }
             Event::TranscriptRequested => {
-                out.write_all(wrapper.flush().as_bytes())?;
+                out.write_all(term::render(&wrapper.flush()).as_bytes())?;
                 out.flush()?;
                 let default = format!("{stem}.scr");
                 let name = ask_file_name("Transcript", &default, !echo_input, input, err)?;
@@ -391,7 +604,7 @@ pub fn play(
                     .expect("a transcript was requested");
             }
             Event::SaveRequested(bytes) => {
-                out.write_all(wrapper.flush().as_bytes())?;
+                out.write_all(term::render(&wrapper.flush()).as_bytes())?;
                 out.flush()?;
                 let default = format!("{stem}.qzl");
                 let name = ask_file_name("Save", &default, !echo_input, input, err)?;
@@ -413,7 +626,7 @@ pub fn play(
                 machine.save_result(stored).expect("a save was requested");
             }
             Event::RestoreRequested => {
-                out.write_all(wrapper.flush().as_bytes())?;
+                out.write_all(term::render(&wrapper.flush()).as_bytes())?;
                 out.flush()?;
                 let default = format!("{stem}.qzl");
                 let name = ask_file_name("Restore", &default, !echo_input, input, err)?;

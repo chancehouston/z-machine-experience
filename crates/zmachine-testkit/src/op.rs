@@ -105,6 +105,81 @@ pub const OUTPUT_STREAM: u8 = 19;
 pub const INPUT_STREAM: u8 = 20;
 pub const SOUND_EFFECT: u8 = 21;
 
+// Opcodes that exist from version 4 or 5 (§14). The numbers are within their class.
+pub const CALL_2S: u8 = 25;
+pub const CALL_2N: u8 = 26;
+pub const SET_COLOUR: u8 = 27;
+pub const THROW: u8 = 28;
+pub const CALL_1S: u8 = 8;
+/// 1OP:15 is `call_1n` from version 5; in version 3 it is `not`.
+pub const CALL_1N: u8 = 15;
+/// 0OP:9 is `catch` from version 5; in version 3 it is `pop`.
+pub const CATCH: u8 = 9;
+pub const PIRACY: u8 = 15;
+pub const CALL_VS: u8 = 0;
+pub const AREAD: u8 = 4;
+pub const CALL_VS2: u8 = 12;
+pub const ERASE_WINDOW: u8 = 13;
+pub const ERASE_LINE: u8 = 14;
+pub const SET_CURSOR: u8 = 15;
+pub const GET_CURSOR: u8 = 16;
+pub const SET_TEXT_STYLE: u8 = 17;
+pub const BUFFER_MODE: u8 = 18;
+pub const READ_CHAR: u8 = 22;
+pub const SCAN_TABLE: u8 = 23;
+/// VAR:24 is `not` from version 5.
+pub const NOT_VAR: u8 = 24;
+pub const CALL_VN: u8 = 25;
+pub const CALL_VN2: u8 = 26;
+pub const TOKENISE: u8 = 27;
+pub const ENCODE_TEXT: u8 = 28;
+pub const COPY_TABLE: u8 = 29;
+pub const PRINT_TABLE: u8 = 30;
+pub const CHECK_ARG_COUNT: u8 = 31;
+
+// Extended opcodes (§14.2), for use with [`ext`].
+pub const EXT_SAVE: u8 = 0;
+pub const EXT_RESTORE: u8 = 1;
+pub const LOG_SHIFT: u8 = 2;
+pub const ART_SHIFT: u8 = 3;
+pub const SET_FONT: u8 = 4;
+pub const SAVE_UNDO: u8 = 9;
+pub const RESTORE_UNDO: u8 = 10;
+pub const PRINT_UNICODE: u8 = 11;
+pub const CHECK_UNICODE: u8 = 12;
+pub const SET_TRUE_COLOUR: u8 = 13;
+
+/// An instruction in extended form: 0xBE, the opcode number, a byte of operand
+/// types, then the operands (§4.3.4). Version 5 and later.
+pub fn ext(number: u8, args: &[Arg]) -> Vec<u8> {
+    let mut out = vec![0xBE];
+    out.extend(variable_form(number, args));
+    out
+}
+
+/// `call_vs2` or `call_vn2`: a VAR instruction with two bytes of operand types and
+/// up to eight operands (§4.4.3.1).
+pub fn var2(number: u8, args: &[Arg]) -> Vec<u8> {
+    assert!(
+        number == CALL_VS2 || number == CALL_VN2,
+        "only the two double-variable calls"
+    );
+    assert!(args.len() <= 8, "at most eight operands");
+    let mut out = vec![0xE0 | number];
+    for half in 0..2 {
+        let mut types = 0u8;
+        for i in 0..4 {
+            let bits = args.get(half * 4 + i).map_or(0b11, |a| a.type_bits());
+            types = types << 2 | bits;
+        }
+        out.push(types);
+    }
+    for a in args {
+        a.push(&mut out);
+    }
+    out
+}
+
 fn variable_form(first: u8, args: &[Arg]) -> Vec<u8> {
     assert!(args.len() <= 4, "at most four operands in version 3");
     let mut types = 0u8;

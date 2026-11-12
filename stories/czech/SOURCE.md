@@ -17,6 +17,11 @@ CZECH, the Comprehensive Z-machine Emulation CHecker, version 0.8, by Amir Karge
 | `czech.out3` | From the archive, unmodified: the author's expected output for version 3 | `4a2c1880e5ac8fa264c6362d2fdea4b9edece35b956a758ae3e319ed6ca96c61` |
 | `czech.z3` | Compiled by this project; the archive ships only a version 5 build | `1cfba855bdc17326e3327432f0e22e6721b83b69dffda6f51fd59531636f6695` |
 
+| `czech.z5` | Compiled by this project | `6eeebb30d42a4ffdb698625ec895bcd8d1c52f09d6617a1ac68dc2f938dfcacf` |
+| `czech.z8` | Compiled by this project | `28faf76af36ff5e19f4ad26f4e257ba6322994e972be7085213b6b13c714fd57` |
+| `czech.out5` | From the archive, unmodified: expected output for version 5 | `f9313fd6b3326afa04f9239aa5452ad54fd0e31cc9dacbcf0678b39c15f2e636` |
+| `czech.out8` | From the archive, unmodified: expected output for version 8 | `8682146f121d1b26d8217fe72228aa24222e62c0c3ef555eb99e1ac208a534cf` |
+
 ## How `czech.z3` was built
 
 Inform 6.44 for MacOS (11th September 2025), installed with `brew install inform6`:
@@ -26,6 +31,10 @@ inform -v3 czech.inf czech.z3
 ```
 
 The compiler reports one warning, that the source's `Switches` directive is deprecated.
+
+The version 5 and 8 builds were made the same way with `-v5` and `-v8`. The archive also
+ships a `czech.z5`; this project compiles its own so that all three builds come from one
+compiler. Under dfrotz 2.55 each reports "Passed: 406, Failed: 0, Print tests: 19".
 
 Under dfrotz 2.55 this build reports "Passed: 349, Failed: 0, Print tests: 19", the same
 totals as `czech.out3`.

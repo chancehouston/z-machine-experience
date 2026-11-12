@@ -18,9 +18,13 @@ mod objects;
 mod ops_io;
 mod ops_math;
 mod ops_object;
+mod ops_table;
 mod quetzal;
 mod random;
+mod screen;
 mod text;
+mod undo;
+mod version;
 
 #[cfg(test)]
 mod testing;
@@ -29,6 +33,7 @@ use exec::{Frame, State};
 use header::Header;
 use memory::{Memory, MemoryError};
 use random::Random;
+pub use screen::{Screen, Style, StyledRun};
 
 /// Why a story file was refused at load.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -39,6 +44,8 @@ pub enum LoadError {
     TooShort,
     /// A header field points outside the file or breaks a rule of §11.
     BadHeader(HeaderField),
+    /// The file is larger than its version allows (§1.1.4).
+    TooLarge,
 }
 
 /// The header field a [`LoadError::BadHeader`] refers to.
@@ -51,17 +58,20 @@ pub enum HeaderField {
     Globals,
     StaticMemoryBase,
     Abbreviations,
+    TerminatingCharacters,
+    AlphabetTable,
+    HeaderExtension,
+    UnicodeTable,
 }
 
 impl std::fmt::Display for LoadError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            LoadError::UnsupportedVersion(v) => {
-                write!(
-                    f,
-                    "not a version 3 story file (its header says version {v})"
-                )
-            }
+            LoadError::UnsupportedVersion(v) => write!(
+                f,
+                "its header says version {v}, and this interpreter runs versions 3, 5 and 8"
+            ),
+            LoadError::TooLarge => write!(f, "larger than a story file of its version may be"),
             LoadError::TooShort => write!(f, "too short to be a story file"),
             LoadError::BadHeader(field) => {
                 write!(
@@ -84,6 +94,10 @@ pub enum HostError {
     NotWaitingForThis,
     /// The game has finished or faulted; the machine accepts no further calls.
     Stopped,
+    /// The key has no code in the game's character set. The machine still waits.
+    UnrepresentableKey,
+    /// The key is not one the game listed as ending a line. The machine still waits.
+    NotATerminator,
 }
 
 /// The kind of illegal operation that stopped a game.
@@ -98,6 +112,10 @@ pub enum FaultKind {
     MissingProperty,
     InvalidVariable,
     TextOverrun,
+    /// `throw` named a call frame that no longer exists (versions 5 and 8).
+    InvalidFrame,
+    /// Output was redirected into memory more than sixteen deep (§7.1.2.1.1).
+    StreamNesting,
 }
 
 impl std::fmt::Display for FaultKind {
@@ -112,6 +130,8 @@ impl std::fmt::Display for FaultKind {
             FaultKind::MissingProperty => "property not present on the object",
             FaultKind::InvalidVariable => "variable does not exist",
             FaultKind::TextOverrun => "text runs past the end of the story file",
+            FaultKind::InvalidFrame => "throw to a call frame that does not exist",
+            FaultKind::StreamNesting => "output redirected into memory more than sixteen deep",
         })
     }
 }
@@ -181,6 +201,27 @@ pub enum Event {
     Fault(Fault),
     /// The instruction budget ran out. Call `run` again to continue.
     BudgetExhausted,
+    /// The game is waiting for a single keypress (versions 5 and 8). Answer with
+    /// [`Machine::provide_key`].
+    KeyWanted,
+}
+
+/// A single keypress for a game that asked for one (§3.8.4, §10.6).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Key {
+    /// A character. It must be one the game's character set can represent.
+    Char(char),
+    Return,
+    Delete,
+    Escape,
+    Up,
+    Down,
+    Left,
+    Right,
+    /// A function key, 1 to 12.
+    Function(u8),
+    /// A keypad digit, 0 to 9.
+    Keypad(u8),
 }
 
 /// Options for [`Machine::load`].
@@ -193,13 +234,46 @@ pub struct LoadOptions {
     pub entropy: u32,
 }
 
+/// What a host tells a version 5 or 8 game about itself. None of it affects a
+/// version 3 game.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Settings {
+    /// Screen width in characters.
+    pub screen_columns: u16,
+    /// Screen height in lines.
+    pub screen_rows: u16,
+    /// The interpreter number of §11.1.3, which games may read.
+    pub interpreter_number: u8,
+    /// The interpreter version, a letter games may print.
+    pub interpreter_version: u8,
+    /// How many undo positions are kept. With 0, games are told undo is unavailable.
+    pub undo_slots: usize,
+}
+
+impl Default for Settings {
+    /// An 80 by 24 screen, interpreter number 1 and version `Z`, and the 25 undo
+    /// positions the reference interpreter keeps.
+    fn default() -> Self {
+        Settings {
+            screen_columns: 80,
+            screen_rows: 24,
+            interpreter_number: 1,
+            interpreter_version: b'Z',
+            undo_slots: 25,
+        }
+    }
+}
+
 /// A loaded story file and everything that changes while it runs.
 #[derive(Debug)]
 pub struct Machine {
     /// The story file as loaded, kept for restart, `verify` and save compression.
     story: Vec<u8>,
     header: Header,
+    settings: Settings,
     memory: Memory,
+    /// The character tables in force: the defaults, or the game's own.
+    charset: text::Charset,
     /// Call frames, innermost last. The first is the main code, which is not a
     /// routine and cannot be returned from.
     frames: Vec<Frame>,
@@ -217,8 +291,14 @@ pub struct Machine {
     screen_selected: bool,
     /// The window text goes to: 0 lower, 1 upper (§8.5).
     window: u16,
-    output: String,
+    output: screen::OutputBuffer,
+    /// The style in force for text the game prints (§8.7.1).
+    style: Style,
+    /// The canvas a version 5 or 8 game draws its upper window on.
+    screen: Screen,
     transcript: String,
+    /// Text the game put in its input buffer before asking for a line.
+    preloaded: String,
     /// The host has agreed to keep a transcript (contracts/core-api.md).
     transcript_accepted: bool,
     /// Text printed but not yet sent to the transcript: the word in progress, with
@@ -227,6 +307,11 @@ pub struct Machine {
     /// Something has been printed since the last new-line, so a game that quits
     /// now leaves a line unfinished.
     line_open: bool,
+    /// Tables that output is being redirected into, innermost last (§7.1.2).
+    memory_streams: Vec<(u16, Vec<u8>)>,
+    /// Whether the game has buffering on (`buffer_mode`); it starts on.
+    buffering: bool,
+    undo: undo::History,
     status: Option<StatusLine>,
     status_changed: bool,
     diagnostics: Vec<Diagnostic>,
@@ -242,18 +327,30 @@ impl From<MemoryError> for FaultKind {
 }
 
 impl Machine {
-    /// Loads a version 3 story file.
+    /// Loads a story file of version 3, 5 or 8 with default [`Settings`].
     ///
     /// A header length or checksum that does not match the file is not an error
     /// here; the game's own `verify` reports it.
     pub fn load(story: Vec<u8>, options: LoadOptions) -> Result<Machine, LoadError> {
+        Self::load_with(story, options, Settings::default())
+    }
+
+    /// Loads a story file of version 3, 5 or 8.
+    pub fn load_with(
+        story: Vec<u8>,
+        options: LoadOptions,
+        settings: Settings,
+    ) -> Result<Machine, LoadError> {
         let header = header::parse(&story)?;
         let mut memory = Memory::new(story.clone(), header.static_base as usize);
-        header::apply_interpreter_fields(memory.dynamic_mut());
+        header::apply_interpreter_fields(memory.dynamic_mut(), &header, &settings);
         let pc = header.initial_pc as u32;
+        let charset = text::Charset::read(&memory, header.alphabet_table, header.unicode_table);
         Ok(Machine {
             story,
             header,
+            settings,
+            charset,
             memory,
             frames: vec![Frame::main()],
             pc,
@@ -264,11 +361,17 @@ impl Machine {
             random: Random::new(options.seed.unwrap_or(options.entropy)),
             screen_selected: true,
             window: 0,
-            output: String::new(),
+            output: screen::OutputBuffer::default(),
+            style: Style::default(),
+            screen: Screen::new(settings.screen_columns, settings.screen_rows),
             transcript: String::new(),
+            preloaded: String::new(),
             transcript_accepted: false,
             chunk: String::new(),
             line_open: false,
+            memory_streams: Vec::new(),
+            buffering: true,
+            undo: undo::History::default(),
             status: None,
             status_changed: false,
             diagnostics: Vec::new(),
@@ -310,7 +413,7 @@ impl Machine {
             return Err(self.not_waiting());
         };
         self.state = State::Running;
-        self.accept_line(text, buffer, parse, max_len);
+        self.accept_line(text, buffer, parse, max_len, 13);
         Ok(())
     }
 
@@ -354,7 +457,66 @@ impl Machine {
     /// Screen text printed since the last call, unwrapped. It does not include
     /// what the player typed.
     pub fn take_output(&mut self) -> String {
-        std::mem::take(&mut self.output)
+        self.output.take_text()
+    }
+
+    /// The same text as [`Machine::take_output`], as runs that carry the style each
+    /// was printed in. The two calls drain one buffer; a host uses one or the other.
+    pub fn take_styled_output(&mut self) -> Vec<StyledRun> {
+        self.output.take_runs()
+    }
+
+    /// What a version 5 or 8 game has drawn outside its main text: the canvas, the
+    /// height of the upper window and the cursor.
+    pub fn screen(&self) -> &Screen {
+        &self.screen
+    }
+
+    /// True once after anything alters the screen.
+    pub fn take_screen_changed(&mut self) -> bool {
+        self.screen.take_changed()
+    }
+
+    /// Answers [`Event::KeyWanted`]. A character the game's character set cannot
+    /// represent is refused, and the machine keeps waiting.
+    pub fn provide_key(&mut self, key: Key) -> Result<(), HostError> {
+        if self.state != State::AwaitingKey {
+            return Err(self.not_waiting());
+        }
+        let code = self.key_code(key).ok_or(HostError::UnrepresentableKey)?;
+        self.state = State::Running;
+        self.finish_read_char(code);
+        Ok(())
+    }
+
+    /// During [`Event::LineWanted`], the text the game placed in its input buffer
+    /// beforehand; what the player types follows it. Empty at any other time.
+    pub fn preloaded_input(&self) -> &str {
+        match self.state {
+            State::AwaitingLine { .. } => &self.preloaded,
+            _ => "",
+        }
+    }
+
+    /// Answers [`Event::LineWanted`] with a line ended by `key`, which must be
+    /// return or one the game listed in its terminating characters table
+    /// (§10.5.2.1). Otherwise the key is refused and the machine keeps waiting.
+    pub fn provide_line_ended_by(&mut self, text: &str, key: Key) -> Result<(), HostError> {
+        let State::AwaitingLine {
+            text: buffer,
+            parse,
+            max_len,
+        } = self.state
+        else {
+            return Err(self.not_waiting());
+        };
+        let code = self
+            .key_code(key)
+            .filter(|&c| c == 13 || self.ends_a_line(c));
+        let code = code.ok_or(HostError::NotATerminator)?;
+        self.state = State::Running;
+        self.accept_line(text, buffer, parse, max_len, code);
+        Ok(())
     }
 
     /// Transcript text produced since the last call.

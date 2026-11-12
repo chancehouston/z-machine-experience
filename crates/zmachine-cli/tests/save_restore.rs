@@ -335,3 +335,233 @@ fn dfrotz_still_writes_the_reference_saves_and_continuations() {
         );
     }
 }
+
+// ---- Advent, versions 5 and 8 (002 spec User Story 6, SC-006) ----
+//
+// `stories/advent/fidelity/saves/` holds the same kinds of file for three points
+// in the Advent walkthrough, with a save and a continuation transcript from dfrotz
+// for each build. From version 5 the instructions store their outcome instead of
+// branching, and a save records a different program counter (Quetzal §5.8.1).
+
+const ADVENT_BUILDS: [&str; 2] = ["z5", "z8"];
+const ADVENT_POINTS: std::ops::RangeInclusive<u32> = 1..=3;
+
+fn advent_saves(name: &str) -> PathBuf {
+    repo("stories/advent/fidelity/saves").join(name)
+}
+
+fn advent(build: &str) -> PathBuf {
+    repo(&format!("stories/advent/advent.{build}"))
+}
+
+/// Runs `zm` on a build of Advent with a script, with files in `dir`.
+fn zm_advent(build: &str, dir: &Path, script: &Path) -> Output {
+    let out = Command::new(env!("CARGO_BIN_EXE_zm"))
+        .arg("--script")
+        .arg(script)
+        .args(["--seed", "1", "--interpreter-version", "F"])
+        .args(["--max-instructions", "50000000", "--dir"])
+        .arg(dir)
+        .arg(advent(build))
+        .stdin(Stdio::null())
+        .output()
+        .expect("zm runs");
+    assert_eq!(out.status.code(), Some(0), "{}", text(&out.stderr));
+    out
+}
+
+fn dfrotz_advent(build: &str, dir: &Path, script: &Path) {
+    use std::io::Write;
+    let mut child = Command::new("dfrotz")
+        .args(["-m", "-q", "-w", "80", "-S", "0", "-s", "1"])
+        .arg(advent(build))
+        .current_dir(dir)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()
+        .expect("dfrotz is installed");
+    child
+        .stdin
+        .take()
+        .unwrap()
+        .write_all(read(script).as_bytes())
+        .unwrap();
+    child.wait().unwrap();
+}
+
+// SC-006: a save written by the reference interpreter is restored by this one, and
+// play continues exactly as it does in the reference.
+#[test]
+fn advent_saves_written_by_frotz_restore_and_continue_as_in_frotz() {
+    for build in ADVENT_BUILDS {
+        for n in ADVENT_POINTS {
+            let dir = scratch_dir(&format!("advent-from-frotz-{build}-{n}"));
+            std::fs::copy(
+                advent_saves(&format!("frotz_{build}_{n}.qzl")),
+                dir.join(format!("save_{n}.qzl")),
+            )
+            .unwrap();
+            let out = zm_advent(build, &dir, &advent_saves(&format!("cont_{n}.txt")));
+            assert_eq!(text(&out.stderr), "", "{build} save point {n}");
+            assert_eq!(
+                read(&dir.join(format!("cont_{n}"))),
+                read(&advent_saves(&format!("cont_{build}_{n}.scr"))),
+                "{build} save point {n}"
+            );
+        }
+    }
+}
+
+// SC-006: a save written by this interpreter, restored in a fresh run, gives the
+// continuation the reference gives from its own save.
+#[test]
+fn advent_saves_written_by_zm_restore_and_continue_as_in_frotz() {
+    for build in ADVENT_BUILDS {
+        for n in ADVENT_POINTS {
+            let dir = scratch_dir(&format!("advent-from-zm-{build}-{n}"));
+            let out = zm_advent(build, &dir, &advent_saves(&format!("make_{n}.txt")));
+            assert_eq!(text(&out.stderr), "", "{build} save point {n}");
+            let bytes = std::fs::read(dir.join(format!("save_{n}.qzl")))
+                .unwrap_or_else(|e| panic!("{build} save point {n}: no save file: {e}"));
+            assert_eq!(
+                &bytes[..4],
+                b"FORM",
+                "{build} save point {n}: a Quetzal file"
+            );
+            assert!(
+                text(&out.stdout).contains(">save\nOk.\n"),
+                "{build} save point {n}"
+            );
+
+            zm_advent(build, &dir, &advent_saves(&format!("cont_{n}.txt")));
+            assert_eq!(
+                read(&dir.join(format!("cont_{n}"))),
+                read(&advent_saves(&format!("cont_{build}_{n}.scr"))),
+                "{build} save point {n}"
+            );
+        }
+    }
+}
+
+// The continuation transcripts are worth comparing: each restores, then plays on.
+#[test]
+fn the_advent_reference_continuations_restored_successfully() {
+    for build in ADVENT_BUILDS {
+        for n in ADVENT_POINTS {
+            let transcript = read(&advent_saves(&format!("cont_{build}_{n}.scr")));
+            assert!(
+                transcript.contains(">restore\nOk.\n"),
+                "cont_{build}_{n}.scr"
+            );
+            assert!(
+                transcript.matches("\n>").count() >= 20,
+                "cont_{build}_{n}.scr"
+            );
+            assert!(
+                !transcript.contains("Restore failed."),
+                "cont_{build}_{n}.scr"
+            );
+        }
+    }
+}
+
+// 002 spec User Story 6: a damaged save, and a save from the other build of the
+// same game, are refused; the game says so and play continues.
+#[test]
+fn a_damaged_advent_save_or_one_from_the_other_build_is_refused() {
+    for (build, other) in [("z5", "z8"), ("z8", "z5")] {
+        let good = std::fs::read(advent_saves(&format!("frotz_{build}_1.qzl"))).unwrap();
+        let from_other = std::fs::read(advent_saves(&format!("frotz_{other}_1.qzl"))).unwrap();
+        let truncated = good[..good.len() / 2].to_vec();
+        for (what, bytes) in [
+            ("other build", from_other),
+            ("truncated", truncated),
+            ("empty", Vec::new()),
+        ] {
+            let dir = scratch_dir(&format!(
+                "advent-refused-{build}-{}",
+                what.replace(' ', "-")
+            ));
+            std::fs::write(dir.join("bad.qzl"), bytes).unwrap();
+            let script = dir.join("script.txt");
+            std::fs::write(&script, "restore\nbad.qzl\nenter building\n").unwrap();
+            let out = zm_advent(build, &dir, &script);
+            let stdout = text(&out.stdout);
+            assert!(
+                stdout.contains(">restore\nRestore failed.\n"),
+                "{build}, {what}: {stdout}"
+            );
+            assert!(
+                stdout.contains("Inside Building"),
+                "{build}, {what}: play continued"
+            );
+        }
+    }
+}
+
+// Saving then restoring in one session returns to the saved position, in each build.
+#[test]
+fn advent_save_then_restore_in_one_session() {
+    for build in ADVENT_BUILDS {
+        let dir = scratch_dir(&format!("advent-session-{build}"));
+        let script = dir.join("script.txt");
+        std::fs::write(
+            &script,
+            "enter building\nsave\nhere.qzl\ntake lamp\ninventory\nrestore\nhere.qzl\ninventory\n",
+        )
+        .unwrap();
+        let stdout = text(&zm_advent(build, &dir, &script).stdout);
+        assert!(stdout.contains(">save\nOk.\n"), "{build}: {stdout}");
+        assert!(stdout.contains("a brass lantern"), "{build}: {stdout}");
+        assert!(stdout.contains(">restore\nOk.\n"), "{build}: {stdout}");
+        assert!(
+            stdout.trim_end().ends_with("You're carrying nothing.\n\n>")
+                || stdout.contains(">inventory\nYou're carrying nothing.\n"),
+            "{build}: {stdout}"
+        );
+    }
+}
+
+// SC-006, the other direction: the reference interpreter restores this
+// interpreter's Advent saves and continues as it does from its own.
+#[test]
+#[ignore = "needs dfrotz 2.55"]
+fn advent_saves_written_by_zm_restore_in_dfrotz() {
+    for build in ADVENT_BUILDS {
+        for n in ADVENT_POINTS {
+            let dir = scratch_dir(&format!("advent-to-frotz-{build}-{n}"));
+            zm_advent(build, &dir, &advent_saves(&format!("make_{n}.txt")));
+            dfrotz_advent(build, &dir, &advent_saves(&format!("cont_{n}.txt")));
+            assert_eq!(
+                read(&dir.join(format!("cont_{n}.scr"))),
+                read(&advent_saves(&format!("cont_{build}_{n}.scr"))),
+                "{build} save point {n}: dfrotz continuing from a save written by zm"
+            );
+        }
+    }
+}
+
+// FR-028 for the Advent saves: dfrotz still writes the committed saves and
+// continuations.
+#[test]
+#[ignore = "needs dfrotz 2.55"]
+fn dfrotz_still_writes_the_advent_saves_and_continuations() {
+    for build in ADVENT_BUILDS {
+        for n in ADVENT_POINTS {
+            let dir = scratch_dir(&format!("advent-regen-{build}-{n}"));
+            dfrotz_advent(build, &dir, &advent_saves(&format!("make_{n}.txt")));
+            assert_eq!(
+                std::fs::read(dir.join(format!("save_{n}.qzl"))).unwrap(),
+                std::fs::read(advent_saves(&format!("frotz_{build}_{n}.qzl"))).unwrap(),
+                "{build} save point {n}"
+            );
+            dfrotz_advent(build, &dir, &advent_saves(&format!("cont_{n}.txt")));
+            assert_eq!(
+                read(&dir.join(format!("cont_{n}.scr"))),
+                read(&advent_saves(&format!("cont_{build}_{n}.scr"))),
+                "{build} save point {n}"
+            );
+        }
+    }
+}

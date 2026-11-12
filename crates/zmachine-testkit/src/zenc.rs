@@ -60,3 +60,14 @@ pub fn zencode_dict(word: &str) -> [u8; 4] {
     let packed = pack(z);
     [packed[0], packed[1], packed[2], packed[3]]
 }
+
+/// Encodes `word` as a version 5 or 8 dictionary key: exactly nine Z-characters in
+/// six bytes, truncated or padded with 5s (§13.4).
+pub fn zencode_dict9(word: &str) -> [u8; 6] {
+    let mut z = zchars(word);
+    z.resize(9, 5);
+    let packed = pack(z);
+    [
+        packed[0], packed[1], packed[2], packed[3], packed[4], packed[5],
+    ]
+}

@@ -1,0 +1,235 @@
+Start of a transcript of
+ADVENTURE
+The Interactive Original
+By Will Crowther (1976) and Don Woods (1977)
+Reconstructed in three steps by:
+Donald Ekman, David M. Baggett (1993) and Graham Nelson (1994)
+[In memoriam Stephen Bishop (1820?-1857): GN]
+
+Release 9 / Serial number 060321 / Inform v6.44 Library v6.12.8 S
+Standard interpreter 1.1 (1F) / Library Serial Number 251226
+
+>in
+
+Inside Building
+You are inside a building, a well house for a large spring.
+
+There are some keys on the ground here.
+
+There is tasty food here.
+
+There is a shiny brass lamp nearby.
+
+There is an empty bottle here.
+
+>take keys
+Taken.
+
+>drop keys
+Dropped.
+
+>take food
+Taken.
+
+>wait
+Time passes.
+
+>drop food
+Dropped.
+
+>take bottle
+Taken.
+
+>drop bottle
+Dropped.
+
+>take lamp
+Taken.
+
+>drop lamp
+Dropped.
+
+>wait
+Time passes.
+
+>take keys
+Taken.
+
+>drop keys
+Dropped.
+
+>take food
+Taken.
+
+>wait
+Time passes.
+
+>drop food
+Dropped.
+
+>take bottle
+Taken.
+
+>drop bottle
+Dropped.
+
+>take lamp
+Taken.
+
+>drop lamp
+Dropped.
+
+>wait
+Time passes.
+
+>take keys
+Taken.
+
+>drop keys
+Dropped.
+
+>take food
+Taken.
+
+>wait
+Time passes.
+
+>drop food
+Dropped.
+
+>take bottle
+Taken.
+
+>drop bottle
+Dropped.
+
+>take lamp
+Taken.
+
+>drop lamp
+Dropped.
+
+>wait
+Time passes.
+
+>undo
+Inside Building
+[Previous turn undone.]
+
+>undo
+Inside Building
+[Previous turn undone.]
+
+>undo
+Inside Building
+[Previous turn undone.]
+
+>undo
+Inside Building
+[Previous turn undone.]
+
+>undo
+Inside Building
+[Previous turn undone.]
+
+>undo
+Inside Building
+[Previous turn undone.]
+
+>undo
+Inside Building
+[Previous turn undone.]
+
+>undo
+Inside Building
+[Previous turn undone.]
+
+>undo
+Inside Building
+[Previous turn undone.]
+
+>undo
+Inside Building
+[Previous turn undone.]
+
+>undo
+Inside Building
+[Previous turn undone.]
+
+>undo
+Inside Building
+[Previous turn undone.]
+
+>undo
+Inside Building
+[Previous turn undone.]
+
+>undo
+Inside Building
+[Previous turn undone.]
+
+>undo
+Inside Building
+[Previous turn undone.]
+
+>undo
+Inside Building
+[Previous turn undone.]
+
+>undo
+Inside Building
+[Previous turn undone.]
+
+>undo
+Inside Building
+[Previous turn undone.]
+
+>undo
+Inside Building
+[Previous turn undone.]
+
+>undo
+Inside Building
+[Previous turn undone.]
+
+>undo
+Inside Building
+[Previous turn undone.]
+
+>undo
+Inside Building
+[Previous turn undone.]
+
+>undo
+Inside Building
+[Previous turn undone.]
+
+>undo
+Inside Building
+[Previous turn undone.]
+
+>undo
+Inside Building
+[Previous turn undone.]
+
+>undo
+"Undo" failed.  [Not all interpreters provide it.]
+
+>undo
+"Undo" failed.  [Not all interpreters provide it.]
+
+>undo
+"Undo" failed.  [Not all interpreters provide it.]
+
+>undo
+"Undo" failed.  [Not all interpreters provide it.]
+
+>undo
+"Undo" failed.  [Not all interpreters provide it.]
+
+>score
+You have so far scored 36 out of a possible 350, in 6 turns, earning you the rank of Adventurer.
+
+>quit
+Are you sure you want to quit? y
+

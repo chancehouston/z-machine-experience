@@ -1,0 +1,46 @@
+version
+in
+take keys
+take lamp
+w
+s
+s
+s
+unlock grate with keys
+d
+w
+take cage
+on
+w
+w
+w
+take bird
+w
+d
+s
+take nugget
+n
+d
+release bird
+drop cage and keys
+s
+take jewelry
+n
+n
+take silver
+s
+w
+take coins
+w
+w
+e
+e
+take diamonds
+w
+s
+e
+s
+n
+take chest
+save
+save_1.qzl
