@@ -472,7 +472,10 @@ impl Machine {
     /// `None` when the game is not waiting for either. A host can use it to tell
     /// one of a game's requests for input from another.
     pub fn waiting_at(&self) -> Option<u32> {
-        None
+        match self.state {
+            State::AwaitingLine { .. } | State::AwaitingKey => Some(self.current),
+            _ => None,
+        }
     }
 
     /// A read-only view of memory as it is now and of the story file as loaded.
