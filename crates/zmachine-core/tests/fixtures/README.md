@@ -26,3 +26,36 @@ dfrotz -m -q -S 0 -s 1 <name>.z3 < <name>.in              # writes <name>.scr
 
 The ignored test `probes_match_dfrotz` in `crates/zmachine-cli/tests/script.rs` reruns
 dfrotz and checks that it still produces these files.
+
+## `transcript5/<name>.scr`
+
+The transcript of each program in `programs::transcript5_probes()`, the version 5 probes
+for rules 13 to 21 of `specs/002-v5-v8/contracts/transcript-format.md`.
+
+```text
+cargo run -p zmachine-testkit --example transcript5_probes -- probes
+cd probes
+dfrotz -m -q -w 80 -S 0 -s 1 <name>.z5 < <name>.in        # writes <name>.scr
+```
+
+Four probes start transcription twice. Frotz asks a version 5 game for the file name
+each time and appends to the file, so their `.in` files give the name twice; this
+interpreter asks once (§7.1.1.2).
+
+## `keys/<name>.in`, `keys/<name>.scr`
+
+Scripts for `programs::key_probe()`, which reads twelve keys, a line, and three more
+keys, printing each code, and the transcripts dfrotz wrote. They record how dfrotz takes
+keys from a script (`specs/002-v5-v8/contracts/cli.md`, "Keypresses").
+
+```text
+cargo run -p zmachine-testkit --example key_probe -- keys.z5
+dfrotz -m -q -w 80 -S 0 -s 1 keys.z5 < <name>.in          # writes <name>.scr
+```
+
+There is no fixture for the arrow and function-key escapes: dfrotz 2.55 documents them
+but gives the game a question mark for each run of them.
+
+The ignored tests `version_5_probes_match_dfrotz` in `crates/zmachine-cli/tests/script.rs`
+and `dfrotz_still_writes_the_key_fixtures` in `crates/zmachine-cli/tests/play5.rs` rerun
+dfrotz and check that it still produces these files.

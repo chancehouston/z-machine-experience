@@ -28,6 +28,14 @@ disables wrapping, and the game is then told 80.
 - **Special keys** are written with dfrotz's escapes inside an input line: `\_` return,
   `\[` escape, `\?` delete, `\^` `\.` `\<` `\>` the up, down, left and right arrows, `\1`
   to `\9` and `\0` function keys 1 to 10, and `\\` a backslash.
+  An escape dfrotz does not list is reported on standard error and dropped, as dfrotz
+  does. **Only `\_`, `\[`, `\?` and `\\` mean the same to both interpreters.** dfrotz 2.55
+  documents the arrow and function-key escapes, but its UTF-8 build reads their codes
+  back as malformed UTF-8 and gives the game a question mark (one for a whole run of
+  them); `zm` gives the game the keys §3.8.4 defines. A script meant for both must not
+  use them (recorded by probe, `crates/zmachine-core/tests/fixtures/keys/`).
+- **In a line of input**, as opposed to a key, `\\` is one backslash and any other
+  special key is reported and dropped: a line ends with return.
 - **Lines beginning with a backslash and a lower-case letter** are commands to dfrotz
   itself, not input. `zm` refuses such a line with a message, so that a script cannot mean
   different things to the two.

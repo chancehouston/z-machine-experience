@@ -332,6 +332,30 @@ fn probes_match_dfrotz() {
     }
 }
 
+// The same for the version 5 probes (feature 002, rules 13 to 21). A probe that
+// starts transcription twice gives Frotz the file name twice.
+#[test]
+#[ignore = "needs dfrotz 2.55"]
+fn version_5_probes_match_dfrotz() {
+    let dir = scratch_dir("dfrotz-probes5");
+    for probe in zmachine_testkit::programs::transcript5_probes() {
+        let story = write(&dir.join(format!("{}.z5", probe.name)), &probe.image);
+        let mut input = format!("{}\n", probe.name).repeat(probe.starts);
+        for line in probe.input {
+            input.push_str(line);
+            input.push('\n');
+        }
+        dfrotz(&dir, &story, &input, "1");
+        let reference = std::fs::read_to_string(dir.join(format!("{}.scr", probe.name))).unwrap();
+        assert_eq!(
+            reference,
+            fixture(&format!("transcript5/{}.scr", probe.name)),
+            "{}",
+            probe.name
+        );
+    }
+}
+
 // A foretaste of User Story 4: the same script, with combat, through both
 // interpreters gives the same transcript file.
 #[test]
