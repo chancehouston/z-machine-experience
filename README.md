@@ -122,6 +122,13 @@ license and source recorded beside it. Two are included:
 - **czech**, a conformance test program by Amir Karger, whose license permits
   redistribution with its notice. See `stories/czech/SOURCE.md`.
 
+- **Advent**, the Inform 6 port of Colossal Cave, as a test fixture for versions 5 and 8.
+  It is not under this repository's MIT license: it may be redistributed unmodified and
+  not for profit, and is not cleared for bundling in an app. See
+  `stories/advent/SOURCE.md`.
+- **praxix**, a conformance test program by Zarf and Dannii, in the public domain. See
+  `stories/praxix/SOURCE.md`.
+
 Commercial games are never committed or bundled. The MIT License on Zork's code does not
 grant the Zork trademark.
 
