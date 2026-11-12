@@ -1,12 +1,12 @@
 //! The object table for versions 5 and 8 (feature 002, T011).
 
 use super::*;
+use crate::FaultKind;
 use crate::header;
 use crate::memory::Memory;
 use crate::text::Charset;
 use crate::version::Version;
-use crate::FaultKind;
-use zmachine_testkit::{op, Object5, Story5};
+use zmachine_testkit::{Object5, Story5, op};
 
 /// Objects:  1 room ── 2 lamp ── 3 box ── 4 coin     5 shelf     ...     300 far
 fn fixture() -> (Memory, Objects) {
@@ -38,7 +38,10 @@ fn fixture() -> (Memory, Objects) {
     story.main(&op::op0(op::QUIT));
     let image = story.build();
     let h = header::parse(&image).unwrap();
-    (Memory::new(image, h.static_base as usize), Objects::for_version(h.objects, h.v))
+    (
+        Memory::new(image, h.static_base as usize),
+        Objects::for_version(h.objects, h.v),
+    )
 }
 
 fn children(m: &Memory, o: &Objects, parent: u16) -> Vec<u16> {
@@ -67,7 +70,11 @@ fn links_are_words_and_reach_objects_above_255() {
     assert_eq!(o.parent(&m, 3).unwrap(), 300);
     o.remove(&mut m, 300).unwrap();
     assert_eq!(children(&m, &o, 5), vec![]);
-    assert_eq!(children(&m, &o, 300), vec![3], "an object keeps its children when removed");
+    assert_eq!(
+        children(&m, &o, 300),
+        vec![3],
+        "an object keeps its children when removed"
+    );
 }
 
 // §15 remove_obj, insert_obj: the same rules as version 3, on the wider table.
@@ -77,7 +84,13 @@ fn remove_first_middle_and_last_child() {
         let (mut m, o) = fixture();
         o.remove(&mut m, removed).unwrap();
         assert_eq!(children(&m, &o, 1), left, "after removing {removed}");
-        assert_eq!((o.parent(&m, removed).unwrap(), o.sibling(&m, removed).unwrap()), (0, 0));
+        assert_eq!(
+            (
+                o.parent(&m, removed).unwrap(),
+                o.sibling(&m, removed).unwrap()
+            ),
+            (0, 0)
+        );
     }
 }
 
@@ -86,7 +99,11 @@ fn remove_first_middle_and_last_child() {
 fn forty_eight_attributes() {
     let (mut m, o) = fixture();
     for a in 0..48 {
-        assert_eq!(o.test_attr(&m, 1, a).unwrap(), [0, 32, 47].contains(&a), "attribute {a}");
+        assert_eq!(
+            o.test_attr(&m, 1, a).unwrap(),
+            [0, 32, 47].contains(&a),
+            "attribute {a}"
+        );
     }
     for a in 0..48 {
         o.set_attr(&mut m, 5, a).unwrap();
@@ -126,10 +143,18 @@ fn property_addresses_and_lengths_in_both_size_forms() {
     };
     assert_eq!((len(63), len(40), len(33), len(5)), (2, 1, 3, 64));
     assert_eq!(o.get_prop_addr(&m, 1, 62).unwrap(), 0);
-    assert_eq!(o.prop_len(&m, 0).unwrap(), 0, "Standard 1.1: get_prop_len 0 is 0");
+    assert_eq!(
+        o.prop_len(&m, 0).unwrap(),
+        0,
+        "Standard 1.1: get_prop_len 0 is 0"
+    );
     let at33 = o.get_prop_addr(&m, 1, 33).unwrap() as u32;
     assert_eq!(
-        [m.read_byte(at33).unwrap(), m.read_byte(at33 + 1).unwrap(), m.read_byte(at33 + 2).unwrap()],
+        [
+            m.read_byte(at33).unwrap(),
+            m.read_byte(at33 + 1).unwrap(),
+            m.read_byte(at33 + 2).unwrap()
+        ],
         [1, 2, 3]
     );
 }
@@ -147,8 +172,17 @@ fn next_property_and_put_prop() {
 
     o.put_prop(&mut m, 1, 63, 0x1234).unwrap();
     o.put_prop(&mut m, 1, 40, 0xABCD).unwrap();
-    assert_eq!((o.get_prop(&m, 1, 63).unwrap(), o.get_prop(&m, 1, 40).unwrap()), (0x1234, 0xCD));
-    assert_eq!(o.put_prop(&mut m, 2, 63, 1), Err(FaultKind::MissingProperty));
+    assert_eq!(
+        (
+            o.get_prop(&m, 1, 63).unwrap(),
+            o.get_prop(&m, 1, 40).unwrap()
+        ),
+        (0x1234, 0xCD)
+    );
+    assert_eq!(
+        o.put_prop(&mut m, 2, 63, 1),
+        Err(FaultKind::MissingProperty)
+    );
 }
 
 // §12.4: the short name is found the same way in every version.
@@ -182,7 +216,10 @@ fn version_8_uses_the_same_layout() {
     let m = Memory::new(image, h.static_base as usize);
     let o = Objects::for_version(h.objects, h.v);
     assert_eq!((o.child(&m, 1).unwrap(), o.parent(&m, 2).unwrap()), (2, 1));
-    assert_eq!(o.prop_len(&m, o.get_prop_addr(&m, 1, 50).unwrap()).unwrap(), 3);
+    assert_eq!(
+        o.prop_len(&m, o.get_prop_addr(&m, 1, 50).unwrap()).unwrap(),
+        3
+    );
 }
 
 // The real thing: Advent's object tree, read from both builds. At the start the
@@ -190,7 +227,10 @@ fn version_8_uses_the_same_layout() {
 #[test]
 fn advents_object_tree() {
     for version in [5u8, 8] {
-        let path = format!("{}/../../stories/advent/advent.z{version}", env!("CARGO_MANIFEST_DIR"));
+        let path = format!(
+            "{}/../../stories/advent/advent.z{version}",
+            env!("CARGO_MANIFEST_DIR")
+        );
         let story = std::fs::read(path).unwrap();
         let h = header::parse(&story).unwrap();
         let m = Memory::new(story, h.static_base as usize);
@@ -198,16 +238,19 @@ fn advents_object_tree() {
         let c = Charset::default();
         let mut by_name = std::collections::HashMap::new();
         for object in 1..=300u16 {
-            if let Ok(Some(at)) = o.name_address(&m, object) {
-                if let Ok((name, _)) = c.decode(&m, at, h.abbreviations) {
-                    by_name.insert(name, object);
-                }
+            if let Ok(Some(at)) = o.name_address(&m, object)
+                && let Ok((name, _)) = c.decode(&m, at, h.abbreviations)
+            {
+                by_name.insert(name, object);
             }
         }
         let building = by_name["Inside Building"];
         let inside: Vec<u16> = children(&m, &o, building);
         for thing in ["brass lantern", "set of keys", "tasty food", "small bottle"] {
-            assert!(inside.contains(&by_name[thing]), "version {version}: {thing} is in the building");
+            assert!(
+                inside.contains(&by_name[thing]),
+                "version {version}: {thing} is in the building"
+            );
         }
     }
 }

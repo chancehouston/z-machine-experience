@@ -344,9 +344,16 @@ pub fn transcript5_probes() -> Vec<TranscriptProbe5> {
         let tick = story.routine(0, &op::op0(op::RTRUE));
         let parts = Parts {
             read: [op::var(op::AREAD, &[L(text), L(parse)]), op::store(16)].concat(),
-            timed_read: [op::var(op::AREAD, &[L(text), L(parse), S(50), L(tick)]), op::store(16)]
-                .concat(),
-            timed_key: [op::var(op::READ_CHAR, &[S(1), S(50), L(tick)]), op::store(16)].concat(),
+            timed_read: [
+                op::var(op::AREAD, &[L(text), L(parse), S(50), L(tick)]),
+                op::store(16),
+            ]
+            .concat(),
+            timed_key: [
+                op::var(op::READ_CHAR, &[S(1), S(50), L(tick)]),
+                op::store(16),
+            ]
+            .concat(),
             table,
             text,
         };
@@ -354,97 +361,302 @@ pub fn transcript5_probes() -> Vec<TranscriptProbe5> {
         main.extend(op::op0(op::QUIT));
         story.main(&main);
         let starts = match name {
-            "buffer_off_toggle" | "buffer_on_toggle" | "buffer_off_then_on_mid_word" | "stream_2_mid_line" => 2,
+            "buffer_off_toggle"
+            | "buffer_on_toggle"
+            | "buffer_off_then_on_mid_word"
+            | "stream_2_mid_line" => 2,
             _ => 1,
         };
-        TranscriptProbe5 { name, purpose, image: story.build(), input, starts }
+        TranscriptProbe5 {
+            name,
+            purpose,
+            image: story.build(),
+            input,
+            starts,
+        }
     };
 
     vec![
-        build("v5_quit_mid_line", "rule 11 holds in version 5: an unfinished last line is ended", "", &[], &|_| {
-            vec![on(), print("abc")]
-        }),
-        build("v5_read_echo", "rules 4 and 8 hold in version 5: the typed line is written as typed", "", &["Hello There"], &|p| {
-            vec![on(), print("go>"), p.read.clone(), print("after\n")]
-        }),
-        build("key_not_written", "rule 13: a keypress writes neither the key nor a line feed", "", &["x"], &|_| {
-            vec![on(), print("press"), key(), print("done\n"), print("next\n")]
-        }),
-        build("two_keys_then_read", "rule 13: keys between prompts leave the line as it was", "", &["a", "b", "hello"], &|p| {
-            vec![on(), print("k1 "), key(), print("k2 "), key(), print("\n>"), p.read.clone(), print("end")]
-        }),
-        build("memory_stream", "rule 14: text redirected into memory is not written; the word before is completed", "", &[], &|p| {
-            vec![
-                on(),
-                print("be"),
-                op::var(op::OUTPUT_STREAM, &[S(3), L(p.table)]),
-                print("hidden words"),
-                stream(-3),
-                print("fore after"),
-            ]
-        }),
-        build("upper_window_mid_word", "rule 15: upper-window text is not written and does not break a word", "", &[], &|_| {
-            vec![on(), split(1), print("pend"), window(1), print("UPPER"), window(0), print("ing done")]
-        }),
-        build("screen_off", "rule 16: text printed with the screen stream off is written", "", &[], &|_| {
-            vec![on(), print("a "), stream(-1), print("[quoted] "), stream(1), print("b")]
-        }),
-        build("quotation_box", "rule 16: a boxed quotation the veneer's way: bracketed copy to the transcript alone, box to the upper window", "", &["look"], &|p| {
-            vec![
-                on(),
-                print("Before the box.\n"),
-                stream(-1),
-                print("[ "),
-                print("A quotation"),
-                print("]\n"),
-                stream(1),
-                split(4),
-                window(1),
-                cursor(2, 10),
-                style(1),
-                print(" A quotation "),
-                style(0),
-                window(0),
-                split(1),
-                print("\n>"),
-                p.read.clone(),
-                print("After.\n"),
-            ]
-        }),
-        build("erase_windows", "rule 17: clearing a window writes nothing", "", &[], &|_| {
-            vec![on(), print("one "), erase(0), print("two "), erase(-1), print("three\n"), erase(-2), print("four")]
-        }),
-        build("preloaded_input", "rule 18: pre-loaded input is written with what was typed", "abc", &["DEF"], &|p| {
-            vec![
-                on(),
-                print("pre>abc"),
-                p.read.clone(),
-                [op::op2(op::LOADB, L(p.text), S(1)), op::store(17)].concat(),
-                op::var(op::PRINT_NUM, &[V(17)]),
-                print(" end\n"),
-            ]
-        }),
-        build("buffer_off_toggle", "rule 19: with buffering off each character is judged as it is printed", "", &[], &|_| {
-            vec![on(), buffer(0), print("abc"), off(), print("def"), on(), print("ghi jkl"), buffer(1), print(" mno\n")]
-        }),
-        build("buffer_on_toggle", "rule 12 holds in version 5: with buffering on a word is judged when complete", "", &[], &|_| {
-            vec![on(), print("abc"), off(), print("def"), on(), print("ghi jkl\n")]
-        }),
-        build("buffer_off_then_on_mid_word", "rule 19: turning buffering back on mid-word", "", &[], &|_| {
-            vec![on(), buffer(0), print("ab"), buffer(1), print("cd"), off(), print("ef gh"), on(), print(" ij\n")]
-        }),
-        build("non_ascii", "rule 20: characters outside ASCII are written as UTF-8", "", &[], &|_| {
-            vec![on(), print("a"), chr(155), chr(163), chr(220), print("z "), op::ext(op::PRINT_UNICODE, &[L(0x00E9)]), print("\n")]
-        }),
-        build("timed_input", "rule 21: a timed request is recorded as an untimed one", "", &["k", "hello"], &|p| {
-            vec![on(), print("key "), p.timed_key.clone(), print("line>"), p.timed_read.clone(), print("done\n")]
-        }),
-        build("styles_not_written", "styles leave no trace in a transcript", "", &[], &|_| {
-            vec![on(), print("plain "), style(2), print("bold "), style(4), print("both"), style(0), print(" plain\n")]
-        }),
-        build("stream_2_mid_line", "output_stream 2 and -2 between words in version 5", "", &[], &|_| {
-            vec![stream(2), print("one "), stream(-2), print("two "), stream(2), print("three")]
-        }),
+        build(
+            "v5_quit_mid_line",
+            "rule 11 holds in version 5: an unfinished last line is ended",
+            "",
+            &[],
+            &|_| vec![on(), print("abc")],
+        ),
+        build(
+            "v5_read_echo",
+            "rules 4 and 8 hold in version 5: the typed line is written as typed",
+            "",
+            &["Hello There"],
+            &|p| vec![on(), print("go>"), p.read.clone(), print("after\n")],
+        ),
+        build(
+            "key_not_written",
+            "rule 13: a keypress writes neither the key nor a line feed",
+            "",
+            &["x"],
+            &|_| {
+                vec![
+                    on(),
+                    print("press"),
+                    key(),
+                    print("done\n"),
+                    print("next\n"),
+                ]
+            },
+        ),
+        build(
+            "two_keys_then_read",
+            "rule 13: keys between prompts leave the line as it was",
+            "",
+            &["a", "b", "hello"],
+            &|p| {
+                vec![
+                    on(),
+                    print("k1 "),
+                    key(),
+                    print("k2 "),
+                    key(),
+                    print("\n>"),
+                    p.read.clone(),
+                    print("end"),
+                ]
+            },
+        ),
+        build(
+            "memory_stream",
+            "rule 14: text redirected into memory is not written; the word before is completed",
+            "",
+            &[],
+            &|p| {
+                vec![
+                    on(),
+                    print("be"),
+                    op::var(op::OUTPUT_STREAM, &[S(3), L(p.table)]),
+                    print("hidden words"),
+                    stream(-3),
+                    print("fore after"),
+                ]
+            },
+        ),
+        build(
+            "upper_window_mid_word",
+            "rule 15: upper-window text is not written and does not break a word",
+            "",
+            &[],
+            &|_| {
+                vec![
+                    on(),
+                    split(1),
+                    print("pend"),
+                    window(1),
+                    print("UPPER"),
+                    window(0),
+                    print("ing done"),
+                ]
+            },
+        ),
+        build(
+            "screen_off",
+            "rule 16: text printed with the screen stream off is written",
+            "",
+            &[],
+            &|_| {
+                vec![
+                    on(),
+                    print("a "),
+                    stream(-1),
+                    print("[quoted] "),
+                    stream(1),
+                    print("b"),
+                ]
+            },
+        ),
+        build(
+            "quotation_box",
+            "rule 16: a boxed quotation the veneer's way: bracketed copy to the transcript alone, box to the upper window",
+            "",
+            &["look"],
+            &|p| {
+                vec![
+                    on(),
+                    print("Before the box.\n"),
+                    stream(-1),
+                    print("[ "),
+                    print("A quotation"),
+                    print("]\n"),
+                    stream(1),
+                    split(4),
+                    window(1),
+                    cursor(2, 10),
+                    style(1),
+                    print(" A quotation "),
+                    style(0),
+                    window(0),
+                    split(1),
+                    print("\n>"),
+                    p.read.clone(),
+                    print("After.\n"),
+                ]
+            },
+        ),
+        build(
+            "erase_windows",
+            "rule 17: clearing a window writes nothing",
+            "",
+            &[],
+            &|_| {
+                vec![
+                    on(),
+                    print("one "),
+                    erase(0),
+                    print("two "),
+                    erase(-1),
+                    print("three\n"),
+                    erase(-2),
+                    print("four"),
+                ]
+            },
+        ),
+        build(
+            "preloaded_input",
+            "rule 18: pre-loaded input is written with what was typed",
+            "abc",
+            &["DEF"],
+            &|p| {
+                vec![
+                    on(),
+                    print("pre>abc"),
+                    p.read.clone(),
+                    [op::op2(op::LOADB, L(p.text), S(1)), op::store(17)].concat(),
+                    op::var(op::PRINT_NUM, &[V(17)]),
+                    print(" end\n"),
+                ]
+            },
+        ),
+        build(
+            "buffer_off_toggle",
+            "rule 19: with buffering off each character is judged as it is printed",
+            "",
+            &[],
+            &|_| {
+                vec![
+                    on(),
+                    buffer(0),
+                    print("abc"),
+                    off(),
+                    print("def"),
+                    on(),
+                    print("ghi jkl"),
+                    buffer(1),
+                    print(" mno\n"),
+                ]
+            },
+        ),
+        build(
+            "buffer_on_toggle",
+            "rule 12 holds in version 5: with buffering on a word is judged when complete",
+            "",
+            &[],
+            &|_| {
+                vec![
+                    on(),
+                    print("abc"),
+                    off(),
+                    print("def"),
+                    on(),
+                    print("ghi jkl\n"),
+                ]
+            },
+        ),
+        build(
+            "buffer_off_then_on_mid_word",
+            "rule 19: turning buffering back on mid-word",
+            "",
+            &[],
+            &|_| {
+                vec![
+                    on(),
+                    buffer(0),
+                    print("ab"),
+                    buffer(1),
+                    print("cd"),
+                    off(),
+                    print("ef gh"),
+                    on(),
+                    print(" ij\n"),
+                ]
+            },
+        ),
+        build(
+            "non_ascii",
+            "rule 20: characters outside ASCII are written as UTF-8",
+            "",
+            &[],
+            &|_| {
+                vec![
+                    on(),
+                    print("a"),
+                    chr(155),
+                    chr(163),
+                    chr(220),
+                    print("z "),
+                    op::ext(op::PRINT_UNICODE, &[L(0x00E9)]),
+                    print("\n"),
+                ]
+            },
+        ),
+        build(
+            "timed_input",
+            "rule 21: a timed request is recorded as an untimed one",
+            "",
+            &["k", "hello"],
+            &|p| {
+                vec![
+                    on(),
+                    print("key "),
+                    p.timed_key.clone(),
+                    print("line>"),
+                    p.timed_read.clone(),
+                    print("done\n"),
+                ]
+            },
+        ),
+        build(
+            "styles_not_written",
+            "styles leave no trace in a transcript",
+            "",
+            &[],
+            &|_| {
+                vec![
+                    on(),
+                    print("plain "),
+                    style(2),
+                    print("bold "),
+                    style(4),
+                    print("both"),
+                    style(0),
+                    print(" plain\n"),
+                ]
+            },
+        ),
+        build(
+            "stream_2_mid_line",
+            "output_stream 2 and -2 between words in version 5",
+            "",
+            &[],
+            &|_| {
+                vec![
+                    stream(2),
+                    print("one "),
+                    stream(-2),
+                    print("two "),
+                    stream(2),
+                    print("three"),
+                ]
+            },
+        ),
     ]
 }
 
@@ -545,7 +757,12 @@ pub fn screen_programs() -> Vec<ScreenProgram> {
         let mut main = code(&read).concat();
         main.extend(op::op0(op::QUIT));
         story.main(&main);
-        ScreenProgram { name, purpose, image: story.build(), input }
+        ScreenProgram {
+            name,
+            purpose,
+            image: story.build(),
+            input,
+        }
     };
 
     vec![

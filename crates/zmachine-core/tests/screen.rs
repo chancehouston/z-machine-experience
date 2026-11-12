@@ -10,11 +10,23 @@ use zmachine_testkit::op::{self, Arg::*};
 use zmachine_testkit::programs::screen_programs;
 use zmachine_testkit::{Story, Story5};
 
-const PLAIN: Style = Style { reverse: false, bold: false, italic: false, fixed_pitch: false };
-const REVERSE: Style = Style { reverse: true, ..PLAIN };
+const PLAIN: Style = Style {
+    reverse: false,
+    bold: false,
+    italic: false,
+    fixed_pitch: false,
+};
+const REVERSE: Style = Style {
+    reverse: true,
+    ..PLAIN
+};
 
 fn settings(columns: u16, rows: u16) -> Settings {
-    Settings { screen_columns: columns, screen_rows: rows, ..Settings::default() }
+    Settings {
+        screen_columns: columns,
+        screen_rows: rows,
+        ..Settings::default()
+    }
 }
 
 fn window(n: u8) -> Vec<u8> {
@@ -61,7 +73,10 @@ fn style_rows(screen: &Screen) -> Vec<String> {
                 .map(|column| match screen.cell(row, column) {
                     None => '.',
                     Some((_, s)) => {
-                        let bits = s.reverse as u32 | (s.bold as u32) << 1 | (s.italic as u32) << 2 | (s.fixed_pitch as u32) << 3;
+                        let bits = s.reverse as u32
+                            | (s.bold as u32) << 1
+                            | (s.italic as u32) << 2
+                            | (s.fixed_pitch as u32) << 3;
                         char::from_digit(bits, 16).unwrap()
                     }
                 })
@@ -86,15 +101,23 @@ fn small(code: &[Vec<u8>]) -> Vec<String> {
 }
 
 fn program(name: &str, columns: u16, rows: u16) -> (Machine, &'static [&'static str]) {
-    let program = screen_programs().into_iter().find(|p| p.name == name).unwrap();
-    (Machine::load_with(program.image, OPTIONS, settings(columns, rows)).unwrap(), program.input)
+    let program = screen_programs()
+        .into_iter()
+        .find(|p| p.name == name)
+        .unwrap();
+    (
+        Machine::load_with(program.image, OPTIONS, settings(columns, rows)).unwrap(),
+        program.input,
+    )
 }
 
 /// Answers the event with the next line of the program's input.
 fn answer(m: &mut Machine, event: &Event, line: &str) {
     match event {
         Event::LineWanted { .. } => m.provide_line(line).unwrap(),
-        Event::KeyWanted => m.provide_key(Key::Char(line.chars().next().unwrap())).unwrap(),
+        Event::KeyWanted => m
+            .provide_key(Key::Char(line.chars().next().unwrap()))
+            .unwrap(),
         other => panic!("unexpected {other:?}"),
     }
 }
@@ -115,7 +138,10 @@ fn program_1_a_status_line() {
     assert_eq!(text_rows(m.screen()), expected);
     assert_eq!(style_rows(m.screen())[0], "1".repeat(40));
     assert_eq!(m.screen().cell(1, 2), Some(('E', REVERSE)));
-    assert_eq!(m.screen().row_text(1), " End Of Road         Score: 0  Moves: 0 ");
+    assert_eq!(
+        m.screen().row_text(1),
+        " End Of Road         Score: 0  Moves: 0 "
+    );
     // The lower window got the game's text and none of the status line.
     assert_eq!(m.take_output(), "At the road.\n\n>");
 
@@ -133,7 +159,11 @@ fn program_1_a_status_line() {
 fn program_2_a_boxed_quotation_is_an_overlay() {
     let (mut m, input) = program("quotation_box", 40, 8);
     let event = run_until_event(&mut m, BIG);
-    assert_eq!(m.screen().upper_height(), 1, "shrunk back to the status line");
+    assert_eq!(
+        m.screen().upper_height(),
+        1,
+        "shrunk back to the status line"
+    );
     let mut expected = blank(40, 8);
     expected[0] = "_Y2__________________Score:_0__Moves:_0_".to_string();
     expected[2] = format!(".....{}..................", "_".repeat(17));
@@ -141,7 +171,10 @@ fn program_2_a_boxed_quotation_is_an_overlay() {
     expected[4] = expected[2].clone();
     assert_eq!(text_rows(m.screen()), expected);
     let styles = style_rows(m.screen());
-    assert_eq!(styles[3], format!(".....{}..................", "1".repeat(17)));
+    assert_eq!(
+        styles[3],
+        format!(".....{}..................", "1".repeat(17))
+    );
     assert!(m.take_screen_changed());
 
     // The host answers; the overlay goes, the upper window stays.
@@ -150,7 +183,10 @@ fn program_2_a_boxed_quotation_is_an_overlay() {
     for row in 2..=8 {
         assert_eq!(m.screen().row_text(row), " ".repeat(40), "row {row}");
     }
-    assert_eq!(m.screen().row_text(1), " Y2                  Score: 0  Moves: 0 ");
+    assert_eq!(
+        m.screen().row_text(1),
+        " Y2                  Score: 0  Moves: 0 "
+    );
     run_until_event(&mut m, BIG);
     let mut after = blank(40, 8);
     after[0] = "_Y2__________________Score:_0__Moves:_1_".to_string();
@@ -166,7 +202,10 @@ fn program_3_a_full_screen_menu() {
     assert_eq!(event, Event::KeyWanted);
     assert_eq!(m.screen().upper_height(), 8);
     let runs = m.take_styled_output();
-    assert!(runs.iter().any(|r| r.clears_window), "erase_window -1 marks the lower window cleared");
+    assert!(
+        runs.iter().any(|r| r.clears_window),
+        "erase_window -1 marks the lower window cleared"
+    );
     let mut expected = blank(40, 8);
     expected[0] = format!("_Menu_{}", ".".repeat(34));
     expected[2] = format!("..>_Instructions{}", ".".repeat(24));
@@ -196,21 +235,32 @@ fn program_3_a_full_screen_menu() {
 // window goes to the top left.
 #[test]
 fn program_4_changing_the_split_keeps_contents() {
-    let m = run_on(10, 4, &[
-        split(2),
-        window(1),
-        cursor(2, 1),
-        print("two"),
-        split(1),
-        print("one"),
-        split(3),
-        cursor(3, 1),
-        print("three"),
-        split(0),
-    ]);
-    assert_eq!(text_rows(m.screen()), ["one.......", "two.......", "three.....", ".........."]);
+    let m = run_on(
+        10,
+        4,
+        &[
+            split(2),
+            window(1),
+            cursor(2, 1),
+            print("two"),
+            split(1),
+            print("one"),
+            split(3),
+            cursor(3, 1),
+            print("three"),
+            split(0),
+        ],
+    );
+    assert_eq!(
+        text_rows(m.screen()),
+        ["one.......", "two.......", "three.....", ".........."]
+    );
     assert_eq!(m.screen().upper_height(), 0);
-    assert_eq!(m.screen().cursor(), (1, 1), "below the window, so back to the top left");
+    assert_eq!(
+        m.screen().cursor(),
+        (1, 1),
+        "below the window, so back to the top left"
+    );
 }
 
 /// Fills all four rows of a ten-column canvas through a four-row upper window,
@@ -239,7 +289,10 @@ fn program_5_the_erases() {
     let with = |extra: Vec<Vec<u8>>| small(&[filled(), extra].concat());
     assert_eq!(with(vec![]), [a, b, c, d]);
     // 1: the upper window's rows, and its cursor to the top left.
-    assert_eq!(with(vec![erase(1), print("x")]), ["x.........", empty, c, d]);
+    assert_eq!(
+        with(vec![erase(1), print("x")]),
+        ["x.........", empty, c, d]
+    );
     // 0: the lower window, which is everything below the split.
     assert_eq!(with(vec![erase(0)]), [a, b, empty, empty]);
     // -2: everything, without unsplitting.
@@ -256,8 +309,14 @@ fn program_5_the_erases() {
     assert_eq!(with(vec![erase(2), erase(-3)]), [a, b, c, d]);
 
     // erase_line 1: from the cursor to the end of its row. Any other value: nothing.
-    assert_eq!(with(vec![cursor(2, 4), erase_line(1)]), [a, "bbb.......", c, d]);
-    assert_eq!(with(vec![cursor(2, 4), erase_line(0), erase_line(2)]), [a, b, c, d]);
+    assert_eq!(
+        with(vec![cursor(2, 4), erase_line(1)]),
+        [a, "bbb.......", c, d]
+    );
+    assert_eq!(
+        with(vec![cursor(2, 4), erase_line(0), erase_line(2)]),
+        [a, b, c, d]
+    );
     // In the lower window erase_line does nothing to the canvas.
     assert_eq!(with(vec![window(0), erase_line(1)]), [a, b, c, d]);
 }
@@ -266,26 +325,48 @@ fn program_5_the_erases() {
 // row is discarded; a new-line goes to the next row, and on the last row nowhere.
 #[test]
 fn program_6_the_right_edge_and_the_last_row() {
-    let m = run_on(10, 4, &[
-        split(4),
-        window(1),
-        cursor(1, 8),
-        print("abcdef"),
-        print("\nnext"),
-        cursor(4, 9),
-        print("yz!!\nmore"),
-    ]);
-    assert_eq!(text_rows(m.screen()), [".......abc", "next......", "..........", "........yz"]);
-    assert_eq!(m.screen().cursor(), (4, 11), "past the edge of the last row");
+    let m = run_on(
+        10,
+        4,
+        &[
+            split(4),
+            window(1),
+            cursor(1, 8),
+            print("abcdef"),
+            print("\nnext"),
+            cursor(4, 9),
+            print("yz!!\nmore"),
+        ],
+    );
+    assert_eq!(
+        text_rows(m.screen()),
+        [".......abc", "next......", "..........", "........yz"]
+    );
+    assert_eq!(
+        m.screen().cursor(),
+        (4, 11),
+        "past the edge of the last row"
+    );
 }
 
-// Program 7: `set_cursor` to row 0, column 0 and beyond the screen is brought to
+// Program 7: §8.7.2.3, §15 set_cursor: row 0, column 0 and beyond the screen are brought to
 // the nearest cell; in the lower window it does nothing; before any split the
 // upper window has no rows but the canvas can still be drawn on.
 #[test]
 fn program_7_set_cursor_at_and_beyond_the_edges() {
     assert_eq!(
-        small(&[split(4), window(1), cursor(0, 0), print("a"), cursor(99, 99), print("z"), cursor(2, 99), print("y"), cursor(99, 2), print("b")]),
+        small(&[
+            split(4),
+            window(1),
+            cursor(0, 0),
+            print("a"),
+            cursor(99, 99),
+            print("z"),
+            cursor(2, 99),
+            print("y"),
+            cursor(99, 2),
+            print("b")
+        ]),
         ["a.........", ".........y", "..........", ".b.......z"]
     );
     // While the lower window is selected the cursor does not move and nothing is
@@ -308,24 +389,61 @@ fn program_8_styles_in_both_windows() {
     for bits in 0..16u8 {
         code.extend([style(0), style(bits), print("x")]);
     }
-    code.extend([style(0), window(0), style(2), print("B"), style(4), print("I"), style(0), print("p")]);
+    code.extend([
+        style(0),
+        window(0),
+        style(2),
+        print("B"),
+        style(4),
+        print("I"),
+        style(0),
+        print("p"),
+    ]);
     // Flags 2 bit 1 set: fixed pitch in both windows whatever the style.
-    code.extend([op::var(op::STOREB, &[S(0), S(0x11), S(2)]), print("f"), window(1), print("F")]);
+    code.extend([
+        op::var(op::STOREB, &[S(0), S(0x11), S(2)]),
+        print("f"),
+        window(1),
+        print("F"),
+    ]);
     let mut m = run_on(20, 2, &code);
     // Selecting the upper window again put its cursor at the top left (§8.7.2), so
     // the last character replaced the first.
     assert_eq!(style_rows(m.screen())[0], "8123456789abcdef....");
     assert_eq!(text_rows(m.screen())[0], "Fxxxxxxxxxxxxxxx....");
-    let runs: Vec<(String, Style)> = m.take_styled_output().into_iter().map(|r| (r.text, r.style)).collect();
+    let runs: Vec<(String, Style)> = m
+        .take_styled_output()
+        .into_iter()
+        .map(|r| (r.text, r.style))
+        .collect();
     assert_eq!(
         runs,
         vec![
-            ("B".to_string(), Style { bold: true, ..PLAIN }),
-            ("I".to_string(), Style { bold: true, italic: true, ..PLAIN }),
+            (
+                "B".to_string(),
+                Style {
+                    bold: true,
+                    ..PLAIN
+                }
+            ),
+            (
+                "I".to_string(),
+                Style {
+                    bold: true,
+                    italic: true,
+                    ..PLAIN
+                }
+            ),
             ("p".to_string(), PLAIN),
             // The program ends with the upper window selected, so no line feed
             // is added to the main text.
-            ("f".to_string(), Style { fixed_pitch: true, ..PLAIN }),
+            (
+                "f".to_string(),
+                Style {
+                    fixed_pitch: true,
+                    ..PLAIN
+                }
+            ),
         ]
     );
 }
@@ -413,7 +531,14 @@ fn the_host_is_told_once_of_each_change() {
 #[test]
 fn a_version_3_story_leaves_the_canvas_alone() {
     let mut story = Story::new();
-    story.main(&cat(&[split(1), window(1), print("status"), window(0), print("text"), quit()]));
+    story.main(&cat(&[
+        split(1),
+        window(1),
+        print("status"),
+        window(0),
+        print("text"),
+        quit(),
+    ]));
     let mut m = load(&mut story);
     assert_eq!(run_until_event(&mut m, BIG), Event::Finished);
     assert!(!m.take_screen_changed());
@@ -439,7 +564,11 @@ fn restart_leaves_the_screen_blank_and_unsplit() {
     let mut m = Machine::load_with(story.build(), OPTIONS, settings(10, 4)).unwrap();
     assert_eq!(run_until_event(&mut m, BIG), Event::KeyWanted);
     m.provide_key(Key::Char('r')).unwrap();
-    assert_eq!(run_until_event(&mut m, BIG), Event::KeyWanted, "restarted, waiting again");
+    assert_eq!(
+        run_until_event(&mut m, BIG),
+        Event::KeyWanted,
+        "restarted, waiting again"
+    );
     assert_eq!(text_rows(m.screen()), blank(10, 4));
     assert_eq!(m.screen().upper_height(), 0);
     assert_eq!(m.screen().cursor(), (1, 1));
@@ -450,14 +579,19 @@ fn restart_leaves_the_screen_blank_and_unsplit() {
     assert!(m.take_styled_output().iter().all(|run| run.style == PLAIN));
 }
 
-// data-model.md "Undo position": undo and restore return memory and the stack,
+// §15 save_undo, restore_undo; data-model.md "Undo position": undo and restore
+// return memory and the stack,
 // not the screen. What was drawn after the saved position stays.
 #[test]
 fn undo_leaves_the_screen_as_it_is() {
     let mut story = Story5::new(5);
     story.main(&cat(&[
         to(op::ext(op::SAVE_UNDO, &[]), g(0)),
-        skip_if(op::op2(op::JE, V(g(0)), S(2)), false, &cat(&[print("undone"), quit()])),
+        skip_if(
+            op::op2(op::JE, V(g(0)), S(2)),
+            false,
+            &cat(&[print("undone"), quit()]),
+        ),
         split(1),
         window(1),
         print("kept"),
@@ -477,21 +611,31 @@ fn undo_leaves_the_screen_as_it_is() {
 /// The screens dfrotz printed for a program, one per time it waited for input:
 /// 24 rows of text each, without dfrotz's row numbers.
 fn reference_screens(name: &str) -> Vec<Vec<String>> {
-    let path = format!("{}/tests/fixtures/screen/{name}.txt", env!("CARGO_MANIFEST_DIR"));
+    let path = format!(
+        "{}/tests/fixtures/screen/{name}.txt",
+        env!("CARGO_MANIFEST_DIR")
+    );
     let text = std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("{path}: {e}"));
     let lines: Vec<&str> = text.lines().collect();
     let mut screens = vec![];
     let mut at = 0;
     while at < lines.len() {
         // Row 1 follows the echo of the previous prompt on the same line.
-        let start = ["01  ", "01] "].iter().filter_map(|m| lines[at].rfind(m)).max();
+        let start = ["01  ", "01] "]
+            .iter()
+            .filter_map(|m| lines[at].rfind(m))
+            .max();
         let Some(start) = start.filter(|_| at + 24 <= lines.len()) else {
             at += 1;
             continue;
         };
         let mut rows = vec![lines[at][start + 4..].to_string()];
         for (n, line) in lines[at + 1..at + 24].iter().enumerate() {
-            assert!(line.starts_with(&format!("{:02}", n + 2)), "{name}: row {} of a screen: {line:?}", n + 2);
+            assert!(
+                line.starts_with(&format!("{:02}", n + 2)),
+                "{name}: row {} of a screen: {line:?}",
+                n + 2
+            );
             rows.push(line.get(4..).unwrap_or("").to_string());
         }
         screens.push(rows);
@@ -512,7 +656,11 @@ fn the_upper_window_reads_as_it_does_on_the_reference_screen() {
         let screens = reference_screens(program.name);
         // dfrotz shows its screen each time the program waits, and once more at the
         // end if the program printed after its last input.
-        assert!(screens.len() >= program.input.len(), "{}: one screen for each wait", program.name);
+        assert!(
+            screens.len() >= program.input.len(),
+            "{}: one screen for each wait",
+            program.name
+        );
         let mut m = Machine::load_with(program.image, OPTIONS, settings(80, 24)).unwrap();
         for (n, (reference, line)) in screens.iter().zip(program.input).enumerate() {
             let event = run_until_event(&mut m, BIG);

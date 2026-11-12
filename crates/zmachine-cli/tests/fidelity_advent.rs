@@ -25,7 +25,10 @@ fn story(build: &str) -> PathBuf {
 
 fn story_digest(build: &str) -> String {
     let bytes = std::fs::read(story(build)).unwrap();
-    Sha256::digest(&bytes).iter().map(|b| format!("{b:02x}")).collect()
+    Sha256::digest(&bytes)
+        .iter()
+        .map(|b| format!("{b:02x}"))
+        .collect()
 }
 
 fn seed() -> String {
@@ -48,8 +51,15 @@ fn scratch_dir(name: &str) -> PathBuf {
 fn walkthrough() -> (String, Vec<String>) {
     let script = read("stories/advent/fidelity/walkthrough.txt");
     let mut lines = script.lines();
-    assert_eq!(lines.next(), Some("script"), "the walkthrough starts the game's transcript");
-    let name = lines.next().expect("then names the transcript file").to_string();
+    assert_eq!(
+        lines.next(),
+        Some("script"),
+        "the walkthrough starts the game's transcript"
+    );
+    let name = lines
+        .next()
+        .expect("then names the transcript file")
+        .to_string();
     (name, lines.map(str::to_string).collect())
 }
 
@@ -68,8 +78,15 @@ fn our_transcript(build: &str, dir: &Path) -> String {
         .output()
         .expect("zm runs");
     let stderr = String::from_utf8_lossy(&out.stderr);
-    assert_eq!(out.status.code(), Some(0), "{build}: zm did not finish the walkthrough: {stderr}");
-    assert_eq!(stderr, "", "{build}: the walkthrough should cause no faults or diagnostics");
+    assert_eq!(
+        out.status.code(),
+        Some(0),
+        "{build}: zm did not finish the walkthrough: {stderr}"
+    );
+    assert_eq!(
+        stderr, "",
+        "{build}: the walkthrough should cause no faults or diagnostics"
+    );
     std::fs::read_to_string(dir.join(name)).expect("zm wrote the transcript")
 }
 
@@ -79,7 +96,10 @@ fn the_story_files_match_their_record() {
     let record = read("stories/advent/SOURCE.md");
     for build in BUILDS {
         let digest = story_digest(build);
-        assert!(record.contains(&digest), "advent.{build} has digest {digest}, not in SOURCE.md");
+        assert!(
+            record.contains(&digest),
+            "advent.{build} has digest {digest}, not in SOURCE.md"
+        );
     }
 }
 
@@ -88,10 +108,21 @@ fn the_story_files_match_their_record() {
 #[test]
 fn the_walkthrough_keeps_to_the_rules_for_scripts() {
     let (name, commands) = walkthrough();
-    assert!(!name.contains(['/', '\\']), "the transcript name is a plain file name");
+    assert!(
+        !name.contains(['/', '\\']),
+        "the transcript name is a plain file name"
+    );
     for (n, line) in commands.iter().enumerate() {
-        assert!(!line.contains('\\'), "line {}: a backslash is an escape to dfrotz", n + 3);
-        assert!(line.len() < 198, "line {}: dfrotz keeps only 198 characters", n + 3);
+        assert!(
+            !line.contains('\\'),
+            "line {}: a backslash is an escape to dfrotz",
+            n + 3
+        );
+        assert!(
+            line.len() < 198,
+            "line {}: dfrotz keeps only 198 characters",
+            n + 3
+        );
         let word = line.split_whitespace().next().unwrap_or("");
         // `script` a second time would make Frotz ask for a file name again.
         for banned in ["save", "restore", "unscript", "script", "undo"] {
@@ -138,7 +169,10 @@ fn the_walkthrough_wins_the_game() {
                 transcript.contains("you scored 350 out of a possible 350"),
                 "{build}: the maximum score"
             );
-            assert!(transcript.contains("Standard interpreter 1.1 (1F)"), "{build}");
+            assert!(
+                transcript.contains("Standard interpreter 1.1 (1F)"),
+                "{build}"
+            );
         }
     }
 }
@@ -171,9 +205,15 @@ fn two_runs_of_the_walkthrough_are_identical() {
 #[ignore = "needs dfrotz 2.55"]
 fn dfrotz_still_writes_the_reference_transcripts() {
     use std::io::Write;
-    let version = Command::new("dfrotz").arg("-v").output().expect("dfrotz is installed");
+    let version = Command::new("dfrotz")
+        .arg("-v")
+        .output()
+        .expect("dfrotz is installed");
     let version = String::from_utf8_lossy(&version.stdout).into_owned();
-    assert!(version.starts_with("FROTZ V2.55"), "the reference is Frotz 2.55, found: {version}");
+    assert!(
+        version.starts_with("FROTZ V2.55"),
+        "the reference is Frotz 2.55, found: {version}"
+    );
 
     let (name, _) = walkthrough();
     for build in BUILDS {
@@ -188,7 +228,12 @@ fn dfrotz_still_writes_the_reference_transcripts() {
             .spawn()
             .unwrap();
         let script = read("stories/advent/fidelity/walkthrough.txt");
-        child.stdin.take().unwrap().write_all(script.as_bytes()).unwrap();
+        child
+            .stdin
+            .take()
+            .unwrap()
+            .write_all(script.as_bytes())
+            .unwrap();
         child.wait().unwrap();
         let regenerated = std::fs::read_to_string(dir.join(format!("{name}.scr"))).unwrap();
         if let Some(difference) = ledger::first_difference(&regenerated, &reference(build), &[]) {
@@ -206,6 +251,9 @@ fn each_walkthrough_takes_under_five_seconds() {
         let started = std::time::Instant::now();
         our_transcript(build, &dir);
         let elapsed = started.elapsed();
-        assert!(elapsed.as_secs_f64() < 5.0, "{build}: the walkthrough took {elapsed:?}");
+        assert!(
+            elapsed.as_secs_f64() < 5.0,
+            "{build}: the walkthrough took {elapsed:?}"
+        );
     }
 }

@@ -147,7 +147,11 @@ fn every_version_5_instruction_decodes_with_the_right_store_and_branch() {
             assert_eq!(i.store.is_some(), *stores, "{opcode:?} store in {v:?}");
             assert_eq!(i.branch.is_some(), *branches, "{opcode:?} branch in {v:?}");
             let extra = *stores as usize + *branches as usize;
-            assert_eq!(i.next as usize, AT as usize + operand_bytes + extra, "{opcode:?} length");
+            assert_eq!(
+                i.next as usize,
+                AT as usize + operand_bytes + extra,
+                "{opcode:?} length"
+            );
             if *stores {
                 assert_eq!(i.store, Some(0x21), "{opcode:?} store variable");
             }
@@ -160,7 +164,10 @@ fn every_version_5_instruction_decodes_with_the_right_store_and_branch() {
 fn inline_text_in_version_5() {
     let code = [0xB2, 0x35, 0x51, 0xC6, 0x85, 0xB0];
     let i = dec5(&code);
-    assert_eq!((i.opcode, i.text, i.next), (Opcode::Print, Some(AT + 1), AT + 5));
+    assert_eq!(
+        (i.opcode, i.text, i.next),
+        (Opcode::Print, Some(AT + 1), AT + 5)
+    );
 }
 
 // §14: the opcode numbers whose meaning changes between version 3 and version 5
@@ -181,13 +188,22 @@ fn opcode_numbers_that_change_meaning() {
     for (number, opcode) in [(5u8, Save), (6, Restore)] {
         let code = [op::op0(number), vec![0xC0]].concat();
         let i = v3(&code).unwrap();
-        assert_eq!((i.opcode, i.store, i.branch.is_some()), (opcode, None, true));
-        assert_eq!(decode_for(&mem(&code), AT, Version::V5), Err(DecodeError::UnknownInstruction(AT)));
+        assert_eq!(
+            (i.opcode, i.store, i.branch.is_some()),
+            (opcode, None, true)
+        );
+        assert_eq!(
+            decode_for(&mem(&code), AT, Version::V5),
+            Err(DecodeError::UnknownInstruction(AT))
+        );
     }
 
     // 0OP:9 is `pop` in version 3 and `catch` (storing) in 5.
     let code = [op::op0(9), vec![0x10]].concat();
-    assert_eq!((v3(&code).unwrap().opcode, v3(&code).unwrap().store), (Pop, None));
+    assert_eq!(
+        (v3(&code).unwrap().opcode, v3(&code).unwrap().store),
+        (Pop, None)
+    );
     assert_eq!((dec5(&code).opcode, dec5(&code).store), (Catch, Some(0x10)));
 
     // 0OP:12 is `show_status` in version 3; in 5 it is illegal, and §15 says an
@@ -197,28 +213,55 @@ fn opcode_numbers_that_change_meaning() {
 
     // 0OP:14 and 0OP:15 are not instructions in version 3.
     for number in [14u8, 15] {
-        assert_eq!(v3(&op::op0(number)), Err(DecodeError::UnknownInstruction(AT)));
+        assert_eq!(
+            v3(&op::op0(number)),
+            Err(DecodeError::UnknownInstruction(AT))
+        );
     }
 
     // VAR:4 is `sread` (no result) in version 3 and `aread` (storing) in 5.
     let code = [op::var(4, &[s, s]), vec![0x10]].concat();
-    assert_eq!((v3(&code).unwrap().opcode, v3(&code).unwrap().store), (Sread, None));
+    assert_eq!(
+        (v3(&code).unwrap().opcode, v3(&code).unwrap().store),
+        (Sread, None)
+    );
     assert_eq!((dec5(&code).opcode, dec5(&code).store), (Aread, Some(0x10)));
 
     // 2OP:25-28, 1OP:8, VAR:12-18 and VAR:22-31 exist only from version 5.
-    for code in [op::op2(25, s, s), op::op1(8, s), op::var(13, &[s]), op::var(31, &[s])] {
-        assert_eq!(v3(&code), Err(DecodeError::UnknownInstruction(AT)), "{code:02x?}");
+    for code in [
+        op::op2(25, s, s),
+        op::op1(8, s),
+        op::var(13, &[s]),
+        op::var(31, &[s]),
+    ] {
+        assert_eq!(
+            v3(&code),
+            Err(DecodeError::UnknownInstruction(AT)),
+            "{code:02x?}"
+        );
     }
     // The extended prefix is an unknown instruction in version 3.
-    assert_eq!(v3(&op::ext(9, &[])), Err(DecodeError::UnknownInstruction(AT)));
+    assert_eq!(
+        v3(&op::ext(9, &[])),
+        Err(DecodeError::UnknownInstruction(AT))
+    );
 }
 
 // §4.3.4: the extended form's operands are laid out as in variable form.
 #[test]
 fn extended_form_operands() {
-    let i = dec5(&[op::ext(op::LOG_SHIFT, &[Arg::L(0x1234), Arg::V(3)]), vec![0x05]].concat());
+    let i = dec5(
+        &[
+            op::ext(op::LOG_SHIFT, &[Arg::L(0x1234), Arg::V(3)]),
+            vec![0x05],
+        ]
+        .concat(),
+    );
     assert_eq!(i.opcode, Opcode::LogShift);
-    assert_eq!(i.operands, vec![Operand::Large(0x1234), Operand::Variable(3)]);
+    assert_eq!(
+        i.operands,
+        vec![Operand::Large(0x1234), Operand::Variable(3)]
+    );
     assert_eq!(i.store, Some(5));
     assert_eq!(i.next, AT + 7);
 }
@@ -256,20 +299,35 @@ fn double_variable_calls_take_eight_operands() {
     assert_eq!(i.store, Some(0));
 
     // Fewer than eight: the list ends at the first omitted type, in either byte.
-    let i = dec5(&op::var2(op::CALL_VN2, &[Arg::L(0x0400), Arg::S(1), Arg::S(2), Arg::S(3), Arg::V(4)]));
+    let i = dec5(&op::var2(
+        op::CALL_VN2,
+        &[Arg::L(0x0400), Arg::S(1), Arg::S(2), Arg::S(3), Arg::V(4)],
+    ));
     assert_eq!(i.operands.len(), 5);
     assert_eq!(i.operands[4], Operand::Variable(4));
     let i = dec5(&op::var2(op::CALL_VN2, &[Arg::S(9)]));
     assert_eq!(i.operands, vec![Operand::Small(9)]);
-    assert_eq!(i.next, AT + 4, "both type bytes are read even when the second is unused");
+    assert_eq!(
+        i.next,
+        AT + 4,
+        "both type bytes are read even when the second is unused"
+    );
 }
 
 // A version 5 instruction cut off by the end of the file is an error, not a panic.
 #[test]
 fn truncated_version_5_instructions_are_errors() {
-    for code in [&[0xBEu8][..], &[0xBE, 9], &[0xEC, 0x55], &[0xEC, 0x55, 0x55, 1, 2]] {
+    for code in [
+        &[0xBEu8][..],
+        &[0xBE, 9],
+        &[0xEC, 0x55],
+        &[0xEC, 0x55, 0x55, 1, 2],
+    ] {
         assert!(
-            matches!(decode_for(&mem(code), AT, Version::V5), Err(DecodeError::ReadOutsideFile(_))),
+            matches!(
+                decode_for(&mem(code), AT, Version::V5),
+                Err(DecodeError::ReadOutsideFile(_))
+            ),
             "{code:02x?}"
         );
     }

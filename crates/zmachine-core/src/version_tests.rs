@@ -11,7 +11,6 @@ fn only_versions_3_5_and_8_are_recognised() {
     for other in [0u8, 1, 2, 4, 6, 7, 9, 255] {
         assert_eq!(Version::from_byte(other), None, "version {other}");
     }
-    assert_eq!(ALL.map(Version::number), [3, 5, 8]);
 }
 
 // §1.2.3: a packed address is 2P in versions 1 to 3, 4P in 4 and 5, 8P in 8.
@@ -34,7 +33,10 @@ fn file_length_multiplier() {
 // 512K in version 8.
 #[test]
 fn largest_story_file() {
-    assert_eq!(ALL.map(Version::max_story_size), [128 * 1024, 256 * 1024, 512 * 1024]);
+    assert_eq!(
+        ALL.map(Version::max_story_size),
+        [128 * 1024, 256 * 1024, 512 * 1024]
+    );
 }
 
 // §12.3.1, §12.3.2: object entries are 9 bytes with 32 attributes and byte links in
@@ -52,7 +54,6 @@ fn object_table_layout() {
 // 9 Z-characters in 6 bytes from version 4.
 #[test]
 fn dictionary_key_size() {
-    assert_eq!(ALL.map(Version::dictionary_key_len), [4, 6, 6]);
     assert_eq!(ALL.map(Version::dictionary_zchars), [6, 9, 9]);
 }
 
@@ -60,7 +61,10 @@ fn dictionary_key_size() {
 // version 5 locals start at zero and the header is just the count.
 #[test]
 fn routine_headers() {
-    assert_eq!(ALL.map(Version::routines_have_initial_values), [true, false, false]);
+    assert_eq!(
+        ALL.map(Version::routines_have_initial_values),
+        [true, false, false]
+    );
 }
 
 // §8.2, §15: the interpreter draws the status line only in version 3; `save` and

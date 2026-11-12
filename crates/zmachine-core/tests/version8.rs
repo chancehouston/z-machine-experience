@@ -5,8 +5,8 @@ mod common;
 
 use common::*;
 use zmachine_core::{Event, LoadError, Machine};
-use zmachine_testkit::op::{self, Arg::*};
 use zmachine_testkit::Story5;
+use zmachine_testkit::op::{self, Arg::*};
 
 const K: usize = 1024;
 
@@ -22,11 +22,8 @@ fn far_story(version: u8, filler: usize) -> (Story5, u32) {
     let main_len = 64;
     let far = (start + main_len + filler).next_multiple_of(multiple);
     let routine = (far / multiple) as u16;
-    let routine_code = cat(&[
-        to(op::op2(op::ADD, V(1), V(2)), 0),
-        op::op1(op::RET, V(0)),
-    ]);
-    let string = ((far + 1 + routine_code.len()).next_multiple_of(multiple) / multiple) as u16;
+    let routine_code = cat(&[to(op::op2(op::ADD, V(1), V(2)), 0), op::op1(op::RET, V(0))]);
+    let string = (far + 1 + routine_code.len()).div_ceil(multiple) as u16;
 
     let mut main = cat(&[
         to(op::var(op::CALL_VS, &[L(routine), S(20), S(22)]), g(0)),
@@ -66,7 +63,11 @@ fn packed_addresses_reach_the_top_of_each_versions_range() {
     for (version, filler) in [(5u8, 250 * K), (8, 500 * K)] {
         let (mut story, _) = far_story(version, filler);
         let mut m = Machine::load(story.build(), OPTIONS).unwrap();
-        assert_eq!(run_until_event(&mut m, BIG), Event::Finished, "version {version}");
+        assert_eq!(
+            run_until_event(&mut m, BIG),
+            Event::Finished,
+            "version {version}"
+        );
         assert_eq!(m.take_output(), "42 far away\n", "version {version}");
     }
 }
@@ -96,7 +97,11 @@ fn verify_uses_the_versions_length_multiplier() {
 
         let mut m = Machine::load(image.clone(), OPTIONS).unwrap();
         run_until_event(&mut m, BIG);
-        assert_eq!(m.take_output(), "checked\n", "version {version}: an intact file");
+        assert_eq!(
+            m.take_output(),
+            "checked\n",
+            "version {version}: an intact file"
+        );
 
         // A changed byte in the last part of the file, which only the right
         // multiplier reaches, makes verify fail.
@@ -105,7 +110,11 @@ fn verify_uses_the_versions_length_multiplier() {
         damaged[last] ^= 0x55;
         let mut m = Machine::load(damaged, OPTIONS).unwrap();
         run_until_event(&mut m, BIG);
-        assert_eq!(m.take_output(), "bad checked\n", "version {version}: a damaged file");
+        assert_eq!(
+            m.take_output(),
+            "bad checked\n",
+            "version {version}: a damaged file"
+        );
     }
 }
 
@@ -115,7 +124,10 @@ fn a_file_larger_than_its_version_allows_is_refused() {
     for (version, limit) in [(5u8, 256 * K), (8, 512 * K)] {
         let mut image = verify_story(version, 1000);
         image.resize(limit, 0);
-        assert!(Machine::load(image.clone(), OPTIONS).is_ok(), "version {version} at its limit");
+        assert!(
+            Machine::load(image.clone(), OPTIONS).is_ok(),
+            "version {version} at its limit"
+        );
         image.push(0);
         assert_eq!(
             Machine::load(image, OPTIONS).err(),
@@ -135,7 +147,10 @@ fn the_same_program_behaves_alike_in_both_versions() {
         let text = story.text_buffer(20, "");
         let parse = story.parse_buffer(4);
         let table = story.reserve(16);
-        let double = story.routine(1, &cat(&[to(op::op2(op::ADD, V(1), V(1)), 0), op::op1(op::RET, V(0))]));
+        let double = story.routine(
+            1,
+            &cat(&[to(op::op2(op::ADD, V(1), V(1)), 0), op::op1(op::RET, V(0))]),
+        );
         let message = story.string("packed string");
         story.main(&cat(&[
             to(op::op2(op::CALL_2S, L(double), S(21)), g(0)),
@@ -154,7 +169,10 @@ fn the_same_program_behaves_alike_in_both_versions() {
             quit(),
         ]));
         let mut m = Machine::load(story.build(), OPTIONS).unwrap();
-        assert!(matches!(run_until_event(&mut m, BIG), Event::LineWanted { .. }));
+        assert!(matches!(
+            run_until_event(&mut m, BIG),
+            Event::LineWanted { .. }
+        ));
         m.provide_line("look around").unwrap();
         assert_eq!(run_until_event(&mut m, BIG), Event::Finished);
         m.take_output()

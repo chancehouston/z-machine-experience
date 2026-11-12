@@ -67,5 +67,7 @@ pub fn zencode_dict9(word: &str) -> [u8; 6] {
     let mut z = zchars(word);
     z.resize(9, 5);
     let packed = pack(z);
-    [packed[0], packed[1], packed[2], packed[3], packed[4], packed[5]]
+    [
+        packed[0], packed[1], packed[2], packed[3], packed[4], packed[5],
+    ]
 }

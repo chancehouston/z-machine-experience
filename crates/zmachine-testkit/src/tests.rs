@@ -287,10 +287,13 @@ fn strings_and_scratch_data_are_placed_where_reported() {
 // Versions 5 and 8 (feature 002, T008)
 // ---------------------------------------------------------------------------
 
-use crate::{zencode_dict9, Object5, Story5};
+use crate::{Object5, Story5, zencode_dict9};
 
 fn advent(version: u8) -> Vec<u8> {
-    let path = format!("{}/../../stories/advent/advent.z{version}", env!("CARGO_MANIFEST_DIR"));
+    let path = format!(
+        "{}/../../stories/advent/advent.z{version}",
+        env!("CARGO_MANIFEST_DIR")
+    );
     std::fs::read(path).expect("stories/advent is committed")
 }
 
@@ -308,7 +311,9 @@ fn dictionary_keys9(story: &[u8], dictionary: usize) -> Vec<[u8; 6]> {
 
 /// A simple checksum of an image, to notice any change at all.
 fn fingerprint(bytes: &[u8]) -> u64 {
-    bytes.iter().fold(0xcbf29ce484222325u64, |h, &b| (h ^ b as u64).wrapping_mul(0x100000001b3))
+    bytes.iter().fold(0xcbf29ce484222325u64, |h, &b| {
+        (h ^ b as u64).wrapping_mul(0x100000001b3)
+    })
 }
 
 // Guarantee 6 of the core contract depends on this: adding versions 5 and 8 must
@@ -316,9 +321,15 @@ fn fingerprint(bytes: &[u8]) -> u64 {
 // fixtures were made from.
 #[test]
 fn version_3_images_are_byte_for_byte_what_they_were() {
-    assert_eq!(fingerprint(&crate::programs::random_probe()), V3_RANDOM_PROBE);
-    let probes: Vec<u64> =
-        crate::programs::transcript_probes().iter().take(15).map(|p| fingerprint(&p.image)).collect();
+    assert_eq!(
+        fingerprint(&crate::programs::random_probe()),
+        V3_RANDOM_PROBE
+    );
+    let probes: Vec<u64> = crate::programs::transcript_probes()
+        .iter()
+        .take(15)
+        .map(|p| fingerprint(&p.image))
+        .collect();
     assert_eq!(probes, V3_TRANSCRIPT_PROBES);
 }
 
@@ -340,11 +351,26 @@ fn zencode_dict9_agrees_with_advents_dictionary() {
     for version in [5u8, 8] {
         let story = advent(version);
         let keys = dictionary_keys9(&story, word(&story, 0x08));
-        for w in ["lantern", "xyzzy", "plugh", "inventory", "building", "north", "take", "i"] {
-            assert!(keys.contains(&zencode_dict9(w)), "{w} should be in Advent z{version}");
+        for w in [
+            "lantern",
+            "xyzzy",
+            "plugh",
+            "inventory",
+            "building",
+            "north",
+            "take",
+            "i",
+        ] {
+            assert!(
+                keys.contains(&zencode_dict9(w)),
+                "{w} should be in Advent z{version}"
+            );
         }
         assert!(!keys.contains(&zencode_dict9("qqqqqqqqq")));
-        assert!(keys.windows(2).all(|w| w[0] < w[1]), "Inform sorts its dictionary");
+        assert!(
+            keys.windows(2).all(|w| w[0] < w[1]),
+            "Inform sorts its dictionary"
+        );
     }
 }
 
@@ -359,14 +385,25 @@ fn advents_object_table_has_the_layout_the_builder_writes() {
     let first = table + 63 * 2;
     // §12.3.2: the first object's property table follows the last object entry.
     let count = (word(&story, first + 12) - first) / 14;
-    assert!(count > 200, "Advent has a few hundred objects, found {count}");
+    assert!(
+        count > 200,
+        "Advent has a few hundred objects, found {count}"
+    );
     for n in 0..count {
         let e = first + n * 14;
         for link in [6, 8, 10] {
-            assert!(word(&story, e + link) <= count, "object {} link at +{link}", n + 1);
+            assert!(
+                word(&story, e + link) <= count,
+                "object {} link at +{link}",
+                n + 1
+            );
         }
         let props = word(&story, e + 12);
-        assert!(props > e && props < static_base, "object {} property table", n + 1);
+        assert!(
+            props > e && props < static_base,
+            "object {} property table",
+            n + 1
+        );
     }
 }
 
@@ -397,7 +434,10 @@ fn built_version_5_image_has_a_coherent_header() {
     // §5.2.1: a version 5 routine is its local count and then code.
     let at = routine as usize * 4;
     assert_eq!(&image[at..at + 2], &[2, 0xB0]);
-    assert_eq!(dictionary_keys9(&image, word(&image, 0x08)), vec![zencode_dict9("north")]);
+    assert_eq!(
+        dictionary_keys9(&image, word(&image, 0x08)),
+        vec![zencode_dict9("north")]
+    );
 }
 
 // §1.2.3, §11.1.6: version 8 divides packed addresses and the length by 8.
@@ -438,7 +478,11 @@ fn built_version_5_objects_follow_the_layout() {
     assert_eq!(word(&image, table + 2 * 62), 0xBEEF);
     let e = table + 126;
     assert_eq!(&image[e..e + 6], &[0x80, 0, 0, 0, 0, 0x01]);
-    assert_eq!(&image[e + 6..e + 12], &[0, 0, 0, 0, 1, 2], "parent, sibling, child as words");
+    assert_eq!(
+        &image[e + 6..e + 12],
+        &[0, 0, 0, 0, 1, 2],
+        "parent, sibling, child as words"
+    );
     let p = word(&image, e + 12);
     assert_eq!(image[p], 1, "name is one word long");
     // Descending order. Length 2: bit 6 set. Length 3: two bytes, second has the length.
@@ -447,7 +491,11 @@ fn built_version_5_objects_follow_the_layout() {
     assert_eq!(&image[p + 11..p + 13], &[5, 0x7F]);
     // §12.4.2.1.1: a length of 64 is stored as 0.
     assert_eq!(&image[p + 13..p + 15], &[0x80 | 2, 0x80]);
-    assert_eq!(image[p + 15 + 64], 0, "the terminator follows 64 bytes of data");
+    assert_eq!(
+        image[p + 15 + 64],
+        0,
+        "the terminator follows 64 bytes of data"
+    );
 }
 
 // §4.3.4: extended form is 0xBE, the opcode number, a types byte, the operands.
@@ -469,7 +517,10 @@ fn double_variable_form_bytes() {
         vec![0xEC, 0x55, 0x55, 1, 2, 3, 4, 5, 6, 7, 8]
     );
     assert_eq!(
-        op::var2(op::CALL_VN2, &[Arg::L(0x0400), Arg::V(1), Arg::S(2), Arg::S(3), Arg::S(4)]),
+        op::var2(
+            op::CALL_VN2,
+            &[Arg::L(0x0400), Arg::V(1), Arg::S(2), Arg::S(3), Arg::S(4)]
+        ),
         vec![0xFA, 0b00_10_01_01, 0b01_11_11_11, 4, 0, 1, 2, 3, 4]
     );
 }

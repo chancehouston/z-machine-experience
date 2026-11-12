@@ -217,7 +217,11 @@ impl Machine {
             stack: Vec::new(),
             // Version 3 has nothing that reads this; versions 5 and 8 count every
             // argument passed, as `check_arg_count` reports them (data-model.md).
-            arg_count: if v.is_v3() { arguments.len().min(count) as u8 } else { arguments.len() as u8 },
+            arg_count: if v.is_v3() {
+                arguments.len().min(count) as u8
+            } else {
+                arguments.len() as u8
+            },
         });
         self.pc = code;
         Ok(())
@@ -254,10 +258,11 @@ impl Machine {
     }
 
     fn step(&mut self) -> X<Flow> {
-        let ins = decode::decode_for(&self.memory, self.pc, self.header.v).map_err(|e| match e {
-            DecodeError::UnknownInstruction(_) => FaultKind::UnknownInstruction,
-            DecodeError::ReadOutsideFile(_) => FaultKind::ReadOutsideFile,
-        })?;
+        let ins =
+            decode::decode_for(&self.memory, self.pc, self.header.v).map_err(|e| match e {
+                DecodeError::UnknownInstruction(_) => FaultKind::UnknownInstruction,
+                DecodeError::ReadOutsideFile(_) => FaultKind::ReadOutsideFile,
+            })?;
         self.pc = ins.next;
 
         // §4.2.3: operands are evaluated in order, so stack operands pop left to
@@ -500,7 +505,11 @@ impl Machine {
             }
             GetCursor => {
                 // The lower window has no layout in the core; it reports 1, 1.
-                let (row, column) = if self.window == 1 { self.screen.cursor() } else { (1, 1) };
+                let (row, column) = if self.window == 1 {
+                    self.screen.cursor()
+                } else {
+                    (1, 1)
+                };
                 self.memory.write_word(a as u32, row)?;
                 self.memory.write_word(a as u32 + 2, column)?;
             }

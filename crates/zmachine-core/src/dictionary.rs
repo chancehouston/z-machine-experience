@@ -1,9 +1,9 @@
 //! The dictionary and lexical analysis (§13).
 
+use crate::FaultKind;
 use crate::memory::Memory;
 use crate::text::Charset;
 use crate::version::Version;
-use crate::FaultKind;
 
 struct Layout {
     separators: Vec<u8>,
@@ -165,7 +165,9 @@ impl Lexer<'_> {
         words.truncate(max);
         memory.write_byte(parse as u32 + 1, words.len() as u8)?;
         for (n, &(s, len)) in words.iter().enumerate() {
-            let key = self.charset.encode(&line[s..s + len], self.version.dictionary_zchars());
+            let key = self
+                .charset
+                .encode(&line[s..s + len], self.version.dictionary_zchars());
             let entry = find(memory, &l, &key)?;
             if entry == 0 && self.skip_unknown {
                 continue;

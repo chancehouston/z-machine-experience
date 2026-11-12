@@ -58,7 +58,10 @@ pub const RESET: &str = "\x1b[0m";
 pub fn canvas(screen: &Screen, ansi: bool) -> String {
     let mut out = String::new();
     for row in 1..=screen.rows() {
-        let Some(last) = (1..=screen.width()).rev().find(|&c| screen.cell(row, c).is_some()) else {
+        let Some(last) = (1..=screen.width())
+            .rev()
+            .find(|&c| screen.cell(row, c).is_some())
+        else {
             continue;
         };
         let mut current = 0;

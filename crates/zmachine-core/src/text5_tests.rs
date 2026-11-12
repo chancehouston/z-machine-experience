@@ -4,10 +4,13 @@ use super::*;
 use crate::header;
 use crate::memory::Memory;
 use crate::objects::Objects;
-use zmachine_testkit::{op, zencode, zencode_dict9, Story5};
+use zmachine_testkit::{Story5, op, zencode, zencode_dict9};
 
 fn advent(version: u8) -> (Memory, header::Header) {
-    let path = format!("{}/../../stories/advent/advent.z{version}", env!("CARGO_MANIFEST_DIR"));
+    let path = format!(
+        "{}/../../stories/advent/advent.z{version}",
+        env!("CARGO_MANIFEST_DIR")
+    );
     let story = std::fs::read(path).unwrap();
     let h = header::parse(&story).unwrap();
     (Memory::new(story, h.static_base as usize), h)
@@ -18,11 +21,28 @@ fn advent(version: u8) -> (Memory, header::Header) {
 #[test]
 fn nine_z_character_encoding() {
     let c = Charset::default();
-    for word in ["a", "lantern", "inventory", "building", "xyzzy", "1", "can't", "x@y", ""] {
-        assert_eq!(c.encode(word.as_bytes(), 9), zencode_dict9(word), "{word:?}");
+    for word in [
+        "a",
+        "lantern",
+        "inventory",
+        "building",
+        "xyzzy",
+        "1",
+        "can't",
+        "x@y",
+        "",
+    ] {
+        assert_eq!(
+            c.encode(word.as_bytes(), 9),
+            zencode_dict9(word),
+            "{word:?}"
+        );
     }
     assert_eq!(c.encode(b"lanternfish", 9), c.encode(b"lanternfi", 9));
-    assert_eq!(c.encode(b"hello", 9), vec![0x35, 0x51, 0x46, 0x85, 0x94, 0xA5]);
+    assert_eq!(
+        c.encode(b"hello", 9),
+        vec![0x35, 0x51, 0x46, 0x85, 0x94, 0xA5]
+    );
     // Six Z-characters, as version 3 does, is the same function with another count.
     assert_eq!(c.encode(b"hello", 6), vec![0x35, 0x51, 0xC6, 0x85]);
 }
@@ -66,11 +86,14 @@ fn custom_alphabet() -> (Memory, header::Header, Vec<u32>) {
             .collect()
     };
     let strings = [
-        pack(&[13, 4, 13]),    // H, shift, h
+        pack(&[13, 4, 13]),        // H, shift, h
         pack(&[5, 8, 5, 7, 5, 5]), // A2: '*', then new-line
         pack(&[5, 6, 2, 0, 5, 5]), // A2 escape: ZSCII 64, '@'
     ];
-    let addresses = strings.iter().map(|s| story.raw_string(s) as u32 * 4).collect();
+    let addresses = strings
+        .iter()
+        .map(|s| story.raw_string(s) as u32 * 4)
+        .collect();
     story.main(&op::op0(op::QUIT));
     let image = story.build();
     let h = header::parse(&image).unwrap();
@@ -128,9 +151,17 @@ fn a_games_unicode_table_replaces_the_default_extras() {
     let c = Charset::read(&m, h.alphabet_table, h.unicode_table);
     assert_eq!(c.zscii_to_char(155), Some('\u{3b1}'));
     assert_eq!(c.zscii_to_char(157), Some('\u{20ac}'));
-    assert_eq!(c.zscii_to_char(158), Some('?'), "beyond the table's three entries");
+    assert_eq!(
+        c.zscii_to_char(158),
+        Some('?'),
+        "beyond the table's three entries"
+    );
     assert_eq!(c.zscii_for('\u{3b2}'), Some(156));
-    assert_eq!(c.zscii_for('\u{e4}'), None, "a-diaeresis is not in this game's table");
+    assert_eq!(
+        c.zscii_for('\u{e4}'),
+        None,
+        "a-diaeresis is not in this game's table"
+    );
     assert_eq!(c.input_zscii('\u{e4}'), b'?');
 }
 
@@ -155,14 +186,22 @@ fn advents_object_names_decode_in_both_versions() {
         let o = Objects::for_version(h.objects, h.v);
         let mut names = std::collections::HashSet::new();
         for object in 1..=300u16 {
-            if let Ok(Some(at)) = o.name_address(&m, object) {
-                if let Ok((name, _)) = c.decode(&m, at, h.abbreviations) {
-                    names.insert(name);
-                }
+            if let Ok(Some(at)) = o.name_address(&m, object)
+                && let Ok((name, _)) = c.decode(&m, at, h.abbreviations)
+            {
+                names.insert(name);
             }
         }
-        for expected in ["brass lantern", "Inside Building", "At End Of Road", "set of keys"] {
-            assert!(names.contains(expected), "version {version}: {expected} missing");
+        for expected in [
+            "brass lantern",
+            "Inside Building",
+            "At End Of Road",
+            "set of keys",
+        ] {
+            assert!(
+                names.contains(expected),
+                "version {version}: {expected} missing"
+            );
         }
     }
 }
@@ -177,5 +216,11 @@ fn round_trip_in_version_5() {
     let image = story.build();
     let h = header::parse(&image).unwrap();
     let m = Memory::new(image, h.static_base as usize);
-    assert_eq!(Charset::default().decode(&m, at, h.abbreviations).unwrap().0, text);
+    assert_eq!(
+        Charset::default()
+            .decode(&m, at, h.abbreviations)
+            .unwrap()
+            .0,
+        text
+    );
 }

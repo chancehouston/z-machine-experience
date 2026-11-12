@@ -50,8 +50,17 @@ fn undo_matches_the_reference() {
             .stdin(Stdio::null())
             .output()
             .expect("zm runs");
-        assert_eq!(out.status.code(), Some(0), "{}", String::from_utf8_lossy(&out.stderr));
-        assert_eq!(read(&dir.join(transcript_name())), reference(build), "advent.{build}");
+        assert_eq!(
+            out.status.code(),
+            Some(0),
+            "{}",
+            String::from_utf8_lossy(&out.stderr)
+        );
+        assert_eq!(
+            read(&dir.join(transcript_name())),
+            reference(build),
+            "advent.{build}"
+        );
     }
 }
 
@@ -60,9 +69,15 @@ fn undo_matches_the_reference() {
 fn the_reference_undoes_twenty_five_times() {
     for build in BUILDS {
         let reference = reference(build);
-        assert_eq!(reference.matches("[Previous turn undone.]").count(), 25, "{build}");
         assert_eq!(
-            reference.matches("\"Undo\" failed.  [Not all interpreters provide it.]").count(),
+            reference.matches("[Previous turn undone.]").count(),
+            25,
+            "{build}"
+        );
+        assert_eq!(
+            reference
+                .matches("\"Undo\" failed.  [Not all interpreters provide it.]")
+                .count(),
             5,
             "{build}"
         );
@@ -74,7 +89,10 @@ fn the_reference_undoes_twenty_five_times() {
 #[ignore = "needs dfrotz 2.55"]
 fn dfrotz_still_writes_the_undo_transcripts() {
     use std::io::Write;
-    let version = Command::new("dfrotz").arg("-v").output().expect("dfrotz is installed");
+    let version = Command::new("dfrotz")
+        .arg("-v")
+        .output()
+        .expect("dfrotz is installed");
     assert!(String::from_utf8_lossy(&version.stdout).starts_with("FROTZ V2.55"));
     for build in BUILDS {
         let dir = scratch_dir(&format!("dfrotz-{build}"));
@@ -88,8 +106,17 @@ fn dfrotz_still_writes_the_undo_transcripts() {
             .spawn()
             .unwrap();
         let script = read(&repo("stories/advent/fidelity/undo.txt"));
-        child.stdin.take().unwrap().write_all(script.as_bytes()).unwrap();
+        child
+            .stdin
+            .take()
+            .unwrap()
+            .write_all(script.as_bytes())
+            .unwrap();
         child.wait().unwrap();
-        assert_eq!(read(&dir.join(format!("{}.scr", transcript_name()))), reference(build), "{build}");
+        assert_eq!(
+            read(&dir.join(format!("{}.scr", transcript_name()))),
+            reference(build),
+            "{build}"
+        );
     }
 }

@@ -187,7 +187,10 @@ fn the_version_5_and_8_files_match_their_record() {
     let record = String::from_utf8(read("SOURCE.md")).unwrap();
     for name in ["czech.z5", "czech.z8", "czech.out5", "czech.out8"] {
         let digest = sha256(&read(name));
-        assert!(record.contains(&digest), "stories/czech/{name} has digest {digest}, not in SOURCE.md");
+        assert!(
+            record.contains(&digest),
+            "stories/czech/{name} has digest {digest}, not in SOURCE.md"
+        );
     }
 }
 
@@ -197,14 +200,24 @@ fn czech_reports_no_failed_tests_in_versions_5_and_8() {
     for version in [5, 8] {
         let output = run_czech_version(version);
         let failed: Vec<&str> = output.lines().filter(|l| l.contains("ERROR")).collect();
-        assert!(failed.is_empty(), "version {version}: czech reported:\n{}", failed.join("\n"));
+        assert!(
+            failed.is_empty(),
+            "version {version}: czech reported:\n{}",
+            failed.join("\n")
+        );
         let summary = output
             .lines()
             .find(|l| l.starts_with("Passed:"))
             .unwrap_or_else(|| panic!("version {version}: no summary line in:\n{output}"));
-        assert_eq!(summary, "Passed: 406, Failed: 0, Print tests: 19", "version {version}");
+        assert_eq!(
+            summary, "Passed: 406, Failed: 0, Print tests: 19",
+            "version {version}"
+        );
         assert!(output.contains("Performed 425 tests."), "version {version}");
-        assert!(output.trim_end().ends_with("Last test: quit!"), "version {version}");
+        assert!(
+            output.trim_end().ends_with("Last test: quit!"),
+            "version {version}"
+        );
     }
 }
 
@@ -225,11 +238,26 @@ fn czech_output_matches_the_published_output_in_versions_5_and_8() {
         };
         let (ours, theirs) = (keep(&output), keep(&expected));
         for (number, (ours, theirs)) in ours.iter().zip(&theirs).enumerate() {
-            assert_eq!(ours, theirs, "version {version}: compared line {}", number + 1);
+            assert_eq!(
+                ours,
+                theirs,
+                "version {version}: compared line {}",
+                number + 1
+            );
         }
-        assert_eq!(ours.len(), theirs.len(), "version {version}: line count; ours:\n{output}");
-        let left_out = expected.lines().filter(|l| describes_the_interpreter_v5(l)).count();
-        assert!(left_out <= 6, "version {version}: {left_out} lines left out of the comparison");
+        assert_eq!(
+            ours.len(),
+            theirs.len(),
+            "version {version}: line count; ours:\n{output}"
+        );
+        let left_out = expected
+            .lines()
+            .filter(|l| describes_the_interpreter_v5(l))
+            .count();
+        assert!(
+            left_out <= 6,
+            "version {version}: {left_out} lines left out of the comparison"
+        );
     }
 }
 
@@ -246,10 +274,19 @@ fn czech_header_report_describes_this_interpreter_in_versions_5_and_8() {
                 .unwrap_or_else(|| panic!("version {version}: no {prefix:?} line"))
         };
         assert_eq!(line("    standard ").trim(), "standard 1.1");
-        assert!(line("    interpreter ").starts_with("    interpreter 1 Z "), "version {version}");
-        assert_eq!(line("    Flags on:").trim(), "Flags on: boldface, italic, fixed-space,");
+        assert!(
+            line("    interpreter ").starts_with("    interpreter 1 Z "),
+            "version {version}"
+        );
+        assert_eq!(
+            line("    Flags on:").trim(),
+            "Flags on: boldface, italic, fixed-space,"
+        );
         let off = line("    Flags off:");
         assert!(off.contains("color") && off.contains("timer") && off.contains("sound"));
-        assert_eq!(line("    Screen size:").trim(), "Screen size: 80x24; in 1x1 units: 80x24");
+        assert_eq!(
+            line("    Screen size:").trim(),
+            "Screen size: 80x24; in 1x1 units: 80x24"
+        );
     }
 }

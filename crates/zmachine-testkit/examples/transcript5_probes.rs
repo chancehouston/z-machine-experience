@@ -10,7 +10,9 @@
 
 fn main() {
     let dir = std::path::PathBuf::from(
-        std::env::args().nth(1).expect("usage: transcript5_probes <dir>"),
+        std::env::args()
+            .nth(1)
+            .expect("usage: transcript5_probes <dir>"),
     );
     std::fs::create_dir_all(&dir).expect("create directory");
     for probe in zmachine_testkit::programs::transcript5_probes() {

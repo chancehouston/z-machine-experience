@@ -3,9 +3,9 @@
 //! Callers never pass object 0: there is no such object, and the executor deals
 //! with instructions that name it before reaching this module.
 
+use crate::FaultKind;
 use crate::memory::Memory;
 use crate::version::Version;
-use crate::FaultKind;
 
 type R<T> = Result<T, FaultKind>;
 
@@ -37,7 +37,10 @@ impl Objects {
     }
 
     pub fn for_version(table: u16, v: Version) -> Self {
-        Objects { table: table as u32, v }
+        Objects {
+            table: table as u32,
+            v,
+        }
     }
 
     /// Address of an object's entry: 9 bytes in versions 1 to 3 (§12.3.1), 14 from
@@ -45,18 +48,28 @@ impl Objects {
     fn entry(&self, object: u16) -> u32 {
         self.table
             + self.v.property_defaults() * 2
-            + (object as u32).wrapping_sub(1).wrapping_mul(self.v.object_entry_size())
+            + (object as u32)
+                .wrapping_sub(1)
+                .wrapping_mul(self.v.object_entry_size())
     }
 
     /// Offset of a link within an entry. The attributes come first: 4 bytes, or 6.
     fn link_offset(&self, link: Link) -> u32 {
         let n = link as u32;
-        if self.v.wide_objects() { 6 + 2 * n } else { 4 + n }
+        if self.v.wide_objects() {
+            6 + 2 * n
+        } else {
+            4 + n
+        }
     }
 
     fn link(&self, m: &Memory, object: u16, link: Link) -> R<u16> {
         let at = self.entry(object) + self.link_offset(link);
-        Ok(if self.v.wide_objects() { m.read_word(at)? } else { m.read_byte(at)? as u16 })
+        Ok(if self.v.wide_objects() {
+            m.read_word(at)?
+        } else {
+            m.read_byte(at)? as u16
+        })
     }
 
     fn set_link(&self, m: &mut Memory, object: u16, link: Link, value: u16) -> R<()> {
@@ -125,8 +138,12 @@ impl Objects {
     /// attribute: 32 of them in versions 1 to 3, 48 from version 4, numbered from
     /// the top bit (§12.3.1, §12.3.2).
     fn attribute(&self, object: u16, attribute: u16) -> Option<(u32, u8)> {
-        (attribute < self.v.attribute_count())
-            .then(|| (self.entry(object) + attribute as u32 / 8, 0x80 >> (attribute % 8)))
+        (attribute < self.v.attribute_count()).then(|| {
+            (
+                self.entry(object) + attribute as u32 / 8,
+                0x80 >> (attribute % 8),
+            )
+        })
     }
 
     pub fn test_attr(&self, m: &Memory, object: u16, attribute: u16) -> R<bool> {
@@ -185,9 +202,17 @@ impl Objects {
         let number = (size & 0x3F) as u16;
         if size & 0x80 != 0 {
             let len = (m.read_byte(at + 1)? & 0x3F) as u32;
-            Ok(Some(Property { number, data: at + 2, len: if len == 0 { 64 } else { len } }))
+            Ok(Some(Property {
+                number,
+                data: at + 2,
+                len: if len == 0 { 64 } else { len },
+            }))
         } else {
-            Ok(Some(Property { number, data: at + 1, len: if size & 0x40 != 0 { 2 } else { 1 } }))
+            Ok(Some(Property {
+                number,
+                data: at + 1,
+                len: if size & 0x40 != 0 { 2 } else { 1 },
+            }))
         }
     }
 
@@ -246,7 +271,9 @@ impl Objects {
         let next = if number == 0 {
             self.first_property(m, object)?
         } else {
-            let p = self.find(m, object, number)?.ok_or(FaultKind::MissingProperty)?;
+            let p = self
+                .find(m, object, number)?
+                .ok_or(FaultKind::MissingProperty)?;
             self.property_at(m, p.data + p.len)?
         };
         Ok(next.map_or(0, |p| p.number))

@@ -75,7 +75,10 @@ pub struct Story5 {
 impl Story5 {
     /// A story of version 5 or 8.
     pub fn new(version: u8) -> Self {
-        assert!(version == 5 || version == 8, "Story5 builds versions 5 and 8");
+        assert!(
+            version == 5 || version == 8,
+            "Story5 builds versions 5 and 8"
+        );
         Story5 {
             version,
             flags1: 0,
@@ -184,7 +187,10 @@ impl Story5 {
         self.data_still_open("scratch data");
         let at = SCRATCH as usize + self.scratch.len();
         self.scratch.extend_from_slice(bytes);
-        assert!(self.scratch.len() <= SCRATCH_LEN as usize, "scratch area is full");
+        assert!(
+            self.scratch.len() <= SCRATCH_LEN as usize,
+            "scratch area is full"
+        );
         at as u16
     }
 
@@ -250,14 +256,21 @@ impl Story5 {
         low.resize(entries + self.objects.len() * 14, 0);
         for (i, o) in self.objects.iter().enumerate() {
             let table = low.len();
-            let name = if o.name.is_empty() { Vec::new() } else { zencode(&o.name) };
+            let name = if o.name.is_empty() {
+                Vec::new()
+            } else {
+                zencode(&o.name)
+            };
             low.push((name.len() / 2) as u8);
             low.extend(&name);
             let mut props = o.props.clone();
             props.sort_by_key(|p| std::cmp::Reverse(p.0));
             for (number, data) in &props {
                 assert!((1..=63).contains(number), "property numbers are 1 to 63");
-                assert!((1..=64).contains(&data.len()), "property data is 1 to 64 bytes");
+                assert!(
+                    (1..=64).contains(&data.len()),
+                    "property data is 1 to 64 bytes"
+                );
                 // §12.4.2: one size byte for lengths 1 and 2 (bit 6 set for 2); two
                 // for longer, the second holding the length, 0 meaning 64.
                 match data.len() {
@@ -275,7 +288,7 @@ impl Story5 {
             low[e + 10..e + 12].copy_from_slice(&o.child.to_be_bytes());
             low[e + 12..e + 14].copy_from_slice(&(table as u16).to_be_bytes());
         }
-        if low.len() % 2 != 0 {
+        if !low.len().is_multiple_of(2) {
             low.push(0);
         }
         self.static_base = low.len();
@@ -298,9 +311,13 @@ impl Story5 {
         self.dictionary_at = low.len();
         let separators = String::from_utf8(self.separators.clone()).unwrap();
         let words: Vec<&str> = self.words.iter().map(String::as_str).collect();
-        low.extend(Self::dictionary_bytes(&separators, &words, !self.unsorted_dictionary));
+        low.extend(Self::dictionary_bytes(
+            &separators,
+            &words,
+            !self.unsorted_dictionary,
+        ));
         let multiple = self.packed_multiplier();
-        while low.len() % multiple != 0 {
+        while !low.len().is_multiple_of(multiple) {
             low.push(0);
         }
         self.low = Some(low);
@@ -314,7 +331,7 @@ impl Story5 {
     /// Pads high memory so the next item has a packed address.
     fn align(&mut self) {
         let multiple = self.packed_multiplier();
-        while self.high.len() % multiple != 0 {
+        while !self.high.len().is_multiple_of(multiple) {
             self.high.push(0);
         }
     }
@@ -355,7 +372,10 @@ impl Story5 {
         self.high.push(locals as u8);
         self.high.extend_from_slice(code);
         let packed = at / self.packed_multiplier();
-        assert!(packed <= 0xFFFF, "the routine is beyond the reach of a packed address");
+        assert!(
+            packed <= 0xFFFF,
+            "the routine is beyond the reach of a packed address"
+        );
         packed as u16
     }
 
@@ -377,7 +397,10 @@ impl Story5 {
     pub fn main(&mut self, code: &[u8]) -> &mut Self {
         assert!(self.main_at.is_none(), "main code was already added");
         let at = self.next_code_address() as usize;
-        assert!(at <= 0xFFFF, "main code must start within the first 64K; add it before any filler");
+        assert!(
+            at <= 0xFFFF,
+            "main code must start within the first 64K; add it before any filler"
+        );
         self.high.extend_from_slice(code);
         self.main_at = Some(at);
         self
@@ -391,11 +414,18 @@ impl Story5 {
         image.extend(&self.high);
         // §11.1.6: the length is stored divided by 4 or 8, so the file is padded.
         let multiple = self.packed_multiplier();
-        while image.len() % multiple != 0 {
+        while !image.len().is_multiple_of(multiple) {
             image.push(0);
         }
-        let limit = if self.version == 8 { 512 * 1024 } else { 256 * 1024 };
-        assert!(image.len() <= limit, "the story is larger than its version allows");
+        let limit = if self.version == 8 {
+            512 * 1024
+        } else {
+            256 * 1024
+        };
+        assert!(
+            image.len() <= limit,
+            "the story is larger than its version allows"
+        );
 
         let put = |image: &mut Vec<u8>, at: usize, value: usize| {
             image[at..at + 2].copy_from_slice(&(value as u16).to_be_bytes());

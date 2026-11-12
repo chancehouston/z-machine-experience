@@ -381,7 +381,12 @@ fn dfrotz_advent(build: &str, dir: &Path, script: &Path) {
         .stderr(Stdio::null())
         .spawn()
         .expect("dfrotz is installed");
-    child.stdin.take().unwrap().write_all(read(script).as_bytes()).unwrap();
+    child
+        .stdin
+        .take()
+        .unwrap()
+        .write_all(read(script).as_bytes())
+        .unwrap();
     child.wait().unwrap();
 }
 
@@ -419,8 +424,15 @@ fn advent_saves_written_by_zm_restore_and_continue_as_in_frotz() {
             assert_eq!(text(&out.stderr), "", "{build} save point {n}");
             let bytes = std::fs::read(dir.join(format!("save_{n}.qzl")))
                 .unwrap_or_else(|e| panic!("{build} save point {n}: no save file: {e}"));
-            assert_eq!(&bytes[..4], b"FORM", "{build} save point {n}: a Quetzal file");
-            assert!(text(&out.stdout).contains(">save\nOk.\n"), "{build} save point {n}");
+            assert_eq!(
+                &bytes[..4],
+                b"FORM",
+                "{build} save point {n}: a Quetzal file"
+            );
+            assert!(
+                text(&out.stdout).contains(">save\nOk.\n"),
+                "{build} save point {n}"
+            );
 
             zm_advent(build, &dir, &advent_saves(&format!("cont_{n}.txt")));
             assert_eq!(
@@ -438,9 +450,18 @@ fn the_advent_reference_continuations_restored_successfully() {
     for build in ADVENT_BUILDS {
         for n in ADVENT_POINTS {
             let transcript = read(&advent_saves(&format!("cont_{build}_{n}.scr")));
-            assert!(transcript.contains(">restore\nOk.\n"), "cont_{build}_{n}.scr");
-            assert!(transcript.matches("\n>").count() >= 20, "cont_{build}_{n}.scr");
-            assert!(!transcript.contains("Restore failed."), "cont_{build}_{n}.scr");
+            assert!(
+                transcript.contains(">restore\nOk.\n"),
+                "cont_{build}_{n}.scr"
+            );
+            assert!(
+                transcript.matches("\n>").count() >= 20,
+                "cont_{build}_{n}.scr"
+            );
+            assert!(
+                !transcript.contains("Restore failed."),
+                "cont_{build}_{n}.scr"
+            );
         }
     }
 }
@@ -453,15 +474,28 @@ fn a_damaged_advent_save_or_one_from_the_other_build_is_refused() {
         let good = std::fs::read(advent_saves(&format!("frotz_{build}_1.qzl"))).unwrap();
         let from_other = std::fs::read(advent_saves(&format!("frotz_{other}_1.qzl"))).unwrap();
         let truncated = good[..good.len() / 2].to_vec();
-        for (what, bytes) in [("other build", from_other), ("truncated", truncated), ("empty", Vec::new())] {
-            let dir = scratch_dir(&format!("advent-refused-{build}-{}", what.replace(' ', "-")));
+        for (what, bytes) in [
+            ("other build", from_other),
+            ("truncated", truncated),
+            ("empty", Vec::new()),
+        ] {
+            let dir = scratch_dir(&format!(
+                "advent-refused-{build}-{}",
+                what.replace(' ', "-")
+            ));
             std::fs::write(dir.join("bad.qzl"), bytes).unwrap();
             let script = dir.join("script.txt");
             std::fs::write(&script, "restore\nbad.qzl\nenter building\n").unwrap();
             let out = zm_advent(build, &dir, &script);
             let stdout = text(&out.stdout);
-            assert!(stdout.contains(">restore\nRestore failed.\n"), "{build}, {what}: {stdout}");
-            assert!(stdout.contains("Inside Building"), "{build}, {what}: play continued");
+            assert!(
+                stdout.contains(">restore\nRestore failed.\n"),
+                "{build}, {what}: {stdout}"
+            );
+            assert!(
+                stdout.contains("Inside Building"),
+                "{build}, {what}: play continued"
+            );
         }
     }
 }
@@ -481,7 +515,11 @@ fn advent_save_then_restore_in_one_session() {
         assert!(stdout.contains(">save\nOk.\n"), "{build}: {stdout}");
         assert!(stdout.contains("a brass lantern"), "{build}: {stdout}");
         assert!(stdout.contains(">restore\nOk.\n"), "{build}: {stdout}");
-        assert!(stdout.trim_end().ends_with("You're carrying nothing.\n\n>") || stdout.contains(">inventory\nYou're carrying nothing.\n"), "{build}: {stdout}");
+        assert!(
+            stdout.trim_end().ends_with("You're carrying nothing.\n\n>")
+                || stdout.contains(">inventory\nYou're carrying nothing.\n"),
+            "{build}: {stdout}"
+        );
     }
 }
 

@@ -5,8 +5,8 @@ mod common;
 
 use common::*;
 use zmachine_core::{Event, Machine};
-use zmachine_testkit::op::{self, Arg::*};
 use zmachine_testkit::Story5;
+use zmachine_testkit::op::{self, Arg::*};
 
 fn save(variable: u8) -> Vec<u8> {
     to(op::ext(op::EXT_SAVE, &[]), variable)
@@ -26,7 +26,11 @@ struct Outcome {
 /// restore requests are given `offered` (or the last save), later ones declined.
 fn drive(image: Vec<u8>, store: bool, offers: usize, offered: Option<Vec<u8>>) -> Outcome {
     let mut m = Machine::load(image, OPTIONS).unwrap();
-    let mut out = Outcome { output: String::new(), saves: Vec::new(), restores: 0 };
+    let mut out = Outcome {
+        output: String::new(),
+        saves: Vec::new(),
+        restores: 0,
+    };
     loop {
         let event = m.run(BIG).unwrap();
         out.output.push_str(&m.take_output());
@@ -72,7 +76,11 @@ fn program(version: u8, serial: &str) -> Vec<u8> {
             quit(),
         ]),
     );
-    story.main(&cat(&[op::op2(op::STORE, S(g(1)), S(5)), op::op1(op::CALL_1N, L(routine)), quit()]));
+    story.main(&cat(&[
+        op::op2(op::STORE, S(g(1)), S(5)),
+        op::op1(op::CALL_1N, L(routine)),
+        quit(),
+    ]));
     story.build()
 }
 
@@ -128,7 +136,10 @@ fn a_save_from_the_other_version_is_refused() {
     let outcome = drive(program(5, "111111"), true, 1, Some(from_8));
     assert_eq!(outcome.output, "1 restore:0 \n");
     // And version 8 saves and restores as version 5 does.
-    assert_eq!(drive(program(8, "111111"), true, 1, None).output, "1 2 back:5 6\n");
+    assert_eq!(
+        drive(program(8, "111111"), true, 1, None).output,
+        "1 2 back:5 6\n"
+    );
 }
 
 // §7.6.5.1, 002 FR-021: `save` and `restore` with a table to write or read are
@@ -170,7 +181,11 @@ fn a_save_inside_nested_calls_restores_into_a_fresh_machine() {
     // outer(): g1 = inner(30, 12); print it.
     let outer = story.routine(
         0,
-        &cat(&[to(op::var(op::CALL_VS, &[L(inner), S(30), S(12)]), g(1)), show(1), op::op0(op::RTRUE)]),
+        &cat(&[
+            to(op::var(op::CALL_VS, &[L(inner), S(30), S(12)]), g(1)),
+            show(1),
+            op::op0(op::RTRUE),
+        ]),
     );
     story.main(&cat(&[
         // In a fresh machine offered a save, this restore does not return.

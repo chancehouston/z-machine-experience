@@ -502,10 +502,17 @@ impl Machine {
     /// return or one the game listed in its terminating characters table
     /// (§10.5.2.1). Otherwise the key is refused and the machine keeps waiting.
     pub fn provide_line_ended_by(&mut self, text: &str, key: Key) -> Result<(), HostError> {
-        let State::AwaitingLine { text: buffer, parse, max_len } = self.state else {
+        let State::AwaitingLine {
+            text: buffer,
+            parse,
+            max_len,
+        } = self.state
+        else {
             return Err(self.not_waiting());
         };
-        let code = self.key_code(key).filter(|&c| c == 13 || self.ends_a_line(c));
+        let code = self
+            .key_code(key)
+            .filter(|&c| c == 13 || self.ends_a_line(c));
         let code = code.ok_or(HostError::NotATerminator)?;
         self.state = State::Running;
         self.accept_line(text, buffer, parse, max_len, code);

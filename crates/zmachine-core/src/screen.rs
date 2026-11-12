@@ -49,12 +49,20 @@ impl OutputBuffer {
         }
         match self.runs.last_mut() {
             Some(last) if last.style == style && !last.clears_window => last.text.push_str(text),
-            _ => self.runs.push(StyledRun { text: text.to_string(), style, clears_window: false }),
+            _ => self.runs.push(StyledRun {
+                text: text.to_string(),
+                style,
+                clears_window: false,
+            }),
         }
     }
 
     pub fn mark_cleared(&mut self) {
-        self.runs.push(StyledRun { text: String::new(), style: Style::default(), clears_window: true });
+        self.runs.push(StyledRun {
+            text: String::new(),
+            style: Style::default(),
+            clears_window: true,
+        });
     }
 
     pub fn take_runs(&mut self) -> Vec<StyledRun> {
@@ -123,7 +131,9 @@ impl Screen {
 
     /// The text of a row, with spaces for cells the game has not written.
     pub fn row_text(&self, row: u16) -> String {
-        (1..=self.width).map(|c| self.cell(row, c).map_or(' ', |(ch, _)| ch)).collect()
+        (1..=self.width)
+            .map(|c| self.cell(row, c).map_or(' ', |(ch, _)| ch))
+            .collect()
     }
 
     pub(crate) fn take_changed(&mut self) -> bool {
@@ -247,7 +257,10 @@ impl Screen {
     pub(crate) fn reset(&mut self) {
         let blank = Screen::new(self.width, self.rows);
         if self.cells != blank.cells || self.height != 0 || self.cursor != (1, 1) {
-            *self = Screen { changed: true, ..blank };
+            *self = Screen {
+                changed: true,
+                ..blank
+            };
         }
     }
 }

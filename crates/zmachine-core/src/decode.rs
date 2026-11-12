@@ -275,8 +275,8 @@ impl Opcode {
                 | SaveUndo
                 | RestoreUndo
                 | CheckUnicode
-                |
-            Or | And
+                | Or
+                | And
                 | Loadw
                 | Loadb
                 | GetProp
@@ -490,7 +490,11 @@ pub(crate) fn decode_for(
             }
             .ok_or(unknown)?;
             // §4.4.3.1: the two double-variable calls have two bytes of types.
-            let type_bytes = if matches!(opcode, Opcode::CallVs2 | Opcode::CallVn2) { 2 } else { 1 };
+            let type_bytes = if matches!(opcode, Opcode::CallVs2 | Opcode::CallVn2) {
+                2
+            } else {
+                1
+            };
             c.variable_operands(&mut operands, type_bytes)?;
             opcode
         }
@@ -518,7 +522,11 @@ pub(crate) fn decode_for(
     };
 
     let store_data = opcode.stores(v).then_some(c.at);
-    let store = if store_data.is_some() { Some(c.byte()?) } else { None };
+    let store = if store_data.is_some() {
+        Some(c.byte()?)
+    } else {
+        None
+    };
 
     let mut branch = None;
     let mut branch_data = None;

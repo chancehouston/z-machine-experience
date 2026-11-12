@@ -6,7 +6,7 @@ mod common;
 use common::*;
 use zmachine_core::{Event, FaultKind};
 use zmachine_testkit::op::{self, Arg, Arg::*};
-use zmachine_testkit::{zencode_dict9, Story5, SCRATCH};
+use zmachine_testkit::{SCRATCH, Story5, zencode_dict9};
 
 /// A routine with `locals` locals that returns local 1 + 10 * local 2 + 100 * local 3.
 fn weigh(story: &mut Story5, locals: usize) -> u16 {
@@ -30,7 +30,10 @@ fn storing_calls_pass_arguments_into_zeroed_locals() {
         to(op::op1(op::CALL_1S, L(r)), g(0)),
         to(op::op2(op::CALL_2S, L(r), S(7)), g(1)),
         to(op::var(op::CALL_VS, &[L(r), S(1), S(2), S(3)]), g(2)),
-        to(op::var2(op::CALL_VS2, &[L(r), S(4), S(5), S(6), S(0), S(0)]), g(3)),
+        to(
+            op::var2(op::CALL_VS2, &[L(r), S(4), S(5), S(6), S(0), S(0)]),
+            g(3),
+        ),
         show(0),
         show(1),
         show(2),
@@ -54,10 +57,7 @@ fn seven_arguments() {
     let sum = story.routine(7, &body);
     let store_sum = story.routine(
         7,
-        &cat(&[
-            to(op::op2(op::ADD, V(1), V(7)), g(9)),
-            op::op0(op::RTRUE),
-        ]),
+        &cat(&[to(op::op2(op::ADD, V(1), V(7)), g(9)), op::op0(op::RTRUE)]),
     );
     let args: Vec<Arg> = (1..=7).map(S).collect();
     let with = |r: u16| [vec![L(r)], args.clone()].concat();
@@ -76,7 +76,10 @@ fn seven_arguments() {
 #[test]
 fn discarding_calls_store_nothing() {
     let mut story = Story5::new(5);
-    let bump = story.routine(1, &cat(&[op::op1(op::INC, S(g(9))), op::op1(op::RET, S(99))]));
+    let bump = story.routine(
+        1,
+        &cat(&[op::op1(op::INC, S(g(9))), op::op1(op::RET, S(99))]),
+    );
     story.main(&cat(&[
         op::var(op::PUSH, &[S(77)]),
         op::op1(op::CALL_1N, L(bump)),
@@ -111,7 +114,11 @@ fn check_arg_count_counts_every_argument_passed() {
     let mut story = Story5::new(5);
     let mut body = vec![];
     for n in 1..=5 {
-        body.extend(skip_if(op::var(op::CHECK_ARG_COUNT, &[S(n)]), false, &print("y")));
+        body.extend(skip_if(
+            op::var(op::CHECK_ARG_COUNT, &[S(n)]),
+            false,
+            &print("y"),
+        ));
     }
     body.extend(print("/"));
     body.extend(op::op0(op::RTRUE));
@@ -135,9 +142,15 @@ fn check_arg_count_counts_every_argument_passed() {
 fn catch_and_throw() {
     let mut story = Story5::new(5);
     // c(frame): throw 55 frame
-    let c = story.routine(1, &cat(&[op::op2(op::THROW, S(55), V(1)), op::op0(op::RTRUE)]));
+    let c = story.routine(
+        1,
+        &cat(&[op::op2(op::THROW, S(55), V(1)), op::op0(op::RTRUE)]),
+    );
     // b(frame): c(frame), discarding; then return 2 (never reached)
-    let b = story.routine(1, &cat(&[op::op2(op::CALL_2N, L(c), V(1)), op::op1(op::RET, S(2))]));
+    let b = story.routine(
+        1,
+        &cat(&[op::op2(op::CALL_2N, L(c), V(1)), op::op1(op::RET, S(2))]),
+    );
     // a(): catch -> L1; g1 = L1; b(L1); return 1 (never reached)
     let a = story.routine(
         1,
@@ -149,7 +162,10 @@ fn catch_and_throw() {
         ]),
     );
     // deeper(): return a(), so that a's catch is at depth 2.
-    let deeper = story.routine(0, &cat(&[to(op::op1(op::CALL_1S, L(a)), 0), op::op0(op::RET_POPPED)]));
+    let deeper = story.routine(
+        0,
+        &cat(&[to(op::op1(op::CALL_1S, L(a)), 0), op::op0(op::RET_POPPED)]),
+    );
     story.main(&cat(&[
         to(op::op0(op::CATCH), g(5)),
         to(op::op1(op::CALL_1S, L(a)), g(0)),
@@ -172,7 +188,10 @@ fn catch_and_throw() {
 #[test]
 fn throw_to_a_missing_frame_is_a_fault() {
     let mut story = Story5::new(5);
-    let r = story.routine(0, &cat(&[op::op2(op::THROW, S(1), S(9)), op::op0(op::RTRUE)]));
+    let r = story.routine(
+        0,
+        &cat(&[op::op2(op::THROW, S(1), S(9)), op::op0(op::RTRUE)]),
+    );
     story.main(&cat(&[op::op1(op::CALL_1N, L(r)), quit()]));
     let mut m = load5(&mut story);
     assert!(matches!(m.run(BIG), Ok(Event::Fault(f)) if f.kind == FaultKind::InvalidFrame));
@@ -199,14 +218,21 @@ fn shifts() {
     ];
     for (opcode, value, places, expected) in cases {
         let got = out5(&cat(&[shift(opcode, value, places), print_num(V(g(0)))]));
-        assert_eq!(got, format!("{expected}\n"), "opcode {opcode} {value:#06x} by {places}");
+        assert_eq!(
+            got,
+            format!("{expected}\n"),
+            "opcode {opcode} {value:#06x} by {places}"
+        );
     }
 }
 
 // §14: `not` is VAR:24 from version 5 (1OP:15 has become `call_1n`).
 #[test]
 fn not_is_a_var_instruction_in_version_5() {
-    let code = cat(&[to(op::var(op::NOT_VAR, &[L(0x00FF)]), g(0)), print_num(V(g(0)))]);
+    let code = cat(&[
+        to(op::var(op::NOT_VAR, &[L(0x00FF)]), g(0)),
+        print_num(V(g(0))),
+    ]);
     assert_eq!(out5(&code), "-256\n");
 }
 
@@ -234,7 +260,10 @@ fn copy_table() {
         let table = bytes_at(&mut story, &[1, 2, 3, 4, 5, 6, 7, 8]);
         let second = second.map_or(0, |o| table + o);
         story.main(&cat(&[
-            op::var(op::COPY_TABLE, &[L(table + first_offset), L(second), L(size as u16)]),
+            op::var(
+                op::COPY_TABLE,
+                &[L(table + first_offset), L(second), L(size as u16)],
+            ),
             dump(table, 8),
             quit(),
         ]));
@@ -242,10 +271,26 @@ fn copy_table() {
     };
     assert_eq!(run(2, None, 3), "1 2 0 0 0 6 7 8 \n", "zeroing");
     assert_eq!(run(0, Some(4), 4), "1 2 3 4 1 2 3 4 \n", "separate tables");
-    assert_eq!(run(0, Some(2), 4), "1 2 1 2 3 4 7 8 \n", "overlap, copied safely");
-    assert_eq!(run(2, Some(0), 4), "3 4 5 6 5 6 7 8 \n", "overlap the other way");
-    assert_eq!(run(0, Some(2), -4), "1 2 1 2 1 2 7 8 \n", "negative size: forwards, corrupting");
-    assert_eq!(run(0, Some(4), 0), "1 2 3 4 5 6 7 8 \n", "size 0 copies nothing");
+    assert_eq!(
+        run(0, Some(2), 4),
+        "1 2 1 2 3 4 7 8 \n",
+        "overlap, copied safely"
+    );
+    assert_eq!(
+        run(2, Some(0), 4),
+        "3 4 5 6 5 6 7 8 \n",
+        "overlap the other way"
+    );
+    assert_eq!(
+        run(0, Some(2), -4),
+        "1 2 1 2 1 2 7 8 \n",
+        "negative size: forwards, corrupting"
+    );
+    assert_eq!(
+        run(0, Some(4), 0),
+        "1 2 3 4 5 6 7 8 \n",
+        "size 0 copies nothing"
+    );
 }
 
 // §15 scan_table: finds a word (or, with form bit 7 clear, a byte) in a table of
@@ -262,11 +307,15 @@ fn scan_table() {
         story.main(&cat(&[
             skip_if(scan, true, &print("no ")),
             // Print the offset of the match, or -1.
-            skip_if(op::op1(op::JZ, V(g(0))), true, &cat(&[
-                to(op::op2(op::SUB, V(g(0)), L(table)), g(0)),
-                print_num(V(g(0))),
-                quit(),
-            ])),
+            skip_if(
+                op::op1(op::JZ, V(g(0))),
+                true,
+                &cat(&[
+                    to(op::op2(op::SUB, V(g(0)), L(table)), g(0)),
+                    print_num(V(g(0))),
+                    quit(),
+                ]),
+            ),
             print("-1"),
             quit(),
         ]));
@@ -274,11 +323,27 @@ fn scan_table() {
     };
     assert_eq!(run(0x0506, 4, None), "4\n", "words by default");
     assert_eq!(run(0x0605, 4, None), "no -1\n");
-    assert_eq!(run(0x0304, 4, Some(0x82)), "2\n", "form 0x82 is words of 2 bytes");
-    assert_eq!(run(0x0708, 3, None), "no -1\n", "only the first three entries are searched");
+    assert_eq!(
+        run(0x0304, 4, Some(0x82)),
+        "2\n",
+        "form 0x82 is words of 2 bytes"
+    );
+    assert_eq!(
+        run(0x0708, 3, None),
+        "no -1\n",
+        "only the first three entries are searched"
+    );
     assert_eq!(run(6, 8, Some(0x01)), "5\n", "bytes, one per entry");
-    assert_eq!(run(0x0506, 2, Some(0x84)), "4\n", "words in entries of four bytes");
-    assert_eq!(run(0x0304, 2, Some(0x84)), "no -1\n", "0x0304 is not at the start of a field");
+    assert_eq!(
+        run(0x0506, 2, Some(0x84)),
+        "4\n",
+        "words in entries of four bytes"
+    );
+    assert_eq!(
+        run(0x0304, 2, Some(0x84)),
+        "no -1\n",
+        "0x0304 is not at the start of a field"
+    );
 }
 
 // §15 print_table: prints a rectangle of ZSCII text, `width` characters to a row,
@@ -295,7 +360,11 @@ fn print_table() {
     };
     assert_eq!(run(&[S(3)]), "abc\n", "one row by default");
     assert_eq!(run(&[S(4), S(2)]), "abcX\ndefX\n");
-    assert_eq!(run(&[S(3), S(3), S(1)]), "abc\ndef\nghi\n", "skipping one byte between rows");
+    assert_eq!(
+        run(&[S(3), S(3), S(1)]),
+        "abc\ndef\nghi\n",
+        "skipping one byte between rows"
+    );
 }
 
 // §15 encode_text: encodes `length` characters of ZSCII text starting `from` bytes
@@ -310,8 +379,11 @@ fn encode_text() {
         dump(coded, 7),
         quit(),
     ]));
-    let expected: String =
-        zencode_dict9("lantern").iter().map(|b| format!("{b} ")).collect::<String>() + "0 \n";
+    let expected: String = zencode_dict9("lantern")
+        .iter()
+        .map(|b| format!("{b} "))
+        .collect::<String>()
+        + "0 \n";
     assert_eq!(output_of_story5(&mut story), expected);
 }
 

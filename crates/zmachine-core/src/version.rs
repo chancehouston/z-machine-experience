@@ -22,14 +22,6 @@ impl Version {
         }
     }
 
-    pub fn number(self) -> u8 {
-        match self {
-            Version::V3 => 3,
-            Version::V5 => 5,
-            Version::V8 => 8,
-        }
-    }
-
     pub fn is_v3(self) -> bool {
         self == Version::V3
     }
@@ -83,11 +75,6 @@ impl Version {
     /// How many words of property defaults precede the object entries (§12.2).
     pub fn property_defaults(self) -> u32 {
         if self.wide_objects() { 63 } else { 31 }
-    }
-
-    /// Bytes in a dictionary word's encoded text (§13.3, §13.4).
-    pub fn dictionary_key_len(self) -> usize {
-        if self.is_v3() { 4 } else { 6 }
     }
 
     /// Z-characters in a dictionary word's encoded text.

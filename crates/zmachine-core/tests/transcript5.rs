@@ -18,7 +18,11 @@ struct Run {
 /// the first character of the next line, or return if the line is empty.
 fn drive(image: Vec<u8>, input: &[&str]) -> Run {
     let mut m = Machine::load(image, OPTIONS).unwrap();
-    let mut run = Run { transcript: String::new(), screen: String::new(), requests: 0 };
+    let mut run = Run {
+        transcript: String::new(),
+        screen: String::new(),
+        requests: 0,
+    };
     let mut input = input.iter();
     loop {
         let event = m.run(BIG).unwrap();
@@ -32,7 +36,12 @@ fn drive(image: Vec<u8>, input: &[&str]) -> Run {
             }
             Event::LineWanted { .. } => m.provide_line(input.next().expect("a line")).unwrap(),
             Event::KeyWanted => {
-                let key = input.next().expect("a key").chars().next().map_or(Key::Return, Key::Char);
+                let key = input
+                    .next()
+                    .expect("a key")
+                    .chars()
+                    .next()
+                    .map_or(Key::Return, Key::Char);
                 m.provide_key(key).unwrap();
             }
             other => panic!("unexpected {other:?}"),
@@ -41,7 +50,10 @@ fn drive(image: Vec<u8>, input: &[&str]) -> Run {
 }
 
 fn fixture(name: &str) -> String {
-    let path = format!("{}/tests/fixtures/transcript5/{name}.scr", env!("CARGO_MANIFEST_DIR"));
+    let path = format!(
+        "{}/tests/fixtures/transcript5/{name}.scr",
+        env!("CARGO_MANIFEST_DIR")
+    );
     std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("{path}: {e}"))
 }
 
@@ -52,7 +64,14 @@ fn fixture(name: &str) -> String {
 fn every_version_5_probe_transcript_matches_the_reference() {
     let probes = transcript5_probes();
     assert!(probes.len() >= 17);
-    for TranscriptProbe5 { name, purpose, image, input, .. } in probes {
+    for TranscriptProbe5 {
+        name,
+        purpose,
+        image,
+        input,
+        ..
+    } in probes
+    {
         let run = drive(image, input);
         assert_eq!(run.transcript, fixture(name), "{name}: {purpose}");
     }
@@ -75,7 +94,10 @@ fn every_new_rule_has_a_probe() {
     let probes = transcript5_probes();
     for rule in 13..=21 {
         let needle = format!("rule {rule}");
-        assert!(probes.iter().any(|p| p.purpose.contains(&needle)), "no probe for {needle}");
+        assert!(
+            probes.iter().any(|p| p.purpose.contains(&needle)),
+            "no probe for {needle}"
+        );
     }
 }
 

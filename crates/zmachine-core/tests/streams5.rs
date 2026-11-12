@@ -5,8 +5,8 @@ mod common;
 
 use common::*;
 use zmachine_core::{Event, FaultKind, Machine, Style};
-use zmachine_testkit::op::{self, Arg::*};
 use zmachine_testkit::Story5;
+use zmachine_testkit::op::{self, Arg::*};
 
 fn style(n: u8) -> Vec<u8> {
     op::var(op::SET_TEXT_STYLE, &[S(n)])
@@ -20,15 +20,26 @@ fn stream3(table: u16) -> Vec<u8> {
     op::var(op::OUTPUT_STREAM, &[S(3), L(table)])
 }
 
-const PLAIN: Style = Style { reverse: false, bold: false, italic: false, fixed_pitch: false };
-const BOLD: Style = Style { bold: true, ..PLAIN };
+const PLAIN: Style = Style {
+    reverse: false,
+    bold: false,
+    italic: false,
+    fixed_pitch: false,
+};
+const BOLD: Style = Style {
+    bold: true,
+    ..PLAIN
+};
 
 fn runs_of(code: Vec<u8>) -> Vec<(String, Style)> {
     let mut story = Story5::new(5);
     story.main(&cat(&[code, quit()]));
     let mut m = load5(&mut story);
     assert_eq!(m.run(BIG), Ok(Event::Finished));
-    m.take_styled_output().into_iter().map(|r| (r.text, r.style)).collect()
+    m.take_styled_output()
+        .into_iter()
+        .map(|r| (r.text, r.style))
+        .collect()
 }
 
 // §8.7.1, §15 set_text_style: 1 reverse, 2 bold, 4 italic, 8 fixed pitch; 0 turns
@@ -59,9 +70,27 @@ fn styled_runs_carry_the_style_in_force() {
             ("plain still plain ".to_string(), PLAIN),
             ("bold".to_string(), BOLD),
             (" ".to_string(), PLAIN),
-            ("italic".to_string(), Style { italic: true, ..PLAIN }),
-            ("reverse".to_string(), Style { reverse: true, ..PLAIN }),
-            ("fixed".to_string(), Style { fixed_pitch: true, ..PLAIN }),
+            (
+                "italic".to_string(),
+                Style {
+                    italic: true,
+                    ..PLAIN
+                }
+            ),
+            (
+                "reverse".to_string(),
+                Style {
+                    reverse: true,
+                    ..PLAIN
+                }
+            ),
+            (
+                "fixed".to_string(),
+                Style {
+                    fixed_pitch: true,
+                    ..PLAIN
+                }
+            ),
             ("\n".to_string(), PLAIN),
         ]
     );
@@ -70,15 +99,47 @@ fn styled_runs_carry_the_style_in_force() {
 // §15 set_text_style, as revised in Standard 1.1: styles accumulate until 0.
 #[test]
 fn styles_accumulate() {
-    let runs = runs_of(cat(&[style(2), style(4), print("both"), style(1), print("three"), style(0)]));
-    assert_eq!(runs[0], ("both".to_string(), Style { bold: true, italic: true, ..PLAIN }));
+    let runs = runs_of(cat(&[
+        style(2),
+        style(4),
+        print("both"),
+        style(1),
+        print("three"),
+        style(0),
+    ]));
+    assert_eq!(
+        runs[0],
+        (
+            "both".to_string(),
+            Style {
+                bold: true,
+                italic: true,
+                ..PLAIN
+            }
+        )
+    );
     assert_eq!(
         runs[1],
-        ("three".to_string(), Style { bold: true, italic: true, reverse: true, fixed_pitch: false })
+        (
+            "three".to_string(),
+            Style {
+                bold: true,
+                italic: true,
+                reverse: true,
+                fixed_pitch: false
+            }
+        )
     );
     // One operand may name several styles at once.
     let runs = runs_of(cat(&[style(6), print("x"), style(0)]));
-    assert_eq!(runs[0].1, Style { bold: true, italic: true, ..PLAIN });
+    assert_eq!(
+        runs[0].1,
+        Style {
+            bold: true,
+            italic: true,
+            ..PLAIN
+        }
+    );
 }
 
 // contracts/core-api.md: `take_output` and `take_styled_output` drain one buffer;
@@ -93,7 +154,11 @@ fn plain_output_is_the_same_text_without_styles() {
     m.run(BIG).unwrap();
     // "a ", "b" in bold, and " c" with the line feed that ends the last line.
     assert_eq!(m.take_styled_output().len(), 3);
-    assert_eq!(m.take_output(), "", "the buffer was drained by the styled call");
+    assert_eq!(
+        m.take_output(),
+        "",
+        "the buffer was drained by the styled call"
+    );
 }
 
 // §8.1: while Flags 2 bit 1 is set, text is fixed pitch whatever the style.
@@ -110,7 +175,13 @@ fn flags_2_bit_1_forces_fixed_pitch() {
         runs[..3],
         [
             ("a".to_string(), PLAIN),
-            ("b".to_string(), Style { fixed_pitch: true, ..PLAIN }),
+            (
+                "b".to_string(),
+                Style {
+                    fixed_pitch: true,
+                    ..PLAIN
+                }
+            ),
             ("c\n".to_string(), PLAIN)
         ]
     );
@@ -118,7 +189,11 @@ fn flags_2_bit_1_forces_fixed_pitch() {
 
 /// Prints the word at `table`, then `count` bytes after it as numbers.
 fn dump_table(table: u16, count: u8) -> Vec<u8> {
-    let mut code = cat(&[to(op::op2(op::LOADW, L(table), S(0)), 0), print_num(V(0)), print(":")]);
+    let mut code = cat(&[
+        to(op::op2(op::LOADW, L(table), S(0)), 0),
+        print_num(V(0)),
+        print(":"),
+    ]);
     for i in 0..count {
         code.extend(to(op::op2(op::LOADB, L(table), S(2 + i)), 0));
         code.extend(print_num(V(0)));
@@ -169,7 +244,10 @@ fn memory_streams_nest_to_sixteen() {
     ]));
     assert_eq!(
         output_of_story5(&mut story),
-        format!("3:{} {} {} 3:{} {} {} \n", b'a', b'b', b'c', b'x', b'y', b'z')
+        format!(
+            "3:{} {} {} 3:{} {} {} \n",
+            b'a', b'b', b'c', b'x', b'y', b'z'
+        )
     );
 
     let nest = |depth: usize| {
@@ -195,13 +273,18 @@ fn memory_streams_nest_to_sixteen() {
 // outside dynamic memory is a fault when the stream is closed and written.
 #[test]
 fn memory_stream_edge_cases() {
-    assert_eq!(out5(&cat(&[stream(-3), stream(-3), print("fine")])), "fine\n");
+    assert_eq!(
+        out5(&cat(&[stream(-3), stream(-3), print("fine")])),
+        "fine\n"
+    );
 
     let mut story = Story5::new(5);
     let base = story.static_base();
     story.main(&cat(&[stream3(base), print("x"), stream(-3), quit()]));
     let mut m = load5(&mut story);
-    assert!(matches!(m.run(BIG), Ok(Event::Fault(f)) if f.kind == FaultKind::WriteOutsideDynamicMemory));
+    assert!(
+        matches!(m.run(BIG), Ok(Event::Fault(f)) if f.kind == FaultKind::WriteOutsideDynamicMemory)
+    );
 }
 
 // §7.1.2.1: a character with no ZSCII code is stored as a question mark; the
@@ -220,7 +303,10 @@ fn the_memory_stream_stores_zscii() {
         dump_table(table, 3),
         quit(),
     ]));
-    assert_eq!(output_of_story5(&mut story), format!("3:155 223 {} \n", b'?'));
+    assert_eq!(
+        output_of_story5(&mut story),
+        format!("3:155 223 {} \n", b'?')
+    );
 }
 
 // Guarantee 6: version 3 has no memory stream; `output_stream 3` stays ignored.
@@ -259,7 +345,10 @@ fn instructions_accepted_without_effect() {
     }
     code.extend(op::ext(op::SET_TRUE_COLOUR, &[L(0xFFFF), L(0x7FFF)]));
     code.extend(op::var(op::SOUND_EFFECT, &[S(1)]));
-    code.extend(op::var(op::SOUND_EFFECT, &[S(3), S(2), L(0x0108), L(0x1234)]));
+    code.extend(op::var(
+        op::SOUND_EFFECT,
+        &[S(3), S(2), L(0x0108), L(0x1234)],
+    ));
     code.extend(op::var(op::INPUT_STREAM, &[S(1)]));
     code.extend(op::var(op::BUFFER_MODE, &[S(0)]));
     code.extend(op::var(op::BUFFER_MODE, &[S(1)]));
@@ -274,7 +363,10 @@ fn instructions_accepted_without_effect() {
 // §15 piracy: "Branches if the game disc is believed to be genuine": always.
 #[test]
 fn piracy_always_branches() {
-    let code = cat(&[skip_if(op::op0(op::PIRACY), true, &print("pirated ")), print("genuine")]);
+    let code = cat(&[
+        skip_if(op::op0(op::PIRACY), true, &print("pirated ")),
+        print("genuine"),
+    ]);
     assert_eq!(out5(&code), "genuine\n");
 }
 
@@ -284,7 +376,17 @@ fn piracy_always_branches() {
 #[test]
 fn set_font() {
     let font = |n: u8| cat(&[to(op::ext(op::SET_FONT, &[S(n)]), g(0)), show(0)]);
-    assert_eq!(out5(&cat(&[font(1), font(0), font(4), font(3), font(2), font(1)])), "1 1 0 0 0 1 \n");
+    assert_eq!(
+        out5(&cat(&[
+            font(1),
+            font(0),
+            font(4),
+            font(3),
+            font(2),
+            font(1)
+        ])),
+        "1 1 0 0 0 1 \n"
+    );
 }
 
 // §11.1: the header tells the game what is offered: bold, italic and fixed pitch

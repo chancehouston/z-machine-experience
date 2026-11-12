@@ -3,9 +3,12 @@
 use super::*;
 use crate::version::Version;
 use crate::{HeaderField, LoadError, LoadOptions, Machine, Settings};
-use zmachine_testkit::{op, Story};
+use zmachine_testkit::{Story, op};
 
-const OPTIONS: LoadOptions = LoadOptions { seed: Some(1), entropy: 0 };
+const OPTIONS: LoadOptions = LoadOptions {
+    seed: Some(1),
+    entropy: 0,
+};
 
 /// A version 3 image relabelled as `version`. Its tables are where a version 3
 /// file has them, which is all these header tests need.
@@ -59,7 +62,11 @@ fn an_oversize_version_5_or_8_file_is_refused() {
         exact.resize(limit, 0);
         assert!(parse(&exact).is_ok(), "version {version} at its limit");
         exact.push(0);
-        assert_eq!(parse(&exact), Err(LoadError::TooLarge), "version {version} one byte over");
+        assert_eq!(
+            parse(&exact),
+            Err(LoadError::TooLarge),
+            "version {version} one byte over"
+        );
     }
     let mut v3 = image(3);
     v3.resize(200 * 1024, 0);
@@ -73,12 +80,18 @@ fn an_oversize_version_5_or_8_file_is_refused() {
 fn optional_tables_are_read_and_must_lie_inside_the_file() {
     let mut image5 = image(5);
     let h = parse(&image5).unwrap();
-    assert_eq!((h.terminating_characters, h.alphabet_table, h.unicode_table), (0, 0, 0));
+    assert_eq!(
+        (h.terminating_characters, h.alphabet_table, h.unicode_table),
+        (0, 0, 0)
+    );
 
     put(&mut image5, 0x2E, 0x0100);
     put(&mut image5, 0x34, 0x0120);
     let h = parse(&image5).unwrap();
-    assert_eq!((h.terminating_characters, h.alphabet_table), (0x0100, 0x0120));
+    assert_eq!(
+        (h.terminating_characters, h.alphabet_table),
+        (0x0100, 0x0120)
+    );
 
     let len = image5.len() as u16;
     for (offset, field) in [
@@ -88,7 +101,11 @@ fn optional_tables_are_read_and_must_lie_inside_the_file() {
     ] {
         let mut bad = image(5);
         put(&mut bad, offset, len);
-        assert_eq!(parse(&bad), Err(LoadError::BadHeader(field)), "offset {offset:#x}");
+        assert_eq!(
+            parse(&bad),
+            Err(LoadError::BadHeader(field)),
+            "offset {offset:#x}"
+        );
     }
 }
 
@@ -108,7 +125,10 @@ fn the_unicode_table_is_found_through_the_header_extension() {
     // A table address outside the file is refused.
     put(&mut image5, at, 3);
     put(&mut image5, at + 6, 0xFFFE);
-    assert_eq!(parse(&image5), Err(LoadError::BadHeader(HeaderField::UnicodeTable)));
+    assert_eq!(
+        parse(&image5),
+        Err(LoadError::BadHeader(HeaderField::UnicodeTable))
+    );
 }
 
 // A version 3 file may hold anything at the offsets later versions use for tables.
@@ -119,7 +139,10 @@ fn version_3_ignores_the_offsets_of_later_tables() {
         put(&mut v3, offset, 0xFFFF);
     }
     let h = parse(&v3).unwrap();
-    assert_eq!((h.terminating_characters, h.alphabet_table, h.unicode_table), (0, 0, 0));
+    assert_eq!(
+        (h.terminating_characters, h.alphabet_table, h.unicode_table),
+        (0, 0, 0)
+    );
 }
 
 // data-model.md "What the interpreter writes into the header" (§11.1, §8.4.3).
@@ -166,8 +189,16 @@ fn default_settings() {
 fn undo_is_reported_unavailable_when_the_host_allows_none() {
     let mut image = image(5);
     image[0x11] = 0b0001_0000;
-    let settings = Settings { undo_slots: 0, ..Settings::default() };
-    assert_eq!(Machine::load_with(image, OPTIONS, settings).unwrap().peek(0x11), 0);
+    let settings = Settings {
+        undo_slots: 0,
+        ..Settings::default()
+    };
+    assert_eq!(
+        Machine::load_with(image, OPTIONS, settings)
+            .unwrap()
+            .peek(0x11),
+        0
+    );
 }
 
 // Guarantee 6: settings have no effect on a version 3 story file. Every header

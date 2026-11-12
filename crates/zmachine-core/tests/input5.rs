@@ -13,7 +13,11 @@ use zmachine_testkit::{Object5, Story5};
 fn read_program(capacity: u8, preloaded: &str) -> Story5 {
     let (mut story, text, parse) = story5_with_buffers(capacity, preloaded);
     let byte = |address: u16, index: u8| {
-        cat(&[to(op::op2(op::LOADB, L(address), S(index)), 0), print_num(V(0)), print(" ")])
+        cat(&[
+            to(op::op2(op::LOADB, L(address), S(index)), 0),
+            print_num(V(0)),
+            print(" "),
+        ])
     };
     story.main(&cat(&[
         print(">"),
@@ -39,7 +43,10 @@ fn aread_stores_the_line_and_the_terminator() {
     assert_eq!(m.preloaded_input(), "");
     m.provide_line("Look North").unwrap();
     assert_eq!(m.run(BIG), Ok(Event::Finished));
-    assert_eq!(m.take_output(), format!("13 10 {} {} {} 2 \n", b'l', b'o', b'o'));
+    assert_eq!(
+        m.take_output(),
+        format!("13 10 {} {} {} 2 \n", b'l', b'o', b'o')
+    );
 }
 
 // §8.2: only version 3 has an interpreter-drawn status line. A version 5 read
@@ -60,7 +67,10 @@ fn a_line_longer_than_the_buffer_is_cut() {
     m.take_output();
     m.provide_line("look north").unwrap();
     m.run(BIG).unwrap();
-    assert_eq!(m.take_output(), format!("13 4 {} {} {} 1 \n", b'l', b'o', b'o'));
+    assert_eq!(
+        m.take_output(),
+        format!("13 4 {} {} {} 1 \n", b'l', b'o', b'o')
+    );
 }
 
 // §15 read: if the buffer already holds text, "the interpreter writes the new
@@ -76,7 +86,10 @@ fn preloaded_text_is_kept_and_typed_text_follows_it() {
     assert_eq!(m.preloaded_input(), "", "only while a line is wanted");
     m.run(BIG).unwrap();
     // The buffer holds "look": one word, found in the dictionary or not.
-    assert_eq!(m.take_output(), format!("13 4 {} {} {} 1 \n", b'l', b'o', b'o'));
+    assert_eq!(
+        m.take_output(),
+        format!("13 4 {} {} {} 1 \n", b'l', b'o', b'o')
+    );
 }
 
 // §15 read: the parse buffer is optional in version 5; with 0 no lexical analysis
@@ -131,9 +144,19 @@ fn a_line_may_be_ended_by_a_listed_key() {
 fn a_key_the_game_did_not_list_cannot_end_a_line() {
     let mut m = load5(&mut terminating_program());
     m.run(BIG).unwrap();
-    assert_eq!(m.provide_line_ended_by("look", Key::Function(2)), Err(HostError::NotATerminator));
-    assert_eq!(m.provide_line_ended_by("look", Key::Char('x')), Err(HostError::NotATerminator));
-    assert_eq!(m.run(BIG), Err(HostError::AnswerOwed), "still waiting for the line");
+    assert_eq!(
+        m.provide_line_ended_by("look", Key::Function(2)),
+        Err(HostError::NotATerminator)
+    );
+    assert_eq!(
+        m.provide_line_ended_by("look", Key::Char('x')),
+        Err(HostError::NotATerminator)
+    );
+    assert_eq!(
+        m.run(BIG),
+        Err(HostError::AnswerOwed),
+        "still waiting for the line"
+    );
     // Return always ends a line.
     assert_eq!(m.provide_line_ended_by("look", Key::Return), Ok(()));
     m.run(BIG).unwrap();
@@ -142,7 +165,10 @@ fn a_key_the_game_did_not_list_cannot_end_a_line() {
     // With no table, only return ends a line.
     let mut m = load5(&mut read_program(20, ""));
     m.run(BIG).unwrap();
-    assert_eq!(m.provide_line_ended_by("x", Key::Function(1)), Err(HostError::NotATerminator));
+    assert_eq!(
+        m.provide_line_ended_by("x", Key::Function(1)),
+        Err(HostError::NotATerminator)
+    );
 }
 
 /// Reads three keys and prints each code.
@@ -176,11 +202,20 @@ fn read_char_stores_the_key() {
         assert_eq!(m.run(BIG), Ok(Event::Finished));
         out + &m.take_output()
     };
-    assert_eq!(keys(Key::Char('a'), Key::Char('Z'), Key::Char(' ')), "k:97 90 32 \n");
+    assert_eq!(
+        keys(Key::Char('a'), Key::Char('Z'), Key::Char(' ')),
+        "k:97 90 32 \n"
+    );
     assert_eq!(keys(Key::Return, Key::Delete, Key::Escape), "k:13 8 27 \n");
     assert_eq!(keys(Key::Up, Key::Down, Key::Left), "k:129 130 131 \n");
-    assert_eq!(keys(Key::Right, Key::Function(1), Key::Function(12)), "k:132 133 144 \n");
-    assert_eq!(keys(Key::Keypad(0), Key::Keypad(9), Key::Char('\u{e4}')), "k:145 154 155 \n");
+    assert_eq!(
+        keys(Key::Right, Key::Function(1), Key::Function(12)),
+        "k:132 133 144 \n"
+    );
+    assert_eq!(
+        keys(Key::Keypad(0), Key::Keypad(9), Key::Char('\u{e4}')),
+        "k:145 154 155 \n"
+    );
 }
 
 // contracts/core-api.md: a character with no ZSCII code is refused and the machine
@@ -188,15 +223,30 @@ fn read_char_stores_the_key() {
 #[test]
 fn unrepresentable_keys_and_answers_out_of_turn() {
     let mut m = load5(&mut key_program());
-    assert_eq!(m.provide_key(Key::Return), Err(HostError::NotWaitingForThis));
+    assert_eq!(
+        m.provide_key(Key::Return),
+        Err(HostError::NotWaitingForThis)
+    );
     assert_eq!(m.run(BIG), Ok(Event::KeyWanted));
-    assert_eq!(m.provide_key(Key::Char('\u{4e2d}')), Err(HostError::UnrepresentableKey));
-    assert_eq!(m.provide_key(Key::Function(13)), Err(HostError::UnrepresentableKey));
-    assert_eq!(m.provide_key(Key::Keypad(10)), Err(HostError::UnrepresentableKey));
+    assert_eq!(
+        m.provide_key(Key::Char('\u{4e2d}')),
+        Err(HostError::UnrepresentableKey)
+    );
+    assert_eq!(
+        m.provide_key(Key::Function(13)),
+        Err(HostError::UnrepresentableKey)
+    );
+    assert_eq!(
+        m.provide_key(Key::Keypad(10)),
+        Err(HostError::UnrepresentableKey)
+    );
     assert_eq!(m.run(BIG), Err(HostError::AnswerOwed));
     assert_eq!(m.provide_line("x"), Err(HostError::NotWaitingForThis));
     assert_eq!(m.provide_key(Key::Char('q')), Ok(()));
-    assert_eq!(m.provide_key(Key::Char('q')), Err(HostError::NotWaitingForThis));
+    assert_eq!(
+        m.provide_key(Key::Char('q')),
+        Err(HostError::NotWaitingForThis)
+    );
 }
 
 // §10.5.3, 002 FR-017: with timed input reported unavailable, a request with a time
@@ -205,10 +255,16 @@ fn unrepresentable_keys_and_answers_out_of_turn() {
 fn timed_input_behaves_as_untimed() {
     let (mut story, text, parse) = story5_with_buffers(20, "");
     // The routine would set global 9; it must never run.
-    let tick = story.routine(0, &cat(&[op::op2(op::STORE, S(g(9)), S(1)), op::op0(op::RTRUE)]));
+    let tick = story.routine(
+        0,
+        &cat(&[op::op2(op::STORE, S(g(9)), S(1)), op::op0(op::RTRUE)]),
+    );
     story.main(&cat(&[
         to(op::var(op::READ_CHAR, &[S(1), S(5), L(tick)]), g(0)),
-        to(op::var(op::AREAD, &[L(text), L(parse), S(5), L(tick)]), g(1)),
+        to(
+            op::var(op::AREAD, &[L(text), L(parse), S(5), L(tick)]),
+            g(1),
+        ),
         show(0),
         show(1),
         show(9),

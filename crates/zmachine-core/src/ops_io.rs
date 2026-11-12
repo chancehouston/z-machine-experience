@@ -3,7 +3,10 @@
 
 use crate::decode::{self, Instruction};
 use crate::exec::{Frame, MAX_CALL_DEPTH, State, X};
-use crate::{Event, Fault, FaultKind, Key, Machine, StatusKind, StatusLine, Style, dictionary, header, quetzal, undo};
+use crate::{
+    Event, Fault, FaultKind, Key, Machine, StatusKind, StatusLine, Style, dictionary, header,
+    quetzal, undo,
+};
 
 /// Flags 2, a word at 0x10 (§11.1). Bit 0: transcribing is on. Bit 1: the game
 /// wants a fixed-pitch font. Both survive a restart (§6.1.3).
@@ -74,7 +77,10 @@ impl Machine {
             .memory
             .read_word(FLAGS2)
             .is_ok_and(|flags| flags & FLAGS2_FIXED_PITCH != 0);
-        Style { fixed_pitch: self.style.fixed_pitch || forced, ..self.style }
+        Style {
+            fixed_pitch: self.style.fixed_pitch || forced,
+            ..self.style
+        }
     }
 
     /// Sends the word in progress to the transcript, if transcription is on.
@@ -123,7 +129,9 @@ impl Machine {
 
     /// Prints the Z-string at a byte address.
     pub(crate) fn print_at(&mut self, address: u32) -> X<()> {
-        let (text, _) = self.charset.decode(&self.memory, address, self.header.abbreviations)?;
+        let (text, _) = self
+            .charset
+            .decode(&self.memory, address, self.header.abbreviations)?;
         self.emit(&text);
         Ok(())
     }
@@ -143,9 +151,10 @@ impl Machine {
     /// The short name of an object (§12.4), or nothing if it has none.
     pub(crate) fn object_name(&self, object: u16) -> X<String> {
         match self.objects().name_address(&self.memory, object)? {
-            Some(address) => {
-                Ok(self.charset.decode(&self.memory, address, self.header.abbreviations)?.0)
-            }
+            Some(address) => Ok(self
+                .charset
+                .decode(&self.memory, address, self.header.abbreviations)?
+                .0),
             None => Ok(String::new()),
         }
     }
@@ -254,7 +263,11 @@ impl Machine {
             self.preloaded.extend(self.charset.zscii_to_char(code));
         }
         let max_len = capacity.saturating_sub(present);
-        self.state = State::AwaitingLine { text, parse, max_len };
+        self.state = State::AwaitingLine {
+            text,
+            parse,
+            max_len,
+        };
         self.pending = Some(ins);
         Ok(Event::LineWanted { max_len })
     }
@@ -262,7 +275,14 @@ impl Machine {
     /// Completes a read with the player's line and the ZSCII code of the key that
     /// ended it. A buffer the game placed outside dynamic memory is its error,
     /// reported as a fault by the next `run`.
-    pub(crate) fn accept_line(&mut self, line: &str, text: u16, parse: u16, max_len: usize, terminator: u16) {
+    pub(crate) fn accept_line(
+        &mut self,
+        line: &str,
+        text: u16,
+        parse: u16,
+        max_len: usize,
+        terminator: u16,
+    ) {
         // contracts/transcript-format.md rules 4 and 8: the line is recorded as the
         // player gave it, whatever the game's buffer goes on to keep of it.
         if self.transcribing() {
@@ -343,7 +363,7 @@ impl Machine {
     /// 0 or 1 clears that window.
     pub(crate) fn erase_window(&mut self, which: i16) {
         self.flush_chunk();
-        if matches!(which, 0 | -1 | -2) {
+        if (-2..=0).contains(&which) {
             self.output.mark_cleared();
         }
         self.screen.erase_window(which);
@@ -412,7 +432,11 @@ impl Machine {
         self.flush_chunk();
         // From version 5 the instruction stores its outcome, and the save records
         // the address of the store byte instead.
-        let pc = if self.header.v.is_v3() { ins.branch_data } else { ins.store_data };
+        let pc = if self.header.v.is_v3() {
+            ins.branch_data
+        } else {
+            ins.store_data
+        };
         let pc = pc.unwrap_or(ins.next);
         let original = &self.story[..self.memory.static_base()];
         let bytes = quetzal::write(
@@ -437,7 +461,11 @@ impl Machine {
     /// Reports the outcome of save, restore or undo: a branch in version 3, a
     /// stored value from version 5.
     fn outcome(&mut self, ins: &Instruction, value: u16) -> X<()> {
-        if self.header.v.is_v3() { self.branch(ins, value != 0) } else { self.store(ins, value) }
+        if self.header.v.is_v3() {
+            self.branch(ins, value != 0)
+        } else {
+            self.store(ins, value)
+        }
     }
 
     /// Replaces the game state with a saved one (§6.1.2): Flags 2 keeps the bits it

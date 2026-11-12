@@ -17,17 +17,33 @@ fn read(name: &str) -> Vec<u8> {
 /// Runs every praxix test and returns what it printed, unwrapped.
 fn run_praxix() -> String {
     let mut child = Command::new(env!("CARGO_BIN_EXE_zm"))
-        .args(["--seed", "1", "--width", "0", "--max-instructions", "50000000"])
+        .args([
+            "--seed",
+            "1",
+            "--width",
+            "0",
+            "--max-instructions",
+            "50000000",
+        ])
         .arg(format!("{DIR}/praxix.z5"))
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
         .expect("zm runs");
-    child.stdin.take().unwrap().write_all(b"all\nquit\n").unwrap();
+    child
+        .stdin
+        .take()
+        .unwrap()
+        .write_all(b"all\nquit\n")
+        .unwrap();
     let out = child.wait_with_output().unwrap();
     let stderr = String::from_utf8_lossy(&out.stderr);
-    assert_eq!(out.status.code(), Some(0), "praxix did not run to its end: {stderr}");
+    assert_eq!(
+        out.status.code(),
+        Some(0),
+        "praxix did not run to its end: {stderr}"
+    );
     assert_eq!(stderr, "", "praxix should cause no faults or diagnostics");
     String::from_utf8(out.stdout).expect("praxix's output is UTF-8")
 }
@@ -37,9 +53,14 @@ fn run_praxix() -> String {
 fn the_committed_files_match_their_record() {
     let record = String::from_utf8(read("SOURCE.md")).unwrap();
     for name in ["praxix.z5", "praxix.inf"] {
-        let digest: String =
-            Sha256::digest(read(name)).iter().map(|b| format!("{b:02x}")).collect();
-        assert!(record.contains(&digest), "stories/praxix/{name} has digest {digest}");
+        let digest: String = Sha256::digest(read(name))
+            .iter()
+            .map(|b| format!("{b:02x}"))
+            .collect();
+        assert!(
+            record.contains(&digest),
+            "stories/praxix/{name} has digest {digest}"
+        );
     }
 }
 
@@ -57,9 +78,19 @@ fn praxix_passes_every_test() {
             l.contains("fail") && !l.contains("failures are not counted twice")
         })
         .collect();
-    assert!(failures.is_empty(), "praxix reported:\n{}\n\nin:\n{output}", failures.join("\n"));
-    assert!(output.contains("\nAll tests passed.\n"), "the pass summary; got:\n{output}");
-    assert!(output.trim_end().ends_with("Goodbye."), "praxix ran to its end");
+    assert!(
+        failures.is_empty(),
+        "praxix reported:\n{}\n\nin:\n{output}",
+        failures.join("\n")
+    );
+    assert!(
+        output.contains("\nAll tests passed.\n"),
+        "the pass summary; got:\n{output}"
+    );
+    assert!(
+        output.trim_end().ends_with("Goodbye."),
+        "praxix ran to its end"
+    );
 }
 
 // praxix prints one "Passed." for each group that checks itself; a group that
@@ -84,7 +115,10 @@ fn praxix_runs_every_group() {
         "Memory stream opcodes:",
         "Z-Machine 1.1 Updates/Clarifications:",
     ] {
-        assert!(output.contains(&format!("\n{group}\n")), "no {group:?} group in:\n{output}");
+        assert!(
+            output.contains(&format!("\n{group}\n")),
+            "no {group:?} group in:\n{output}"
+        );
     }
     // Sixteen groups check themselves and say so; `spec11` and `spec12` only print.
     assert_eq!(output.matches("\nPassed.\n").count(), 16, "{output}");

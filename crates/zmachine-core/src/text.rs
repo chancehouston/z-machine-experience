@@ -1,7 +1,7 @@
 //! Text: ZSCII and the Z-character encoding (§3).
 
-use crate::memory::Memory;
 use crate::FaultKind;
+use crate::memory::Memory;
 
 /// Alphabet A2 from Z-character 8 on (§3.5.3). Characters 6 and 7 are the ZSCII
 /// escape and new-line.
@@ -37,7 +37,11 @@ impl Charset {
     /// table that runs outside the file is ignored.
     pub fn read(memory: &Memory, alphabet_table: u16, unicode_table: u16) -> Charset {
         let alphabet = (alphabet_table != 0)
-            .then(|| (0..78).map(|i| memory.read_byte(alphabet_table as u32 + i).ok()).collect())
+            .then(|| {
+                (0..78)
+                    .map(|i| memory.read_byte(alphabet_table as u32 + i).ok())
+                    .collect()
+            })
             .flatten();
         let unicode = (unicode_table != 0)
             .then(|| {
@@ -78,7 +82,10 @@ impl Charset {
             None => match zscii {
                 b'a'..=b'z' => Some((0, zscii - b'a' + 6)),
                 b'A'..=b'Z' => Some((1, zscii - b'A' + 6)),
-                _ => A2.iter().position(|&a| a == zscii).map(|i| (2, i as u8 + 8)),
+                _ => A2
+                    .iter()
+                    .position(|&a| a == zscii)
+                    .map(|i| (2, i as u8 + 8)),
             },
         }
     }
@@ -164,9 +171,16 @@ impl Charset {
                             // version.
                             let index = 32 * (table as u32 - 1) + z as u32;
                             let entry = abbreviations as u32 + 2 * index;
-                            let target =
-                                memory.read_word(entry).map_err(|_| FaultKind::TextOverrun)?;
-                            self.decode_into(memory, target as u32 * 2, abbreviations, depth + 1, out)?;
+                            let target = memory
+                                .read_word(entry)
+                                .map_err(|_| FaultKind::TextOverrun)?;
+                            self.decode_into(
+                                memory,
+                                target as u32 * 2,
+                                abbreviations,
+                                depth + 1,
+                                out,
+                            )?;
                         }
                         continue;
                     }
@@ -272,7 +286,10 @@ pub(crate) fn decode_string(
 /// Z-characters in four bytes (§13.3).
 #[cfg(test)]
 pub(crate) fn encode_dict(word: &[u8]) -> [u8; 4] {
-    Charset::default().encode(word, 6).try_into().expect("six Z-characters are four bytes")
+    Charset::default()
+        .encode(word, 6)
+        .try_into()
+        .expect("six Z-characters are four bytes")
 }
 
 #[cfg(test)]

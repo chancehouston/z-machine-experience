@@ -8,7 +8,10 @@ use zmachine_testkit::op::{self, Arg::*};
 use zmachine_testkit::{Story5, programs, zencode};
 
 const ROOT: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../..");
-const KEYS: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../zmachine-core/tests/fixtures/keys");
+const KEYS: &str = concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../zmachine-core/tests/fixtures/keys"
+);
 
 fn advent(build: &str) -> String {
     format!("{ROOT}/stories/advent/advent.{build}")
@@ -29,7 +32,12 @@ fn zm(args: &[&str], stdin: &str) -> Output {
         .stderr(Stdio::piped())
         .spawn()
         .expect("zm starts");
-    child.stdin.take().unwrap().write_all(stdin.as_bytes()).unwrap();
+    child
+        .stdin
+        .take()
+        .unwrap()
+        .write_all(stdin.as_bytes())
+        .unwrap();
     child.wait_with_output().unwrap()
 }
 
@@ -56,16 +64,31 @@ fn key_probe(dir: &Path) -> String {
 // and a clean exit.
 #[test]
 fn advent_plays_from_the_terminal() {
-    let out = zm(&[&advent("z5")], "enter building\ntake lamp\ninventory\nquit\ny\n");
+    let out = zm(
+        &[&advent("z5")],
+        "enter building\ntake lamp\ninventory\nquit\ny\n",
+    );
     let stdout = text(&out.stdout);
     assert_eq!(out.status.code(), Some(0), "{}", text(&out.stderr));
     assert_eq!(text(&out.stderr), "");
     assert!(stdout.contains("Welcome to Adventure!"), "{stdout}");
-    assert!(stdout.contains("At End Of Road\nYou are standing at the end of a road"), "{stdout}");
-    assert!(stdout.contains(">enter building\n\nInside Building\n"), "{stdout}");
+    assert!(
+        stdout.contains("At End Of Road\nYou are standing at the end of a road"),
+        "{stdout}"
+    );
+    assert!(
+        stdout.contains(">enter building\n\nInside Building\n"),
+        "{stdout}"
+    );
     assert!(stdout.contains(">take lamp\nTaken.\n"), "{stdout}");
-    assert!(stdout.contains(">inventory\nYou're carrying:\n  a brass lantern\n"), "{stdout}");
-    assert!(stdout.contains("Are you sure you want to quit?"), "{stdout}");
+    assert!(
+        stdout.contains(">inventory\nYou're carrying:\n  a brass lantern\n"),
+        "{stdout}"
+    );
+    assert!(
+        stdout.contains("Are you sure you want to quit?"),
+        "{stdout}"
+    );
 }
 
 // contracts/cli.md: versions 3, 5 and 8 are played; any other is refused with exit
@@ -83,7 +106,10 @@ fn other_versions_are_refused() {
         assert_eq!(out.status.code(), Some(2), "version {version}");
         let stderr = text(&out.stderr);
         assert!(stderr.contains(&format!("version {version}")), "{stderr}");
-        assert!(stderr.contains("3, 5 and 8"), "names the supported versions: {stderr}");
+        assert!(
+            stderr.contains("3, 5 and 8"),
+            "names the supported versions: {stderr}"
+        );
         assert_eq!(text(&out.stdout), "");
     }
 }
@@ -93,7 +119,10 @@ fn key_transcript(name: &str) -> String {
     let dir = scratch_dir(&format!("keys-{name}"));
     let story = key_probe(&dir);
     let script = format!("{KEYS}/{name}.in");
-    let out = zm(&["--script", &script, "--dir", &dir.to_string_lossy(), &story], "");
+    let out = zm(
+        &["--script", &script, "--dir", &dir.to_string_lossy(), &story],
+        "",
+    );
     assert_eq!(out.status.code(), Some(0), "{name}: {}", text(&out.stderr));
     assert_eq!(text(&out.stderr), "", "{name}");
     std::fs::read_to_string(dir.join(name)).expect("zm wrote the transcript")
@@ -141,7 +170,10 @@ fn arrow_and_function_key_escapes() {
     );
     assert_eq!(out.status.code(), Some(0));
     let stdout = text(&out.stdout);
-    assert!(stdout.contains("keys: 129 130 131 132 133 134 141 142 92 126 32 13"), "{stdout}");
+    assert!(
+        stdout.contains("keys: 129 130 131 132 133 134 141 142 92 126 32 13"),
+        "{stdout}"
+    );
     assert!(stdout.contains("more: 27 8 13"), "{stdout}");
 }
 
@@ -152,8 +184,16 @@ fn an_unknown_escape_is_reported() {
     let story = key_probe(&dir);
     let dir_arg = dir.to_string_lossy().into_owned();
     let out = zm(&["--script", "-", "--dir", &dir_arg, &story], "t\na\\qb\n");
-    assert!(text(&out.stdout).contains("keys: 97 98"), "{}", text(&out.stdout));
-    assert!(text(&out.stderr).contains("unknown escape \\q"), "{}", text(&out.stderr));
+    assert!(
+        text(&out.stdout).contains("keys: 97 98"),
+        "{}",
+        text(&out.stdout)
+    );
+    assert!(
+        text(&out.stderr).contains("unknown escape \\q"),
+        "{}",
+        text(&out.stderr)
+    );
 }
 
 // contracts/cli.md: a line beginning with a backslash and a lower-case letter is a
@@ -164,9 +204,22 @@ fn a_dfrotz_command_line_is_refused() {
     assert_eq!(out.status.code(), Some(0));
     let stdout = text(&out.stdout);
     let stderr = text(&out.stderr);
-    assert!(stdout.contains("Inside Building"), "the next line was taken as input: {stdout}");
-    assert!(!stdout.contains("I didn't understand that sentence"), "{stdout}");
-    assert_eq!(stderr.lines().filter(|l| l.contains("command to dfrotz")).count(), 2, "{stderr}");
+    assert!(
+        stdout.contains("Inside Building"),
+        "the next line was taken as input: {stdout}"
+    );
+    assert!(
+        !stdout.contains("I didn't understand that sentence"),
+        "{stdout}"
+    );
+    assert_eq!(
+        stderr
+            .lines()
+            .filter(|l| l.contains("command to dfrotz"))
+            .count(),
+        2,
+        "{stderr}"
+    );
     assert!(stderr.contains("\\\\help"), "{stderr}");
 }
 
@@ -174,14 +227,20 @@ fn a_dfrotz_command_line_is_refused() {
 #[test]
 fn the_interpreter_version_letter_can_be_set() {
     let default = text(&zm(&[&advent("z5")], "version\n").stdout);
-    assert!(default.contains("Standard interpreter 1.1 (1Z)"), "{default}");
+    assert!(
+        default.contains("Standard interpreter 1.1 (1Z)"),
+        "{default}"
+    );
     let set = text(&zm(&["--interpreter-version", "F", &advent("z5")], "version\n").stdout);
     assert!(set.contains("Standard interpreter 1.1 (1F)"), "{set}");
 
     for bad in ["", "FF", "\u{e9}"] {
         let out = zm(&["--interpreter-version", bad, &advent("z5")], "");
         assert_eq!(out.status.code(), Some(2), "{bad:?}");
-        assert!(text(&out.stderr).contains("--interpreter-version"), "{bad:?}");
+        assert!(
+            text(&out.stderr).contains("--interpreter-version"),
+            "{bad:?}"
+        );
     }
 }
 
@@ -203,7 +262,11 @@ fn the_width_is_the_screen_width_the_game_sees() {
     let path = write_story(&dir, "width.z5", &story.build());
     for (width, seen) in [("60", "60"), ("132", "132"), ("0", "80"), ("80", "80")] {
         let out = zm(&["--width", width, &path], "");
-        assert_eq!(text(&out.stdout), format!("{seen} columns\n"), "--width {width}");
+        assert_eq!(
+            text(&out.stdout),
+            format!("{seen} columns\n"),
+            "--width {width}"
+        );
     }
     assert_eq!(text(&zm(&[&path], "").stdout), "80 columns\n");
 }
@@ -236,7 +299,11 @@ verbose\nwait\nxyzzy\n";
         text(&out.stdout)
     };
     let (five, eight) = (run("z5"), run("z8"));
-    assert!(five.contains("You are in a splendid chamber thirty feet high") || five.contains("Debris Room"), "the script reached the cave: {five}");
+    assert!(
+        five.contains("You are in a splendid chamber thirty feet high")
+            || five.contains("Debris Room"),
+        "the script reached the cave: {five}"
+    );
     assert_eq!(five, eight);
 }
 

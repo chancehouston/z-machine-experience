@@ -3,7 +3,7 @@
 use super::*;
 use crate::header;
 use crate::memory::Memory;
-use zmachine_testkit::{op, zencode_dict9, Story5};
+use zmachine_testkit::{Story5, op, zencode_dict9};
 
 struct Fixture {
     memory: Memory,
@@ -23,9 +23,16 @@ fn fixture(max_words: u8) -> Fixture {
     let mut parse = vec![0xEEu8; 2 + 4 * 12];
     parse[0] = max_words;
     let parse = story.scratch(&parse);
-    let own_sorted = story.scratch(&Story5::dictionary_bytes("!", &["zebra", "apple", "mango"], true));
-    let own_unsorted =
-        story.scratch(&Story5::dictionary_bytes("!", &["zebra", "apple", "mango"], false));
+    let own_sorted = story.scratch(&Story5::dictionary_bytes(
+        "!",
+        &["zebra", "apple", "mango"],
+        true,
+    ));
+    let own_unsorted = story.scratch(&Story5::dictionary_bytes(
+        "!",
+        &["zebra", "apple", "mango"],
+        false,
+    ));
     story.main(&op::op0(op::QUIT));
     let image = story.build();
     let h = header::parse(&image).unwrap();
@@ -58,7 +65,9 @@ impl Fixture {
     fn tokens(&mut self, dictionary: u16, line: &str) -> Vec<(u16, u8, u8)> {
         self.memory.write_byte(self.text as u32 + 1, 0).unwrap();
         append_line(&mut self.memory, self.text, line.as_bytes()).unwrap();
-        self.lexer(dictionary, false).tokenise(&mut self.memory, self.text, self.parse).unwrap();
+        self.lexer(dictionary, false)
+            .tokenise(&mut self.memory, self.text, self.parse)
+            .unwrap();
         self.blocks()
     }
 
@@ -88,7 +97,11 @@ fn lookup_by_six_byte_key() {
     }
     assert_eq!(f.find(d, "lamp"), 0);
     // "inventory" is exactly nine letters; anything after them is not looked at.
-    assert_eq!(f.find(d, "inventoryish"), f.find(d, "inventory"), "nine characters are significant");
+    assert_eq!(
+        f.find(d, "inventoryish"),
+        f.find(d, "inventory"),
+        "nine characters are significant"
+    );
     assert_ne!(f.find(d, "inventor"), f.find(d, "inventory"));
 }
 
@@ -123,11 +136,21 @@ fn append_line_keeps_text_already_in_the_buffer() {
 fn tokenise_positions_start_at_two() {
     let mut f = fixture(10);
     let d = f.dictionary;
-    let (take, lantern, comma, north) =
-        (f.find(d, "take"), f.find(d, "lantern"), f.find(d, ","), f.find(d, "north"));
+    let (take, lantern, comma, north) = (
+        f.find(d, "take"),
+        f.find(d, "lantern"),
+        f.find(d, ","),
+        f.find(d, "north"),
+    );
     assert_eq!(
         f.tokens(d, "take lantern,north xyzzy"),
-        vec![(take, 4, 2), (lantern, 7, 7), (comma, 1, 14), (north, 5, 15), (0, 5, 21)]
+        vec![
+            (take, 4, 2),
+            (lantern, 7, 7),
+            (comma, 1, 14),
+            (north, 5, 15),
+            (0, 5, 21)
+        ]
     );
     assert_eq!(f.tokens(d, ""), vec![]);
 }
@@ -150,13 +173,20 @@ fn tokenise_against_a_games_own_dictionary_sorted_or_not() {
     for d in [f.own_sorted, f.own_unsorted] {
         let (apple, mango, zebra) = (f.find(d, "apple"), f.find(d, "mango"), f.find(d, "zebra"));
         assert!(apple != 0 && mango != 0 && zebra != 0);
-        assert_eq!(f.find(d, "take"), 0, "the main dictionary's words are not in this one");
+        assert_eq!(
+            f.find(d, "take"),
+            0,
+            "the main dictionary's words are not in this one"
+        );
         // This dictionary's separator is '!', not ','.
         assert_eq!(
             f.tokens(d, "zebra!apple,mango"),
             vec![(zebra, 5, 2), (0, 1, 7), (0, 11, 8)]
         );
-        assert_eq!(f.tokens(d, "mango apple"), vec![(mango, 5, 2), (apple, 5, 8)]);
+        assert_eq!(
+            f.tokens(d, "mango apple"),
+            vec![(mango, 5, 2), (apple, 5, 8)]
+        );
     }
     // The unsorted one really is in a different order.
     let order = |d: u16| [f.find(d, "apple"), f.find(d, "zebra")];
@@ -174,22 +204,43 @@ fn the_flag_leaves_unknown_words_untouched() {
     let take = f.find(main, "take");
     let zebra = f.find(own, "zebra");
     assert_eq!(f.tokens(main, "take zebra"), vec![(take, 4, 2), (0, 5, 7)]);
-    f.lexer(own, true).tokenise(&mut f.memory, f.text, f.parse).unwrap();
-    assert_eq!(f.blocks(), vec![(take, 4, 2), (zebra, 5, 7)], "take was left as the first pass wrote it");
+    f.lexer(own, true)
+        .tokenise(&mut f.memory, f.text, f.parse)
+        .unwrap();
+    assert_eq!(
+        f.blocks(),
+        vec![(take, 4, 2), (zebra, 5, 7)],
+        "take was left as the first pass wrote it"
+    );
 }
 
 // The real thing: Advent's dictionary, in both builds.
 #[test]
 fn advents_dictionary_lookups() {
     for version in [5u8, 8] {
-        let path = format!("{}/../../stories/advent/advent.z{version}", env!("CARGO_MANIFEST_DIR"));
+        let path = format!(
+            "{}/../../stories/advent/advent.z{version}",
+            env!("CARGO_MANIFEST_DIR")
+        );
         let story = std::fs::read(path).unwrap();
         let h = header::parse(&story).unwrap();
         let m = Memory::new(story, h.static_base as usize);
-        for w in ["lantern", "xyzzy", "plugh", "inventory", "north", "take", "undo", "script"] {
+        for w in [
+            "lantern",
+            "xyzzy",
+            "plugh",
+            "inventory",
+            "north",
+            "take",
+            "undo",
+            "script",
+        ] {
             let at = lookup_key(&m, h.dictionary, &zencode_dict9(w)).unwrap();
             assert_ne!(at, 0, "version {version}: {w}");
         }
-        assert_eq!(lookup_key(&m, h.dictionary, &zencode_dict9("qqqqqqqqq")).unwrap(), 0);
+        assert_eq!(
+            lookup_key(&m, h.dictionary, &zencode_dict9("qqqqqqqqq")).unwrap(),
+            0
+        );
     }
 }

@@ -6,10 +6,10 @@
 pub mod ledger;
 pub mod term;
 
+use std::collections::VecDeque;
 use std::fs::File;
 use std::io::{BufRead, Write};
 use std::path::{Path, PathBuf};
-use std::collections::VecDeque;
 use zmachine_core::{DiagnosticKind, Event, HostError, Key, LoadOptions, Machine, Settings};
 
 pub const USAGE: &str = "\
@@ -285,7 +285,10 @@ fn is_dfrotz_command(line: &str) -> bool {
 }
 
 /// Reads the next line that is input for the game, refusing dfrotz's own commands.
-fn read_input_line(input: &mut dyn BufRead, err: &mut dyn Write) -> std::io::Result<Option<String>> {
+fn read_input_line(
+    input: &mut dyn BufRead,
+    err: &mut dyn Write,
+) -> std::io::Result<Option<String>> {
     loop {
         match read_line(input)? {
             Some(line) if is_dfrotz_command(&line) => writeln!(
@@ -401,7 +404,11 @@ pub fn play(
         entropy: os_entropy(),
     };
     // §8.4: the game is told the screen's size. With wrapping off it is told 80.
-    let columns = if config.width == 0 { 80 } else { config.width.min(255) as u16 };
+    let columns = if config.width == 0 {
+        80
+    } else {
+        config.width.min(255) as u16
+    };
     let settings = Settings {
         screen_columns: columns,
         interpreter_version: config.interpreter_version,

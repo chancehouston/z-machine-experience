@@ -5,8 +5,8 @@ mod common;
 
 use common::*;
 use zmachine_core::{Event, LoadOptions, Machine, Settings};
-use zmachine_testkit::op::{self, Arg::*};
 use zmachine_testkit::Story5;
+use zmachine_testkit::op::{self, Arg::*};
 
 fn save_undo(variable: u8) -> Vec<u8> {
     to(op::ext(op::SAVE_UNDO, &[]), variable)
@@ -77,14 +77,22 @@ fn the_result_goes_wherever_the_instruction_stores() {
             ]),
         );
         story.main(&cat(&[op::op1(op::CALL_1N, L(routine)), quit()]));
-        assert_eq!(output_of_story5(&mut story), "1 2 undone\n", "target variable {target}");
+        assert_eq!(
+            output_of_story5(&mut story),
+            "1 2 undone\n",
+            "target variable {target}"
+        );
     }
 }
 
 // §15 restore_undo: with nothing to undo it stores 0 and the game continues.
 #[test]
 fn restore_undo_with_nothing_saved_stores_0() {
-    let code = cat(&[op::op2(op::STORE, S(g(0)), S(7)), restore_undo(g(0)), show(0)]);
+    let code = cat(&[
+        op::op2(op::STORE, S(g(0)), S(7)),
+        restore_undo(g(0)),
+        show(0),
+    ]);
     assert_eq!(out5(&code), "0 \n");
 }
 
@@ -133,7 +141,16 @@ fn the_25_most_recent_positions_are_kept() {
     let expected: String = (16..=40).rev().map(|n| format!("{n} ")).collect::<String>() + "end\n";
     assert_eq!(run(40, Settings::default()), expected);
     // The depth is the host's setting.
-    assert_eq!(run(5, Settings { undo_slots: 2, ..Settings::default() }), "5 4 end\n");
+    assert_eq!(
+        run(
+            5,
+            Settings {
+                undo_slots: 2,
+                ..Settings::default()
+            }
+        ),
+        "5 4 end\n"
+    );
 }
 
 // §15 save_undo: "-1 if the interpreter does not provide undo". §6.1.4: and Flags 2
@@ -146,14 +163,21 @@ fn with_no_undo_slots_save_undo_stores_minus_1() {
         show(0),
         restore_undo(g(1)),
         show(1),
-        cat(&[to(op::op2(op::LOADB, S(0), S(0x11)), 0), to(op::op2(op::AND, V(0), S(0x10)), 0), print_num(V(0))]),
+        cat(&[
+            to(op::op2(op::LOADB, S(0), S(0x11)), 0),
+            to(op::op2(op::AND, V(0), S(0x10)), 0),
+            print_num(V(0)),
+        ]),
         quit(),
     ]));
     let mut image = story.build();
     image[0x11] |= 0x10; // the game asks for undo
     let sum = image[0x40..].iter().fold(0u32, |a, &b| a + b as u32) & 0xFFFF;
     image[0x1C..0x1E].copy_from_slice(&(sum as u16).to_be_bytes());
-    let settings = Settings { undo_slots: 0, ..Settings::default() };
+    let settings = Settings {
+        undo_slots: 0,
+        ..Settings::default()
+    };
     let mut m = Machine::load_with(image, OPTIONS, settings).unwrap();
     assert_eq!(m.run(BIG), Ok(Event::Finished));
     assert_eq!(m.take_output(), "-1 -1 0\n");
@@ -165,7 +189,11 @@ fn with_no_undo_slots_save_undo_stores_minus_1() {
 #[test]
 fn undo_keeps_flags_2_and_reapplies_the_interpreter_header() {
     let report = cat(&[
-        cat(&[to(op::op2(op::LOADB, S(0), S(0x11)), 0), to(op::op2(op::AND, V(0), S(2)), 0), print_num(V(0))]),
+        cat(&[
+            to(op::op2(op::LOADB, S(0), S(0x11)), 0),
+            to(op::op2(op::AND, V(0), S(2)), 0),
+            print_num(V(0)),
+        ]),
         print(" "),
         cat(&[to(op::op2(op::LOADB, S(0), S(0x32)), 0), print_num(V(0))]),
         quit(),
@@ -185,8 +213,17 @@ fn undo_keeps_flags_2_and_reapplies_the_interpreter_header() {
 // run draws.
 #[test]
 fn undo_does_not_touch_the_random_generator() {
-    let draw = || cat(&[to(op::var(op::RANDOM, &[L(1000)]), 0), print_num(V(0)), print(" ")]);
-    let options = LoadOptions { seed: Some(77), entropy: 0 };
+    let draw = || {
+        cat(&[
+            to(op::var(op::RANDOM, &[L(1000)]), 0),
+            print_num(V(0)),
+            print(" "),
+        ])
+    };
+    let options = LoadOptions {
+        seed: Some(77),
+        entropy: 0,
+    };
     let run = |code: Vec<u8>| {
         let mut story = Story5::new(5);
         story.main(&cat(&[code, quit()]));
@@ -217,5 +254,7 @@ fn version_3_has_no_undo() {
     let mut story = zmachine_testkit::Story::new();
     story.main(&cat(&[op::ext(op::SAVE_UNDO, &[]), vec![0], quit()]));
     let mut m = load(&mut story);
-    assert!(matches!(m.run(BIG), Ok(Event::Fault(f)) if f.kind == zmachine_core::FaultKind::UnknownInstruction));
+    assert!(
+        matches!(m.run(BIG), Ok(Event::Fault(f)) if f.kind == zmachine_core::FaultKind::UnknownInstruction)
+    );
 }

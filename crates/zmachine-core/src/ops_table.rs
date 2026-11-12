@@ -1,10 +1,10 @@
 //! The table instructions of version 5 (§15): copy_table, scan_table,
 //! print_table, encode_text and tokenise.
 
+use crate::Machine;
 use crate::decode::Instruction;
 use crate::dictionary::Lexer;
 use crate::exec::X;
-use crate::Machine;
 
 impl Machine {
     /// §15 copy_table. With `second` 0 the first table is zeroed. A positive size
@@ -39,7 +39,11 @@ impl Machine {
         let step = (form & 0x7F) as u32;
         let mut at = table as u32;
         for _ in 0..len {
-            let value = if words { self.memory.read_word(at)? } else { self.memory.read_byte(at)? as u16 };
+            let value = if words {
+                self.memory.read_word(at)?
+            } else {
+                self.memory.read_byte(at)? as u16
+            };
             if value == x {
                 return Ok(at as u16);
             }
@@ -81,7 +85,9 @@ impl Machine {
         for i in 0..length as u32 {
             word.push(self.memory.read_byte(text as u32 + from as u32 + i)?);
         }
-        let key = self.charset.encode(&word, self.header.v.dictionary_zchars());
+        let key = self
+            .charset
+            .encode(&word, self.header.v.dictionary_zchars());
         for (i, byte) in key.iter().enumerate() {
             self.memory.write_byte(coded as u32 + i as u32, *byte)?;
         }
@@ -93,7 +99,11 @@ impl Machine {
     pub(crate) fn tokenise_instruction(&mut self, ins: &Instruction, operands: &[u16]) -> X<()> {
         let _ = ins;
         let get = |i: usize| operands.get(i).copied().unwrap_or(0);
-        let dictionary = if get(2) != 0 { get(2) } else { self.header.dictionary };
+        let dictionary = if get(2) != 0 {
+            get(2)
+        } else {
+            self.header.dictionary
+        };
         let lexer = Lexer {
             version: self.header.v,
             charset: &self.charset,

@@ -160,7 +160,10 @@ pub fn ext(number: u8, args: &[Arg]) -> Vec<u8> {
 /// `call_vs2` or `call_vn2`: a VAR instruction with two bytes of operand types and
 /// up to eight operands (§4.4.3.1).
 pub fn var2(number: u8, args: &[Arg]) -> Vec<u8> {
-    assert!(number == CALL_VS2 || number == CALL_VN2, "only the two double-variable calls");
+    assert!(
+        number == CALL_VS2 || number == CALL_VN2,
+        "only the two double-variable calls"
+    );
     assert!(args.len() <= 8, "at most eight operands");
     let mut out = vec![0xE0 | number];
     for half in 0..2 {

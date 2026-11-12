@@ -107,7 +107,10 @@ pub(crate) fn parse(story: &[u8]) -> Result<Header, LoadError> {
         return Err(LoadError::BadHeader(HeaderField::StaticMemoryBase));
     }
     // Each optional table is absent (0) or inside the file.
-    inside(header.terminating_characters, HeaderField::TerminatingCharacters)?;
+    inside(
+        header.terminating_characters,
+        HeaderField::TerminatingCharacters,
+    )?;
     inside(header.alphabet_table, HeaderField::AlphabetTable)?;
     inside(extension, HeaderField::HeaderExtension)?;
     inside(header.unicode_table, HeaderField::UnicodeTable)?;
