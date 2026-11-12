@@ -275,7 +275,7 @@ fn routines_and_strings_are_told_apart_by_the_layout() {
     let high = u16::from_be_bytes([image[4], image[5]]) as usize;
     // The main code begins at the high-memory base; find a byte above 15 there.
     let offset = (0..64)
-        .find(|&i| (high + i) % 4 == 0 && image[high + i] > 15)
+        .find(|&i| (high + i).is_multiple_of(4) && image[high + i] > 15)
         .expect("a byte above 15 in the main code");
     let misleading = ((high + offset) / 4) as u16;
     f.prop(inf::N, 3, misleading.to_be_bytes().to_vec());

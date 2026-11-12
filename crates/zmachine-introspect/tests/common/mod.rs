@@ -191,12 +191,7 @@ pub fn ask(machine: &Machine, command: &str) -> String {
     let mut copy = machine.clone();
     copy.provide_line(command)
         .expect("the machine is waiting for a line");
-    loop {
-        match copy.run(1_000_000).expect("the copy runs") {
-            Event::BudgetExhausted => continue,
-            _ => break,
-        }
-    }
+    while let Event::BudgetExhausted = copy.run(1_000_000).expect("the copy runs") {}
     let reply = copy.take_output();
     reply.trim_end().trim_end_matches('>').trim().to_string()
 }

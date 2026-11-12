@@ -11,7 +11,6 @@ pub(crate) mod attribute {
     pub const ANIMATE: u8 = 0;
     pub const ABSENT: u8 = 1;
     pub const CONCEALED: u8 = 3;
-    pub const CONTAINER: u8 = 4;
     pub const DOOR: u8 = 5;
     pub const LIGHT: u8 = 9;
     pub const OPEN: u8 = 14;

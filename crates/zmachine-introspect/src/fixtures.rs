@@ -1,6 +1,8 @@
 //! Small story files of each family, built for the unit tests. Each is laid out
 //! as its compiler lays one out, as far as the specification's rules look.
 
+#![allow(dead_code)]
+
 use zmachine_core::{Event, LoadOptions, Machine};
 use zmachine_testkit::op::{self, Arg};
 use zmachine_testkit::{Object, Object5, Story, Story5};

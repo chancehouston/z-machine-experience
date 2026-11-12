@@ -79,7 +79,7 @@ impl Zil {
                 .sort_by(|a, b| a.len().cmp(&b.len()).then(a.cmp(b)));
         }
         // In the order of a property table: highest number first.
-        directions.sort_by(|a, b| b.property.cmp(&a.property));
+        directions.sort_by_key(|d| std::cmp::Reverse(d.property));
         let is_direction = |property: u8| directions.iter().any(|d| d.property == property);
         // Rule 4: every object with a direction property, parentless ones aside,
         // has one and the same parent, which itself has none.

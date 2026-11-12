@@ -295,7 +295,7 @@ fn the_tree_follows_the_game_and_is_repeatable() {
         if let Some((_, command)) = &stop.line {
             // Line 7 follows `take egg`.
             if stop.number == 7 {
-                let holder = egg.parent.clone().unwrap().unwrap();
+                let holder = egg.parent.unwrap().unwrap();
                 assert_eq!(
                     objects[holder as usize - 1].name,
                     "cretin",

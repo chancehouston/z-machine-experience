@@ -244,10 +244,10 @@ order in which it declares them. Those this specification uses:
 | --- | --- | --- | --- | --- |
 | `animate` | 0 | | `name` | 1 |
 | `concealed` | 3 | | `before`, `after`, `life` | 4, 5, 6 |
-| `container` | 4 | | `n_to` … `out_to` | 7 … 18 |
-| `door` | 5 | | `door_dir` | 21 |
-| `light` | 9 | | `found_in` | 39 |
-| `open` | 14 | | `short_name` | 46 |
+| `door` | 5 | | `n_to` … `out_to` | 7 … 18 |
+| `light` | 9 | | `door_dir` | 21 |
+| `open` | 14 | | `found_in` | 39 |
+| `absent` | 1 | | `short_name` | 46 |
 | `scenery` | 17 | | | |
 | `supporter` | 20 | | | |
 | `transparent` | 23 | | | |
