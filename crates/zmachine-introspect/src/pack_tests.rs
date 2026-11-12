@@ -34,9 +34,13 @@ fn fixture(setup: Vec<Vec<u8>>) -> (Vec<u8>, Machine) {
     (image, machine)
 }
 
-fn exits(machine: &Machine, pack: &str) -> crate::Exits {
-    let view = machine.view();
-    let i = Introspector::with_pack(&view, pack);
+/// The exits of a built story with a pack for it that holds these entries. Each
+/// build is a story file of its own, with its own digest, so each has its own
+/// pack.
+fn exits(built: &(Vec<u8>, Machine), entries: &str) -> crate::Exits {
+    let pack = format!("{}{entries}", identity(&built.0));
+    let view = built.1.view();
+    let i = Introspector::with_pack(&view, &pack);
     assert_eq!(i.pack(), PackState::InForce, "{pack}");
     i.exits(&view).value.unwrap()
 }
@@ -69,7 +73,10 @@ fn the_worked_example_is_read() {
     assert!(!bare.has_entries(), "a pack may hold no entry");
 
     let many = format!("{EXAMPLE}untrusted-variable: 16\nuntrusted-variable: 255\n");
-    assert_eq!(Pack::parse(&many).unwrap().untrusted_variables, [40, 16, 255]);
+    assert_eq!(
+        Pack::parse(&many).unwrap().untrusted_variables,
+        [40, 16, 255]
+    );
     // Entries in any order.
     let turned = EXAMPLE.replace(
         "open-attribute: 7\nuntrusted-variable: 40\n",
@@ -86,8 +93,14 @@ fn a_malformed_pack_is_refused_with_its_line() {
     let cases: Vec<(String, usize)> = vec![
         // An identity line missing, out of order, or after an entry.
         (format!("pack: 1\nsha256: {digest}\nrelease: 1\n"), 4),
-        (format!("sha256: {digest}\npack: 1\nrelease: 1\nserial: 000000\n"), 1),
-        (format!("pack: 1\nrelease: 1\nsha256: {digest}\nserial: 000000\n"), 2),
+        (
+            format!("sha256: {digest}\npack: 1\nrelease: 1\nserial: 000000\n"),
+            1,
+        ),
+        (
+            format!("pack: 1\nrelease: 1\nsha256: {digest}\nserial: 000000\n"),
+            2,
+        ),
         (format!("open-attribute: 7\n{head}"), 1),
         (String::new(), 1),
         // A version of the format this reader does not know.
@@ -108,7 +121,10 @@ fn a_malformed_pack_is_refused_with_its_line() {
         (format!("{head}open-attribute: 7\nopen-attribute: 8\n"), 6),
         (format!("{head}untrusted-variable: 15\n"), 5),
         (format!("{head}untrusted-variable: 256\n"), 5),
-        (format!("{head}untrusted-variable: 40\n\n# again\nuntrusted-variable: 40\n"), 8),
+        (
+            format!("{head}untrusted-variable: 40\n\n# again\nuntrusted-variable: 40\n"),
+            8,
+        ),
         // Lines that are not a key, a colon, a space and a value.
         (format!("{head}open-attribute: 7 # the door\n"), 5),
         (format!("{head}open-attribute:7\n"), 5),
@@ -138,9 +154,15 @@ fn a_pack_is_in_force_only_for_its_own_story() {
 
     let right = identity(&image);
     assert!(right.contains("release: 77\nserial: 861231\n"), "{right}");
-    assert_eq!(Introspector::with_pack(&view, &right).pack(), PackState::InForce);
+    assert_eq!(
+        Introspector::with_pack(&view, &right).pack(),
+        PackState::InForce
+    );
     let with_entry = format!("{right}open-attribute: {OPEN}\n");
-    assert_eq!(Introspector::with_pack(&view, &with_entry).pack(), PackState::InForce);
+    assert_eq!(
+        Introspector::with_pack(&view, &with_entry).pack(),
+        PackState::InForce
+    );
 
     // One digit of the digest, the release by one, one character of the serial.
     let digit = right.as_bytes()[16] as char;
@@ -164,16 +186,32 @@ fn a_pack_is_in_force_only_for_its_own_story() {
     let noise: String = (0..100_000u32)
         .map(|n| char::from_u32(n.wrapping_mul(2_654_435_761) % 0x250 + 1).unwrap())
         .collect();
-    for bad in ["", "pack: 2\n", "\u{0}\u{1}", noise.as_str(), &right[..right.len() - 2]] {
-        assert_eq!(Introspector::with_pack(&view, bad).pack(), PackState::Refused);
+    for bad in [
+        "",
+        "pack: 2\n",
+        "\u{0}\u{1}",
+        noise.as_str(),
+        &right[..right.len() - 2],
+    ] {
+        assert_eq!(
+            Introspector::with_pack(&view, bad).pack(),
+            PackState::Refused
+        );
     }
 
     // I§12.2 (P§12): the pack's state belongs to the story file, not to the
     // game in progress: it is the same however far the game has run.
-    let (_, later) = fixture(vec![set_attr(zl::DOOR, OPEN), set_global(zl::TRAP_OPEN, 1)]);
+    let (image, later) = fixture(vec![set_attr(zl::DOOR, OPEN), set_global(zl::TRAP_OPEN, 1)]);
+    let its_own = format!("{}open-attribute: {OPEN}\n", identity(&image));
+    assert_eq!(
+        Introspector::with_pack(&later.view(), &its_own).pack(),
+        PackState::InForce
+    );
+    // And the first story's pack is not this story's: its start-up code, and so
+    // its digest, differs.
     assert_eq!(
         Introspector::with_pack(&later.view(), &with_entry).pack(),
-        PackState::InForce
+        PackState::NotMatching
     );
 }
 
@@ -185,7 +223,10 @@ fn an_entry_is_refused_outside_the_zil_family() {
     let machine = crate::fixtures::run(image.clone());
     let view = machine.view();
     let right = identity(&image);
-    assert_eq!(Introspector::with_pack(&view, &right).pack(), PackState::InForce);
+    assert_eq!(
+        Introspector::with_pack(&view, &right).pack(),
+        PackState::InForce
+    );
     for entry in ["open-attribute: 7\n", "untrusted-variable: 40\n"] {
         assert_eq!(
             Introspector::with_pack(&view, &format!("{right}{entry}")).pack(),
@@ -198,10 +239,8 @@ fn an_entry_is_refused_outside_the_zil_family() {
 // 5-byte exit is a door, open or closed, with the room behind it, and marked.
 #[test]
 fn a_door_is_open_or_closed() {
-    let (image, closed) = fixture(vec![]);
-    let pack = format!("{}open-attribute: {OPEN}\n", identity(&image));
-
-    let answer = exits(&closed, &pack);
+    let pack = format!("open-attribute: {OPEN}\n");
+    let answer = exits(&fixture(vec![]), &pack);
     let west = toward(&answer, zl::WEST).expect("a closed door is still an exit");
     assert_eq!(west.kind, ExitKind::Door);
     assert_eq!(west.state, Some(DoorState::Closed));
@@ -210,28 +249,52 @@ fn a_door_is_open_or_closed() {
     assert_eq!(west.door, Some(zl::DOOR));
     assert_eq!(west.source, Source::Pack);
 
-    let (_, open) = fixture(vec![set_attr(zl::DOOR, OPEN)]);
-    let answer = exits(&open, &pack);
+    let answer = exits(&fixture(vec![set_attr(zl::DOOR, OPEN)]), &pack);
     let west = toward(&answer, zl::WEST).unwrap();
     assert_eq!(
-        (west.kind, west.state, west.destination, west.door, west.source),
-        (ExitKind::Door, Some(DoorState::Open), Some(zl::HALL), Some(zl::DOOR), Source::Pack)
+        (
+            west.kind,
+            west.state,
+            west.destination,
+            west.door,
+            west.source
+        ),
+        (
+            ExitKind::Door,
+            Some(DoorState::Open),
+            Some(zl::HALL),
+            Some(zl::DOOR),
+            Source::Pack
+        )
     );
 
     // Shut again, it is closed again: the answer is the state at the query.
-    let (_, shut) = fixture(vec![set_attr(zl::DOOR, OPEN), clear_attr(zl::DOOR, OPEN)]);
-    assert_eq!(toward(&exits(&shut, &pack), zl::WEST).unwrap().state, Some(DoorState::Closed));
+    let shut = fixture(vec![set_attr(zl::DOOR, OPEN), clear_attr(zl::DOOR, OPEN)]);
+    assert_eq!(
+        toward(&exits(&shut, &pack), zl::WEST).unwrap().state,
+        Some(DoorState::Closed)
+    );
 
     // Another attribute of the door is not the one the pack names.
-    let (_, other) = fixture(vec![set_attr(zl::DOOR, OPEN + 1)]);
-    assert_eq!(toward(&exits(&other, &pack), zl::WEST).unwrap().state, Some(DoorState::Closed));
+    let other = fixture(vec![set_attr(zl::DOOR, OPEN + 1)]);
+    assert_eq!(
+        toward(&exits(&other, &pack), zl::WEST).unwrap().state,
+        Some(DoorState::Closed)
+    );
 
     // I§12.5: every other exit is the file's own, with no door.
     for exit in answer.exits.iter().filter(|e| e.direction != zl::WEST) {
-        assert_eq!((exit.door, exit.state, exit.source), (None, None, Source::File), "{exit:?}");
+        assert_eq!(
+            (exit.door, exit.state, exit.source),
+            (None, None, Source::File),
+            "{exit:?}"
+        );
     }
     assert_eq!(toward(&answer, zl::NORTH).unwrap().kind, ExitKind::Fixed);
-    assert_eq!(toward(&answer, zl::EAST).unwrap().kind, ExitKind::Conditional);
+    assert_eq!(
+        toward(&answer, zl::EAST).unwrap().kind,
+        ExitKind::Conditional
+    );
 }
 
 // I§12.3 (P§14): a 5-byte exit whose room is not a room, or whose door is not an
@@ -252,13 +315,18 @@ fn a_door_exit_that_cannot_be_read_is_unknown() {
         (zl::HALL as u8, objects + 1),
         (zl::HALL as u8, 255),
     ] {
-        let (image, machine) = build(room, door);
-        let pack = format!("{}open-attribute: {OPEN}\n", identity(&image));
-        let answer = exits(&machine, &pack);
+        let answer = exits(&build(room, door), &format!("open-attribute: {OPEN}\n"));
         assert!(toward(&answer, zl::WEST).is_none(), "{room} {door}");
-        let unknown: Vec<(u8, Unknown)> =
-            answer.unknown.iter().map(|u| (u.direction, u.reason)).collect();
-        assert_eq!(unknown, [(zl::WEST, Unknown::NotDeterminable)], "{room} {door}");
+        let unknown: Vec<(u8, Unknown)> = answer
+            .unknown
+            .iter()
+            .map(|u| (u.direction, u.reason))
+            .collect();
+        assert_eq!(
+            unknown,
+            [(zl::WEST, Unknown::NotDeterminable)],
+            "{room} {door}"
+        );
     }
 }
 
@@ -267,23 +335,35 @@ fn a_door_exit_that_cannot_be_read_is_unknown() {
 // is read as without a pack.
 #[test]
 fn an_untrusted_variable_makes_its_exit_conditional() {
-    let (image, unset) = fixture(vec![]);
-    let (_, set) = fixture(vec![set_global(zl::TRAP_OPEN, 1)]);
-    let named = format!("{}untrusted-variable: {FLAG}\n", identity(&image));
+    let unset = fixture(vec![]);
+    let set = fixture(vec![set_global(zl::TRAP_OPEN, 1)]);
+    let named = format!("untrusted-variable: {FLAG}\n");
     for machine in [&unset, &set] {
         let answer = exits(machine, &named);
         let down = toward(&answer, zl::DOWN).expect("conditional, whatever it holds");
         assert_eq!(
-            (down.kind, down.destination, down.door, down.state, down.source),
+            (
+                down.kind,
+                down.destination,
+                down.door,
+                down.state,
+                down.source
+            ),
             (ExitKind::Conditional, None, None, None, Source::Pack)
         );
         // A door is as it is without an `open-attribute`: conditional, the file's.
         let west = toward(&answer, zl::WEST).unwrap();
-        assert_eq!((west.kind, west.source), (ExitKind::Conditional, Source::File));
+        assert_eq!(
+            (west.kind, west.source),
+            (ExitKind::Conditional, Source::File)
+        );
     }
 
-    let another = format!("{}untrusted-variable: {}\n", identity(&image), FLAG + 1);
-    assert!(toward(&exits(&unset, &another), zl::DOWN).is_none(), "the flag is not set");
+    let another = format!("untrusted-variable: {}\n", FLAG + 1);
+    assert!(
+        toward(&exits(&unset, &another), zl::DOWN).is_none(),
+        "the flag is not set"
+    );
     let down = exits(&set, &another);
     let down = toward(&down, zl::DOWN).unwrap();
     assert_eq!(
@@ -302,12 +382,18 @@ fn an_untrusted_variable_makes_its_exit_conditional() {
 // and with none every exit is the file's.
 #[test]
 fn a_pack_not_in_force_changes_nothing() {
-    for setup in [vec![], vec![set_attr(zl::DOOR, OPEN), set_global(zl::TRAP_OPEN, 1)]] {
+    for setup in [
+        vec![],
+        vec![set_attr(zl::DOOR, OPEN), set_global(zl::TRAP_OPEN, 1)],
+    ] {
         let (image, machine) = fixture(setup);
         let view = machine.view();
         let plain = Introspector::new(&view).exits(&view);
         for exit in &plain.value.as_ref().unwrap().exits {
-            assert_eq!((exit.door, exit.state, exit.source), (None, None, Source::File));
+            assert_eq!(
+                (exit.door, exit.state, exit.source),
+                (None, None, Source::File)
+            );
         }
         let right = format!(
             "{}open-attribute: {OPEN}\nuntrusted-variable: {FLAG}\n",
@@ -315,7 +401,10 @@ fn a_pack_not_in_force_changes_nothing() {
         );
         assert_ne!(Introspector::with_pack(&view, &right).exits(&view), plain);
         for (text, state) in [
-            (right.replace("release: 77", "release: 76"), PackState::NotMatching),
+            (
+                right.replace("release: 77", "release: 76"),
+                PackState::NotMatching,
+            ),
             (format!("{right}open-attribute: 9\n"), PackState::Refused),
             (right.replace("pack: 1", "pack: 3"), PackState::Refused),
         ] {
@@ -337,7 +426,10 @@ fn a_pack_changes_only_exits_and_reads_only() {
         "{}open-attribute: {OPEN}\nuntrusted-variable: {FLAG}\n",
         identity(&image)
     );
-    let (plain, packed) = (Introspector::new(&view), Introspector::with_pack(&view, &pack));
+    let (plain, packed) = (
+        Introspector::new(&view),
+        Introspector::with_pack(&view, &pack),
+    );
     let before: Vec<Option<u8>> = (0..view.len()).map(|a| view.byte(a)).collect();
     assert_eq!(packed.location(&view), plain.location(&view));
     assert_eq!(packed.inventory(&view), plain.inventory(&view));

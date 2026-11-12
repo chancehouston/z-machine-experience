@@ -108,7 +108,7 @@ fn inspect_writes_one_line_per_stop() {
                 n + 1
             );
             let start = format!(
-                r#"{{"spec":"0.2.0","stop":{},"wants":"line","family":"{family}","location":{{"exactness":"exact","value":"#,
+                r#"{{"spec":"0.2.0","stop":{},"wants":"line","family":"{family}","pack":"none","location":{{"exactness":"exact","value":"#,
                 n + 1
             );
             assert!(line.starts_with(&start), "{file}: {line}");

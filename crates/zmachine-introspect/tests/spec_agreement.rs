@@ -240,8 +240,7 @@ fn every_part_of_section_12_is_cited() {
     ] {
         for entry in std::fs::read_dir(format!("{ROOT}/{directory}")).unwrap() {
             let path = entry.unwrap().path();
-            if path.extension().is_some_and(|e| e == "rs") && !path.ends_with("spec_agreement.rs")
-            {
+            if path.extension().is_some_and(|e| e == "rs") && !path.ends_with("spec_agreement.rs") {
                 text.push_str(&std::fs::read_to_string(&path).unwrap());
             }
         }

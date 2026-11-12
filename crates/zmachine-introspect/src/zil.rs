@@ -1,6 +1,7 @@
 //! The adapter for Infocom's ZIL (specification section 3.2).
 
 use crate::family::{Place, Way, has_inform_stamp};
+use crate::pack::Entries;
 use crate::table::{Bytes, Layout};
 use crate::{Part, Tri, Unknown};
 
@@ -185,8 +186,16 @@ impl Zil {
 
 impl Zil {
     /// What a room gives for one direction, by the length of the property
-    /// (specification section 8.2).
-    pub fn way(&self, layout: &Layout, b: Bytes, room: u16, direction: &Direction) -> Way {
+    /// (specification section 8.2), and by a game pack's entries where one is in
+    /// force (sections 12.3 and 12.4).
+    pub fn way(
+        &self,
+        layout: &Layout,
+        b: Bytes,
+        room: u16,
+        direction: &Direction,
+        entries: &Entries,
+    ) -> Way {
         let exit = match layout.property(b, room, direction.property) {
             None => return Way::Unknown(Unknown::Damaged),
             Some(None) => return Way::None,
@@ -204,8 +213,25 @@ impl Zil {
             [destination] => to(*destination),
             // A message of refusal.
             [_, _] => Way::None,
-            // A routine decides; so does a door.
-            [_, _, _] | [_, _, _, _, _] => Way::Conditional,
+            // A routine decides.
+            [_, _, _] => Way::Conditional,
+            // A door: read, where a pack says which attribute means open.
+            [destination, door, _, _, _] => match entries.open_attribute {
+                None => Way::Conditional,
+                Some(attribute) => {
+                    let door = *door as u16;
+                    match (to(*destination), layout.has_attribute(b, door, attribute)) {
+                        (Way::Fixed(room), Some(open)) if layout.object(b, door).is_some() => {
+                            Way::Door { room, door, open }
+                        }
+                        _ => Way::Unknown(Unknown::NotDeterminable),
+                    }
+                }
+            },
+            // A variable a pack says is not to be relied on.
+            [_, variable, _, _] if entries.untrusted_variables.contains(variable) => {
+                Way::Distrusted
+            }
             // To a room while a global variable is not zero. The byte is a
             // Z-machine variable number: 16 is the first global.
             [destination, variable, _, _] => match variable.checked_sub(16) {

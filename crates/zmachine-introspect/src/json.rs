@@ -5,8 +5,9 @@
 //! `{"unknown":"<reason>"}`.
 
 use crate::{
-    Answer, Carried, Exactness, Exit, ExitKind, Exits, Family, Light, Location, Object,
-    PartOfSpeech, Reach, Scope, ScopeEntry, Tri, Unknown, UnknownDirection, Visibility, Word,
+    Answer, Carried, DoorState, Exactness, Exit, ExitKind, Exits, Family, Light, Location, Object,
+    PackState, PartOfSpeech, Reach, Scope, ScopeEntry, Source, Tri, Unknown, UnknownDirection,
+    Visibility, Word,
 };
 
 /// Something the specification gives a JSON form.
@@ -147,6 +148,9 @@ as_word!(
     Family,
     PartOfSpeech,
     ExitKind,
+    DoorState,
+    Source,
+    PackState,
     Light,
     Reach,
     Visibility
@@ -229,6 +233,9 @@ impl Json for Exit {
                 ("kind", &self.kind),
                 ("destination", &self.destination),
                 ("destination_name", &self.destination_name),
+                ("door", &self.door),
+                ("state", &self.state),
+                ("source", &self.source),
             ],
         );
     }
@@ -313,6 +320,7 @@ pub fn stop_line(
             ("stop", &stop),
             ("wants", &wants),
             ("family", &introspector.family()),
+            ("pack", &introspector.pack()),
             ("location", &introspector.location(view)),
             ("exits", &introspector.exits(view)),
             ("inventory", &introspector.inventory(view)),

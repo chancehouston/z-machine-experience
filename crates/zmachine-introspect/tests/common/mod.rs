@@ -490,6 +490,7 @@ fn describe(exits: &Exits) -> Vec<String> {
                         .unwrap_or_else(|e| format!("<{e:?}>")))
                 ),
                 ExitKind::Conditional => format!("{word}: conditional"),
+                ExitKind::Door => format!("{word}: door {:?}", exit.state),
             }
         })
         .collect();
@@ -641,6 +642,8 @@ pub fn check_moves(game: Game, word_len: usize) -> MoveReport {
                     (ExitKind::Fixed, Some(_)) if location.room == *room => report.stayed.push(format!("{here}: {command:?}")),
                     (ExitKind::Fixed, destination) => report.problems.push(format!("{here}: {command:?} was reported to lead to {destination:?} ({:?}) but the player is in {} {:?}", exit.destination_name, location.room, location.name)),
                     (ExitKind::Conditional, _) => report.conditional += 1,
+                    // These helpers give no pack, so no exit is a door.
+                    (ExitKind::Door, _) => report.conditional += 1,
                 }
             }
         }

@@ -191,6 +191,8 @@ impl Shadow {
                         exit.destination_name.clone().and_then(Result::ok),
                     ),
                     ExitKind::Conditional => (name, PlaceState::Maybe, None),
+                    // No pack is given to this session, so no exit is a door.
+                    ExitKind::Door => (name, PlaceState::Maybe, None),
                 }
             })
             .collect();

@@ -13,6 +13,9 @@ fn exit(direction: u8, kind: ExitKind, destination: Option<u16>) -> Exit {
         kind,
         destination,
         destination_name: None,
+        door: None,
+        state: None,
+        source: zmachine_introspect::Source::File,
     }
 }
 

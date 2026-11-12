@@ -350,8 +350,21 @@ impl Introspector {
     /// As [`Introspector::new`], with a game pack's text (specification section
     /// 12). Never fails: a pack that is malformed or is another story's changes
     /// nothing, and [`Introspector::pack`] says which.
-    pub fn with_pack(view: &View<'_>, _text: &str) -> Introspector {
-        Introspector::new(view)
+    pub fn with_pack(view: &View<'_>, text: &str) -> Introspector {
+        let mut introspector = Introspector::new(view);
+        introspector.pack = match Pack::parse(text) {
+            Err(_) => PackState::Refused,
+            // Both kinds of entry are about ZIL's exits.
+            Ok(pack) if pack.has_entries() && !matches!(introspector.adapter, Adapter::Zil(_)) => {
+                PackState::Refused
+            }
+            Ok(pack) if !pack::matches(&pack, view) => PackState::NotMatching,
+            Ok(pack) => {
+                introspector.entries = pack.entries();
+                PackState::InForce
+            }
+        };
+        introspector
     }
 
     /// What became of the game pack this was given.
@@ -486,7 +499,7 @@ impl Introspector {
                     (
                         d.property,
                         d.words.as_slice(),
-                        zil.way(&self.layout, b, room, d),
+                        zil.way(&self.layout, b, room, d, &self.entries),
                     )
                 })
                 .collect(),
@@ -516,6 +529,30 @@ impl Introspector {
                     door: None,
                     state: None,
                     source: Source::File,
+                }),
+                Way::Door { room, door, open } => exits.exits.push(Exit {
+                    direction,
+                    words,
+                    kind: ExitKind::Door,
+                    destination: Some(room),
+                    destination_name: Some(self.printed_name(b, room)),
+                    door: Some(door),
+                    state: Some(if open {
+                        DoorState::Open
+                    } else {
+                        DoorState::Closed
+                    }),
+                    source: Source::Pack,
+                }),
+                Way::Distrusted => exits.exits.push(Exit {
+                    direction,
+                    words,
+                    kind: ExitKind::Conditional,
+                    destination: None,
+                    destination_name: None,
+                    door: None,
+                    state: None,
+                    source: Source::Pack,
                 }),
                 Way::Unknown(reason) => exits.unknown.push(UnknownDirection {
                     direction,
