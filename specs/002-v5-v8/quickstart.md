@@ -11,8 +11,9 @@ root. Rust 1.99 or later is the only requirement for all but the optional step.
 cargo test --workspace
 ```
 
-Expected: all tests pass, including every test from the version 3 feature. Three of those
-were edited, as research R14 lists; no other.
+Expected: all tests pass, including every test from the version 3 feature. A handful of
+those were edited where they asserted that a version 5 or 8 file is refused, or counted
+the decoder's instructions; tasks.md, "What was done differently", lists each one.
 
 ## 2. Version 3 is unchanged
 
@@ -22,7 +23,8 @@ cargo test -p zmachine-cli --test fidelity_zork1 --test czech --test save_restor
 
 Expected: pass. `git diff main -- crates/zmachine-cli/tests/fidelity_zork1.rs
 crates/zmachine-cli/tests/czech.rs crates/zmachine-cli/tests/save_restore.rs stories/zork1`
-shows czech gaining cases for versions 5 and 8 and nothing else changing.
+shows czech and save_restore gaining cases for versions 5 and 8 and nothing else
+changing.
 
 ## 3. Play a version 5 game, and the same game in version 8 (User Stories 1 and 2)
 
@@ -31,7 +33,9 @@ cargo run -p zmachine-cli -- --upper stories/advent/advent.z5
 ```
 
 Expected: the opening of Adventure, with a status line shown above the prompt. `in`,
-`take lamp`, `undo`, `score` respond correctly; `quit` then `y` exits with status 0.
+`take lamp`, `undo`, `score` respond correctly; `help` opens a menu drawn on the whole
+screen, where a key is typed and return pressed (`q` leaves it); `quit` then `y` exits
+with status 0.
 
 ```bash
 cargo run -p zmachine-cli -- --upper stories/advent/advent.z8

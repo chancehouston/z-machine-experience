@@ -64,10 +64,10 @@ suite is green and unchanged apart from the three named tests
 **Purpose**: Record what dfrotz does before writing the code that must match it. Needs
 T008 and dfrotz; runs alongside Phase 4.
 
-- [ ] T013 [P] Add version 5 transcript probe programs to `crates/zmachine-testkit/src/programs.rs`, one or more for each of rules 13 to 21 in contracts/transcript-format.md, including buffering off with transcription toggled mid-word, pre-loaded input, a quotation box drawn the veneer's way, and a non-ASCII character; run each under dfrotz; commit the transcripts as `crates/zmachine-core/tests/fixtures/transcript5/`; correct the contract wherever dfrotz disagrees with it
-- [ ] T014 [P] Add a keypress probe (several `read_char`s and an `aread`) and run it under dfrotz with scripts covering every rule in contracts/cli.md "Keypresses" and "Special keys", including each escape; commit the scripts and transcripts as `crates/zmachine-core/tests/fixtures/keys/`; correct the contract wherever dfrotz disagrees
-- [ ] T015 [P] Add the ten screen test programs of contracts/screen-model.md to `crates/zmachine-testkit/src/programs.rs`; run programs 1 to 3 under `dfrotz -r cn -r ln -r lt -h 24 -w 80` and commit what it prints as `crates/zmachine-core/tests/fixtures/screen/`, with a note of which rows are comparable; if dfrotz's output cannot be parsed reliably, record why in research R11 and drop the cross-check (T051)
-- [ ] T016 [P] Settle by probe under dfrotz, and record in data-model.md: what `check_arg_count` reports when more arguments are passed than the routine has locals; the value `catch` stores at each call depth; what `save_undo` and `restore_undo` store in each case of data-model.md "Undo position"
+- [x] T013 [P] Add version 5 transcript probe programs to `crates/zmachine-testkit/src/programs.rs`, one or more for each of rules 13 to 21 in contracts/transcript-format.md, including buffering off with transcription toggled mid-word, pre-loaded input, a quotation box drawn the veneer's way, and a non-ASCII character; run each under dfrotz; commit the transcripts as `crates/zmachine-core/tests/fixtures/transcript5/`; correct the contract wherever dfrotz disagrees with it
+- [x] T014 [P] Add a keypress probe (several `read_char`s and an `aread`) and run it under dfrotz with scripts covering every rule in contracts/cli.md "Keypresses" and "Special keys", including each escape; commit the scripts and transcripts as `crates/zmachine-core/tests/fixtures/keys/`; correct the contract wherever dfrotz disagrees
+- [x] T015 [P] Add the ten screen test programs of contracts/screen-model.md to `crates/zmachine-testkit/src/programs.rs`; run programs 1 to 3 under `dfrotz -r cn -r ln -r lt -h 24 -w 80` and commit what it prints as `crates/zmachine-core/tests/fixtures/screen/`, with a note of which rows are comparable; if dfrotz's output cannot be parsed reliably, record why in research R11 and drop the cross-check (T051)
+- [x] T016 [P] Settle by probe under dfrotz, and record in data-model.md: what `check_arg_count` reports when more arguments are passed than the routine has locals; the value `catch` stores at each call depth; what `save_undo` and `restore_undo` store in each case of data-model.md "Undo position"
 
 ---
 
@@ -98,27 +98,27 @@ is 0
 > Write these first and confirm they fail by assertion before any implementation below.
 > Each adds its instructions' rows to the version 5 coverage table.
 
-- [ ] T022 [P] [US1] Failing unit tests in `crates/zmachine-core/src/exec_tests.rs` (§5.2.1, §6.4, §15): `call_1s`, `call_2s`, `call_vs`, `call_vs2` storing, and `call_1n`, `call_2n`, `call_vn`, `call_vn2` discarding; up to seven arguments; locals starting at 0; packed addresses times 4; `check_arg_count` for each argument position, with the surplus case as T016 recorded; `catch` storing the value T016 recorded and `throw` returning from that frame with intermediate discarding calls storing nothing; `throw` to a missing frame as a fault; 1OP:15 is `call_1n` in version 5 and `not` in version 3; 0OP:9 is `catch` in version 5 and `pop` in version 3
-- [ ] T023 [P] [US1] Failing unit tests in `crates/zmachine-core/src/ops_math_tests.rs` (§15): `log_shift` and `art_shift` left and right, by 0 and by 15, with the sign rule for each; VAR `not`
-- [ ] T024 [P] [US1] Failing unit tests in `crates/zmachine-core/src/ops_table_tests.rs` (§15): `copy_table` for every row of data-model.md's outcome table; `scan_table` with word and byte forms and each field length, found and not found; `print_table` with width, height and skip, in the lower window; `encode_text`
-- [ ] T025 [P] [US1] Failing tests in `crates/zmachine-core/tests/input5.rs` (§10, §15 `read`, `read_char`; contracts/core-api.md): `aread` storing 13, the buffer layout, an absent parse buffer; `max_len` and `preloaded_input()` with text already in the buffer, and typed text stored after it; `provide_line_ended_by` with a listed key storing that key, and `NotATerminator` for an unlisted one; `KeyWanted` and `provide_key` for a character, each special key and an unrepresentable one; a timed `aread` and a timed `read_char` behaving as untimed with the routine never called; no status line drawn by the interpreter before a version 5 read; the answers out of turn refused
-- [ ] T026 [P] [US1] Failing tests in `crates/zmachine-core/tests/streams5.rs` (§7.1.2, §8.7.1, §15): the memory stream's table format; nesting to 16 and a fault at 17; exclusivity; closing with none open; a write outside dynamic memory as a fault; `output_stream 3` still ignored in version 3; `take_styled_output` giving runs with the style in force, adjacent equal styles merged, and `take_output` giving the same text plain; `set_text_style` accumulating and 0 clearing; fixed pitch forced by Flags 2 bit 1 (§8.1); `print_unicode`; `check_unicode` for each row of the outcome table; `set_colour` and `set_true_colour` with defined and undefined numbers, `sound_effect`, `input_stream`, `show_status` and an extended opcode above 28 all doing nothing; `piracy` branching; `set_font` for 0, 1, 3 and 4; `buffer_mode` accepted
-- [ ] T027 [P] [US1] Failing tests in `crates/zmachine-core/tests/undo.rs` (§15 `save_undo`, `restore_undo`; §6.1.2; data-model.md "Undo position"): `save_undo` storing 1; `restore_undo` resuming at the `save_undo` with 2, with memory and call stack as they were, from inside nested calls, with the result going to a local, a global and the stack; 0 when nothing is saved; 26 positions saved and 25 restorable; Flags 2 kept and the interpreter's header fields re-applied; the random state, the screen and the streams untouched; `undo_slots` 0 storing -1 and clearing Flags 2 bit 4 (§6.1.4)
-- [ ] T028 [P] [US1] Failing tests in `crates/zmachine-core/tests/save5.rs` (§15 `save`, `restore`; Q§5.8.2): `save` storing 1 or 0 by the host's answer; a restore resuming at the `save` with 2 stored; a refused restore storing 0 and changing nothing; the saved program counter pointing at the store byte; frames carrying the discard flag and argument count; the forms with operands storing 0 and raising no event; a save from the version 8 build refused by the version 5 build
-- [ ] T029 [P] [US1] Failing tests in `crates/zmachine-core/tests/transcript5.rs`: every probe from T013 gives the fixture dfrotz wrote; the existing fifteen version 3 probes still give theirs
-- [ ] T030 [P] [US1] Failing tests in `crates/zmachine-cli/tests/play5.rs`: `zm stories/advent/advent.z5` with the Independent Test's commands gives the game's replies and exits 0; versions 4, 6 and 7 are refused with status 2 naming 3, 5 and 8; every rule and escape of contracts/cli.md "Keypresses" and "Special keys" against the fixtures from T014; a line beginning with a backslash and a lower-case letter is refused with a message; `--interpreter-version F` changes what the game's `version` command prints
+- [x] T022 [P] [US1] Failing unit tests in `crates/zmachine-core/src/exec_tests.rs` (§5.2.1, §6.4, §15): `call_1s`, `call_2s`, `call_vs`, `call_vs2` storing, and `call_1n`, `call_2n`, `call_vn`, `call_vn2` discarding; up to seven arguments; locals starting at 0; packed addresses times 4; `check_arg_count` for each argument position, with the surplus case as T016 recorded; `catch` storing the value T016 recorded and `throw` returning from that frame with intermediate discarding calls storing nothing; `throw` to a missing frame as a fault; 1OP:15 is `call_1n` in version 5 and `not` in version 3; 0OP:9 is `catch` in version 5 and `pop` in version 3
+- [x] T023 [P] [US1] Failing unit tests in `crates/zmachine-core/src/ops_math_tests.rs` (§15): `log_shift` and `art_shift` left and right, by 0 and by 15, with the sign rule for each; VAR `not`
+- [x] T024 [P] [US1] Failing unit tests in `crates/zmachine-core/src/ops_table_tests.rs` (§15): `copy_table` for every row of data-model.md's outcome table; `scan_table` with word and byte forms and each field length, found and not found; `print_table` with width, height and skip, in the lower window; `encode_text`
+- [x] T025 [P] [US1] Failing tests in `crates/zmachine-core/tests/input5.rs` (§10, §15 `read`, `read_char`; contracts/core-api.md): `aread` storing 13, the buffer layout, an absent parse buffer; `max_len` and `preloaded_input()` with text already in the buffer, and typed text stored after it; `provide_line_ended_by` with a listed key storing that key, and `NotATerminator` for an unlisted one; `KeyWanted` and `provide_key` for a character, each special key and an unrepresentable one; a timed `aread` and a timed `read_char` behaving as untimed with the routine never called; no status line drawn by the interpreter before a version 5 read; the answers out of turn refused
+- [x] T026 [P] [US1] Failing tests in `crates/zmachine-core/tests/streams5.rs` (§7.1.2, §8.7.1, §15): the memory stream's table format; nesting to 16 and a fault at 17; exclusivity; closing with none open; a write outside dynamic memory as a fault; `output_stream 3` still ignored in version 3; `take_styled_output` giving runs with the style in force, adjacent equal styles merged, and `take_output` giving the same text plain; `set_text_style` accumulating and 0 clearing; fixed pitch forced by Flags 2 bit 1 (§8.1); `print_unicode`; `check_unicode` for each row of the outcome table; `set_colour` and `set_true_colour` with defined and undefined numbers, `sound_effect`, `input_stream`, `show_status` and an extended opcode above 28 all doing nothing; `piracy` branching; `set_font` for 0, 1, 3 and 4; `buffer_mode` accepted
+- [x] T027 [P] [US1] Failing tests in `crates/zmachine-core/tests/undo.rs` (§15 `save_undo`, `restore_undo`; §6.1.2; data-model.md "Undo position"): `save_undo` storing 1; `restore_undo` resuming at the `save_undo` with 2, with memory and call stack as they were, from inside nested calls, with the result going to a local, a global and the stack; 0 when nothing is saved; 26 positions saved and 25 restorable; Flags 2 kept and the interpreter's header fields re-applied; the random state, the screen and the streams untouched; `undo_slots` 0 storing -1 and clearing Flags 2 bit 4 (§6.1.4)
+- [x] T028 [P] [US1] Failing tests in `crates/zmachine-core/tests/save5.rs` (§15 `save`, `restore`; Q§5.8.2): `save` storing 1 or 0 by the host's answer; a restore resuming at the `save` with 2 stored; a refused restore storing 0 and changing nothing; the saved program counter pointing at the store byte; frames carrying the discard flag and argument count; the forms with operands storing 0 and raising no event; a save from the version 8 build refused by the version 5 build
+- [x] T029 [P] [US1] Failing tests in `crates/zmachine-core/tests/transcript5.rs`: every probe from T013 gives the fixture dfrotz wrote; the existing fifteen version 3 probes still give theirs
+- [x] T030 [P] [US1] Failing tests in `crates/zmachine-cli/tests/play5.rs`: `zm stories/advent/advent.z5` with the Independent Test's commands gives the game's replies and exits 0; versions 4, 6 and 7 are refused with status 2 naming 3, 5 and 8; every rule and escape of contracts/cli.md "Keypresses" and "Special keys" against the fixtures from T014; a line beginning with a backslash and a lower-case letter is refused with a message; `--interpreter-version F` changes what the game's `version` command prints
 
 ### Implementation for User Story 1
 
-- [ ] T031 [US1] Implement in `crates/zmachine-core/src/exec.rs`: version-aware operand count, calls, routine headers, the discarding call forms, `check_arg_count`, `catch` and `throw`, until T022 passes
-- [ ] T032 [P] [US1] Implement the shifts and VAR `not` in `crates/zmachine-core/src/ops_math.rs` until T023 passes
-- [ ] T033 [P] [US1] Implement `crates/zmachine-core/src/ops_table.rs` until T024 passes
-- [ ] T034 [US1] Implement in `crates/zmachine-core/src/ops_io.rs` and a new `screen.rs`: styled runs behind `take_output` and `take_styled_output`, styles, the memory stream, the instructions T026 lists, and the transcript rules 13 to 21 including buffering off, until T026 and T029 pass. The screen canvas itself is User Story 3; here `split_window`, `set_window`, `set_cursor` and the erases only keep upper-window text out of the lower window's output
-- [ ] T035 [US1] Implement version 5 line input, key input and the new answers in `crates/zmachine-core/src/ops_io.rs` and `lib.rs` until T025 passes
-- [ ] T036 [P] [US1] Implement `crates/zmachine-core/src/undo.rs` and its two instructions until T027 passes
-- [ ] T037 [US1] Implement the version 5 forms of `save` and `restore` in `crates/zmachine-core/src/ops_io.rs` until T028 passes
-- [ ] T038 [US1] Implement in `crates/zmachine-cli/src/lib.rs` and `main.rs`: versions 5 and 8, key input from lines with dfrotz's rules and escapes, `--interpreter-version`, and `--width` setting the screen width, until T030 passes
-- [ ] T039 [US1] Play the opening of Advent by hand with `zm stories/advent/advent.z5`, and run the first section of the walkthrough through `zm` and dfrotz; for each defect, add a failing test in the matching file first, then fix it
+- [x] T031 [US1] Implement in `crates/zmachine-core/src/exec.rs`: version-aware operand count, calls, routine headers, the discarding call forms, `check_arg_count`, `catch` and `throw`, until T022 passes
+- [x] T032 [P] [US1] Implement the shifts and VAR `not` in `crates/zmachine-core/src/ops_math.rs` until T023 passes
+- [x] T033 [P] [US1] Implement `crates/zmachine-core/src/ops_table.rs` until T024 passes
+- [x] T034 [US1] Implement in `crates/zmachine-core/src/ops_io.rs` and a new `screen.rs`: styled runs behind `take_output` and `take_styled_output`, styles, the memory stream, the instructions T026 lists, and the transcript rules 13 to 21 including buffering off, until T026 and T029 pass. The screen canvas itself is User Story 3; here `split_window`, `set_window`, `set_cursor` and the erases only keep upper-window text out of the lower window's output
+- [x] T035 [US1] Implement version 5 line input, key input and the new answers in `crates/zmachine-core/src/ops_io.rs` and `lib.rs` until T025 passes
+- [x] T036 [P] [US1] Implement `crates/zmachine-core/src/undo.rs` and its two instructions until T027 passes
+- [x] T037 [US1] Implement the version 5 forms of `save` and `restore` in `crates/zmachine-core/src/ops_io.rs` until T028 passes
+- [x] T038 [US1] Implement in `crates/zmachine-cli/src/lib.rs` and `main.rs`: versions 5 and 8, key input from lines with dfrotz's rules and escapes, `--interpreter-version`, and `--width` setting the screen width, until T030 passes
+- [x] T039 [US1] Play the opening of Advent by hand with `zm stories/advent/advent.z5`, and run the first section of the walkthrough through `zm` and dfrotz; for each defect, add a failing test in the matching file first, then fix it
 
 **Checkpoint**: A version 5 game is playable from the terminal
 
@@ -130,9 +130,9 @@ is 0
 
 **Independent Test**: The same commands on `advent.z5` and `advent.z8` give the same text
 
-- [ ] T040 [P] [US2] Failing tests in `crates/zmachine-core/tests/version8.rs` (§1.2.3, §11.1.6, §1.1.4): a built version 8 image above 256K that calls a routine and prints a string located beyond 256K; packed addresses times 8; `verify` using the length field times 8; a version 8 file above 512K refused
-- [ ] T041 [P] [US2] Failing test in `crates/zmachine-cli/tests/play5.rs`: one script of twenty commands gives identical standard output on `advent.z5` and `advent.z8` (spec US2 scenario 1)
-- [ ] T042 [US2] Make whatever T040 and T041 show is not yet version-aware so; no version 8 special cases outside `version.rs`
+- [x] T040 [P] [US2] Failing tests in `crates/zmachine-core/tests/version8.rs` (§1.2.3, §11.1.6, §1.1.4): a built version 8 image above 256K that calls a routine and prints a string located beyond 256K; packed addresses times 8; `verify` using the length field times 8; a version 8 file above 512K refused
+- [x] T041 [P] [US2] Failing test in `crates/zmachine-cli/tests/play5.rs`: one script of twenty commands gives identical standard output on `advent.z5` and `advent.z8` (spec US2 scenario 1)
+- [x] T042 [US2] Make whatever T040 and T041 show is not yet version-aware so; no version 8 special cases outside `version.rs`
 
 **Checkpoint**: Both builds of Advent play alike
 
@@ -144,10 +144,10 @@ is 0
 
 **Independent Test**: `cargo test -p zmachine-core --test screen`
 
-- [ ] T043 [US3] Failing tests in `crates/zmachine-core/tests/screen.rs` (§8.7; contracts/screen-model.md): for each of the ten test programs, the canvas read through `screen()` equals an expected canvas written out cell for cell with styles, at each point the program waits; the overlay of program 2 is readable at the next input and empty after it; `take_screen_changed` true once per change; `split_window` clamped to the screen; nothing written to the canvas for a version 3 story; restart leaves it blank and unsplit; restore and undo leave it as it is
-- [ ] T044 [P] [US3] Failing tests in `crates/zmachine-cli/tests/upper.rs`: with `--upper`, Advent's status line is printed above the prompt and changes after a move; a quotation box from program 2 is printed once and not after the next input; without `--upper` nothing of it appears; `--style ansi` wraps bold, italic and reverse text in escape codes and `--style plain` does not; neither the canvas nor any escape code appears in a transcript
-- [ ] T045 [US3] Implement the canvas, overlay, cursor and erases in `crates/zmachine-core/src/screen.rs`, with `screen()` and `take_screen_changed()` in `lib.rs`, until T043 passes
-- [ ] T046 [US3] Implement `--upper` and `--style` in `crates/zmachine-cli/src/lib.rs` and a new `term.rs` until T044 passes
+- [x] T043 [US3] Failing tests in `crates/zmachine-core/tests/screen.rs` (§8.7; contracts/screen-model.md): for each of the ten test programs, the canvas read through `screen()` equals an expected canvas written out cell for cell with styles, at each point the program waits; the overlay of program 2 is readable at the next input and empty after it; `take_screen_changed` true once per change; `split_window` clamped to the screen; nothing written to the canvas for a version 3 story; restart leaves it blank and unsplit; restore and undo leave it as it is
+- [x] T044 [P] [US3] Failing tests in `crates/zmachine-cli/tests/upper.rs`: with `--upper`, Advent's status line is printed above the prompt and changes after a move; a quotation box from program 2 is printed once and not after the next input; without `--upper` nothing of it appears; `--style ansi` wraps bold, italic and reverse text in escape codes and `--style plain` does not; neither the canvas nor any escape code appears in a transcript
+- [x] T045 [US3] Implement the canvas, overlay, cursor and erases in `crates/zmachine-core/src/screen.rs`, with `screen()` and `take_screen_changed()` in `lib.rs`, until T043 passes
+- [x] T046 [US3] Implement `--upper` and `--style` in `crates/zmachine-cli/src/lib.rs` and a new `term.rs` until T044 passes
 
 **Checkpoint**: Status lines, menus and quotation boxes are visible to a host
 
@@ -159,9 +159,9 @@ is 0
 
 **Independent Test**: `cargo test -p zmachine-cli --test praxix --test czech`
 
-- [ ] T047 [P] [US4] Failing test in `crates/zmachine-cli/tests/praxix.rs`: verifies the story file's digest; runs praxix with `all` and `quit`; fails naming each group that reports failed tests; requires the pass summary recorded in T004
-- [ ] T048 [P] [US4] Extend `crates/zmachine-cli/tests/czech.rs` to versions 5 and 8 with the same checks as version 3 against `czech.out5` and `czech.out8`; the version 3 cases unchanged
-- [ ] T049 [US4] For each failure T047 or T048 reports, read the Standard 1.1 section: if the interpreter is wrong, add a failing unit test in the matching source file and fix it; if the test program conflicts with Standard 1.1, add a rule to `docs/divergences.md` citing the section; if neither is clear, stop for the project owner. Repeat until both pass (SC-001, SC-002)
+- [x] T047 [P] [US4] Failing test in `crates/zmachine-cli/tests/praxix.rs`: verifies the story file's digest; runs praxix with `all` and `quit`; fails naming each group that reports failed tests; requires the pass summary recorded in T004
+- [x] T048 [P] [US4] Extend `crates/zmachine-cli/tests/czech.rs` to versions 5 and 8 with the same checks as version 3 against `czech.out5` and `czech.out8`; the version 3 cases unchanged
+- [x] T049 [US4] For each failure T047 or T048 reports, read the Standard 1.1 section: if the interpreter is wrong, add a failing unit test in the matching source file and fix it; if the test program conflicts with Standard 1.1, add a rule to `docs/divergences.md` citing the section; if neither is clear, stop for the project owner. Repeat until both pass (SC-001, SC-002)
 
 **Checkpoint**: The version 5 instruction set is conformant by two independent measures
 
@@ -174,9 +174,9 @@ version 5 and for version 8
 
 **Independent Test**: `cargo test -p zmachine-cli --test fidelity_advent`
 
-- [ ] T050 [US5] Failing tests in `crates/zmachine-cli/tests/fidelity_advent.rs`, for each of `advent.z5` and `advent.z8`: the story file's digest matches `SOURCE.md`; the walkthrough keeps to the script rules, starts exactly one transcript and contains `version`; `zm` with `--interpreter-version F` gives a transcript equal to the reference after ledger rules, reported as for Zork I; the transcript shows 350 points and the game's ending; two runs are identical. And marked `#[ignore = "needs dfrotz 2.55"]`: dfrotz still writes each reference; marked `#[ignore = "timing; run with --release"]`: each walkthrough takes under five seconds (SC-009)
-- [ ] T051 [P] [US5] If T015 kept the cross-check: a test in `crates/zmachine-core/tests/screen.rs` comparing our canvas with the dfrotz screen fixtures for programs 1 to 3 on the comparable rows, and, marked `#[ignore = "needs dfrotz 2.55"]` in `crates/zmachine-cli/tests/upper.rs`, Advent's status row after the walkthrough's first five commands against dfrotz's (002 FR-033)
-- [ ] T052 [US5] Work through each difference T050 reports, earliest first: if the interpreter is wrong, add a failing unit test in the matching source file and fix it; if Frotz departs from Standard 1.1, add a rule to `docs/divergences.md` citing the section; if neither is clear, stop for the project owner. Repeat until T050 passes (SC-003)
+- [x] T050 [US5] Failing tests in `crates/zmachine-cli/tests/fidelity_advent.rs`, for each of `advent.z5` and `advent.z8`: the story file's digest matches `SOURCE.md`; the walkthrough keeps to the script rules, starts exactly one transcript and contains `version`; `zm` with `--interpreter-version F` gives a transcript equal to the reference after ledger rules, reported as for Zork I; the transcript shows 350 points and the game's ending; two runs are identical. And marked `#[ignore = "needs dfrotz 2.55"]`: dfrotz still writes each reference; marked `#[ignore = "timing; run with --release"]`: each walkthrough takes under five seconds (SC-009)
+- [x] T051 [P] [US5] If T015 kept the cross-check: a test in `crates/zmachine-core/tests/screen.rs` comparing our canvas with the dfrotz screen fixtures for programs 1 to 3 on the comparable rows, and, marked `#[ignore = "needs dfrotz 2.55"]` in `crates/zmachine-cli/tests/upper.rs`, Advent's status row after the walkthrough's first five commands against dfrotz's (002 FR-033)
+- [x] T052 [US5] Work through each difference T050 reports, earliest first: if the interpreter is wrong, add a failing unit test in the matching source file and fix it; if Frotz departs from Standard 1.1, add a rule to `docs/divergences.md` citing the section; if neither is clear, stop for the project owner. Repeat until T050 passes (SC-003)
 
 **Checkpoint**: The project's definition of faithful is met for versions 5 and 8
 
@@ -188,9 +188,9 @@ version 5 and for version 8
 
 **Independent Test**: `cargo test -p zmachine-cli --test undo --test save_restore`
 
-- [ ] T053 [P] [US6] Failing test in `crates/zmachine-cli/tests/undo.rs`: `zm` running `undo.txt` on each build gives the committed `undo_z5.scr` and `undo_z8.scr`, in which twenty-five undos succeed and five are refused (SC-007); marked `#[ignore = "needs dfrotz 2.55"]`, dfrotz still writes them
-- [ ] T054 [P] [US6] Extend `crates/zmachine-cli/tests/save_restore.rs` to Advent's three save points in each version, with the same three cases as Zork I: `zm` restoring Frotz's save, `zm` restoring its own, and, ignored without dfrotz, dfrotz restoring `zm`'s (SC-006); a damaged save and one from the other build refused with play continuing; the Zork I cases unchanged
-- [ ] T055 [US6] Fix whatever T053 and T054 show, each defect with a failing unit test first
+- [x] T053 [P] [US6] Failing test in `crates/zmachine-cli/tests/undo.rs`: `zm` running `undo.txt` on each build gives the committed `undo_z5.scr` and `undo_z8.scr`, in which twenty-five undos succeed and five are refused (SC-007); marked `#[ignore = "needs dfrotz 2.55"]`, dfrotz still writes them
+- [x] T054 [P] [US6] Extend `crates/zmachine-cli/tests/save_restore.rs` to Advent's three save points in each version, with the same three cases as Zork I: `zm` restoring Frotz's save, `zm` restoring its own, and, ignored without dfrotz, dfrotz restoring `zm`'s (SC-006); a damaged save and one from the other build refused with play continuing; the Zork I cases unchanged
+- [x] T055 [US6] Fix whatever T053 and T054 show, each defect with a failing unit test first
 
 **Checkpoint**: All six user stories work
 
@@ -198,12 +198,12 @@ version 5 and for version 8
 
 ## Phase 11: Polish & Cross-Cutting Concerns
 
-- [ ] T056 [P] Extend `crates/zmachine-cli/tests/malformed.rs` with at least thirty named version 5 and 8 cases, each with the diagnostic it must give: every new `LoadError`, every new fault kind, the old fault kinds reached through version 5 instructions, bad extended opcodes below 29, a bad terminating-characters table, a routine at an address the multiplier takes outside the file (SC-008)
-- [ ] T057 [P] Extend `crates/zmachine-core/tests/robustness.rs` to run damaged copies of `advent.z5`, `advent.z8`, `praxix.z5` and the Advent saves, answering key requests as well as line requests; nothing may panic in a debug build (002 FR-024); confirm guarantee 7 by a story that asks for a huge window, a deep memory-stream nest and endless undo saves
-- [ ] T058 [P] Confirm the version 5 coverage table has all 98 instructions and that the check requires a cited test for each (SC-005, 002 FR-031)
-- [ ] T059 [P] Update `README.md`: versions 5 and 8 in the status, Advent and praxix in the story files, the new options, and where this interpreter knowingly differs from Frotz
-- [ ] T060 Update `.github/workflows/ci.yml` if the new ignored tests need anything the workflow lacks; run every step of `specs/002-v5-v8/quickstart.md` on a copy with only the files a clone would have, and correct the document or the code wherever they disagree
-- [ ] T061 Run `cargo clippy --workspace --all-targets -- -D warnings` and `cargo fmt --check` and fix what they report; confirm with `git diff main` that no version 3 test expectation changed beyond the three named in research R14, and list in this file what was done differently from the plan
+- [x] T056 [P] Extend `crates/zmachine-cli/tests/malformed.rs` with at least thirty named version 5 and 8 cases, each with the diagnostic it must give: every new `LoadError`, every new fault kind, the old fault kinds reached through version 5 instructions, bad extended opcodes below 29, a bad terminating-characters table, a routine at an address the multiplier takes outside the file (SC-008)
+- [x] T057 [P] Extend `crates/zmachine-core/tests/robustness.rs` to run damaged copies of `advent.z5`, `advent.z8`, `praxix.z5` and the Advent saves, answering key requests as well as line requests; nothing may panic in a debug build (002 FR-024); confirm guarantee 7 by a story that asks for a huge window, a deep memory-stream nest and endless undo saves
+- [x] T058 [P] Confirm the version 5 coverage table has all 98 instructions and that the check requires a cited test for each (SC-005, 002 FR-031)
+- [x] T059 [P] Update `README.md`: versions 5 and 8 in the status, Advent and praxix in the story files, the new options, and where this interpreter knowingly differs from Frotz
+- [x] T060 Update `.github/workflows/ci.yml` if the new ignored tests need anything the workflow lacks; run every step of `specs/002-v5-v8/quickstart.md` on a copy with only the files a clone would have, and correct the document or the code wherever they disagree
+- [x] T061 Run `cargo clippy --workspace --all-targets -- -D warnings` and `cargo fmt --check` and fix what they report; confirm with `git diff main` that no version 3 test expectation changed beyond the three named in research R14, and list in this file what was done differently from the plan
 
 ---
 
@@ -279,3 +279,85 @@ T031 and the dispatch additions of T033, T036 and T045; those run one at a time.
 - Frotz source may be read to learn how the reference behaves; none of its text is copied
   into this repository
 - T049 and T052 are loops; each defect found inside them gets its own failing test
+
+---
+
+## What was done differently
+
+Recorded for T061. Each item is a place where the work departed from this list or from the
+plan, and why.
+
+**Order and test-first**
+
+- **Decoder tests after decoder code** (T006, T009). The version-aware decoder was written
+  before its table-driven tests. Everything after it had its tests first.
+- **The fidelity, conformance, undo and save tests were written after the code passed
+  them by hand** (T047, T048, T050, T053, T054). Once the instruction set passed its unit
+  tests, Advent's transcript, praxix, czech, the undo script and the save interchange were
+  each tried by hand before their tests existed, and each already matched. The tests were
+  then written and pass; none of them was ever seen failing. T049, T052 and T055, "fix
+  what the tests show", had nothing to fix.
+- **Evidence gathered late** (T013, T014, T015). The transcript, key and screen probes
+  were run under dfrotz after the instruction set was working, not before. Their fixtures
+  are dfrotz's output either way.
+- **T039** was done as scripted runs and a comparison with dfrotz, not at a keyboard.
+
+**Where tests live**
+
+- T022 to T024 are in `crates/zmachine-core/tests/instructions5.rs`, through the public
+  interface, not in the unit-test files the tasks name.
+- Screen programs 4 to 10 are built inside `tests/screen.rs`. Only programs 1 to 3, which
+  dfrotz also runs, are in the testkit.
+- `ops_math.rs` kept its name; the tasks' `ops_math` and the shifts are there.
+
+**Version 3 tests that changed** (research R14 named three)
+
+- `tests/events.rs` and the CLI's `tests/play.rs`: version 5 refused became version 4
+  refused. As planned.
+- `tests/coverage.rs`: one table became one per version. As planned.
+- `crates/zmachine-cli/tests/malformed.rs`: two refused-version cases, 5 and 8, became 7
+  and 9; its temporary directory is now per test, and its offered input gained a line.
+  Not in R14.
+- `src/header_tests.rs`: the list of refused versions lost 5 and 8. Not in R14.
+- `tests/robustness.rs`: the driver answers key requests and drains the new buffers. Its
+  version 3 cases and thresholds are unchanged.
+- `src/version_tests.rs` (new in this feature): two assertions were removed with the two
+  unused methods they tested, `number` and `dictionary_key_len`.
+- No version 3 expectation of output, transcript or save bytes changed. `fidelity_zork1`,
+  the version 3 czech cases, and the Zork I save cases are as they were.
+
+**Findings that changed a contract**
+
+- **dfrotz's arrow and function-key escapes do not work.** Its UTF-8 build reads the
+  codes back as malformed UTF-8 and gives the game one question mark for a run of them.
+  `zm` gives the game the keys §3.8.4 defines. `contracts/cli.md` now says only `\_`,
+  `\[`, `\?` and `\\` mean the same to both, and there is no dfrotz fixture for the
+  others.
+- **`erase_window -2` also marks the lower window cleared**, and `erase_window 0` empties
+  the rows below the upper window. `contracts/screen-model.md` updated.
+- **The line feed that ends an unfinished last line is not drawn on the canvas** when the
+  game quits with the upper window selected.
+- **Frotz starts the lower window's text below a tall upper window**, and so loses text
+  printed before a split. This interpreter's lower window is a stream with no position;
+  nothing is lost. Not a transcript difference.
+- **`check_arg_count` counts every argument passed**, including those beyond the
+  routine's locals, and `catch` gives the number of frames below the current one. Both by
+  probe (T016), recorded in data-model.md.
+
+**Not done, or done less than written**
+
+- **T060, the quickstart on a clean clone.** Every quickstart command was run in the
+  working tree and passes, and the document was corrected in three places. It was not
+  re-run on a fresh clone.
+- **CI on Linux is unverified.** `.github/workflows/ci.yml` needed no change, but the
+  `non_ascii` transcript fixture and the key fixtures depend on dfrotz being built with
+  UTF-8, which the macOS build is. If the Linux build from source differs, those ignored
+  tests will say so on the first pull request.
+- **`--upper` prints the canvas only when the game waits for input**, so a screen the
+  game draws and then quits is not shown.
+- **Styles in the upper window** are stored as the game set them. The contract says the
+  upper window is always fixed pitch; the canvas does not force that bit, and a host is
+  expected to draw the canvas in a fixed-pitch font.
+- **The walkthrough was written by a subagent** reading `advent.inf` and playing against
+  dfrotz, as its README says; no published command list was used.
+
