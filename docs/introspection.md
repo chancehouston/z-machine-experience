@@ -222,6 +222,30 @@ Each entry has:
 | `parts` | The parts of speech the family records for it (section 3), a list that may be empty; `unrecognised-family` for a story file of no recognised family |
 | `direction` | For a word that names a direction, the direction's number, as the exits query uses it (section 8); otherwise none |
 
+**Parts of speech** are read from the first data byte of an entry, the byte after its
+encoded text, and are listed in the order below.
+
+| Part | Inform 6 | ZIL |
+| --- | --- | --- |
+| `noun` | bit 0x80 | bit 0x80 |
+| `verb` | bit 0x01 | bit 0x40 |
+| `adjective` | not recorded | bit 0x20 |
+| `direction` | the word is one of a direction's words (section 3.1) | bit 0x10 |
+| `preposition` | not recorded | bit 0x08 |
+| `grammar-word` | bit 0x08 | not recorded |
+| `plural` | bit 0x04 | not recorded |
+| `meta` | bit 0x02 | not recorded |
+| `buzz` | not recorded | bit 0x04 |
+
+Inform sets bit 0x08 on every word that appears in a line of its grammar. Most are
+prepositions, but not all, so the part is named for what the bit means. A `meta` verb is
+a command to the game itself (save, quit) and not an action in the story. A `buzz` word
+is one ZIL's parser ignores.
+
+`direction` is the direction's number for a `direction` word: in ZIL the second data
+byte when the low two bits of the first are set and the third otherwise (section 3.2);
+in Inform 6 the direction whose words include this one.
+
 A dictionary marked unsorted (a negative count, Standard §13.2) is listed in table
 order like any other.
 

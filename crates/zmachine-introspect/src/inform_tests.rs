@@ -528,8 +528,18 @@ fn dictionary_parts_of_speech() {
     // 0x8C: noun, plural, and used in a grammar line.
     assert_eq!(find("all").parts, Ok(vec![Noun, GrammarWord, Plural]));
     assert_eq!(find("north").parts, Ok(vec![Noun, Direction]));
-    assert_eq!((find("north").direction, find("n").direction, find("south").direction), (Some(7), Some(7), Some(8)));
+    assert_eq!(
+        (
+            find("north").direction,
+            find("n").direction,
+            find("south").direction
+        ),
+        (Some(7), Some(7), Some(8))
+    );
     assert_eq!(find("in").parts, Ok(vec![Verb, Direction]));
-    assert_eq!((find("in").direction, find("out").direction), (Some(17), Some(18)));
+    assert_eq!(
+        (find("in").direction, find("out").direction),
+        (Some(17), Some(18))
+    );
     assert_eq!(find("take").direction, None);
 }

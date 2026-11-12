@@ -627,6 +627,45 @@ impl Introspector {
         }
     }
 
+    /// The parts of speech the family records in a dictionary entry's data, and
+    /// the direction a direction word names.
+    fn parts_of_speech(&self, word: &str, data: [u8; 3]) -> (Part<Vec<PartOfSpeech>>, Option<u8>) {
+        use PartOfSpeech::*;
+        let mut parts = Vec::new();
+        let mut add = |set: bool, part| {
+            if set {
+                parts.push(part);
+            }
+        };
+        match &self.adapter {
+            Adapter::None => (Err(Unknown::UnrecognisedFamily), None),
+            Adapter::Zil(_) => {
+                let direction = zil::direction_of(data);
+                add(data[0] & zil::flag::NOUN != 0, Noun);
+                add(data[0] & zil::flag::VERB != 0, Verb);
+                add(data[0] & zil::flag::ADJECTIVE != 0, Adjective);
+                add(direction.is_some(), Direction);
+                add(data[0] & zil::flag::PREPOSITION != 0, Preposition);
+                add(data[0] & zil::flag::BUZZ != 0, Buzz);
+                (Ok(parts), direction)
+            }
+            Adapter::Inform(inform) => {
+                let direction = inform
+                    .directions
+                    .iter()
+                    .find(|d| d.words.iter().any(|w| w == word))
+                    .map(|d| d.property);
+                add(data[0] & inform::flag::NOUN != 0, Noun);
+                add(data[0] & inform::flag::VERB != 0, Verb);
+                add(direction.is_some(), Direction);
+                add(data[0] & inform::flag::GRAMMAR != 0, GrammarWord);
+                add(data[0] & inform::flag::PLURAL != 0, Plural);
+                add(data[0] & inform::flag::META != 0, Meta);
+                (Ok(parts), direction)
+            }
+        }
+    }
+
     /// Every word of the main dictionary, in its order (specification section 5).
     pub fn dictionary(&self, view: &View<'_>) -> Answer<Vec<Word>> {
         let b = Bytes::now(view);
@@ -639,10 +678,16 @@ impl Introspector {
             let Some(word) = self.layout.word(b, entry) else {
                 return Answer::unknown(Unknown::Damaged, Exactness::Exact);
             };
+            let data = b.byte(entry + dictionary.text_len).unwrap_or(0);
+            let more = [
+                b.byte(entry + dictionary.text_len + 1).unwrap_or(0),
+                b.byte(entry + dictionary.text_len + 2).unwrap_or(0),
+            ];
+            let (parts, direction) = self.parts_of_speech(&word, [data, more[0], more[1]]);
             words.push(Word {
                 word,
-                parts: Err(Unknown::UnrecognisedFamily),
-                direction: None,
+                parts,
+                direction,
             });
         }
         Answer::exact(words)

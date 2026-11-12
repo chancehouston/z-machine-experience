@@ -317,7 +317,12 @@ fn zil_words_carry_their_parts_of_speech() {
     let view = machine.view();
     let i = Introspector::new(&view);
     let words = i.dictionary(&view).value.unwrap();
-    let find = |word: &str| words.iter().find(|w| w.word == word).unwrap_or_else(|| panic!("no {word}"));
+    let find = |word: &str| {
+        words
+            .iter()
+            .find(|w| w.word == word)
+            .unwrap_or_else(|| panic!("no {word}"))
+    };
     assert_eq!(find("north").parts, Ok(vec![Direction]));
     assert_eq!(find("north").direction, Some(31));
     assert_eq!(find("n").direction, find("north").direction);
@@ -331,7 +336,11 @@ fn zil_words_carry_their_parts_of_speech() {
     assert_eq!(find("brass").parts, Ok(vec![Adjective]));
     assert!(words.iter().all(|w| w.parts.is_ok()));
     assert_eq!(words.iter().filter(|w| w.direction.is_some()).count(), 25);
-    assert!(words.iter().all(|w| w.direction.is_some() == w.parts.as_ref().unwrap().contains(&Direction)));
+    assert!(
+        words
+            .iter()
+            .all(|w| w.direction.is_some() == w.parts.as_ref().unwrap().contains(&Direction))
+    );
 }
 
 // I§5, I§3.1: the parts of speech Inform records. A direction word is one in a
@@ -343,7 +352,12 @@ fn inform_words_carry_their_parts_of_speech() {
         let machine = load(story, 1);
         let view = machine.view();
         let words = Introspector::new(&view).dictionary(&view).value.unwrap();
-        let find = |word: &str| words.iter().find(|w| w.word == word).unwrap_or_else(|| panic!("no {word}"));
+        let find = |word: &str| {
+            words
+                .iter()
+                .find(|w| w.word == word)
+                .unwrap_or_else(|| panic!("no {word}"))
+        };
         assert_eq!(find("take").parts, Ok(vec![Verb]));
         assert_eq!(find("lamp").parts, Ok(vec![Noun]));
         assert_eq!(find("north").direction, Some(7));
@@ -351,13 +365,23 @@ fn inform_words_carry_their_parts_of_speech() {
         assert!(find("north").parts.as_ref().unwrap().contains(&Direction));
         assert_eq!(find("southwest").direction, Some(14));
         // A word used in a grammar line, here not a preposition at all.
-        assert!(find("fee").parts.as_ref().unwrap().contains(&GrammarWord), "{:?}", find("fee").parts);
+        assert!(
+            find("fee").parts.as_ref().unwrap().contains(&GrammarWord),
+            "{:?}",
+            find("fee").parts
+        );
         // Meta verbs: commands to the game, not to the player's character.
         assert_eq!(find("save").parts, Ok(vec![Verb, Meta]));
         assert!(find("lamp").direction.is_none());
         // `in` is a verb, and names the direction the library treats as one.
         assert_eq!(find("in").direction, Some(17));
         assert!(words.iter().all(|w| w.parts.is_ok()), "{story}");
-        assert!(words.iter().filter(|w| w.parts.as_ref().unwrap().contains(&Verb)).count() >= 200);
+        assert!(
+            words
+                .iter()
+                .filter(|w| w.parts.as_ref().unwrap().contains(&Verb))
+                .count()
+                >= 200
+        );
     }
 }
