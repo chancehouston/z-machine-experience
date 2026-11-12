@@ -37,6 +37,8 @@ pub fn reported(exits: &Result<Exits, Unknown>, direction: u8) -> Reported {
             // A fixed exit with no destination claims nothing that can be tried.
             (ExitKind::Fixed, None) => Reported::Unknown,
             (ExitKind::Conditional, _) => Reported::Conditional,
+            // Judged from T029 on; the corpus gives no pack until then.
+            (ExitKind::Door, _) => Reported::Conditional,
         };
     }
     if exits.unknown.iter().any(|u| u.direction == direction) {

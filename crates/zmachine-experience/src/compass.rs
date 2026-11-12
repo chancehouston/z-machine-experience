@@ -245,6 +245,9 @@ impl Compass {
                     exit.destination_name.clone().and_then(Result::ok),
                 ),
                 ExitKind::Conditional => (PlaceState::Maybe, None),
+                // A door needs a game pack, which this layer does not pass yet
+                // (feature 006, User Story 5): until it does, the game decides.
+                ExitKind::Door => (PlaceState::Maybe, None),
             };
             match place_of(&exit.words) {
                 Some(place) => put(place, state, leads_to, &mut known),
