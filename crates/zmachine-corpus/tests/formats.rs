@@ -555,7 +555,10 @@ fn a_report_with_a_pack_writes_and_reads_its_marked_trials() {
         "4 30 distrusted moved 6 1",
         "4 30 distrusted stayed 2",
     ] {
-        assert!(written.contains(&format!("\n{line}\n")), "{line}: {written}");
+        assert!(
+            written.contains(&format!("\n{line}\n")),
+            "{line}: {written}"
+        );
     }
     assert_eq!(Report::read(&written), Ok(marked()));
     assert_eq!(marked().verdicts(), marked().trials);
@@ -582,13 +585,21 @@ fn a_report_whose_pack_lines_depart_from_the_format_is_refused() {
     let written = marked().write();
     let with = |from: &str, to: &str| {
         assert!(written.contains(from), "{from}");
-        Report::read(&written.replace(from, to)).expect_err("refused").0
+        Report::read(&written.replace(from, to))
+            .expect_err("refused")
+            .0
     };
     assert_eq!(with("pack in-force entries 3", "pack in-force"), 13);
-    assert_eq!(with("pack in-force entries 3", "pack sometimes entries 3"), 13);
+    assert_eq!(
+        with("pack in-force entries 3", "pack sometimes entries 3"),
+        13
+    );
     assert_eq!(with("pack in-force entries 3", "pack none"), 13);
     assert_eq!(with("open confirmed 4", "open confirmed four"), 14);
-    assert_eq!(with("closed confirmed 2 wrong-known 0", "closed confirmed 2"), 15);
+    assert_eq!(
+        with("closed confirmed 2 wrong-known 0", "closed confirmed 2"),
+        15
+    );
     // The outcomes of the distrusted do not add up.
     assert_eq!(with("distrusted 3 moved 1", "distrusted 4 moved 1"), 16);
     // One marked trial more than the trials account for.
@@ -614,7 +625,10 @@ fn a_ledger_entry_may_be_on_a_door() {
     );
     let read = ledger::read(&entry("closed 5", "moved 5")).unwrap();
     assert_eq!(read.entries[0].case.reported, Reported::Closed(5));
-    assert_eq!(ledger::read(&entry("distrusted", "stayed")).unwrap_err().0, 4);
+    assert_eq!(
+        ledger::read(&entry("distrusted", "stayed")).unwrap_err().0,
+        4
+    );
     // A closed door that kept the player where they were is not wrong.
     assert_eq!(ledger::read(&entry("closed 5", "stayed")).unwrap_err().0, 1);
     assert_eq!(ledger::read(&entry("open 5", "moved 5")).unwrap_err().0, 1);

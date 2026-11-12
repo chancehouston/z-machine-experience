@@ -9,7 +9,7 @@ const USAGE: &str = "usage: corpus check
        corpus explain ID ROOM DIRECTION
        corpus --help
 
-  check   check the manifest and the ledger
+  check   check the manifest, the ledger and the game packs
   run     run each named story, or every story present, and compare its report
           with the one kept
   write   run as `run` does, and write the reports in place of those kept
@@ -21,9 +21,16 @@ fn main() {
     let root = std::env::current_dir().expect("a current directory");
     let (lines, status) = match args.first().map(String::as_str) {
         Some("check") if args.len() == 1 => {
-            let failures = zmachine_corpus::manifest::check(&root);
+            let mut failures = zmachine_corpus::manifest::check(&root);
+            let mut notes = Vec::new();
+            if let Ok((stories, ledger)) = zmachine_corpus::corpus::load(&root) {
+                let (bad, said) = zmachine_corpus::packs::check(&root, &stories, &ledger);
+                failures.extend(bad);
+                notes = said;
+            }
             let status = !failures.is_empty() as i32;
-            (failures, status)
+            notes.extend(failures);
+            (notes, status)
         }
         Some("run") => command(&root, Mode::Run, &args[1..]),
         Some("write") => command(&root, Mode::Write, &args[1..]),

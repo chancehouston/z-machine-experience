@@ -7,14 +7,18 @@ use sha2::{Digest, Sha256};
 
 use crate::ledger::Ledger;
 use crate::manifest::{self, Story};
+use crate::packs::{self, Proof};
 use crate::report::{Case, Report, StoryLine, Summary};
 use crate::verdict::{Verdict, judge};
-use crate::walk::run_story;
+use crate::walk::run_story_with;
 
 pub const MANIFEST: &str = "stories/corpus/manifest.txt";
 pub const LEDGER: &str = "stories/corpus/ledger.txt";
 pub const REPORTS: &str = "stories/corpus/reports";
 pub const SUMMARY: &str = "stories/corpus/reports/summary.txt";
+/// Where the report of a run with packs set aside is kept, for a story that has
+/// a pack (specs/006-game-packs/research.md R11).
+pub const NOPACK: &str = "stories/corpus/reports/nopack";
 
 /// What `corpus` was asked to do.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -49,14 +53,57 @@ pub fn load(root: &Path) -> Result<(Vec<Story>, Ledger), String> {
     Ok((stories, ledger))
 }
 
-/// Runs a present story and gives its report; `None` for an absent one.
+/// Runs a present story with its pack, if it has one, and gives its report;
+/// `None` for an absent one.
 pub fn report(root: &Path, story: &Story, ledger: &Ledger) -> Option<Report> {
+    let pack = packs::of(root, story);
+    report_with(root, story, ledger, pack.as_ref().map(|p| p.text.as_str()))
+}
+
+/// Runs a present story with this pack's text, or with none.
+pub fn report_with(
+    root: &Path,
+    story: &Story,
+    ledger: &Ledger,
+    pack: Option<&str>,
+) -> Option<Report> {
     let bytes = present(root, story)?;
     let script = story
         .walkthrough
         .as_ref()
         .and_then(|path| std::fs::read_to_string(root.join(path)).ok());
-    Some(run_story(story, bytes, script.as_deref(), ledger))
+    Some(run_story_with(story, bytes, script.as_deref(), ledger, pack, None).0)
+}
+
+pub fn nopack_path(id: &str) -> String {
+    format!("{NOPACK}/{id}.txt")
+}
+
+/// The proof of each entry of a story's pack, as `(key and value, outcome)`:
+/// `with` is the run with the whole pack (research R11).
+pub fn proofs(
+    root: &Path,
+    story: &Story,
+    ledger: &Ledger,
+    found: &packs::Found,
+    with: &Report,
+) -> Vec<(String, Proof)> {
+    let mut out = Vec::new();
+    if let Some(attribute) = found.pack.open_attribute {
+        out.push((
+            format!("open-attribute {attribute}"),
+            packs::prove_open(with),
+        ));
+    }
+    for &variable in &found.pack.untrusted_variables {
+        let rest = packs::text(&found.pack, Some(variable));
+        let proof = match report_with(root, story, ledger, Some(&rest)) {
+            Some(without) => packs::prove_variable(with, &without),
+            None => Proof::NotProven,
+        };
+        out.push((format!("untrusted-variable {variable}"), proof));
+    }
+    out
 }
 
 pub fn report_path(id: &str) -> String {
@@ -80,6 +127,10 @@ pub fn command(root: &Path, mode: Mode, ids: &[String]) -> (Vec<String>, i32) {
             entry.line, entry.story
         );
         return (vec![why], 1);
+    }
+    let (bad_packs, _) = packs::check(root, &stories, &ledger);
+    if !bad_packs.is_empty() {
+        return (bad_packs, 1);
     }
     let unknown: Vec<String> = ids
         .iter()
@@ -112,6 +163,20 @@ pub fn command(root: &Path, mode: Mode, ids: &[String]) -> (Vec<String>, i32) {
         };
         ran.push(&story.id);
         fresh_lines.push(fresh.line());
+        // A story with a pack: each entry is proven or the run fails, and the
+        // story is run again with packs set aside.
+        let found = packs::of(root, story);
+        let bare = found
+            .as_ref()
+            .and_then(|_| report_with(root, story, &ledger, None));
+        let mut unproven = false;
+        if let Some(found) = &found {
+            for (entry, proof) in proofs(root, story, &ledger, found, &fresh) {
+                lines.push(format!("{} entry {entry}: {}", story.id, proof.as_str()));
+                unproven |= mode == Mode::Run && proof != Proof::Proven;
+            }
+        }
+        failed |= unproven;
         let wrong: Vec<&Case> = fresh
             .detail
             .iter()
@@ -132,20 +197,37 @@ pub fn command(root: &Path, mode: Mode, ids: &[String]) -> (Vec<String>, i32) {
             failed = true;
             continue;
         }
+        if mode == Mode::Run && unproven {
+            continue;
+        }
         let path = root.join(report_path(&story.id));
+        let bare_path = root.join(nopack_path(&story.id));
         match mode {
-            Mode::Write => match std::fs::write(&path, fresh.write()) {
-                Ok(()) => lines.push(format!("{} written", story.id)),
-                Err(e) => {
-                    lines.push(format!("{}: {e}", report_path(&story.id)));
-                    failed = true;
+            Mode::Write => {
+                let mut wrote = std::fs::write(&path, fresh.write());
+                if let (Ok(()), Some(bare)) = (&wrote, &bare) {
+                    wrote = std::fs::create_dir_all(root.join(NOPACK))
+                        .and_then(|()| std::fs::write(&bare_path, bare.write()));
                 }
-            },
+                match wrote {
+                    Ok(()) => lines.push(format!("{} written", story.id)),
+                    Err(e) => {
+                        lines.push(format!("{}: {e}", report_path(&story.id)));
+                        failed = true;
+                    }
+                }
+            }
             Mode::Run => {
                 let summary_has = |line: &StoryLine| !kept_reads || kept.stories.contains(line);
                 let kept = std::fs::read_to_string(&path).unwrap_or_default();
                 let line = fresh.line();
-                if kept == fresh.write() {
+                let bare_kept = bare.as_ref().is_none_or(|bare| {
+                    std::fs::read_to_string(&bare_path).ok() == Some(bare.write())
+                });
+                if kept == fresh.write() && !bare_kept {
+                    lines.push(format!("{} differs without its pack", story.id));
+                    failed = true;
+                } else if kept == fresh.write() {
                     lines.push(format!("{} ok", story.id));
                     if !summary_has(&line) {
                         lines.push(format!("{}: its line of the summary differs", story.id));
@@ -234,11 +316,13 @@ pub fn explain(root: &Path, id: &str, room: u16, direction: u8) -> (Vec<String>,
         .walkthrough
         .as_ref()
         .and_then(|path| std::fs::read_to_string(root.join(path)).ok());
-    let (_, _, shown) = crate::walk::run_story_watching(
+    let pack = packs::of(root, story);
+    let (_, _, shown) = run_story_with(
         story,
         bytes,
         script.as_deref(),
         &ledger,
+        pack.as_ref().map(|p| p.text.as_str()),
         Some((room, direction)),
     );
     let mut lines = Vec::new();
@@ -278,20 +362,43 @@ pub fn corpus_lines(root: &Path) -> (Vec<String>, bool) {
     };
     let mut lines = Vec::new();
     let (mut passed, mut failed, mut ignored) = (0, 0, 0);
+    // Each pack is a test too: of its entries' proofs, which its story's run
+    // makes. A pack whose story is absent is ignored, which is not passed.
+    let mut pack_lines = Vec::new();
     for story in &stories {
         let (said, status) = command(root, Mode::Run, std::slice::from_ref(&story.id));
-        if said == [format!("{} skipped", story.id)] {
-            lines.push(format!("test {} ... ignored, story absent", story.id));
-            ignored += 1;
+        let has_pack = packs::of(root, story).is_some();
+        let outcome = if said == [format!("{} skipped", story.id)] {
+            ignored += 1 + has_pack as usize;
+            "ignored, story absent"
         } else if status == 0 {
-            lines.push(format!("test {} ... ok", story.id));
-            passed += 1;
+            passed += 1 + has_pack as usize;
+            "ok"
         } else {
-            lines.push(format!("test {} ... FAILED", story.id));
-            lines.extend(said.iter().map(|line| format!("    {line}")));
             failed += 1;
+            "FAILED"
+        };
+        lines.push(format!("test {} ... {outcome}", story.id));
+        if outcome == "FAILED" {
+            lines.extend(said.iter().map(|line| format!("    {line}")));
+        }
+        if has_pack {
+            let proven = !said
+                .iter()
+                .any(|l| l.contains(" entry ") && !l.ends_with(": proven"));
+            let outcome = match outcome {
+                "FAILED" if proven => "ok",
+                other => other,
+            };
+            if outcome == "FAILED" {
+                failed += 1;
+            } else if status != 0 {
+                passed += 1;
+            }
+            pack_lines.push(format!("test pack {} ... {outcome}", story.id));
         }
     }
+    lines.extend(pack_lines);
     let result = if failed == 0 { "ok" } else { "FAILED" };
     lines.push(String::new());
     lines.push(format!(

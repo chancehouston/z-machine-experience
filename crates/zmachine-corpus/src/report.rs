@@ -462,8 +462,11 @@ impl Report {
                 report.entries = get(13, "pack in-force entries #")?[0];
                 let n = get(14, "open confirmed # wrong-known # wrong-unexplained #")?;
                 let m = &mut report.marked;
-                (m.open_confirmed, m.open_wrong_known, m.open_wrong_unexplained) =
-                    (n[0], n[1], n[2]);
+                (
+                    m.open_confirmed,
+                    m.open_wrong_known,
+                    m.open_wrong_unexplained,
+                ) = (n[0], n[1], n[2]);
                 let n = get(
                     15,
                     "closed confirmed # wrong-known # wrong-unexplained # other #",
@@ -474,7 +477,10 @@ impl Report {
                     m.closed_wrong_unexplained,
                     m.closed_other,
                 ) = (n[0], n[1], n[2], n[3]);
-                let n = get(16, "distrusted # moved # stayed # question # ended # fault #")?;
+                let n = get(
+                    16,
+                    "distrusted # moved # stayed # question # ended # fault #",
+                )?;
                 m.distrusted = Outcomes {
                     moved: n[1],
                     stayed: n[2],
@@ -508,7 +514,10 @@ impl Report {
                 return refuse(i + 1, "expected `room direction reported outcome count`");
             };
             if case.reported.marked() && report.pack != PackState::InForce {
-                return refuse(i + 1, "an answer that rests on a pack, with no pack in force");
+                return refuse(
+                    i + 1,
+                    "an answer that rests on a pack, with no pack in force",
+                );
             }
             report.detail.push((case, count));
         }

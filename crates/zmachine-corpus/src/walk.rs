@@ -289,9 +289,12 @@ pub fn family(introspector: &Introspector) -> &'static str {
     }
 }
 
-fn tools(machine: &Machine) -> Tools {
+fn tools(machine: &Machine, pack: Option<&str>) -> Tools {
     let view = machine.view();
-    let introspector = Introspector::new(&view);
+    let introspector = match pack {
+        Some(text) => Introspector::with_pack(&view, text),
+        None => Introspector::new(&view),
+    };
     let directions = directions(&introspector, &view);
     Tools {
         introspector,
@@ -320,6 +323,19 @@ pub fn run_story_watching(
     ledger: &Ledger,
     watch: Option<(u16, u8)>,
 ) -> (Report, Vec<u16>, Vec<Shown>) {
+    run_story_with(story, bytes, script, ledger, None, watch)
+}
+
+/// As [`run_story_watching`], with a game pack's text given to the
+/// introspection interface (specs/006-game-packs/research.md R10, R11).
+pub fn run_story_with(
+    story: &Story,
+    bytes: Vec<u8>,
+    script: Option<&str>,
+    ledger: &Ledger,
+    pack: Option<&str>,
+    watch: Option<(u16, u8)>,
+) -> (Report, Vec<u16>, Vec<Shown>) {
     let mut report = Report {
         id: story.id.clone(),
         sha256: story.sha256.clone(),
@@ -332,7 +348,16 @@ pub fn run_story_watching(
     };
     // The family is a fact about the file, whether or not any place is reached.
     if let Ok(machine) = load(bytes.clone(), story.seed) {
-        report.family = family(&Introspector::new(&machine.view())).to_string();
+        let made = tools(&machine, pack);
+        report.family = family(&made.introspector).to_string();
+        report.pack = made.introspector.pack();
+        if report.pack == zmachine_introspect::PackState::InForce {
+            report.entries = pack
+                .and_then(|text| zmachine_introspect::Pack::parse(text).ok())
+                .map_or(0, |p| {
+                    p.open_attribute.is_some() as usize + p.untrusted_variables.len()
+                });
+        }
     }
     let mut tally = Tally {
         watch,
@@ -349,7 +374,7 @@ pub fn run_story_watching(
             // Rooms a trial reached before the walkthrough did, in the order met.
             let mut beside: Vec<(u16, Machine)> = Vec::new();
             let replay = walkthrough(bytes, script, story.seed, |driver, line| {
-                let tools = made.get_or_insert_with(|| tools(&driver.machine));
+                let tools = made.get_or_insert_with(|| tools(&driver.machine, pack));
                 let Some(at) = driver.command_address else {
                     return;
                 };
@@ -380,7 +405,7 @@ pub fn run_story_watching(
                     driver.answer(line);
                 }
                 if waiting && driver.stop() == Wants::Command {
-                    made = Some(tools(&driver.machine));
+                    made = Some(tools(&driver.machine, pack));
                     address = driver.command_address;
                     if let (Some(tools), Some(_)) = (&made, address) {
                         // A place whose room is unknown is still a place.
