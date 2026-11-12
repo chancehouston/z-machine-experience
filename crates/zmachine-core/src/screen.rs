@@ -36,7 +36,7 @@ pub struct StyledRun {
 }
 
 /// The lower window's output since it was last drained.
-#[derive(Debug, Default)]
+#[derive(Clone, Debug, Default)]
 pub(crate) struct OutputBuffer {
     runs: Vec<StyledRun>,
 }

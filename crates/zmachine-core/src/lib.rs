@@ -32,9 +32,9 @@ mod testing;
 
 use exec::{Frame, State};
 use header::Header;
+pub use inspect::View;
 use memory::{Memory, MemoryError};
 use random::Random;
-pub use inspect::View;
 pub use screen::{Screen, Style, StyledRun};
 
 /// Why a story file was refused at load.
@@ -267,7 +267,7 @@ impl Default for Settings {
 }
 
 /// A loaded story file and everything that changes while it runs.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Machine {
     /// The story file as loaded, kept for restart, `verify` and save compression.
     story: Vec<u8>,
@@ -325,14 +325,6 @@ impl From<MemoryError> for FaultKind {
             MemoryError::ReadOutsideFile(_) => FaultKind::ReadOutsideFile,
             MemoryError::WriteOutsideDynamicMemory(_) => FaultKind::WriteOutsideDynamicMemory,
         }
-    }
-}
-
-// A deliberately wrong stand-in, so that the tests of `Clone` are seen to fail.
-impl Clone for Machine {
-    fn clone(&self) -> Self {
-        let options = LoadOptions { seed: Some(1), entropy: 0 };
-        Machine::load_with(self.story.clone(), options, self.settings).expect("it loaded before")
     }
 }
 

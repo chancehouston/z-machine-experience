@@ -6,8 +6,8 @@ mod common;
 
 use common::*;
 use zmachine_core::{Event, Key, LoadOptions, Machine};
-use zmachine_testkit::op::{self, Arg::*};
 use zmachine_testkit::Story5;
+use zmachine_testkit::op::{self, Arg::*};
 
 const ROOT: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../..");
 
@@ -31,7 +31,11 @@ struct Seen {
 /// Runs to the next stop that is not a budget stop.
 fn step(m: &mut Machine) -> Seen {
     let event = run_until_event(m, BIG);
-    Seen { event, output: m.take_output(), transcript: m.take_transcript() }
+    Seen {
+        event,
+        output: m.take_output(),
+        transcript: m.take_transcript(),
+    }
 }
 
 /// Answers a stop from a script, as the command-line host does.
@@ -42,7 +46,10 @@ fn answer(m: &mut Machine, event: &Event, script: &mut impl Iterator<Item = Stri
             None => return false,
         },
         Event::KeyWanted => {
-            let key = script.next().and_then(|l| l.chars().next()).map_or(Key::Return, Key::Char);
+            let key = script
+                .next()
+                .and_then(|l| l.chars().next())
+                .map_or(Key::Return, Key::Char);
             m.provide_key(key).unwrap();
         }
         Event::TranscriptRequested => {
@@ -58,7 +65,14 @@ fn answer(m: &mut Machine, event: &Event, script: &mut impl Iterator<Item = Stri
 
 /// Plays `count` lines of a script, returning the machine at its next stop.
 fn play(image: Vec<u8>, seed: u32, script: &[String], count: usize) -> (Machine, Seen) {
-    let mut m = Machine::load(image, LoadOptions { seed: Some(seed), entropy: 0 }).unwrap();
+    let mut m = Machine::load(
+        image,
+        LoadOptions {
+            seed: Some(seed),
+            entropy: 0,
+        },
+    )
+    .unwrap();
     let mut script = script.iter().take(count).cloned();
     loop {
         let seen = step(&mut m);
@@ -87,8 +101,16 @@ fn a_clone_is_independent_of_the_original() {
     assert_eq!(memory(&copy), before, "the copy starts in the same state");
     copy.provide_line("inventory").unwrap();
     let copied = step(&mut copy);
-    assert!(copied.output.contains("You are carrying"), "{}", copied.output);
-    assert_eq!(memory(&original), before, "playing the copy leaves the original alone");
+    assert!(
+        copied.output.contains("You are carrying"),
+        "{}",
+        copied.output
+    );
+    assert_eq!(
+        memory(&original),
+        before,
+        "playing the copy leaves the original alone"
+    );
 
     // The original now takes its own next command, as does a machine never cloned.
     original.provide_line(&script[40]).unwrap();
@@ -103,9 +125,24 @@ fn a_clone_is_independent_of_the_original() {
 #[test]
 fn a_clone_continues_exactly_as_the_original_does() {
     for (file, walkthrough, seed, at) in [
-        ("stories/zork1/zork1.z3", "stories/zork1/fidelity/walkthrough.txt", 11, 150),
-        ("stories/advent/advent.z5", "stories/advent/fidelity/walkthrough.txt", 1, 80),
-        ("stories/advent/advent.z8", "stories/advent/fidelity/walkthrough.txt", 1, 120),
+        (
+            "stories/zork1/zork1.z3",
+            "stories/zork1/fidelity/walkthrough.txt",
+            11,
+            150,
+        ),
+        (
+            "stories/advent/advent.z5",
+            "stories/advent/fidelity/walkthrough.txt",
+            1,
+            80,
+        ),
+        (
+            "stories/advent/advent.z8",
+            "stories/advent/fidelity/walkthrough.txt",
+            1,
+            120,
+        ),
     ] {
         let script = lines(walkthrough);
         let (mut original, _) = play(story(file), seed, &script, at);
@@ -123,7 +160,11 @@ fn a_clone_continues_exactly_as_the_original_does() {
                 assert!(bytes.len() > 100, "{file}: a real save file");
                 break;
             }
-            assert!(matches!(first.event, Event::LineWanted { .. }), "{file}: {:?}", first.event);
+            assert!(
+                matches!(first.event, Event::LineWanted { .. }),
+                "{file}: {:?}",
+                first.event
+            );
         }
     }
 }
@@ -141,7 +182,10 @@ fn a_clone_has_the_same_random_sequence() {
     code.push(quit());
     story.main(&cat(&code));
     // No seed: the sequence comes from the host's entropy, and must still be copied.
-    let options = LoadOptions { seed: None, entropy: 0x5EED_1234 };
+    let options = LoadOptions {
+        seed: None,
+        entropy: 0x5EED_1234,
+    };
     let mut original = Machine::load(story.build(), options).unwrap();
     assert_eq!(run_until_event(&mut original, BIG), Event::KeyWanted);
     let mut copy = original.clone();
@@ -161,7 +205,11 @@ fn a_clone_has_the_same_undo_history() {
     story.main(&cat(&[
         to(op::ext(op::SAVE_UNDO, &[]), g(0)),
         show(0),
-        skip_if(op::op2(op::JE, V(g(0)), S(2)), false, &cat(&[print("undone"), quit()])),
+        skip_if(
+            op::op2(op::JE, V(g(0)), S(2)),
+            false,
+            &cat(&[print("undone"), quit()]),
+        ),
         read_char(g(1)),
         to(op::ext(op::RESTORE_UNDO, &[]), g(2)),
         print("nothing to undo"),
@@ -187,20 +235,36 @@ fn a_clone_waits_for_the_same_answer() {
     // The very first stop: the walkthrough's `script` has not been given yet.
     assert!(matches!(seen.event, Event::LineWanted { .. }));
     let mut copy = original.clone();
-    assert_eq!(copy.provide_key(Key::Return), Err(zmachine_core::HostError::NotWaitingForThis));
+    assert_eq!(
+        copy.provide_key(Key::Return),
+        Err(zmachine_core::HostError::NotWaitingForThis)
+    );
     copy.provide_line("script").unwrap();
     assert_eq!(run_until_event(&mut copy, BIG), Event::TranscriptRequested);
     let mut waiting = copy.clone();
     waiting.transcript_result(true).unwrap();
-    assert!(matches!(run_until_event(&mut waiting, BIG), Event::LineWanted { .. }));
+    assert!(matches!(
+        run_until_event(&mut waiting, BIG),
+        Event::LineWanted { .. }
+    ));
 
     // After a fault, a clone has faulted too.
     let mut bad = Story5::new(5);
-    bad.main(&cat(&[print("before "), to(op::op2(op::DIV, S(1), S(0)), g(0)), quit()]));
+    bad.main(&cat(&[
+        print("before "),
+        to(op::op2(op::DIV, S(1), S(0)), g(0)),
+        quit(),
+    ]));
     let mut faulted = Machine::load(bad.build(), OPTIONS).unwrap();
     let event = run_until_event(&mut faulted, BIG);
     assert!(matches!(event, Event::Fault(_)));
     let mut copy = faulted.clone();
-    assert_eq!(copy.take_output(), "before ", "output not yet taken is copied");
-    assert_eq!(run_until_event(&mut copy, BIG), event);
+    assert_eq!(
+        copy.take_output(),
+        "before ",
+        "output not yet taken is copied"
+    );
+    // A machine that has faulted has stopped for good, and so has its copy.
+    assert_eq!(copy.run(BIG), faulted.run(BIG));
+    assert_eq!(copy.run(BIG), Err(zmachine_core::HostError::Stopped));
 }

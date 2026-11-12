@@ -348,3 +348,33 @@ fn the_core_performs_no_input_or_output() {
         }
     }
 }
+
+// Feature 003, specs/003-introspection/contracts/rust-api.md guarantee 1: the
+// introspection interface reads the machine through a shared reference, and that
+// proves nothing is altered only while the core has no interior mutability.
+#[test]
+fn the_core_has_no_interior_mutability() {
+    let banned = [
+        "Cell<",
+        "RefCell",
+        "UnsafeCell",
+        "static mut",
+        "Mutex",
+        "RwLock",
+        "Atomic",
+        "OnceLock",
+        "thread_local",
+    ];
+    for (name, text) in implementation_files() {
+        for (number, line) in text.lines().enumerate() {
+            let code = line.split("//").next().unwrap_or("");
+            for word in banned {
+                assert!(
+                    !code.contains(word),
+                    "src/{name}:{}: {word} in {line:?}",
+                    number + 1
+                );
+            }
+        }
+    }
+}

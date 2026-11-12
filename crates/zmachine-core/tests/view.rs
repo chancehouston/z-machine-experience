@@ -59,7 +59,10 @@ fn a_view_shows_memory_now_and_the_file_as_shipped() {
     assert_eq!(view.byte(last), Some(image[last]));
     assert_eq!(view.shipped_byte(last), Some(image[last]));
     // The serial number, which neither the game nor the interpreter writes.
-    assert_eq!(view.word(0x12), Some(u16::from_be_bytes([image[0x12], image[0x13]])));
+    assert_eq!(
+        view.word(0x12),
+        Some(u16::from_be_bytes([image[0x12], image[0x13]]))
+    );
     // The interpreter's own header writes are in memory now and not in the file
     // as shipped (§11.1: screen width at 0x21).
     assert_eq!(view.byte(0x21), Some(80));
