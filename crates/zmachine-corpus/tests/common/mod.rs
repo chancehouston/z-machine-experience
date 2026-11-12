@@ -67,6 +67,10 @@ pub const ASK: u8 = 251;
 pub const SPIN: u8 = 252;
 /// Performs an illegal operation.
 pub const BOOM: u8 = 253;
+/// Goes through the toy's door if it is open, and otherwise stays.
+const DOOR: u8 = 254;
+/// The attribute the toy's `open` sets on its door and `close` clears.
+pub const OPEN_ATTR: u8 = 9;
 
 fn column(direction: u8) -> usize {
     DIRECTIONS
@@ -90,6 +94,12 @@ pub struct Toy {
     /// With `true` north has a further word, longer than `north`, that is no
     /// compass word: `sunward`.
     pub odd_north_word: bool,
+    /// A door: the room it is in, the direction, and the room behind it. The
+    /// table gets a 5-byte exit; the code goes through while the door has
+    /// `OPEN_ATTR`, which the commands `open` and `close` set and clear.
+    pub door: Option<(usize, u8, usize)>,
+    /// Global variables that hold 1 from the start.
+    pub set: Vec<u8>,
 }
 
 impl Toy {
@@ -101,7 +111,30 @@ impl Toy {
             start: 0,
             direction_words: true,
             odd_north_word: false,
+            door: None,
+            set: Vec::new(),
         }
+    }
+
+    /// The door's object number.
+    pub fn door_object(&self) -> u16 {
+        FIRST as u16 + self.tables.len() as u16 + 1
+    }
+
+    /// A 4-byte exit on global variable `global`, which holds 1: the table says
+    /// the way is open. The code goes there only if `honoured`.
+    pub fn flag_way(
+        &mut self,
+        from: usize,
+        direction: u8,
+        to: usize,
+        global: u8,
+        honoured: bool,
+    ) -> &mut Self {
+        let room = Self::room(to) as u8;
+        self.set.push(global);
+        self.table(from, direction, vec![room, 16 + global, 0, 0])
+            .does(from, direction, if honoured { room } else { STAY })
     }
 
     pub fn room(index: usize) -> u16 {
@@ -148,6 +181,13 @@ impl Toy {
             story.word_data("sunward", [flags, NORTH, column(NORTH) as u8 + 1]);
         }
         story.word_data("look", [0x41, 0xF0, 0]);
+        if self.door.is_some() {
+            story.word_data("open", [0x41, 0xF1, 7]);
+            story.word_data("close", [0x41, 0xF2, 8]);
+        }
+        for &global in &self.set {
+            story.global(global as usize, 1);
+        }
 
         let mut container = Object::new("");
         container.child = FIRST;
@@ -155,6 +195,14 @@ impl Toy {
         // The family is known by its rooms having direction properties. A toy with
         // none at all is given one that says "not an exit" (two bytes: a message).
         let mut tables = self.tables.clone();
+        let mut behaviour = self.behaviour.clone();
+        let door = self.door_object() as u8;
+        let mut behind = 0;
+        if let Some((from, direction, to)) = self.door {
+            behind = Self::room(to) as u8;
+            tables[from].push((direction, vec![behind, door, 0, 0, 0]));
+            behaviour[from][column(direction)] = DOOR;
+        }
         if tables.iter().all(Vec::is_empty) {
             tables[0].push((DOWN, vec![0, 0]));
         }
@@ -170,6 +218,9 @@ impl Toy {
             story.object(room);
         }
         story.object(Object::new("you"));
+        if self.door.is_some() {
+            story.object(Object::new("door"));
+        }
 
         let text = story.scratch(&{
             let mut b = vec![0u8; 40];
@@ -181,7 +232,7 @@ impl Toy {
             b[0] = 4;
             b
         });
-        let flat: Vec<u8> = self.behaviour.iter().flatten().copied().collect();
+        let flat: Vec<u8> = behaviour.iter().flatten().copied().collect();
         let table = story.scratch(&flat);
 
         // Variables: global 0 is the room; 12 the player, as ZIL's WINNER.
@@ -206,6 +257,10 @@ impl Toy {
         a.branch(op::op1(op::JZ, V(WORD)), true, "loop");
         a.code([op::op2(op::LOADB, V(WORD), S(6)), op::store(COLUMN)].concat());
         a.branch(op::op1(op::JZ, V(COLUMN)), true, "loop");
+        if self.door.is_some() {
+            a.branch(op::op2(op::JE, V(COLUMN), S(7)), true, "open");
+            a.branch(op::op2(op::JE, V(COLUMN), S(8)), true, "close");
+        }
         a.code([op::op2(op::SUB, V(ROOM), S(FIRST)), op::store(ACTION)].concat());
         a.code([op::op2(op::MUL, V(ACTION), S(6)), op::store(ACTION)].concat());
         a.code([op::op2(op::ADD, V(ACTION), V(COLUMN)), op::store(ACTION)].concat());
@@ -216,9 +271,25 @@ impl Toy {
         a.branch(op::op2(op::JE, V(ACTION), S(ASK)), true, "ask");
         a.branch(op::op2(op::JE, V(ACTION), S(SPIN)), true, "spin");
         a.branch(op::op2(op::JE, V(ACTION), S(BOOM)), true, "boom");
+        if self.door.is_some() {
+            a.branch(op::op2(op::JE, V(ACTION), S(DOOR)), true, "door");
+        }
         a.code(op::op2(op::STORE, S(ROOM), V(ACTION)));
         a.code(op::op2(op::INSERT_OBJ, S(player), V(ACTION)));
         a.jump("loop");
+        if self.door.is_some() {
+            a.label("open");
+            a.code(op::op2(op::SET_ATTR, S(door), S(OPEN_ATTR)));
+            a.jump("loop");
+            a.label("close");
+            a.code(op::op2(op::CLEAR_ATTR, S(door), S(OPEN_ATTR)));
+            a.jump("loop");
+            a.label("door");
+            a.branch(op::op2(op::TEST_ATTR, S(door), S(OPEN_ATTR)), false, "loop");
+            a.code(op::op2(op::STORE, S(ROOM), S(behind)));
+            a.code(op::op2(op::INSERT_OBJ, S(player), S(behind)));
+            a.jump("loop");
+        }
         a.label("quit");
         a.code(op::op0(op::QUIT));
         a.label("ask");
@@ -372,6 +443,15 @@ impl Scratch {
         std::fs::write(path, bytes).unwrap();
     }
 
+    /// Writes `packs/<id>.pack` for an image, with its identity worked out from
+    /// the image and these entries.
+    pub fn pack(&self, id: &str, image: &[u8], entries: &str) {
+        self.write(
+            &format!("packs/{id}.pack"),
+            pack_for(image, entries).as_bytes(),
+        );
+    }
+
     pub fn read(&self, relative: &str) -> String {
         std::fs::read_to_string(self.path(relative)).unwrap_or_else(|e| panic!("{relative}: {e}"))
     }
@@ -405,4 +485,18 @@ impl Drop for Scratch {
     fn drop(&mut self) {
         let _ = std::fs::remove_dir_all(&self.0);
     }
+}
+
+/// A game pack for an image: its identity, then these entries.
+pub fn pack_for(image: &[u8], entries: &str) -> String {
+    use sha2::{Digest, Sha256};
+    let digest: String = Sha256::digest(image)
+        .iter()
+        .map(|b| format!("{b:02x}"))
+        .collect();
+    format!(
+        "pack: 1\nsha256: {digest}\nrelease: {}\nserial: {}\n{entries}",
+        u16::from_be_bytes([image[2], image[3]]),
+        String::from_utf8_lossy(&image[0x12..0x18])
+    )
 }

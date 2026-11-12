@@ -30,8 +30,9 @@ impl std::fmt::Display for PackError {
 }
 
 /// What became of the pack a reader was given (specification section 12.2).
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub enum PackState {
+    #[default]
     None,
     InForce,
     NotMatching,

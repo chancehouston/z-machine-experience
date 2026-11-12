@@ -449,26 +449,32 @@ impl Tally {
                 Outcome::Fault => o.fault += count,
                 Outcome::Lost => {}
             };
-            let fixed = matches!(case.reported, Reported::Fixed(_));
-            match judge(&case) {
-                Verdict::Confirmed if fixed => {
-                    report.fixed_confirmed += count;
+            let known = ledger.knows(&report.id, &case);
+            let m = &mut report.marked;
+            match (judge(&case), case.reported) {
+                (Verdict::Confirmed, said) => {
+                    match said {
+                        Reported::Fixed(_) => report.fixed_confirmed += count,
+                        Reported::Open(_) => m.open_confirmed += count,
+                        Reported::Closed(_) => m.closed_confirmed += count,
+                        _ => report.none_confirmed += count,
+                    }
                     continue;
                 }
-                Verdict::Confirmed => {
-                    report.none_confirmed += count;
-                    continue;
-                }
-                Verdict::Wrong => match (fixed, ledger.knows(&report.id, &case)) {
-                    (true, true) => report.fixed_wrong_known += count,
-                    (true, false) => report.fixed_wrong_unexplained += count,
-                    (false, true) => report.none_wrong_known += count,
-                    (false, false) => report.none_wrong_unexplained += count,
-                },
-                Verdict::NoneOther => report.none_other += count,
-                Verdict::Conditional => outcomes(&mut report.conditional),
-                Verdict::Unknown => outcomes(&mut report.unknown),
-                Verdict::NoVerdict => report.no_verdict += count,
+                (Verdict::Wrong, Reported::Fixed(_)) if known => report.fixed_wrong_known += count,
+                (Verdict::Wrong, Reported::Fixed(_)) => report.fixed_wrong_unexplained += count,
+                (Verdict::Wrong, Reported::Open(_)) if known => m.open_wrong_known += count,
+                (Verdict::Wrong, Reported::Open(_)) => m.open_wrong_unexplained += count,
+                (Verdict::Wrong, Reported::Closed(_)) if known => m.closed_wrong_known += count,
+                (Verdict::Wrong, Reported::Closed(_)) => m.closed_wrong_unexplained += count,
+                (Verdict::Wrong, _) if known => report.none_wrong_known += count,
+                (Verdict::Wrong, _) => report.none_wrong_unexplained += count,
+                (Verdict::NoneOther, Reported::Closed(_)) => m.closed_other += count,
+                (Verdict::NoneOther, _) => report.none_other += count,
+                (Verdict::Conditional, Reported::Distrusted) => outcomes(&mut m.distrusted),
+                (Verdict::Conditional, _) => outcomes(&mut report.conditional),
+                (Verdict::Unknown, _) => outcomes(&mut report.unknown),
+                (Verdict::NoVerdict, _) => report.no_verdict += count,
             }
             report.detail.push((case, count));
         }
