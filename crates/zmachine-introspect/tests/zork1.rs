@@ -15,11 +15,24 @@ const EXITS: &str = "stories/zork1/introspection/exits.txt";
 fn location_agrees_with_the_game_at_every_prompt() {
     // Zork I announces a dark room with these words in place of its name.
     let report = check_locations(ZORK1, EXITS, |stop, _| stop.text.contains("pitch black"));
-    assert!(report.problems.is_empty(), "{} problems:\n{}", report.problems.len(), report.problems.join("\n"));
+    assert!(
+        report.problems.is_empty(),
+        "{} problems:\n{}",
+        report.problems.len(),
+        report.problems.join("\n")
+    );
     assert_eq!(report.prompts, 332);
-    assert!(report.headings >= 150, "room headings checked: {}", report.headings);
+    assert!(
+        report.headings >= 150,
+        "room headings checked: {}",
+        report.headings
+    );
     assert!(report.changes >= 150, "moves checked: {}", report.changes);
-    assert_eq!((report.lit, report.dark), (0, 0), "ZIL does not record light: always unknown");
+    assert_eq!(
+        (report.lit, report.dark),
+        (0, 0),
+        "ZIL does not record light: always unknown"
+    );
 }
 
 // I§6: the opening, a named room mid-game, and the player inside the boat.
@@ -41,7 +54,12 @@ fn location_at_known_moments() {
         }
         if let Ok(Some(holder)) = location.holder {
             let tree = i.object_tree(&view).value.unwrap();
-            assert_eq!(tree[holder as usize - 1].name, "magic boat", "stop {}", stop.number);
+            assert_eq!(
+                tree[holder as usize - 1].name,
+                "magic boat",
+                "stop {}",
+                stop.number
+            );
             in_boat += 1;
         }
         seen.push(location.name.unwrap());
@@ -55,13 +73,37 @@ fn location_at_known_moments() {
 #[test]
 fn inventory_agrees_with_the_game_at_every_prompt() {
     let report = check_inventories(ZORK1, "You are carrying:");
-    assert!(report.problems.is_empty(), "{} problems:\n{}", report.problems.len(), report.problems.join("\n"));
+    assert!(
+        report.problems.is_empty(),
+        "{} problems:\n{}",
+        report.problems.len(),
+        report.problems.join("\n")
+    );
     assert_eq!(report.prompts, 332);
-    assert!(report.not_an_inventory.len() <= 2, "prompts that were not for a command: {:?}", report.not_an_inventory);
-    assert!(report.unknown.iter().all(|(_, reason)| *reason == Unknown::AmbiguousPlayer), "{:?}", report.unknown);
+    assert!(
+        report.not_an_inventory.len() <= 2,
+        "prompts that were not for a command: {:?}",
+        report.not_an_inventory
+    );
+    assert!(
+        report
+            .unknown
+            .iter()
+            .all(|(_, reason)| *reason == Unknown::AmbiguousPlayer),
+        "{:?}",
+        report.unknown
+    );
     println!("Zork I: inventory unknown at stops {:?}", report.unknown);
-    assert!(report.unknown.len() * 100 <= report.prompts * 3, "unknown at {} of {} prompts", report.unknown.len(), report.prompts);
-    assert!(report.compared >= 320 && report.empty >= 2 && report.most_carried >= 6, "{report:?}");
+    assert!(
+        report.unknown.len() * 100 <= report.prompts * 3,
+        "unknown at {} of {} prompts",
+        report.unknown.len(),
+        report.prompts
+    );
+    assert!(
+        report.compared >= 320 && report.empty >= 2 && report.most_carried >= 6,
+        "{report:?}"
+    );
 }
 
 // I§7: a carried container's contents are nested under it, not listed beside it,
@@ -76,21 +118,36 @@ fn inventory_at_known_moments() {
             return;
         }
         let view = machine.view();
-        let Ok(carried) = Introspector::new(&view).inventory(&view).value else { return };
+        let Ok(carried) = Introspector::new(&view).inventory(&view).value else {
+            return;
+        };
         for item in &carried {
             if !item.contents.is_empty() {
                 nested += 1;
                 let inner = item.contents[0].name.clone().unwrap();
-                assert!(!carried.iter().any(|c| c.name.as_deref() == Ok(inner.as_str())), "{inner} is listed twice");
+                assert!(
+                    !carried
+                        .iter()
+                        .any(|c| c.name.as_deref() == Ok(inner.as_str())),
+                    "{inner} is listed twice"
+                );
             }
             assert_eq!(item.worn, Tri::Unknown, "ZIL does not record what is worn");
         }
         if previous == "take egg" {
-            assert!(carried.iter().any(|c| c.name.as_deref() == Ok("jewel-encrusted egg")), "{carried:?}");
+            assert!(
+                carried
+                    .iter()
+                    .any(|c| c.name.as_deref() == Ok("jewel-encrusted egg")),
+                "{carried:?}"
+            );
             after_take += 1;
         }
         previous = stop.line.clone().map(|(_, text)| text).unwrap_or_default();
     });
-    assert_eq!(after_take, 1);
-    assert!(nested >= 10, "prompts with a container that holds something: {nested}");
+    assert_eq!(after_take, 3, "the walkthrough takes the egg three times");
+    assert!(
+        nested >= 10,
+        "prompts with a container that holds something: {nested}"
+    );
 }

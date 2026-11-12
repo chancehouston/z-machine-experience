@@ -231,11 +231,99 @@ not lie wholly inside the story file.
 
 ## 6. `location`
 
-The room the player is in.
+The room the player is in. **Exact** for a recognised family.
+
+| Field | Value |
+| --- | --- |
+| `room` | The object number of the room |
+| `name` | The room's printed name (section 3); a part that may be unknown |
+| `holder` | The object the player is in or on within the room (a vehicle, a cage); none when the player is directly in the room; a part that may be unknown |
+| `lit` | `yes`, `no` or `unknown` |
+
+### 6.1 Inform 6
+
+- **The player** is the object with the stored name `(self object)`.
+- **The room** is the object reached by following the player's `parent` until an object
+  with no parent is reached. If the player itself has no parent, the answer is
+  `no-player`: this is so before the game's start-up code has run.
+- **`holder`** is the player's parent when that is not the room.
+- **`lit`** is `no` when the location variable (section 3.1 rule 6) holds the number of
+  `(darkness object)`, and `yes` otherwise. The library keeps the real room in the tree
+  while it is dark, so the room is still reported.
+- **Two checks.** The answer is `inconsistent` if the location variable holds neither
+  the room nor `(darkness object)`, or if none of the 240 global variables holds the
+  player's number. The second catches a game that has made another object the player
+  (section 10).
+
+### 6.2 ZIL
+
+- **The room** is the object whose number is in global variable 0, provided it is a room
+  (section 3.2 rule 4). The Z-machine requires a version 3 game to keep the location
+  there for its status line (Standard §8.2.2). If global 0 holds anything else, the
+  answer is `no-player`: this is so before the game's start-up code has run.
+- **`holder`** needs the player, found by the rule of section 7.2. It is the player's
+  parent when that is not the room, and is unknown for the reason the player is.
+  The room is exact either way.
+- **`lit`** is `unknown`. ZIL's compiler numbers attributes game by game, and nothing in
+  a story file says which attribute or variable means light.
+
+### 6.3 How the answer relates to what the game prints
+
+An implementation can be checked against the game's own text without reading the value
+the query reads. When a game prints a room's name as a heading, it is the `name` of the
+reported room. When the reported room changes, the game prints the new room's name on a
+line of its own, except in three cases:
+
+- the room is dark, and the game says so in place of the name;
+- the player is in a vehicle, and the heading is the name followed by `, in the` and the
+  vehicle;
+- the old room and the new share a printed name, and the game treats them as one place.
 
 ## 7. `inventory`
 
-What the player carries.
+What the player carries. **Exact** for a recognised family, given the player.
+
+The answer is a list, in the tree's order, of the player's children. Each entry has:
+
+| Field | Value |
+| --- | --- |
+| `object` | The object's number |
+| `name` | Its printed name; a part that may be unknown |
+| `worn` | `yes`, `no` or `unknown` |
+| `contents` | The same, for the object's own children |
+
+Contents are listed whether or not the game would show them: whether a carried container
+is open is a matter for `scope` (section 9). An empty list means the player carries
+nothing, which is not the same as the inventory being unknown.
+
+### 7.1 Inform 6
+
+The player is `(self object)`. The answer is unknown exactly when `location` is (section
+6.1), for the same reason. `worn` is `yes` when the object has attribute 26.
+
+### 7.2 ZIL
+
+ZIL keeps the player's object number in a variable whose position differs from game to
+game, so the player is found by elimination:
+
+1. Take the objects that, in the story file as shipped, have no parent and no children.
+   A ZIL game creates its player unplaced and moves it into the first room at start-up.
+2. Of those, keep each that is now inside the room of section 6.2: following its
+   `parent` reaches the room before reaching an object with no parent or another object
+   of step 1.
+3. Of those, keep each whose number is held by at least one global variable other than
+   variable 0.
+
+If exactly one object remains, it is the player. If none, the answer is `no-player`. If
+more than one, it is `ambiguous-player`: **a tie is never broken.** Other objects that a
+game creates unplaced (things made or revealed during play) can lie in the room while a
+parser variable holds their number, and then tie with the player.
+
+`worn` is `unknown`.
+
+In the reference implementation's tests, a complete game of Zork I has 332 command
+prompts; the inventory is `ambiguous-player` at 6 of them and agrees with the game's own
+listing at every other.
 
 ## 8. `exits`
 
@@ -247,7 +335,21 @@ The objects the player could plausibly act on. Always approximate.
 
 ## 10. Known limits
 
-Where an implementation following this specification can be wrong or unable to answer.
+Where an implementation following this specification can be wrong, or cannot answer.
+
+### 10.1 A change of player in an Inform 6 game
+
+The library lets a game make another object the player. Its `player` variable has no
+value in the story file as shipped, so this specification cannot locate it as it locates
+`location`, and takes the player to be `(self object)`.
+
+The second check of section 6.1 answers `inconsistent` when no variable holds the number
+of `(self object)`, which is so after most changes of player. It does not catch a change
+where some other variable still holds that number and the two objects are in the same
+room. `inventory`, `holder` and the carried part of `scope` are then those of
+`(self object)`, and are labelled exact. **This is the one place where an answer
+labelled exact can be wrong.** It is to be closed before version 1 of this
+specification.
 
 ## 11. Versioning
 

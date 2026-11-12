@@ -234,12 +234,25 @@ pub fn expectations(relative: &str) -> Vec<Expectation> {
             continue;
         }
         if let Some(rest) = line.strip_prefix("at line ") {
-            let (at, room) = rest.split_once(" | ").unwrap_or_else(|| panic!("{relative}:{}: {raw:?}", number + 1));
-            entries.push(Expectation { line: at.trim().parse().unwrap(), room: room.trim().to_string(), items: vec![] });
+            let (at, room) = rest
+                .split_once(" | ")
+                .unwrap_or_else(|| panic!("{relative}:{}: {raw:?}", number + 1));
+            entries.push(Expectation {
+                line: at.trim().parse().unwrap(),
+                room: room.trim().to_string(),
+                items: vec![],
+            });
         } else {
-            let (key, value) = line.trim().split_once(':').unwrap_or_else(|| panic!("{relative}:{}: {raw:?}", number + 1));
-            let entry = entries.last_mut().unwrap_or_else(|| panic!("{relative}:{}: no entry yet", number + 1));
-            entry.items.push((key.trim().to_string(), value.trim().to_string()));
+            let (key, value) = line
+                .trim()
+                .split_once(':')
+                .unwrap_or_else(|| panic!("{relative}:{}: {raw:?}", number + 1));
+            let entry = entries
+                .last_mut()
+                .unwrap_or_else(|| panic!("{relative}:{}: no entry yet", number + 1));
+            entry
+                .items
+                .push((key.trim().to_string(), value.trim().to_string()));
         }
     }
     entries
@@ -275,10 +288,14 @@ pub struct LocationReport {
 /// SC-002, FR-037: at every command prompt the location is known and agrees with
 /// the game, by checks that do not read what the query reads. `says_dark` tells
 /// whether the game's reply or the answer says the room is dark.
-pub fn check_locations(game: Game, exits_file: &str, says_dark: impl Fn(&Stop, &Location) -> bool) -> LocationReport {
+pub fn check_locations(
+    game: Game,
+    exits_file: &str,
+    says_dark: impl Fn(&Stop, &Location) -> bool,
+) -> LocationReport {
     let rooms = known_room_names(exits_file);
     let mut report = LocationReport::default();
-    let mut previous: Option<u16> = None;
+    let mut previous: Option<(u16, String)> = None;
     walk(game, |machine, stop| {
         if !stop.command_prompt {
             return;
@@ -293,7 +310,9 @@ pub fn check_locations(game: Game, exits_file: &str, says_dark: impl Fn(&Stop, &
         let location = match answer.value {
             Ok(location) => location,
             Err(reason) => {
-                report.problems.push(format!("{here}: location unknown: {reason:?}"));
+                report
+                    .problems
+                    .push(format!("{here}: location unknown: {reason:?}"));
                 return;
             }
         };
@@ -309,26 +328,47 @@ pub fn check_locations(game: Game, exits_file: &str, says_dark: impl Fn(&Stop, &
         if rooms.contains(heading) {
             report.headings += 1;
             if heading != name {
-                report.problems.push(format!("{here}: the game says {heading:?}, the answer {name:?}"));
+                report.problems.push(format!(
+                    "{here}: the game says {heading:?}, the answer {name:?}"
+                ));
             }
         }
-        // A change of room is announced: the game prints its name, or says it is dark.
-        if previous.is_some_and(|room| room != location.room) {
+        // A change of room is announced: the game prints the room's name on a line
+        // of its own (followed by ", in the <vehicle>" when the player is in one),
+        // or says it is dark. Two rooms that share a printed name are one place to
+        // the player, and a move between them need not be announced.
+        if previous
+            .as_ref()
+            .is_some_and(|(room, was)| *room != location.room && *was != name)
+        {
             report.changes += 1;
-            let announced = stop.text.lines().any(|l| l.trim() == name);
+            let in_vehicle = format!("{name}, in the ");
+            let announced = stop
+                .text
+                .lines()
+                .any(|l| l.trim() == name || l.trim().starts_with(&in_vehicle));
             if !announced && !says_dark(stop, &location) {
-                report.problems.push(format!("{here}: moved to {name:?} unannounced: {:?}", first_line(&stop.text)));
+                report.problems.push(format!(
+                    "{here}: moved to {name:?} unannounced: {:?}",
+                    first_line(&stop.text)
+                ));
             }
         }
         // Versions 5 and 8: the status row the library draws from its own variable.
         if game.name != "zork1" {
             let row = stop.status_row.trim_start();
-            let expected = if location.lit == Tri::No { "Darkness" } else { name.as_str() };
+            let expected = if location.lit == Tri::No {
+                "Darkness"
+            } else {
+                name.as_str()
+            };
             if !row.starts_with(expected) {
-                report.problems.push(format!("{here}: the status row is {row:?}, the answer {expected:?}"));
+                report.problems.push(format!(
+                    "{here}: the status row is {row:?}, the answer {expected:?}"
+                ));
             }
         }
-        previous = Some(location.room);
+        previous = Some((location.room, name));
     });
     report
 }
@@ -364,6 +404,11 @@ pub fn check_inventories(game: Game, heading: &str) -> InventoryReport {
         }
         report.prompts += 1;
         let reply = ask(machine, game.inventory);
+        // Only the listing itself: the copy's turn may go on to other things.
+        let reply = match reply.split_once("\n\n") {
+            Some((listing, _)) => listing.to_string(),
+            None => reply,
+        };
         let listing = reply.starts_with(heading);
         if !listing && reply != game.empty_handed {
             report.not_an_inventory.push(stop.number);
@@ -384,28 +429,43 @@ pub fn check_inventories(game: Game, heading: &str) -> InventoryReport {
         if carried.is_empty() || !listing {
             report.empty += 1;
             if !(carried.is_empty() && !listing) {
-                report.problems.push(format!("{here}: answer {carried:?} against reply {reply:?}"));
+                report.problems.push(format!(
+                    "{here}: answer {carried:?} against reply {reply:?}"
+                ));
             }
             return;
         }
         let mut all = Vec::new();
         flatten(&carried, &mut all);
         let names: Vec<String> = all.iter().filter_map(|c| c.name.clone().ok()).collect();
-        // Everything the game lists is something reported.
-        for line in reply.lines().skip(1) {
+        // Everything the game lists is something reported. The listing is the
+        // run of indented lines under the heading; whatever follows it is what
+        // else happened on the copy's turn, which is not the inventory.
+        for line in reply
+            .lines()
+            .skip(1)
+            .take_while(|l| l.starts_with("  ") || l.ends_with("contains:"))
+        {
             let item = line.trim();
-            if !line.starts_with("  ") || item.ends_with(':') {
+            if item.ends_with(':') {
                 continue;
             }
-            if !names.iter().any(|n| !n.is_empty() && item.contains(n.as_str())) {
-                report.problems.push(format!("{here}: the game lists {item:?}, not among {names:?}"));
+            if !names
+                .iter()
+                .any(|n| !n.is_empty() && item.contains(n.as_str()))
+            {
+                report.problems.push(format!(
+                    "{here}: the game lists {item:?}, not among {names:?}"
+                ));
             }
         }
         // Everything reported as carried directly is something the game lists.
         for item in &carried {
             match &item.name {
                 Ok(name) if reply.contains(name.as_str()) => {}
-                Ok(name) => report.problems.push(format!("{here}: {name:?} is reported but not in {reply:?}")),
+                Ok(name) => report
+                    .problems
+                    .push(format!("{here}: {name:?} is reported but not in {reply:?}")),
                 Err(_) => {}
             }
         }

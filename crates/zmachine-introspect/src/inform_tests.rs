@@ -49,7 +49,10 @@ fn a_player_with_no_parent_is_no_player() {
     // Before the game has run at all the player is not yet placed.
     let fresh = Machine::load(Inform::new().build(), crate::fixtures::OPTIONS).unwrap();
     let view = fresh.view();
-    assert_eq!(introspect(&fresh).location(&view).value.err(), Some(Unknown::NoPlayer));
+    assert_eq!(
+        introspect(&fresh).location(&view).value.err(),
+        Some(Unknown::NoPlayer)
+    );
 }
 
 // I§6: the library's `location` variable must hold the room found from the tree,
@@ -89,14 +92,26 @@ fn no_variable_holding_the_player_is_inconsistent() {
 // name when the object has no `short_name`; unknown when it holds a routine.
 #[test]
 fn printed_names_follow_short_name() {
-    let m = after(vec![insert(inf::PLAYER, inf::MAZE), set_global(inf::LOCATION, inf::MAZE)]);
+    let m = after(vec![
+        insert(inf::PLAYER, inf::MAZE),
+        set_global(inf::LOCATION, inf::MAZE),
+    ]);
     let view = m.view();
     let i = introspect(&m);
-    assert_eq!(i.location(&view).value.unwrap().name, Ok("Maze".to_string()));
+    assert_eq!(
+        i.location(&view).value.unwrap().name,
+        Ok("Maze".to_string())
+    );
     let tree = i.object_tree(&view).value.unwrap();
     let maze = &tree[inf::MAZE as usize - 1];
-    assert_eq!((maze.name.as_str(), maze.printed_name.as_deref()), ("(Maze_1)", Ok("Maze")));
-    assert_eq!(tree[inf::KITCHEN as usize - 1].printed_name.as_deref(), Ok("Kitchen"));
+    assert_eq!(
+        (maze.name.as_str(), maze.printed_name.as_deref()),
+        ("(Maze_1)", Ok("Maze"))
+    );
+    assert_eq!(
+        tree[inf::KITCHEN as usize - 1].printed_name.as_deref(),
+        Ok("Kitchen")
+    );
 
     let mut f = Inform::new();
     f.late(inf::KITCHEN, 46, Late::Routine(0));
@@ -115,7 +130,12 @@ fn inventory_is_the_players_children() {
     let view = m.view();
     assert_eq!(introspect(&m).inventory(&view).value, Ok(vec![]));
 
-    let m = after(vec![insert(inf::LAMP, inf::PLAYER), insert(inf::BOX, inf::PLAYER), insert(inf::HAT, inf::PLAYER), set_attr(inf::HAT, 26)]);
+    let m = after(vec![
+        insert(inf::LAMP, inf::PLAYER),
+        insert(inf::BOX, inf::PLAYER),
+        insert(inf::HAT, inf::PLAYER),
+        set_attr(inf::HAT, 26),
+    ]);
     let view = m.view();
     let answer = introspect(&m).inventory(&view);
     assert_eq!(answer.exactness, crate::Exactness::Exact);

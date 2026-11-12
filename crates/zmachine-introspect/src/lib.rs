@@ -13,7 +13,7 @@ mod zil;
 
 pub use answer::{Answer, Exactness, Part, Tri, Unknown};
 
-use family::Adapter;
+use family::{Adapter, Place};
 use table::{Bytes, Layout};
 use zmachine_core::View;
 
@@ -310,12 +310,30 @@ impl Introspector {
         matches!(self.adapter, Adapter::None).then_some(Unknown::UnrecognisedFamily)
     }
 
+    /// Where the player is, by the family's rules.
+    fn place(&self, b: Bytes) -> Part<Place> {
+        match &self.adapter {
+            Adapter::Inform(inform) => inform.place(&self.layout, b),
+            Adapter::Zil(zil) => zil.place(&self.layout, b),
+            Adapter::None => Err(Unknown::UnrecognisedFamily),
+        }
+    }
+
     /// The room the player is in (specification section 6).
     pub fn location(&self, view: &View<'_>) -> Answer<Location> {
         if let Some(reason) = self.refusal(view) {
             return Answer::unknown(reason, Exactness::Exact);
         }
-        Answer::unknown(Unknown::Damaged, Exactness::Exact)
+        let b = Bytes::now(view);
+        match self.place(b) {
+            Ok(place) => Answer::exact(Location {
+                room: place.room,
+                name: self.printed_name(b, place.room),
+                holder: place.holder,
+                lit: place.lit,
+            }),
+            Err(reason) => Answer::unknown(reason, Exactness::Exact),
+        }
     }
 
     /// What the player carries (specification section 7).
@@ -323,13 +341,55 @@ impl Introspector {
         if let Some(reason) = self.refusal(view) {
             return Answer::unknown(reason, Exactness::Exact);
         }
-        Answer::unknown(Unknown::Damaged, Exactness::Exact)
+        let b = Bytes::now(view);
+        let carried = self
+            .place(b)
+            .and_then(|place| place.player)
+            .and_then(|player| {
+                // No tree holds more objects than exist; the budget stops a loop.
+                let mut budget = self.layout.last_object as usize;
+                self.carried(b, player, &mut budget)
+            });
+        match carried {
+            Ok(carried) => Answer::exact(carried),
+            Err(reason) => Answer::unknown(reason, Exactness::Exact),
+        }
+    }
+
+    /// The children of an object, each with its own, as things carried.
+    fn carried(&self, b: Bytes, holder: u16, budget: &mut usize) -> Part<Vec<Carried>> {
+        let mut out = Vec::new();
+        for object in self.children(b, holder)? {
+            *budget = budget.checked_sub(1).ok_or(Unknown::Damaged)?;
+            out.push(Carried {
+                object,
+                name: self.printed_name(b, object),
+                worn: self.attribute(b, object, inform::attribute::WORN),
+                contents: self.carried(b, object, budget)?,
+            });
+        }
+        Ok(out)
+    }
+
+    /// An attribute whose number the Inform library fixes; unknown in a family
+    /// that numbers its attributes game by game.
+    fn attribute(&self, b: Bytes, object: u16, attribute: u8) -> Tri {
+        match &self.adapter {
+            Adapter::Inform(_) => self
+                .layout
+                .has_attribute(b, object, attribute)
+                .map_or(Tri::Unknown, Tri::from_bool),
+            _ => Tri::Unknown,
+        }
     }
 
     /// The directions that lead out of the player's location (specification
     /// section 8).
     pub fn exits(&self, view: &View<'_>) -> Answer<Exits> {
         if let Some(reason) = self.refusal(view) {
+            return Answer::unknown(reason, Exactness::Exact);
+        }
+        if let Err(reason) = self.place(Bytes::now(view)) {
             return Answer::unknown(reason, Exactness::Exact);
         }
         Answer::unknown(Unknown::Damaged, Exactness::Exact)
@@ -339,6 +399,9 @@ impl Introspector {
     /// Always approximate.
     pub fn scope(&self, view: &View<'_>) -> Answer<Scope> {
         if let Some(reason) = self.refusal(view) {
+            return Answer::unknown(reason, Exactness::Approximate);
+        }
+        if let Err(reason) = self.place(Bytes::now(view)) {
             return Answer::unknown(reason, Exactness::Approximate);
         }
         Answer::unknown(Unknown::Damaged, Exactness::Approximate)
@@ -387,7 +450,10 @@ impl Introspector {
 
     /// What the game prints for an object.
     pub(crate) fn printed_name(&self, b: Bytes, number: u16) -> Part<String> {
-        self.layout.name(b, number).ok_or(Unknown::Damaged)
+        match &self.adapter {
+            Adapter::Inform(inform) => inform.printed_name(&self.layout, b, number),
+            _ => self.layout.name(b, number).ok_or(Unknown::Damaged),
+        }
     }
 
     /// Every word of the main dictionary, in its order (specification section 5).

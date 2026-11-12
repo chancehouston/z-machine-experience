@@ -1,7 +1,8 @@
 //! The adapter for Infocom's ZIL (specification section 3.2).
 
-use crate::family::has_inform_stamp;
+use crate::family::{Place, has_inform_stamp};
 use crate::table::{Bytes, Layout};
+use crate::{Part, Tri, Unknown};
 
 /// The first data byte of a dictionary entry: the parts of speech.
 pub(crate) mod flag {
@@ -120,5 +121,60 @@ impl Zil {
             directions,
             unplaced,
         })
+    }
+}
+
+impl Zil {
+    /// The room the player is in: the object in global 0, which must be a room
+    /// (specification section 6).
+    pub fn place(&self, layout: &Layout, b: Bytes) -> Part<Place> {
+        let room = layout.global(b, 0).ok_or(Unknown::Damaged)?;
+        match layout.object(b, room) {
+            Some(node) if node.parent == self.rooms => {}
+            _ => return Err(Unknown::NoPlayer),
+        }
+        let player = self.player(layout, b, room);
+        let holder = player.and_then(|player| {
+            let parent = layout.object(b, player).ok_or(Unknown::Damaged)?.parent;
+            Ok((parent != room).then_some(parent))
+        });
+        Ok(Place {
+            room,
+            player,
+            holder,
+            lit: Tri::Unknown,
+        })
+    }
+
+    /// The player: among the objects unplaced as shipped, those now inside the
+    /// room and not inside another of them; of those, the one whose number some
+    /// variable other than global 0 holds. A tie is not broken (specification
+    /// section 7).
+    fn player(&self, layout: &Layout, b: Bytes, room: u16) -> Part<u16> {
+        let mut candidates = Vec::new();
+        'candidate: for &object in &self.unplaced {
+            let mut at = object;
+            for _ in 0..=layout.last_object {
+                let parent = layout.object(b, at).ok_or(Unknown::Damaged)?.parent;
+                if parent == room {
+                    candidates.push(object);
+                    continue 'candidate;
+                }
+                // Not placed, or inside another candidate.
+                if parent == 0 || self.unplaced.contains(&parent) {
+                    continue 'candidate;
+                }
+                at = parent;
+            }
+        }
+        let held: Vec<u16> = candidates
+            .into_iter()
+            .filter(|&object| (1..240).any(|i| layout.global(b, i) == Some(object)))
+            .collect();
+        match held.as_slice() {
+            [player] => Ok(*player),
+            [] => Err(Unknown::NoPlayer),
+            _ => Err(Unknown::AmbiguousPlayer),
+        }
     }
 }

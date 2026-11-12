@@ -3,8 +3,9 @@
 //! The numbers below are fixed by the order in which the library declares its
 //! attributes and properties; recognition checks that the story file agrees.
 
-use crate::family::has_inform_stamp;
+use crate::family::{Place, has_inform_stamp};
 use crate::table::{Bytes, Layout};
+use crate::{Part, Tri, Unknown};
 
 pub(crate) mod attribute {
     pub const ANIMATE: u8 = 0;
@@ -227,4 +228,100 @@ fn code_and_string_bounds(layout: &Layout, b: Bytes) -> (Option<u16>, Option<u16
         }
     }
     (strings_from, routines_to)
+}
+
+/// What a two-byte property value is.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum Value {
+    Zero,
+    Object(u16),
+    Routine,
+    Text,
+    NotDeterminable,
+}
+
+impl Inform {
+    /// Classifies a two-byte property value (specification section 3.1).
+    pub fn classify(&self, layout: &Layout, value: u16) -> Value {
+        if value == 0 {
+            return Value::Zero;
+        }
+        if value <= layout.last_object {
+            return Value::Object(value);
+        }
+        match (self.routines_to, self.strings_from) {
+            (Some(routines), Some(strings)) if strings > routines => {
+                if value >= strings {
+                    Value::Text
+                } else if value <= routines {
+                    Value::Routine
+                } else {
+                    Value::NotDeterminable
+                }
+            }
+            _ => Value::NotDeterminable,
+        }
+    }
+
+    /// What the game prints for an object: its `short_name` string if it has one.
+    pub fn printed_name(&self, layout: &Layout, b: Bytes, number: u16) -> Part<String> {
+        let Some(short) = layout
+            .property(b, number, property::SHORT_NAME)
+            .ok_or(Unknown::Damaged)?
+        else {
+            return layout.name(b, number).ok_or(Unknown::Damaged);
+        };
+        if short.len != 2 {
+            return Err(Unknown::NotDeterminable);
+        }
+        let value = b.word(short.at).ok_or(Unknown::Damaged)?;
+        match self.classify(layout, value) {
+            Value::Text => layout.text(b, layout.unpack(value)).ok_or(Unknown::Damaged),
+            Value::Zero => layout.name(b, number).ok_or(Unknown::Damaged),
+            _ => Err(Unknown::NotDeterminable),
+        }
+    }
+
+    /// The room the player is in, what holds the player within it, and whether
+    /// the room is lit (specification section 6).
+    pub fn place(&self, layout: &Layout, b: Bytes) -> Part<Place> {
+        let mut at = self.player;
+        let mut holder = None;
+        // The chain of parents is no longer than the number of objects.
+        for _ in 0..=layout.last_object {
+            let parent = layout.object(b, at).ok_or(Unknown::Damaged)?.parent;
+            if parent == 0 {
+                break;
+            }
+            if at == self.player {
+                holder = Some(parent);
+            }
+            at = parent;
+        }
+        if at == self.player {
+            return Err(Unknown::NoPlayer);
+        }
+        if layout.object(b, at).ok_or(Unknown::Damaged)?.parent != 0 {
+            return Err(Unknown::Damaged);
+        }
+        let room = at;
+        // The library's own record of the location must agree, or be darkness.
+        let variable = layout
+            .global(b, self.location_global)
+            .ok_or(Unknown::Damaged)?;
+        if variable != room && variable != self.darkness {
+            return Err(Unknown::Inconsistent);
+        }
+        // If no variable holds the player, the game has made another object the
+        // player.
+        if !(0..240).any(|i| layout.global(b, i) == Some(self.player)) {
+            return Err(Unknown::Inconsistent);
+        }
+        Ok(Place {
+            room,
+            player: Ok(self.player),
+            holder: Ok(holder.filter(|&h| h != room)),
+            lit: Tri::from_bool(variable != self.darkness),
+        })
+    }
 }
