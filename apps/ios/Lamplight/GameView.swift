@@ -55,6 +55,18 @@ struct GameView: View {
         switch showing.waiting {
         case .command, .answer:
             HStack(spacing: 8) {
+                // Beside the field rather than on the keyboard's own bar: there
+                // the system floats it over the send button.
+                if typing {
+                    Button {
+                        typing = false
+                    } label: {
+                        Image(systemName: "keyboard.chevron.compact.down")
+                            .font(.title3)
+                    }
+                    .accessibilityLabel("Show compass")
+                    .accessibilityIdentifier("button.compass")
+                }
                 TextField(
                     showing.waiting == .command ? "Type a command" : "Type your answer",
                     text: $line
@@ -66,17 +78,6 @@ struct GameView: View {
                 .onSubmit(send)
                 .textFieldStyle(.roundedBorder)
                 .accessibilityIdentifier("field.command")
-                .toolbar {
-                    ToolbarItemGroup(placement: .keyboard) {
-                        Spacer()
-                        Button {
-                            typing = false
-                        } label: {
-                            Label("Show compass", systemImage: "keyboard.chevron.compact.down")
-                        }
-                        .accessibilityIdentifier("button.compass")
-                    }
-                }
                 Button(action: send) {
                     Image(systemName: "arrow.up.circle.fill")
                         .font(.title)

@@ -18,8 +18,9 @@ on the screen and how each state looks.
 
 **With the keyboard showing**, the compass is hidden and the transcript and field take
 its room; the field sits directly above the keyboard and the newest text directly above
-the field (FR-019). A button on the keyboard's bar puts the keyboard away and brings the
-compass back. Sending a line does not put the keyboard away.
+the field (FR-019). A button beside the field puts the keyboard away and brings the
+compass back. (It was first put on the keyboard's own bar; on iOS 26 the system floats
+that bar's buttons over the send button.) Sending a line does not put the keyboard away.
 
 **At large text sizes** the transcript, the status and the labels of extras grow with
 the system setting. The twelve compass controls are symbols in targets of a fixed size,
@@ -84,8 +85,9 @@ The app composes no command. The only text it sends is what the player typed (SC
 ## For automated tests
 
 Accessibility identifiers: `compass.north` … `compass.out`, `compass.extra.0` …,
-`compass.note`, `field.command`, `button.send`, `button.newGame`, `button.about`,
-`status.place`, `status.score`, `status.moves`, `transcript`, and for each turn
+`compass.note`, `field.command`, `button.send`, `button.compass` (shown with the
+keyboard), `button.newGame`, `button.about`, `about.demonstration`, `about.license`,
+`status.place`, `status.score`, `status.moves`, `status.time`, `transcript`, and for each turn
 `turn.N.text` and `turn.N.command` (the command that led to turn N). Each compass
 control's accessibility value is its state word, and its label is the spoken text.
 
@@ -98,6 +100,11 @@ Launch arguments:
 | `-showLaunchTime` | Adds an element `debug.launchMillis` whose label is the time in milliseconds from the start of the process to the first snapshot being shown |
 
 The system's own argument for content size is used to test large text.
+
+Debug builds only: when the environment variable `LAMPLIGHT_FIXTURE_SNAPSHOT` holds a
+snapshot's JSON, the app draws it in place of starting a game, and sends nothing. It
+exists to test how states are drawn that the bundled game reaches late or never: extras
+and unknown exits.
 
 ## About
 

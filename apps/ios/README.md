@@ -12,8 +12,8 @@ committed:
 | Generated | From |
 | --- | --- |
 | `Frameworks/ZMX.xcframework` | `crates/zmachine-ffi`, built for the simulator and for a device |
-| `Lamplight/Resources/story.z3` | `stories/zork1/zork1.z3`, after checking its digest |
-| `Lamplight/Resources/story-license.txt` | `stories/zork1/LICENSE` |
+| `Lamplight/Resources/story.z3` | The story file the script names, after checking its digest against its source record |
+| `Lamplight/Resources/story-license.txt` | That story's source and license, from the same folder |
 | `Lamplight.xcodeproj` | `project.yml`, by XcodeGen |
 
 ## Needs

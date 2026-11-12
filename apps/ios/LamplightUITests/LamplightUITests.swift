@@ -486,4 +486,44 @@ final class LamplightUITests: XCTestCase {
         }
         XCTAssertEqual(element(app, "compass.north").label, "North, to North of House")
     }
+
+    /// Not a test: saves pictures of the states whose look no test can judge.
+    /// Runs only when TEST_RUNNER_SHOTS names a folder to save them in, with
+    /// TEST_RUNNER_SHOTS_SUFFIX ("light" or "dark") in each file's name.
+    @MainActor
+    func testScreenshots() throws {
+        let environment = ProcessInfo.processInfo.environment
+        guard let folder = environment["SHOTS"] else {
+            throw XCTSkip("no folder for screenshots was given")
+        }
+        let suffix = environment["SHOTS_SUFFIX"] ?? "light"
+        func save(_ name: String) throws {
+            let url = URL(fileURLWithPath: folder).appendingPathComponent("\(name)-\(suffix).png")
+            try XCUIScreen.main.screenshot().pngRepresentation.write(to: url)
+        }
+        let app = launch()
+        _ = turn(app, 0)
+        try save("opening")
+        element(app, "compass.north").tap()
+        waitForPlace(app, "North of House")
+        element(app, "compass.east").tap()
+        waitForPlace(app, "Behind House")
+        try save("behind-house")
+        type(app, "open window")
+        _ = turn(app, 3)
+        try save("keyboard")
+        type(app, "quit")
+        _ = turn(app, 4)
+        element(app, "button.compass").tap()
+        try save("question")
+        type(app, "y")
+        XCTAssertTrue(element(app, "button.newGame").waitForExistence(timeout: 5))
+        try save("ended")
+        app.terminate()
+        let unknown = launch(drawing: handMade(
+            state: "unknown", spokenTail: "unknown", known: false,
+            note: "Exits unknown: type a direction"))
+        _ = turn(unknown, 0)
+        try save("unknown-exits")
+    }
 }
