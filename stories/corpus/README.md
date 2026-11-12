@@ -36,7 +36,7 @@ makes a place before the crawl starts.
 | File | Holds |
 | --- | --- |
 | `manifest.txt` | Each story: its SHA-256, size, source, license standing, whether it is committed or fetched |
-| `ledger.txt` | Each known wrong report, by story, room and direction, with its cause |
+| `ledger.txt` | Each known wrong report, by story, room and direction, with its cause; and each known difference between what is seen of the inventory and what the game lists |
 | `reports/<id>.txt` | One story's figures, and each case that was not confirmed |
 | `reports/summary.txt` | One line for each story, each family, and all |
 | `reports/nopack/<id>.txt` | For a story that has a game pack: its figures with packs set aside |
@@ -94,6 +94,7 @@ A game pack states facts about one story file that no rule of its family can rea
 | --- | --- | --- |
 | `zork1` | attribute 11 means open | 58 trials of doors: 52 open and 6 closed, all confirmed |
 | `zork1` | variables 99 and 136 are untrusted | each has a report that is wrong without it |
+| `zork1` | attribute 12 means see-through | the game's own inventory listing, below |
 | `minizork` | attribute 10 means open | 6 trials of doors: 4 open and 2 closed, all confirmed |
 
 `corpus run` proves every entry, and fails on one that is contradicted, not proven or
@@ -114,6 +115,34 @@ The 24 are a cost as well as a gain: 5 of those trials were wrong before, and 19
 right, 6 of them in a third room that the same variable guards and that was never
 wrong. The project owner chose to keep both entries: the stored value cannot be relied
 on, wherever it is read.
+
+## The inventory, set against the game's own listing
+
+Feature 007 (`specs/007-inventory-panel/`) added a second measure. Where the manifest
+gives a story's inventory command, a throwaway copy of the game is asked for its
+inventory at every place, and each thing the player carries, at any depth, is compared:
+the interface says it is seen or kept back; the game's reply names it or does not. The
+reply is read only for those names and is not kept. A difference with no cause in the
+ledger fails the run.
+
+On Zork I, over its walkthrough, the crawl and one short aside:
+
+| | With the pack | With packs set aside |
+| --- | --- | --- |
+| Objects compared | 1,523 | 1,521 |
+| Agreed | 1,523 | 1,463 |
+| Differed | 0 | 0 |
+| Not judged (the interface could not say) | 0 | 58 |
+
+So "open" as the pack states it for doors is right for containers too, across the whole
+game. "See-through" could not be proven on the walkthrough, which never carries a
+closed thing that can be seen through with something in it; the manifest gives Zork I
+an aside, five commands that do. With it, attribute 12 is proven and a pack naming any
+of the other 31 is contradicted.
+
+The same five commands were tried on Mini-Zork. They carry one such thing, and four of
+its attributes fit the game's listing equally, with nothing else carried to tell them
+apart. One object cannot single out a fact, so Mini-Zork has no see-through entry.
 
 Mini-Zork's story file is fetched, so its pack is proven only where the file is present;
 elsewhere its test is reported as "ignored, story absent". Its doors are reached closed

@@ -459,7 +459,7 @@ impl Introspector {
             .and_then(|player| {
                 // No tree holds more objects than exist; the budget stops a loop.
                 let mut budget = self.layout.last_object as usize;
-                self.carried(b, player, Tri::Yes, &mut budget)
+                self.carried(b, player, Tri::Yes, true, &mut budget)
             });
         match carried {
             Ok(carried) => Answer::exact(carried),
@@ -469,26 +469,36 @@ impl Introspector {
 
     /// The children of an object, each with its own, as things carried, with
     /// their marks (specification section 7). `seen` is whether what `holder`
-    /// holds is seen.
-    fn carried(&self, b: Bytes, holder: u16, seen: Tri, budget: &mut usize) -> Part<Vec<Carried>> {
+    /// holds is seen, and `top` whether `holder` is the player.
+    fn carried(
+        &self,
+        b: Bytes,
+        holder: u16,
+        seen: Tri,
+        top: bool,
+        budget: &mut usize,
+    ) -> Part<Vec<Carried>> {
+        let zil = matches!(self.adapter, Adapter::Zil(_));
         let mut out = Vec::new();
         for object in self.children(b, holder)? {
             *budget = budget.checked_sub(1).ok_or(Unknown::Damaged)?;
             let holds = !self.children(b, object)?.is_empty();
-            let (state, lets_see) = self.container(b, object);
-            let within = match (seen, lets_see) {
-                (Tri::Yes, Tri::Yes) => Tri::Yes,
-                (Tri::No, _) | (_, Tri::No) => Tri::No,
-                _ => Tri::Unknown,
+            let (state, within) = if holds {
+                let (state, lets_see) = self.container(b, object);
+                let within = match (seen, lets_see) {
+                    (Tri::Yes, Tri::Yes) => Tri::Yes,
+                    (Tri::No, _) | (_, Tri::No) => Tri::No,
+                    _ => Tri::Unknown,
+                };
+                (state, within)
+            } else {
+                (None, Tri::Unknown)
             };
-            let state = if holds { state } else { None };
             // What the answer would be with no pack: for ZIL, a state that is
             // unknown and, inside anything, a seeing that is unknown.
-            let zil = matches!(self.adapter, Adapter::Zil(_));
-            let nested = holder != self.player_of(b).unwrap_or(0);
             let changed = zil
                 && (state.is_some_and(|s| s != ContainerState::Unknown)
-                    || (nested && seen != Tri::Unknown));
+                    || (!top && seen != Tri::Unknown));
             out.push(Carried {
                 object,
                 name: self.printed_name(b, object),
@@ -496,15 +506,14 @@ impl Introspector {
                 state,
                 seen,
                 source: if changed { Source::Pack } else { Source::File },
-                contents: self.carried(b, object, within, budget)?,
+                contents: if holds {
+                    self.carried(b, object, within, false, budget)?
+                } else {
+                    Vec::new()
+                },
             });
         }
         Ok(out)
-    }
-
-    /// The player's object number, where it can be told.
-    fn player_of(&self, b: Bytes) -> Option<u16> {
-        self.place(b).ok().and_then(|place| place.player.ok())
     }
 
     /// For an object that may hold things: its state, and whether what it holds
