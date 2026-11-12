@@ -2,7 +2,7 @@
 //! (specs/005-corpus-testing/spec.md FR-006; data-model.md "Verdict").
 
 use crate::trial::Outcome;
-use zmachine_introspect::{Exits, Unknown};
+use zmachine_introspect::{ExitKind, Exits, Unknown};
 
 /// What introspection said of one direction at one place.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -24,11 +24,36 @@ pub enum Verdict {
     NoVerdict,
 }
 
-/// What was reported for `direction`, from the answer to the exits query.
-pub fn reported(_exits: &Result<Exits, Unknown>, _direction: u8) -> Reported {
-    Reported::Unknown
+/// What was reported for `direction`, from the answer to the exits query. A
+/// direction the answer does not mention is not an exit; where the whole answer
+/// is unknown, every direction is.
+pub fn reported(exits: &Result<Exits, Unknown>, direction: u8) -> Reported {
+    let Ok(exits) = exits else {
+        return Reported::Unknown;
+    };
+    if let Some(exit) = exits.exits.iter().find(|e| e.direction == direction) {
+        return match (exit.kind, exit.destination) {
+            (ExitKind::Fixed, Some(destination)) => Reported::Fixed(destination),
+            // A fixed exit with no destination claims nothing that can be tried.
+            (ExitKind::Fixed, None) => Reported::Unknown,
+            (ExitKind::Conditional, _) => Reported::Conditional,
+        };
+    }
+    if exits.unknown.iter().any(|u| u.direction == direction) {
+        return Reported::Unknown;
+    }
+    Reported::None
 }
 
-pub fn verdict(_reported: Reported, _outcome: Outcome) -> Verdict {
-    Verdict::NoVerdict
+pub fn verdict(reported: Reported, outcome: Outcome) -> Verdict {
+    match (reported, outcome) {
+        (_, Outcome::Lost) => Verdict::NoVerdict,
+        (Reported::Fixed(said), Outcome::Moved(to)) if said == to => Verdict::Confirmed,
+        (Reported::Fixed(_), _) => Verdict::Wrong,
+        (Reported::None, Outcome::Stayed) => Verdict::Confirmed,
+        (Reported::None, Outcome::Moved(_)) => Verdict::Wrong,
+        (Reported::None, _) => Verdict::NoneOther,
+        (Reported::Conditional, _) => Verdict::Conditional,
+        (Reported::Unknown, _) => Verdict::Unknown,
+    }
 }

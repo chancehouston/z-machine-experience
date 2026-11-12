@@ -119,7 +119,8 @@ impl Toy {
     /// A one-byte exit in the table, and code that honours it.
     pub fn way(&mut self, from: usize, direction: u8, to: usize) -> &mut Self {
         let to = Self::room(to) as u8;
-        self.table(from, direction, vec![to]).does(from, direction, to)
+        self.table(from, direction, vec![to])
+            .does(from, direction, to)
     }
 
     pub fn build(&self) -> Vec<u8> {
@@ -144,10 +145,20 @@ impl Toy {
         let mut container = Object::new("");
         container.child = FIRST;
         story.object(container);
-        for (i, table) in self.tables.iter().enumerate() {
+        // The family is known by its rooms having direction properties. A toy with
+        // none at all is given one that says "not an exit" (two bytes: a message).
+        let mut tables = self.tables.clone();
+        if tables.iter().all(Vec::is_empty) {
+            tables[0].push((DOWN, vec![0, 0]));
+        }
+        for (i, table) in tables.iter().enumerate() {
             let mut room = Object::new(&format!("Room {i}"));
             room.parent = ROOMS;
-            room.sibling = if i + 1 < rooms { FIRST + i as u8 + 1 } else { 0 };
+            room.sibling = if i + 1 < rooms {
+                FIRST + i as u8 + 1
+            } else {
+                0
+            };
             room.props = table.clone();
             story.object(room);
         }
@@ -284,3 +295,41 @@ impl Assembler {
         out
     }
 }
+
+// ---------------------------------------------------------------------------
+// The stories the repository holds a walkthrough for
+// ---------------------------------------------------------------------------
+
+#[derive(Clone, Copy, Debug)]
+pub struct Game {
+    pub name: &'static str,
+    pub story: &'static str,
+    pub walkthrough: &'static str,
+    pub reference: &'static str,
+    pub seed: u32,
+}
+
+/// As feature 003's tests have them (`crates/zmachine-introspect/tests/common`).
+pub const GAMES: [Game; 3] = [
+    Game {
+        name: "zork1",
+        story: "stories/zork1/zork1.z3",
+        walkthrough: "stories/zork1/fidelity/walkthrough.txt",
+        reference: "stories/zork1/fidelity/reference.scr",
+        seed: 11,
+    },
+    Game {
+        name: "advent.z5",
+        story: "stories/advent/advent.z5",
+        walkthrough: "stories/advent/fidelity/walkthrough.txt",
+        reference: "stories/advent/fidelity/reference_z5.scr",
+        seed: 1,
+    },
+    Game {
+        name: "advent.z8",
+        story: "stories/advent/advent.z8",
+        walkthrough: "stories/advent/fidelity/walkthrough.txt",
+        reference: "stories/advent/fidelity/reference_z8.scr",
+        seed: 1,
+    },
+];
