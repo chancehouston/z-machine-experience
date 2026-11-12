@@ -28,7 +28,8 @@ Every query returns an Answer.
 | `damaged` | A table could not be read: a loop, or a number out of range |
 
 Parts of an answer can be unknown on their own: one direction among a room's exits, the
-light in a scope answer, a word's parts of speech.
+light in a scope answer, a word's parts of speech. In every rendering a part that can be
+unknown is either its value or an unknown with a reason; it is never simply left out.
 
 ## Family
 
@@ -41,6 +42,7 @@ introspector is made (research R1, R2).
 | --- | --- | --- |
 | `number` | 1 to the last object | The Z-machine's object number |
 | `name` | text | Its short name as stored; may be empty |
+| `printed_name` | text, or unknown | What the game prints for it. The stored name, except in Inform where a `short_name` string replaces it; unknown where `short_name` is a routine |
 | `parent` | object number or none | |
 | `children` | list of object numbers | In the tree's order |
 | `attributes` | list of numbers | Those that are set |
@@ -55,8 +57,8 @@ unknown; the rest are still given.
 | Field | Type | Notes |
 | --- | --- | --- |
 | `room` | object number | |
-| `name` | text | The room's name |
-| `holder` | object number or none | What the player is in or on, within the room |
+| `name` | text, or unknown | The room's printed name |
+| `holder` | object number, `none`, or unknown | What the player is in or on, within the room. Unknown when the player is (ZIL) |
 | `lit` | `yes`, `no`, `unknown` | Inform: stored. ZIL: unknown |
 
 ## Inventory
@@ -77,7 +79,7 @@ The **exits** answer is a list of exits and a list of directions that are unknow
 | Field | Type | Notes |
 | --- | --- | --- |
 | `direction` | number | The direction's property number; stable within a story file |
-| `words` | list of text | Dictionary words that name it, shortest first |
+| `words` | list of text | Dictionary words that name it, as stored (truncated), shortest first. May be empty |
 | `kind` | `fixed`, `conditional` | |
 | `destination` | object number | Only when `fixed` |
 | `destination_name` | text | Only when `fixed` |
@@ -89,6 +91,7 @@ A direction for which the room stores a refusal is absent from both lists.
 | Field | Type | Notes |
 | --- | --- | --- |
 | `light` | `lit`, `dark`, `unknown` | |
+| `player` | `known`, or unknown with a reason | When unknown, nothing is marked carried, and the objects that tied for the player are left out with what they hold |
 | `objects` | list of scope entries | |
 
 Each entry:
@@ -110,7 +113,7 @@ The player and the room itself are not entries. Exactness is always `approximate
 | Field | Type | Notes |
 | --- | --- | --- |
 | `word` | text | As stored: truncated to 6 characters in version 3, 9 in versions 5 and 8 |
-| `parts` | list of `noun`, `verb`, `adjective`, `direction`, `preposition`, `plural`, `meta`, `buzz`; or unknown | Unknown for an unrecognised family |
+| `parts` | list of `noun`, `verb`, `adjective`, `direction`, `preposition`, `grammar-word`, `plural`, `meta`, `buzz`; or unknown | Unknown for an unrecognised family |
 | `direction` | number or none | For a direction word, its direction number |
 
 ## Introspector

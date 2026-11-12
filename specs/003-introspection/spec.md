@@ -99,8 +99,10 @@ that are in closed opaque containers or in other rooms.
 
 1. **Given** a lit room with objects on the floor, **When** the developer reads the
    objects in scope, **Then** each is listed and the answer is labelled approximate.
-2. **Given** a closed, opaque container in the room, **When** the developer reads the
-   objects in scope, **Then** the container is listed and its contents are not.
+2. **Given** a closed, opaque container in the room, in a family that records whether a
+   container is open, **When** the developer reads the objects in scope, **Then** the
+   container is listed and its contents are not. In a family that does not record it,
+   the contents are listed and marked as of unknown visibility.
 3. **Given** an open container or a surface in the room, **When** the developer reads the
    objects in scope, **Then** what is in or on it is listed.
 4. **Given** the player in darkness, **When** the developer reads the objects in scope,
@@ -122,7 +124,7 @@ they work for every story file. The other queries are built on them, but a host 
 them directly only for debugging and for checking that a command it builds uses words the
 game understands.
 
-**Independent Test**: For each of the four committed story files, the tree read through
+**Independent Test**: For each committed story file, the tree read through
 the interface has the same objects, names and parent-child links as one built from the
 story file by an independent check, and every dictionary word is one the game's parser
 recognises.
@@ -230,7 +232,8 @@ from the document and the story file alone; the predictions match the implementa
 
 - **FR-001**: The interface MUST offer six queries: the object tree, the player's
   location, the player's inventory, the exits from the player's location, the objects in
-  scope, and the dictionary.
+  scope, and the dictionary. The family a story file was recognised as (FR-013) is a
+  fact about the file that goes with every answer, not a seventh query.
 - **FR-002**: No query may alter the game's memory, call stack, random-number state,
   screen, output or any other state of the interpreter. A game's behaviour MUST be
   identical whether or not queries are asked, and whichever queries are asked.
@@ -279,21 +282,24 @@ from the document and the story file alone; the predictions match the implementa
 - **FR-019**: The exits query MUST give, for the player's location, each direction that
   leads somewhere. Each exit MUST carry the word or words a player types to go that way.
 - **FR-020**: An exit whose destination the story file stores as a fact MUST carry that
-  destination. An exit that the game decides by running code MUST be marked conditional
+  destination. That includes an exit the game opens or closes by a stored value alone: it
+  is an exit with its destination while the value says open, and not an exit while it
+  says closed. An exit that the game decides by running code MUST be marked conditional
   and carry no destination. A direction for which the game stores only a refusal MUST NOT
   be listed.
 - **FR-021**: Where the game works out a room's movement in a way the interface cannot
   read, the exits query MUST answer "unknown" for that room.
 - **FR-022**: The scope query MUST give the objects in the player's location, the
   contents of containers there that are open or see-through, the objects on surfaces
-  there, and what the player carries, by the same rules applied to what is carried. Every
-  answer to this query MUST be labelled approximate.
+  there, and what the player carries, by the same rules applied to what is carried. Where
+  the family does not record whether a container is open, FR-023 applies. Every answer
+  to this query MUST be labelled approximate.
 - **FR-023**: The scope query MUST take account of darkness where the story file's
   contents settle whether the location is lit. Where they do not, it MUST list the
   room's contents and say that light is unknown. Likewise, where the family does not
   record whether a container is open, its contents MUST be listed and marked as of
-  unknown visibility. (Revised in planning: research R9. The first wording made scope
-  empty for the whole ZIL family.)
+  unknown visibility. (Revised in planning with the project owner's agreement: research
+  R9. The first wording made scope empty for the whole ZIL family.)
 - **FR-024**: The scope query MUST mark objects the game treats as scenery or concealed,
   where the family records that as a fact, so that a caller can leave them out of a list.
 - **FR-025**: The dictionary query MUST give every word in the game's main dictionary, in
@@ -333,8 +339,9 @@ from the document and the story file alone; the predictions match the implementa
 - **FR-036**: The transcripts and final saves of the Zork I and Advent walkthroughs MUST
   be identical with and without every query asked at every prompt.
 - **FR-037**: At every prompt of both walkthroughs, the location reported MUST agree with
-  the game: after each move, the location's name is the name the game printed for the
-  room.
+  the game, by a check that does not read the same stored value the query reads: whenever
+  the game prints a room's name as a heading, it is the reported location's name, and
+  whenever the reported location changes, the game printed its name or said it was dark.
 - **FR-038**: At every prompt of both walkthroughs, after each move made through a listed
   exit that carried a destination, the new location MUST be that destination.
 - **FR-039**: Expected exits, worked out by hand from each game's source, MUST be
@@ -371,25 +378,32 @@ from the document and the story file alone; the predictions match the implementa
 ### Measurable Outcomes
 
 - **SC-001**: Both walkthroughs, with every query asked at every prompt, give transcripts
-  and final save files with zero bytes of difference from runs without queries.
+  with zero bytes of difference from runs without queries; and so do the save files
+  written at each of the committed save points (five in Zork I, three in each build of
+  Advent).
 - **SC-002**: At every prompt of both walkthroughs (over 500 prompts in all), the
-  reported location's name equals the room name the game last printed, with no
-  exceptions that are not explained in the specification.
+  location is reported, never unknown, and agrees with the game by the check of FR-037
+  with zero disagreements.
 - **SC-003**: Every move in both walkthroughs made through an exit reported with a
-  destination arrives at that destination: zero mismatches.
+  destination arrives at that destination: zero mismatches, over at least 100 such moves
+  in each game.
 - **SC-004**: For at least 25 rooms in each game, chosen to include fixed exits,
-  conditional exits and refusals, the reported exits equal the list worked out by hand
-  from the game's source.
-- **SC-005**: At every prompt of both walkthroughs, every object the game lists in its
-  reply to `inventory` is in the reported inventory, and the reverse.
+  conditional exits, refusals and exits a stored value opens, the reported exits equal
+  the list worked out by hand from the game's source. Each expectation names the point in
+  the walkthrough at which it holds.
+- **SC-005**: At every prompt of both walkthroughs where the game is waiting for a
+  command, every object the game lists in its reply to `inventory` is in the reported
+  inventory, and the reverse, with zero disagreements. The inventory may be "unknown" at
+  no more than 3% of a game's prompts, and at none of Advent's.
 - **SC-006**: At no fewer than 20 positions in each game, every object the game's room
-  description names is in the reported scope, and no reported object is inside a closed
-  opaque container or in another room.
-- **SC-007**: For each of the four committed story files, the object tree and dictionary
-  read through the interface equal those produced by an independent check, object for
-  object and word for word.
-- **SC-008**: czech and praxix are reported as unrecognised, and every family-dependent
-  query answers "unknown" for them.
+  description names is in the reported scope, and no reported object is in another room.
+  In Advent, no reported object is inside a closed opaque container. In Zork I, every
+  reported object that is inside another is marked as of unknown visibility.
+- **SC-007**: For each committed story file (Zork I; Advent in versions 5 and 8; czech in
+  versions 3, 5 and 8; praxix), the object tree and dictionary read through the interface
+  equal those produced by an independent check, object for object and word for word.
+- **SC-008**: czech, in all three versions, and praxix are reported as unrecognised, and
+  every family-dependent query answers "unknown" for them.
 - **SC-009**: Thousands of damaged copies of the committed story files are queried in
   full; none stops the interpreter or the host.
 - **SC-010**: Asking all six queries at a prompt takes less time than a person would
@@ -422,7 +436,12 @@ from the document and the story file alone; the predictions match the implementa
   code, which FR-003 forbids. The project owner chose a tree-based approximation, labelled
   as such, over leaving the query out.
 - **Conditional exits are reported without a destination by decision.** The project owner
-  chose this over omitting them or declaring the whole room unknown.
+  chose this over omitting them or declaring the whole room unknown. An exit governed by
+  a stored value alone is not conditional in this sense and is evaluated (FR-020).
+- **A change of player in an Inform game is not always detected.** The project owner
+  accepted this as a recorded deviation: research R3.
+- **In Zork I the inventory is "unknown" at a few prompts**, where the family's rule for
+  finding the player ties. The project owner accepted this: research R4.
 - **The object tree's attributes and properties are given by number.** What a number
   means is a family matter: where a family fixes the meaning (Inform's `light`,
   `container`, `open`), the adapter uses it; the interface does not name every attribute

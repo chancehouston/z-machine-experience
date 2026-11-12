@@ -18,7 +18,7 @@ Expected: all tests pass, including every test from features 001 and 002, unchan
 cargo run -p zmachine-cli -- --inspect - stories/zork1/zork1.z3
 ```
 
-Expected: the game plays as usual. Before each prompt a line of JSON appears on standard
+Expected: the game plays as usual. After each prompt a line of JSON appears on standard
 error naming the family (`zil`), the location (`West of House` at the start), its exits
 with the words that name them, the inventory and the objects in scope. `north` moves to
 the room the `north` exit named.
@@ -46,7 +46,8 @@ cargo test -p zmachine-introspect --test read_only
 ```
 
 Expected: pass. Both walkthroughs, with every query asked at every stop, give the
-committed reference transcripts and the same final saves as without.
+committed reference transcripts, and the save scripts give the same save files as
+without.
 
 ## 5. The answers agree with the games
 
@@ -56,8 +57,9 @@ cargo test -p zmachine-introspect --test zork1 --test advent
 
 Expected: pass. At every prompt of both walkthroughs the reported location is the room
 the game names; every move through a fixed exit arrives where the exit said; the
-inventory matches the game's own; and the hand-made lists of exits for at least 25 rooms
-in each game are matched.
+inventory matches the game's own, and is unknown at no more than 3% of Zork I's prompts
+and none of Advent's; and the hand-made lists of exits for at least 25 rooms in each game
+are matched.
 
 ## 6. Unrecognised and damaged files
 
@@ -76,3 +78,17 @@ cargo test -p zmachine-introspect --test spec_agreement
 
 Expected: pass. `docs/introspection.md` lists exactly the queries the implementation
 offers, at the same version.
+
+## 8. Speed, and a blind reading of the specification
+
+```bash
+cargo test -p zmachine-introspect --release -- --ignored
+```
+
+Expected: pass. All six queries at one prompt of Advent take under 5 milliseconds.
+
+SC-012 is not a command: a reviewer who has not seen the implementation is given
+`docs/introspection.md` and the story files, predicts the answers at five positions in
+each game, and the predictions are compared with `zm --inspect`. The result is recorded
+in tasks.md.
+

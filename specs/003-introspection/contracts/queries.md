@@ -23,13 +23,14 @@ is written for a reader who has not seen this project.
    panics, loops without bound, or reads outside the story file.
 7. **Deterministic.** The same story file in the same state gives the same answer.
 
-## 1. `family`
+## The family
 
-Returns `inform6`, `zil` or `unrecognised`. Always exact. Rules: research R1 and R2. A
+Not a query: a fact about the story file, `inform6`, `zil` or `unrecognised`, decided
+once from the file as shipped and given with every answer. Rules: research R1 and R2. A
 file that satisfies neither set of rules in full is unrecognised; the rules are not
 scored.
 
-## 2. `object_tree`
+## 1. `object_tree`
 
 Every object, by number. Exact. Works for every story file.
 
@@ -37,7 +38,7 @@ Every object, by number. Exact. Works for every story file.
 - A walk of children stops after as many steps as there are objects; the remainder of
   that list is `damaged`.
 
-## 3. `dictionary`
+## 2. `dictionary`
 
 Every word of the main dictionary, in the dictionary's order. Exact. The word list works
 for every story file; `parts` are unknown for an unrecognised family (research R10).
@@ -45,23 +46,24 @@ for every story file; `parts` are unknown for an unrecognised family (research R
 Only the dictionary the header names is read. A game's secondary dictionaries are not
 discoverable from the header and are not reported.
 
-## 4. `location`
+## 3. `location`
 
 The room the player is in. Exact for a recognised family.
 
 | Family | Room | Unknown when |
 | --- | --- | --- |
-| Inform 6 | Top of the player's parent chain | The player has no parent (`no-player`); the `location` variable disagrees (`inconsistent`) |
+| Inform 6 | Top of the player's parent chain | The player has no parent (`no-player`); the `location` variable disagrees, or no variable holds the player (`inconsistent`) |
 | ZIL | Global 0 | Global 0 is not a room (`no-player`) |
 
-`holder` is given when the player's parent is not the room. For ZIL, `holder` needs the
-player (query 5's rule) and is omitted, not unknown, when the player is unknown: the room
-is still exact.
+`holder` is the player's parent when that is not the room, and `none` when it is. For
+ZIL it needs the player (query 4's rule) and is unknown when the player is; the room is
+still exact.
 
-**Known limit (Inform)**: a game that makes another object the player is not detected
-when both are in one room (research R3).
+**Known limit (Inform), a recorded deviation**: a game that makes another object the
+player is caught only when no variable still holds the original player's number
+(research R3).
 
-## 5. `inventory`
+## 4. `inventory`
 
 What the player carries, as a tree. Exact for a recognised family, given the player.
 
@@ -72,12 +74,13 @@ What the player carries, as a tree. Exact for a recognised family, given the pla
 
 An empty list means the player carries nothing.
 
-## 6. `exits`
+## 5. `exits`
 
 For the room that `location` gives: a list of exits, and a list of directions that could
 not be determined. Exact. Unknown as a whole when the location is unknown.
 
-Rules: research R5 (ZIL), R6 and R7 (Inform).
+Rules: research R5 (ZIL), R6 and R7 (Inform). An exit a stored value opens (ZIL's flag
+exits) is a fixed exit while the value says open and absent while it says closed.
 
 - A direction the room stores a refusal for is in neither list.
 - A direction is reported once, with every word that names it.
@@ -86,7 +89,7 @@ Rules: research R5 (ZIL), R6 and R7 (Inform).
   interface cannot see that; a `fixed` exit states where the table points.
 - An exit that leads to the room it is in is reported like any other.
 
-## 7. `scope`
+## 6. `scope`
 
 The objects the player could plausibly act on. **Always `approximate`**: both families
 decide scope and light by running code, which rule 1 forbids.
@@ -101,8 +104,11 @@ Rules: research R9.
   scenery or concealed. The interface marks; it does not filter. Choosing what to show a
   player is the caller's job.
 - Unknown as a whole when the location is unknown. When only the player is unknown
-  (ZIL), the room's contents are listed and nothing is marked carried.
+  (ZIL), the answer's `player` field says so, the room's contents are listed, nothing is
+  marked carried, and the objects that tied for the player are left out together with
+  what they hold: one of them is the player, and the player is never an entry.
 
 **What makes it approximate**, to be stated in the specification: objects the game adds
-to scope by code; objects present in several rooms by a rule; light from a carried or
-enclosed source; a game's own rules that hide or reveal things.
+to scope by code; objects present in several rooms by a routine; a game's own rules that
+hide or reveal things; and, in a family that does not record them, light and whether a
+container is open.
