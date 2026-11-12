@@ -105,11 +105,14 @@ jobs:
       # The specification's limit for launch is two seconds (SC-001), and the test
       # holds to it on a developer's Mac. A shared runner is slower (2122 ms on the
       # first run here), so here the limit only catches a launch that has gone badly
-      # wrong.
+      # wrong. The same goes for how long a test waits for something to appear:
+      # five seconds on a developer's Mac, and here long enough that a slow runner
+      # does not fail a test that a rerun passes.
       - name: UI tests
         if: steps.sim.outputs.udid != ''
         env:
           TEST_RUNNER_LAUNCH_LIMIT_MILLIS: "6000"
+          TEST_RUNNER_WAIT_SECONDS: "20"
         run: |
           xcodebuild test -project apps/ios/Lamplight.xcodeproj -scheme Lamplight \
             -destination "platform=iOS Simulator,id=${{ steps.sim.outputs.udid }}" \

@@ -15,6 +15,14 @@ final class LamplightUITests: XCTestCase {
         return app
     }
 
+    /// How long to wait for something that is expected to appear: five seconds.
+    /// TEST_RUNNER_WAIT_SECONDS gives another, for a machine that is not the
+    /// measure of the app: a shared CI runner once took longer to show one turn.
+    private let patience: TimeInterval = {
+        let given = ProcessInfo.processInfo.environment["WAIT_SECONDS"]
+        return given.flatMap { TimeInterval($0) } ?? 5
+    }()
+
     /// The element with this accessibility identifier, of whatever kind.
     @MainActor
     private func element(_ app: XCUIApplication, _ identifier: String) -> XCUIElement {
@@ -26,7 +34,7 @@ final class LamplightUITests: XCTestCase {
     func testOpeningIsShown() {
         let app = launch()
         let opening = element(app, "turn.0.text")
-        XCTAssertTrue(opening.waitForExistence(timeout: 5), "the opening text is shown")
+        XCTAssertTrue(opening.waitForExistence(timeout: patience), "the opening text is shown")
         XCTAssertTrue(opening.label.contains("West of House"), opening.label)
         XCTAssertTrue(opening.label.hasSuffix(">"), "the text ends with the game's prompt")
     }
@@ -40,7 +48,7 @@ final class LamplightUITests: XCTestCase {
     @MainActor
     private func type(_ app: XCUIApplication, _ line: String) {
         let field = element(app, "field.command")
-        XCTAssertTrue(field.waitForExistence(timeout: 5))
+        XCTAssertTrue(field.waitForExistence(timeout: patience))
         field.tap()
         field.typeText(line)
         element(app, "button.send").tap()
@@ -50,14 +58,14 @@ final class LamplightUITests: XCTestCase {
     @MainActor
     private func turn(_ app: XCUIApplication, _ number: Int) -> String {
         let text = element(app, "turn.\(number).text")
-        XCTAssertTrue(text.waitForExistence(timeout: 5), "turn \(number) is shown")
+        XCTAssertTrue(text.waitForExistence(timeout: patience), "turn \(number) is shown")
         return text.label
     }
 
     @MainActor
     private func value(_ app: XCUIApplication, _ identifier: String) -> String {
         let found = element(app, identifier)
-        XCTAssertTrue(found.waitForExistence(timeout: 5), identifier)
+        XCTAssertTrue(found.waitForExistence(timeout: patience), identifier)
         return found.value as? String ?? ""
     }
 
@@ -67,7 +75,7 @@ final class LamplightUITests: XCTestCase {
         let status = element(app, "status.place")
         let arrived = NSPredicate(format: "label == %@", place)
         expectation(for: arrived, evaluatedWith: status)
-        waitForExpectations(timeout: 5)
+        waitForExpectations(timeout: patience)
     }
 
     // S§ "Layout"; FR-003; US1 scenario 2.
@@ -245,7 +253,7 @@ final class LamplightUITests: XCTestCase {
             _ = turn(app, 1)
             type(app, "y")
             let again = element(app, "button.newGame")
-            XCTAssertTrue(again.waitForExistence(timeout: 5), "round \(round)")
+            XCTAssertTrue(again.waitForExistence(timeout: patience), "round \(round)")
             XCTAssertTrue(app.staticTexts["The game has ended."].exists)
             XCTAssertFalse(element(app, "field.command").exists)
             for place in ["north", "south", "west"] {
@@ -262,7 +270,7 @@ final class LamplightUITests: XCTestCase {
     @MainActor
     func testAStoryThatIsMissing() {
         let app = launch(["-story", "nosuchfile"])
-        XCTAssertTrue(app.staticTexts["The game could not be started"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["The game could not be started"].waitForExistence(timeout: patience))
         XCTAssertFalse(element(app, "compass.north").exists)
         XCTAssertFalse(element(app, "field.command").exists)
         XCTAssertEqual(app.state, .runningForeground)
@@ -333,9 +341,9 @@ final class LamplightUITests: XCTestCase {
         _ = turn(app, 1)
         type(app, "y")
         let again = element(app, "button.newGame")
-        XCTAssertTrue(again.waitForExistence(timeout: 5))
+        XCTAssertTrue(again.waitForExistence(timeout: patience))
         again.tap()
-        XCTAssertTrue(element(app, "compass.north").waitForExistence(timeout: 5))
+        XCTAssertTrue(element(app, "compass.north").waitForExistence(timeout: patience))
         XCTAssertFalse(element(app, "turn.1.text").waitForExistence(timeout: 1))
         XCTAssertLessThan(abs(gap()), 30, "after a new game")
     }
@@ -458,7 +466,7 @@ final class LamplightUITests: XCTestCase {
         let limit = given.flatMap { Int($0) } ?? 2000
         let app = launch(["-seed", "11", "-showLaunchTime"])
         let shown = element(app, "debug.launchMillis")
-        XCTAssertTrue(shown.waitForExistence(timeout: 5))
+        XCTAssertTrue(shown.waitForExistence(timeout: patience))
         let millis = Int(shown.label) ?? -1
         XCTAssertGreaterThan(millis, 0, shown.label)
         XCTAssertLessThan(millis, limit, shown.label)
@@ -572,7 +580,7 @@ final class LamplightUITests: XCTestCase {
         element(app, "button.compass").tap()
         try save("question")
         type(app, "y")
-        XCTAssertTrue(element(app, "button.newGame").waitForExistence(timeout: 5))
+        XCTAssertTrue(element(app, "button.newGame").waitForExistence(timeout: patience))
         try save("ended")
         app.terminate()
         let unknown = launch(drawing: handMade(
