@@ -102,5 +102,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "zmachine-introspect"
+version = "0.1.0"
+dependencies = [
+ "sha2",
+ "zmachine-core",
+ "zmachine-testkit",
+]
+
+[[package]]
 name = "zmachine-testkit"
 version = "0.1.0"
