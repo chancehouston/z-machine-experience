@@ -5,8 +5,8 @@
 //! `{"unknown":"<reason>"}`.
 
 use crate::{
-    Answer, Carried, Exactness, Exit, ExitKind, Exits, Family, Light, Location, Object, PartOfSpeech,
-    Reach, Scope, ScopeEntry, Tri, Unknown, UnknownDirection, Visibility, Word,
+    Answer, Carried, Exactness, Exit, ExitKind, Exits, Family, Light, Location, Object,
+    PartOfSpeech, Reach, Scope, ScopeEntry, Tri, Unknown, UnknownDirection, Visibility, Word,
 };
 
 /// Something the specification gives a JSON form.
@@ -19,10 +19,8 @@ pub trait Json {
 pub fn to_json<T: Json + ?Sized>(value: &T) -> String {
     let mut out = String::new();
     value.write_json(&mut out);
-    STUB.then(String::new).unwrap_or(out)
+    out
 }
-
-const STUB: bool = true;
 
 /// Writes `{"key":value,…}` from the fields given, in order.
 fn object(out: &mut String, fields: &[(&str, &dyn Json)]) {
@@ -48,7 +46,9 @@ impl Json for str {
                 '\n' => out.push_str("\\n"),
                 '\t' => out.push_str("\\t"),
                 '\r' => out.push_str("\\r"),
-                control if (control as u32) < 0x20 => out.push_str(&format!("\\u{:04x}", control as u32)),
+                control if (control as u32) < 0x20 => {
+                    out.push_str(&format!("\\u{:04x}", control as u32))
+                }
                 other => out.push(other),
             }
         }
@@ -141,11 +141,23 @@ macro_rules! as_word {
         }
     )*};
 }
-as_word!(Exactness, Tri, Family, PartOfSpeech, ExitKind, Light, Reach, Visibility);
+as_word!(
+    Exactness,
+    Tri,
+    Family,
+    PartOfSpeech,
+    ExitKind,
+    Light,
+    Reach,
+    Visibility
+);
 
 impl<T: Json> Json for Answer<T> {
     fn write_json(&self, out: &mut String) {
-        object(out, &[("exactness", &self.exactness), ("value", &self.value)]);
+        object(
+            out,
+            &[("exactness", &self.exactness), ("value", &self.value)],
+        );
     }
 }
 
@@ -168,19 +180,42 @@ impl Json for Object {
 
 impl Json for Word {
     fn write_json(&self, out: &mut String) {
-        object(out, &[("word", &self.word), ("parts", &self.parts), ("direction", &self.direction)]);
+        object(
+            out,
+            &[
+                ("word", &self.word),
+                ("parts", &self.parts),
+                ("direction", &self.direction),
+            ],
+        );
     }
 }
 
 impl Json for Location {
     fn write_json(&self, out: &mut String) {
-        object(out, &[("room", &self.room), ("name", &self.name), ("holder", &self.holder), ("lit", &self.lit)]);
+        object(
+            out,
+            &[
+                ("room", &self.room),
+                ("name", &self.name),
+                ("holder", &self.holder),
+                ("lit", &self.lit),
+            ],
+        );
     }
 }
 
 impl Json for Carried {
     fn write_json(&self, out: &mut String) {
-        object(out, &[("object", &self.object), ("name", &self.name), ("worn", &self.worn), ("contents", &self.contents)]);
+        object(
+            out,
+            &[
+                ("object", &self.object),
+                ("name", &self.name),
+                ("worn", &self.worn),
+                ("contents", &self.contents),
+            ],
+        );
     }
 }
 
@@ -201,7 +236,14 @@ impl Json for Exit {
 
 impl Json for UnknownDirection {
     fn write_json(&self, out: &mut String) {
-        object(out, &[("direction", &self.direction), ("words", &self.words), ("reason", &self.reason.as_str())]);
+        object(
+            out,
+            &[
+                ("direction", &self.direction),
+                ("words", &self.words),
+                ("reason", &self.reason.as_str()),
+            ],
+        );
     }
 }
 
@@ -242,6 +284,13 @@ impl Json for Player<'_> {
 
 impl Json for Scope {
     fn write_json(&self, out: &mut String) {
-        object(out, &[("light", &self.light), ("player", &Player(&self.player)), ("objects", &self.objects)]);
+        object(
+            out,
+            &[
+                ("light", &self.light),
+                ("player", &Player(&self.player)),
+                ("objects", &self.objects),
+            ],
+        );
     }
 }
