@@ -104,8 +104,9 @@ that are in closed opaque containers or in other rooms.
 3. **Given** an open container or a surface in the room, **When** the developer reads the
    objects in scope, **Then** what is in or on it is listed.
 4. **Given** the player in darkness, **When** the developer reads the objects in scope,
-   **Then** only what the player carries is listed, or the answer is "unknown" if
-   darkness cannot be determined.
+   **Then** only what the player carries is listed. Where the family does not record
+   whether a room is lit, the room's contents are listed and the answer says light is
+   unknown.
 5. **Given** any answer to this query, **When** it is delivered, **Then** it says it is
    an approximation, so that no caller can mistake it for the game's own judgement.
 
@@ -288,8 +289,11 @@ from the document and the story file alone; the predictions match the implementa
   there, and what the player carries, by the same rules applied to what is carried. Every
   answer to this query MUST be labelled approximate.
 - **FR-023**: The scope query MUST take account of darkness where the story file's
-  contents settle whether the location is lit, and answer "unknown" for the room's
-  contents where they do not.
+  contents settle whether the location is lit. Where they do not, it MUST list the
+  room's contents and say that light is unknown. Likewise, where the family does not
+  record whether a container is open, its contents MUST be listed and marked as of
+  unknown visibility. (Revised in planning: research R9. The first wording made scope
+  empty for the whole ZIL family.)
 - **FR-024**: The scope query MUST mark objects the game treats as scenery or concealed,
   where the family records that as a fact, so that a caller can leave them out of a list.
 - **FR-025**: The dictionary query MUST give every word in the game's main dictionary, in
