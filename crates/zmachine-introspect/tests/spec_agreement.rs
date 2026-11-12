@@ -229,7 +229,6 @@ fn the_document_does_not_depend_on_this_implementation() {
 // Feature 006, FR-026: every part of section 12 (game packs) is cited by a test
 // of the interface, of `zm` or of the corpus.
 #[test]
-#[ignore = "closed by T047, when every part has its tests"]
 fn every_part_of_section_12_is_cited() {
     let mut text = String::new();
     for directory in [

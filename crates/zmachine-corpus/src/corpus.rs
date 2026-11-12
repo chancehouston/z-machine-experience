@@ -68,11 +68,26 @@ pub fn report_with(
     pack: Option<&str>,
 ) -> Option<Report> {
     let bytes = present(root, story)?;
-    let script = story
-        .walkthrough
-        .as_ref()
-        .and_then(|path| std::fs::read_to_string(root.join(path)).ok());
+    let script = script(root, story);
     Some(run_story_with(story, bytes, script.as_deref(), ledger, pack, None).0)
+}
+
+/// What a story is walked by before the crawl: its walkthrough, or the
+/// manifest's opening answers and first commands, one to a line (research R12).
+pub fn script(root: &Path, story: &Story) -> Option<String> {
+    if let Some(path) = &story.walkthrough {
+        return std::fs::read_to_string(root.join(path)).ok();
+    }
+    if story.first.is_empty() {
+        return None;
+    }
+    let lines: Vec<&str> = story
+        .opening
+        .iter()
+        .chain(&story.first)
+        .map(String::as_str)
+        .collect();
+    Some(lines.join("\n") + "\n")
 }
 
 pub fn nopack_path(id: &str) -> String {
@@ -312,10 +327,7 @@ pub fn explain(root: &Path, id: &str, room: u16, direction: u8) -> (Vec<String>,
     let Some(bytes) = present(root, story) else {
         return (vec![format!("{id} skipped")], 0);
     };
-    let script = story
-        .walkthrough
-        .as_ref()
-        .and_then(|path| std::fs::read_to_string(root.join(path)).ok());
+    let script = script(root, story);
     let pack = packs::of(root, story);
     let (_, _, shown) = run_story_with(
         story,

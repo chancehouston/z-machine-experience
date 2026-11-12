@@ -464,3 +464,18 @@ fn the_repositorys_packs_pass() {
     let (failures, _) = zmachine_corpus::packs::check(root, &stories, &ledger);
     assert_eq!(failures, Vec::<String>::new());
 }
+
+// SC-007: the packs of two games name different attributes as "open", and both
+// are read by the same rules. (Each is proven by its story's run, where its
+// story is present.)
+#[test]
+fn two_games_packs_name_different_open_attributes() {
+    let read = |id: &str| {
+        let text = read_text(&format!("packs/{id}.pack"));
+        zmachine_introspect::Pack::parse(&text)
+            .unwrap_or_else(|e| panic!("{id}: {e}"))
+            .open_attribute
+            .unwrap_or_else(|| panic!("{id} has an open-attribute"))
+    };
+    assert_ne!(read("zork1"), read("minizork"));
+}

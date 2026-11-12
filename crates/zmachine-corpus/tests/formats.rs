@@ -650,3 +650,22 @@ fn the_summary_counts_marked_trials_with_their_like() {
     assert_eq!(with.wrong_known, plain.wrong_known + 1);
     assert_eq!(with.wrong_unexplained, plain.wrong_unexplained + 1);
 }
+
+// Feature 006 (specs/006-game-packs/data-model.md, "Story"; research R12): the
+// key `first` may repeat, in order: commands given at the first command
+// prompts. It is not allowed with a walkthrough.
+#[test]
+fn a_manifest_may_give_first_commands() {
+    let with = ENTRY.replace(
+        "opening: yes\n",
+        "opening: yes\nfirst: north\nfirst: open\n",
+    );
+    let stories = manifest::read(&with).expect("the manifest reads");
+    assert_eq!(stories[1].first, ["north", "open"]);
+    assert!(stories[0].first.is_empty());
+    let both = ENTRY.replace(
+        "walkthrough: stories/zork1/fidelity/walkthrough.txt\n",
+        "walkthrough: stories/zork1/fidelity/walkthrough.txt\nfirst: north\n",
+    );
+    assert_eq!(manifest::read(&both).unwrap_err().0, 13);
+}

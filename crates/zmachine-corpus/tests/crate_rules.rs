@@ -66,3 +66,47 @@ fn ci_does_not_fetch_stories() {
     assert!(!ci.contains("fetch-corpus"));
     assert!(!ci.contains("ifarchive.org/if-archive/games"));
 }
+
+// Feature 006, FR-035; constitution Principle IV ("Per-game code is
+// prohibited"): what differs between games is in a pack. No source file of the
+// interface, the experience layer, the C interface or `zm` holds any story's
+// digest, its id as a word, or its serial.
+#[test]
+fn no_source_knows_any_one_story() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let manifest = std::fs::read_to_string(root.join("stories/corpus/manifest.txt")).unwrap();
+    let stories = zmachine_corpus::manifest::read(&manifest).unwrap();
+    let mut marks: Vec<String> = Vec::new();
+    for story in &stories {
+        marks.push(story.sha256.clone());
+        marks.push(story.id.clone());
+        if let Ok(bytes) = std::fs::read(root.join(&story.path)) {
+            marks.push(String::from_utf8_lossy(&bytes[0x12..0x18]).into_owned());
+        }
+    }
+    assert!(
+        marks.len() > 2 * stories.len(),
+        "the committed stories' serials are read"
+    );
+    let mut read = 0;
+    for name in ["introspect", "experience", "ffi", "cli"] {
+        let directory = root.join(format!("crates/zmachine-{name}/src"));
+        for entry in std::fs::read_dir(directory).unwrap().flatten() {
+            let path = entry.path();
+            let file = path.file_name().unwrap().to_string_lossy().into_owned();
+            if !file.ends_with(".rs") || file.ends_with("_tests.rs") || file == "fixtures.rs" {
+                continue;
+            }
+            let text = std::fs::read_to_string(&path).unwrap();
+            for word in text.split(|c: char| !(c.is_ascii_alphanumeric() || c == '-')) {
+                assert!(
+                    !marks.iter().any(|mark| mark == word),
+                    "{}: {word:?} is a story's digest, id or serial",
+                    path.display()
+                );
+            }
+            read += 1;
+        }
+    }
+    assert!(read >= 12, "{read} source files read");
+}

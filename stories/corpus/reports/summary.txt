@@ -3,7 +3,7 @@ story advent-z5 inform places 228 rooms 122 trials 2736 fixed 635/651 none 2018/
 story advent-z8 inform places 228 rooms 122 trials 2736 fixed 635/651 none 2018/2040 conditional 23/37 unknown 0 wrong-known 38 wrong-unexplained 0
 story zork2 zil places 15 rooms 15 trials 210 fixed 26/37 none 149/173 conditional 0/0 unknown 0 wrong-known 35 wrong-unexplained 0
 story zork3 zil places 2 rooms 2 trials 26 fixed 2/5 none 12/21 conditional 0/0 unknown 0 wrong-known 12 wrong-unexplained 0
-story minizork zil places 12 rooms 12 trials 156 fixed 40/40 none 113/113 conditional 0/3 unknown 0 wrong-known 0 wrong-unexplained 0
+story minizork zil places 16 rooms 15 trials 208 fixed 54/54 none 140/152 conditional 0/2 unknown 0 wrong-known 12 wrong-unexplained 0
 story sampler1 zil places 22 rooms 22 trials 264 fixed 49/50 none 196/206 conditional 2/8 unknown 0 wrong-known 1 wrong-unexplained 0
 story advent-zil zil places 7 rooms 7 trials 84 fixed 19/19 none 51/51 conditional 10/14 unknown 0 wrong-known 0 wrong-unexplained 0
 story curses none places 1 rooms 1 trials 0 fixed 0/0 none 0/0 conditional 0/0 unknown 0 wrong-known 0 wrong-unexplained 0
@@ -12,7 +12,7 @@ story balances none places 1 rooms 1 trials 0 fixed 0/0 none 0/0 conditional 0/0
 story nine-oh-five inform places 1 rooms 1 trials 12 fixed 0/0 none 0/0 conditional 0/0 unknown 0 wrong-known 0 wrong-unexplained 0
 story anchorhead inform places 31 rooms 31 trials 310 fixed 63/65 none 226/226 conditional 3/19 unknown 0 wrong-known 2 wrong-unexplained 0
 story advent-crowther none places 1 rooms 1 trials 0 fixed 0/0 none 0/0 conditional 0/0 unknown 0 wrong-known 0 wrong-unexplained 0
-family zil stories 6 places 414 rooms 167 trials 5368 fixed 983/1031 none 4105/4213 conditional 58/104 unknown 0 wrong-known 144 wrong-unexplained 0
+family zil stories 6 places 418 rooms 170 trials 5420 fixed 997/1045 none 4132/4252 conditional 58/103 unknown 0 wrong-known 156 wrong-unexplained 0
 family inform stories 5 places 496 rooms 284 trials 5890 fixed 1348/1382 none 4335/4379 conditional 51/95 unknown 0 wrong-known 78 wrong-unexplained 0
 family none stories 3 places 3 rooms 3 trials 0 fixed 0/0 none 0/0 conditional 0/0 unknown 0 wrong-known 0 wrong-unexplained 0
-all stories 14 places 913 rooms 454 trials 11258 fixed 2331/2413 none 8440/8592 conditional 109/199 unknown 0 wrong-known 222 wrong-unexplained 0
+all stories 14 places 917 rooms 457 trials 11310 fixed 2345/2427 none 8467/8631 conditional 109/198 unknown 0 wrong-known 234 wrong-unexplained 0

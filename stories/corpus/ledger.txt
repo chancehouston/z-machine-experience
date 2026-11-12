@@ -1654,3 +1654,99 @@ reported: fixed 230
 outcome: stayed
 cause: A routine that runs before the walk decides it: the room's table is not what the
   game goes by here.
+
+story: minizork
+room: 125
+direction: 19
+reported: none
+outcome: moved 114
+cause: The player is in the dark, where the game kills the player on a walk in any direction,
+  exit or not; the game's routine for death then moves the player.
+
+story: minizork
+room: 125
+direction: 20
+reported: none
+outcome: moved 114
+cause: The player is in the dark, where the game kills the player on a walk in any direction,
+  exit or not; the game's routine for death then moves the player.
+
+story: minizork
+room: 125
+direction: 21
+reported: none
+outcome: moved 114
+cause: The player is in the dark, where the game kills the player on a walk in any direction,
+  exit or not; the game's routine for death then moves the player.
+
+story: minizork
+room: 125
+direction: 23
+reported: none
+outcome: moved 114
+cause: The player is in the dark, where the game kills the player on a walk in any direction,
+  exit or not; the game's routine for death then moves the player.
+
+story: minizork
+room: 125
+direction: 24
+reported: none
+outcome: moved 114
+cause: The player is in the dark, where the game kills the player on a walk in any direction,
+  exit or not; the game's routine for death then moves the player.
+
+story: minizork
+room: 125
+direction: 25
+reported: none
+outcome: moved 114
+cause: The player is in the dark, where the game kills the player on a walk in any direction,
+  exit or not; the game's routine for death then moves the player.
+
+story: minizork
+room: 125
+direction: 26
+reported: none
+outcome: moved 114
+cause: The player is in the dark, where the game kills the player on a walk in any direction,
+  exit or not; the game's routine for death then moves the player.
+
+story: minizork
+room: 125
+direction: 27
+reported: none
+outcome: moved 114
+cause: The player is in the dark, where the game kills the player on a walk in any direction,
+  exit or not; the game's routine for death then moves the player.
+
+story: minizork
+room: 125
+direction: 28
+reported: none
+outcome: moved 114
+cause: The player is in the dark, where the game kills the player on a walk in any direction,
+  exit or not; the game's routine for death then moves the player.
+
+story: minizork
+room: 125
+direction: 29
+reported: none
+outcome: moved 114
+cause: The player is in the dark, where the game kills the player on a walk in any direction,
+  exit or not; the game's routine for death then moves the player.
+
+story: minizork
+room: 125
+direction: 30
+reported: none
+outcome: moved 114
+cause: The player is in the dark, where the game kills the player on a walk in any direction,
+  exit or not; the game's routine for death then moves the player.
+
+story: minizork
+room: 125
+direction: 31
+reported: none
+outcome: moved 114
+cause: The player is in the dark, where the game kills the player on a walk in any direction,
+  exit or not; the game's routine for death then moves the player.

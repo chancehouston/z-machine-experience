@@ -68,6 +68,9 @@ standing: no license attached; personal use only under the archive's terms; neve
 tier: fetched
 path: stories/local/corpus/minizork.z3
 seed: 1
+first: north
+first: east
+first: open window
 
 id: sampler1
 sha256: 7a2e5b7698f42a83e73dab5d9c5fbead294cf7b407f6daa8fe57caa429bd35bf
