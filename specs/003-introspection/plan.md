@@ -67,7 +67,7 @@ depends on both. JSON is written by hand.
 files.
 
 **Testing**: `cargo test`: unit tests for each adapter rule on small images built by the
-testkit; integration tests on the four committed story files; walkthrough replays with
+testkit; integration tests on every committed story file; walkthrough replays with
 every query at every prompt; robustness tests on damaged files; a check that the written
 specification and the implementation list the same queries.
 

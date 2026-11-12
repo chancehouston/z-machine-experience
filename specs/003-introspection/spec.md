@@ -419,7 +419,7 @@ from the document and the story file alone; the predictions match the implementa
 - **Families can be told apart from a story file's contents.** Inform 6 story files carry
   the compiler's version in their header and lay out the library's objects in a
   recognisable way; Infocom's files have their own regularities. Research must confirm
-  rules that recognise all four committed files correctly and admit no game-specific
+  rules that recognise every committed story file correctly and admit no game-specific
   knowledge. If no such rule can be found for a family, this assumption fails and the
   project owner decides how to proceed.
 - **The player and the location can be found without running code.** Both families keep
