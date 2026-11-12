@@ -453,15 +453,33 @@ fn the_status_stays_after_the_game_ends() {
 fn a_tap_is_the_typed_command() {
     use zmachine_experience::{Place, PlaceState};
     let mut tapped = game(11);
-    let north = tapped.compass().place(Place::North).expect("the compass lists north").clone();
-    assert_eq!((north.state, north.command.as_deref(), north.leads_to.as_deref()), (PlaceState::Open, Some("north"), Some("North of House")));
+    let north = tapped
+        .compass()
+        .place(Place::North)
+        .expect("the compass lists north")
+        .clone();
+    assert_eq!(
+        (
+            north.state,
+            north.command.as_deref(),
+            north.leads_to.as_deref()
+        ),
+        (PlaceState::Open, Some("north"), Some("North of House"))
+    );
     assert_eq!(tapped.tap(tapped.stamp(), Place::North), Ok(()));
     let turn = tapped.turns()[1].clone();
-    assert_eq!((turn.command.as_deref(), turn.source), (Some("north"), Some(Source::Tap)));
+    assert_eq!(
+        (turn.command.as_deref(), turn.source),
+        (Some("north"), Some(Source::Tap))
+    );
 
     let mut typed = game(11);
     say(&mut typed, "north");
-    assert_eq!(typed.turns()[1].text, turn.text, "the game cannot tell a tap from typing");
+    assert_eq!(
+        typed.turns()[1].text,
+        turn.text,
+        "the game cannot tell a tap from typing"
+    );
     assert_eq!(typed.turns()[1].source, Some(Source::Typed));
     assert_eq!(tapped.status(), typed.status());
 }
@@ -472,17 +490,35 @@ fn the_compass_follows_the_player() {
     use zmachine_experience::{Place, PlaceState};
     let mut s = game(11);
     let lit = |s: &Session| -> Vec<&'static str> {
-        s.compass().places.iter().filter(|p| matches!(p.state, PlaceState::Open | PlaceState::Maybe)).map(|p| p.place.id()).collect()
+        s.compass()
+            .places
+            .iter()
+            .filter(|p| matches!(p.state, PlaceState::Open | PlaceState::Maybe))
+            .map(|p| p.place.id())
+            .collect()
     };
     // West of House: stories/zork1/introspection/exits.txt, the opening.
-    assert_eq!(lit(&s), ["north", "northeast", "southeast", "south", "west"]);
+    assert_eq!(
+        lit(&s),
+        ["north", "northeast", "southeast", "south", "west"]
+    );
     assert!(s.compass().offered && s.compass().known);
     s.tap(s.stamp(), Place::North).unwrap();
     assert_eq!(s.status().unwrap().place, "North of House");
-    assert_ne!(lit(&s), ["north", "northeast", "southeast", "south", "west"]);
-    assert_eq!(s.compass().place(Place::North).unwrap().leads_to.as_deref(), Some("Forest Path"));
+    assert_ne!(
+        lit(&s),
+        ["north", "northeast", "southeast", "south", "west"]
+    );
+    assert_eq!(
+        s.compass().place(Place::North).unwrap().leads_to.as_deref(),
+        Some("Forest Path")
+    );
     s.tap(s.stamp(), Place::North).unwrap();
-    assert_eq!(s.status().unwrap().place, "Forest Path", "the exit led where it said");
+    assert_eq!(
+        s.status().unwrap().place,
+        "Forest Path",
+        "the exit led where it said"
+    );
 }
 
 // E§3, FR-012: a place that is not lit sends nothing.
@@ -490,10 +526,17 @@ fn the_compass_follows_the_player() {
 fn a_tap_on_a_place_that_is_not_lit_sends_nothing() {
     use zmachine_experience::{Place, PlaceState};
     let mut s = game(11);
-    assert_eq!(s.compass().place(Place::East).unwrap().state, PlaceState::Closed);
+    assert_eq!(
+        s.compass().place(Place::East).unwrap().state,
+        PlaceState::Closed
+    );
     assert_eq!(s.tap(s.stamp(), Place::East), Err(Refused::NotOffered));
     assert_eq!(s.tap(s.stamp(), Place::Up), Err(Refused::NotOffered));
-    assert_eq!(s.tap_extra(s.stamp(), 0), Err(Refused::NotOffered), "there are no extras here");
+    assert_eq!(
+        s.tap_extra(s.stamp(), 0),
+        Err(Refused::NotOffered),
+        "there are no extras here"
+    );
     assert_eq!(s.turns().len(), 1);
 }
 
@@ -505,12 +548,24 @@ fn nothing_is_offered_during_a_question() {
     say(&mut s, "quit");
     assert_eq!(s.waiting(), Waiting::Answer);
     assert!(!s.compass().offered);
-    assert!(s.compass().places.iter().all(|p| p.state == PlaceState::Idle));
+    assert!(
+        s.compass()
+            .places
+            .iter()
+            .all(|p| p.state == PlaceState::Idle)
+    );
     assert_eq!(s.tap(s.stamp(), Place::North), Err(Refused::NotOffered));
-    assert_eq!(s.turns().len(), 2, "the question was not answered by the tap");
+    assert_eq!(
+        s.turns().len(),
+        2,
+        "the question was not answered by the tap"
+    );
     say(&mut s, "n");
     assert!(s.compass().offered);
-    assert_eq!(s.compass().place(Place::North).unwrap().state, PlaceState::Open);
+    assert_eq!(
+        s.compass().place(Place::North).unwrap().state,
+        PlaceState::Open
+    );
     // After the game ends, likewise.
     say(&mut s, "quit");
     say(&mut s, "y");
@@ -525,7 +580,12 @@ fn an_unrecognised_story_has_an_unknown_compass() {
     let mut s = session(asker());
     assert_eq!(s.waiting(), Waiting::Command);
     assert!(s.compass().offered && !s.compass().known);
-    assert!(s.compass().places.iter().all(|p| p.state == PlaceState::Unknown));
+    assert!(
+        s.compass()
+            .places
+            .iter()
+            .all(|p| p.state == PlaceState::Unknown)
+    );
     assert_eq!(s.compass().note, Some(NOTE_UNKNOWN));
     assert_eq!(s.tap(s.stamp(), Place::North), Err(Refused::NotOffered));
     say(&mut s, "north");

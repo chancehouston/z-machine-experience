@@ -1,6 +1,8 @@
 //! The compass: which of twelve places lead somewhere, and what a tap on each
 //! sends (specs/004-first-demo/data-model.md "Compass"; research R5).
 
+use zmachine_introspect::{Answer, ExitKind, Exits};
+
 /// A place on the compass.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Place {
@@ -37,16 +39,42 @@ impl Place {
 
     /// The place's identifier, which is also the English word a tap on it sends.
     pub fn id(self) -> &'static str {
-        ""
+        match self {
+            Place::North => "north",
+            Place::Northeast => "northeast",
+            Place::East => "east",
+            Place::Southeast => "southeast",
+            Place::South => "south",
+            Place::Southwest => "southwest",
+            Place::West => "west",
+            Place::Northwest => "northwest",
+            Place::Up => "up",
+            Place::Down => "down",
+            Place::In => "in",
+            Place::Out => "out",
+        }
     }
 
     /// What to show for the place.
     pub fn label(self) -> &'static str {
-        ""
+        match self {
+            Place::North => "North",
+            Place::Northeast => "Northeast",
+            Place::East => "East",
+            Place::Southeast => "Southeast",
+            Place::South => "South",
+            Place::Southwest => "Southwest",
+            Place::West => "West",
+            Place::Northwest => "Northwest",
+            Place::Up => "Up",
+            Place::Down => "Down",
+            Place::In => "In",
+            Place::Out => "Out",
+        }
     }
 
-    pub fn from_id(_id: &str) -> Option<Place> {
-        None
+    pub fn from_id(id: &str) -> Option<Place> {
+        Place::ALL.into_iter().find(|place| place.id() == id)
     }
 }
 
@@ -67,7 +95,13 @@ pub enum PlaceState {
 
 impl PlaceState {
     pub fn as_str(self) -> &'static str {
-        ""
+        match self {
+            PlaceState::Open => "open",
+            PlaceState::Maybe => "maybe",
+            PlaceState::Closed => "closed",
+            PlaceState::Unknown => "unknown",
+            PlaceState::Idle => "idle",
+        }
     }
 }
 
@@ -114,16 +148,155 @@ pub const NOTE_UNKNOWN: &str = "Exits unknown: type a direction";
 /// The note shown when the exits are known and there are none.
 pub const NOTE_NONE: &str = "No exits here";
 
+/// What a screen reader says for a place or an extra.
+fn spoken(label: &str, state: PlaceState, leads_to: Option<&str>) -> String {
+    match (state, leads_to) {
+        (PlaceState::Open, Some(to)) => format!("{label}, to {to}"),
+        (PlaceState::Open, None) => label.to_string(),
+        (PlaceState::Maybe, _) => format!("{label}, may be blocked"),
+        (PlaceState::Closed, _) => format!("{label}, no exit"),
+        (PlaceState::Unknown, _) => format!("{label}, unknown"),
+        (PlaceState::Idle, _) => format!("{label}, not available now"),
+    }
+}
+
+fn place_in(place: Place, state: PlaceState, leads_to: Option<String>) -> CompassPlace {
+    let offered = matches!(state, PlaceState::Open | PlaceState::Maybe);
+    CompassPlace {
+        place,
+        label: place.label(),
+        state,
+        command: offered.then(|| place.id().to_string()),
+        spoken: spoken(place.label(), state, leads_to.as_deref()),
+        leads_to,
+    }
+}
+
+/// Every place in one state, with nothing to send.
+fn all(state: PlaceState) -> Vec<CompassPlace> {
+    Place::ALL
+        .into_iter()
+        .map(|place| place_in(place, state, None))
+        .collect()
+}
+
+/// The first letter in upper case, for showing a word as a label.
+fn capitalised(word: &str) -> String {
+    let mut letters = word.chars();
+    match letters.next() {
+        Some(first) => first.to_uppercase().chain(letters).collect(),
+        None => String::new(),
+    }
+}
+
 impl Compass {
-    /// A compass that offers nothing.
+    /// A compass that offers nothing: the game is not waiting for a command.
     pub(crate) fn idle() -> Compass {
-        Compass { offered: false, known: false, note: None, places: Vec::new(), extras: Vec::new() }
+        Compass {
+            offered: false,
+            known: false,
+            note: None,
+            places: all(PlaceState::Idle),
+            extras: Vec::new(),
+        }
     }
 
     /// The compass for a room's exits, as the introspection interface reports
     /// them. `word_len` is how many characters of a word the story file keeps.
-    pub(crate) fn of(_exits: &zmachine_introspect::Answer<zmachine_introspect::Exits>, _word_len: usize) -> Compass {
-        Compass::idle()
+    ///
+    /// An exit belongs to the place whose English word, cut to that length, is
+    /// among its words; one that fits no place is an extra. Nothing is chosen
+    /// between: two exits for one place leave the place unknown.
+    pub(crate) fn of(exits: &Answer<Exits>, word_len: usize) -> Compass {
+        let Ok(exits) = &exits.value else {
+            return Compass {
+                offered: true,
+                known: false,
+                note: Some(NOTE_UNKNOWN),
+                places: all(PlaceState::Unknown),
+                extras: Vec::new(),
+            };
+        };
+        let cut = |place: Place| -> String { place.id().chars().take(word_len).collect() };
+        let place_of = |words: &[String]| {
+            Place::ALL
+                .into_iter()
+                .find(|&place| words.contains(&cut(place)))
+        };
+
+        let mut known = true;
+        let mut found: Vec<(Place, PlaceState, Option<String>)> = Vec::new();
+        let mut extras = Vec::new();
+        let mut put =
+            |place: Place, state: PlaceState, leads_to: Option<String>, known: &mut bool| {
+                match found.iter_mut().find(|(p, _, _)| *p == place) {
+                    // A second exit for the same place: neither is preferred.
+                    Some(entry) => {
+                        *entry = (place, PlaceState::Unknown, None);
+                        *known = false;
+                    }
+                    None => found.push((place, state, leads_to)),
+                }
+            };
+        for exit in &exits.exits {
+            let (state, leads_to) = match exit.kind {
+                ExitKind::Fixed => (
+                    PlaceState::Open,
+                    exit.destination_name.clone().and_then(Result::ok),
+                ),
+                ExitKind::Conditional => (PlaceState::Maybe, None),
+            };
+            match place_of(&exit.words) {
+                Some(place) => put(place, state, leads_to, &mut known),
+                None => match exit
+                    .words
+                    .iter()
+                    .max_by(|a, b| a.len().cmp(&b.len()).then(b.cmp(a)))
+                {
+                    Some(word) => {
+                        let label = capitalised(word);
+                        extras.push(Extra {
+                            spoken: spoken(&label, state, leads_to.as_deref()),
+                            label,
+                            state,
+                            command: word.clone(),
+                            leads_to,
+                        });
+                    }
+                    // No word names it: it cannot be shown or sent.
+                    None => known = false,
+                },
+            }
+        }
+        for direction in &exits.unknown {
+            known = false;
+            if let Some(place) = place_of(&direction.words) {
+                match found.iter_mut().find(|(p, _, _)| *p == place) {
+                    Some(entry) => *entry = (place, PlaceState::Unknown, None),
+                    None => found.push((place, PlaceState::Unknown, None)),
+                }
+            }
+        }
+        let places: Vec<CompassPlace> = Place::ALL
+            .into_iter()
+            .map(|place| match found.iter().find(|(p, _, _)| *p == place) {
+                Some((_, state, leads_to)) => place_in(place, *state, leads_to.clone()),
+                None => place_in(place, PlaceState::Closed, None),
+            })
+            .collect();
+        let any = places.iter().any(|p| p.command.is_some()) || !extras.is_empty();
+        let note = match (known, any) {
+            (false, _) => Some(NOTE_UNKNOWN),
+            (true, false) => Some(NOTE_NONE),
+            (true, true) => None,
+        };
+        Compass {
+            offered: true,
+            known,
+            note,
+            places,
+            extras,
+        }
     }
 
     pub fn place(&self, place: Place) -> Option<&CompassPlace> {

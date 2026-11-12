@@ -241,7 +241,16 @@ impl Session {
             };
             run = 0;
         }
-        self.compass = Compass::idle();
+        self.compass = match self.waiting {
+            Waiting::Command => {
+                let view = self.machine.view();
+                // A version 3 dictionary keeps six characters of a word; later
+                // versions nine (Standard §13.3, §13.4).
+                let word_len = if view.version() <= 3 { 6 } else { 9 };
+                Compass::of(&self.introspector.exits(&view), word_len)
+            }
+            _ => Compass::idle(),
+        };
         text
     }
 
@@ -298,15 +307,28 @@ impl Session {
     }
 
     /// The player tapped a place on the compass.
-    pub fn tap(&mut self, at: Stamp, _place: Place) -> Result<(), Refused> {
+    pub fn tap(&mut self, at: Stamp, place: Place) -> Result<(), Refused> {
         self.check(at)?;
-        Err(Refused::NotOffered)
+        let command = self
+            .compass
+            .place(place)
+            .and_then(|p| p.command.clone())
+            .ok_or(Refused::NotOffered)?;
+        self.give(&command, Source::Tap);
+        Ok(())
     }
 
     /// The player tapped an extra, by its index.
-    pub fn tap_extra(&mut self, at: Stamp, _index: usize) -> Result<(), Refused> {
+    pub fn tap_extra(&mut self, at: Stamp, index: usize) -> Result<(), Refused> {
         self.check(at)?;
-        Err(Refused::NotOffered)
+        let command = self
+            .compass
+            .extras
+            .get(index)
+            .map(|e| e.command.clone())
+            .ok_or(Refused::NotOffered)?;
+        self.give(&command, Source::Tap);
+        Ok(())
     }
 
     /// Abandons the game and starts a new one from the same story file.
