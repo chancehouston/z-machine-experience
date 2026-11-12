@@ -513,3 +513,23 @@ fn scope_is_unknown_when_the_location_is() {
     assert_eq!(answer.value.err(), Some(Unknown::NoPlayer));
     assert_eq!(answer.exactness, crate::Exactness::Approximate);
 }
+
+// I§5, I§3.1: each bit of the first data byte, and directions from the compass.
+#[test]
+fn dictionary_parts_of_speech() {
+    use crate::PartOfSpeech::*;
+    let m = Inform::new().machine();
+    let view = m.view();
+    let words = introspect(&m).dictionary(&view).value.unwrap();
+    let find = |word: &str| words.iter().find(|w| w.word == word).unwrap();
+    assert_eq!(find("take").parts, Ok(vec![Verb]));
+    assert_eq!(find("lamp").parts, Ok(vec![Noun]));
+    assert_eq!(find("to").parts, Ok(vec![GrammarWord]));
+    // 0x8C: noun, plural, and used in a grammar line.
+    assert_eq!(find("all").parts, Ok(vec![Noun, GrammarWord, Plural]));
+    assert_eq!(find("north").parts, Ok(vec![Noun, Direction]));
+    assert_eq!((find("north").direction, find("n").direction, find("south").direction), (Some(7), Some(7), Some(8)));
+    assert_eq!(find("in").parts, Ok(vec![Verb, Direction]));
+    assert_eq!((find("in").direction, find("out").direction), (Some(17), Some(18)));
+    assert_eq!(find("take").direction, None);
+}

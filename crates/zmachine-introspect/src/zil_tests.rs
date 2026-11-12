@@ -369,3 +369,27 @@ fn a_crowded_room() {
         "200 things, the boat, and the lamp carried"
     );
 }
+
+// I§5, I§3.2: each bit of the first data byte, and which byte holds a
+// direction's number.
+#[test]
+fn dictionary_parts_of_speech() {
+    use crate::PartOfSpeech::*;
+    let m = Zil::new().machine();
+    let view = m.view();
+    let words = introspect(&m).dictionary(&view).value.unwrap();
+    let find = |word: &str| words.iter().find(|w| w.word == word).unwrap();
+    assert_eq!(find("take").parts, Ok(vec![Verb]));
+    assert_eq!(find("lamp").parts, Ok(vec![Noun]));
+    assert_eq!(find("with").parts, Ok(vec![Preposition]));
+    assert_eq!(find("the").parts, Ok(vec![Buzz]));
+    assert_eq!(find("brass").parts, Ok(vec![Adjective]));
+    assert_eq!(find("north").parts, Ok(vec![Direction]));
+    // The direction's number is the second data byte when the low two bits of
+    // the first are set, and the third otherwise.
+    assert_eq!(find("north").direction, Some(zl::NORTH));
+    assert_eq!(find("west").direction, Some(zl::WEST));
+    assert_eq!(find("down").direction, Some(zl::DOWN));
+    assert_eq!(find("down").parts, Ok(vec![Direction, Preposition]));
+    assert_eq!(find("take").direction, None);
+}

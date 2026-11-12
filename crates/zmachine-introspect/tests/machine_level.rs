@@ -307,3 +307,57 @@ fn the_tree_follows_the_game_and_is_repeatable() {
     });
     assert!(seen_carried && first.is_some());
 }
+
+// I§5, I§3.2: the parts of speech ZIL records, and the direction a direction
+// word names, which is the number the exits query uses.
+#[test]
+fn zil_words_carry_their_parts_of_speech() {
+    use zmachine_introspect::PartOfSpeech::*;
+    let machine = load("stories/zork1/zork1.z3", 1);
+    let view = machine.view();
+    let i = Introspector::new(&view);
+    let words = i.dictionary(&view).value.unwrap();
+    let find = |word: &str| words.iter().find(|w| w.word == word).unwrap_or_else(|| panic!("no {word}"));
+    assert_eq!(find("north").parts, Ok(vec![Direction]));
+    assert_eq!(find("north").direction, Some(31));
+    assert_eq!(find("n").direction, find("north").direction);
+    assert_eq!(find("take").parts, Ok(vec![Verb]));
+    assert_eq!(find("lamp").parts, Ok(vec![Noun]));
+    assert_eq!(find("with").parts, Ok(vec![Preposition]));
+    assert_eq!(find("the").parts, Ok(vec![Buzz]));
+    // Words with more than one part carry each.
+    assert_eq!(find("down").parts, Ok(vec![Direction, Preposition]));
+    assert_eq!(find("west").parts, Ok(vec![Adjective, Direction]));
+    assert_eq!(find("brass").parts, Ok(vec![Adjective]));
+    assert!(words.iter().all(|w| w.parts.is_ok()));
+    assert_eq!(words.iter().filter(|w| w.direction.is_some()).count(), 25);
+    assert!(words.iter().all(|w| w.direction.is_some() == w.parts.as_ref().unwrap().contains(&Direction)));
+}
+
+// I§5, I§3.1: the parts of speech Inform records. A direction word is one in a
+// compass direction's `name`, and its number is the exits query's.
+#[test]
+fn inform_words_carry_their_parts_of_speech() {
+    use zmachine_introspect::PartOfSpeech::*;
+    for story in ["stories/advent/advent.z5", "stories/advent/advent.z8"] {
+        let machine = load(story, 1);
+        let view = machine.view();
+        let words = Introspector::new(&view).dictionary(&view).value.unwrap();
+        let find = |word: &str| words.iter().find(|w| w.word == word).unwrap_or_else(|| panic!("no {word}"));
+        assert_eq!(find("take").parts, Ok(vec![Verb]));
+        assert_eq!(find("lamp").parts, Ok(vec![Noun]));
+        assert_eq!(find("north").direction, Some(7));
+        assert_eq!(find("n").direction, Some(7));
+        assert!(find("north").parts.as_ref().unwrap().contains(&Direction));
+        assert_eq!(find("southwest").direction, Some(14));
+        // A word used in a grammar line, here not a preposition at all.
+        assert!(find("fee").parts.as_ref().unwrap().contains(&GrammarWord), "{:?}", find("fee").parts);
+        // Meta verbs: commands to the game, not to the player's character.
+        assert_eq!(find("save").parts, Ok(vec![Verb, Meta]));
+        assert!(find("lamp").direction.is_none());
+        // `in` is a verb, and names the direction the library treats as one.
+        assert_eq!(find("in").direction, Some(17));
+        assert!(words.iter().all(|w| w.parts.is_ok()), "{story}");
+        assert!(words.iter().filter(|w| w.parts.as_ref().unwrap().contains(&Verb)).count() >= 200);
+    }
+}
