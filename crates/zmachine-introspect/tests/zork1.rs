@@ -228,3 +228,36 @@ fn a_tour_through_reported_exits_arrives_where_they_say() {
     assert!(report.arrived >= 150, "{}", report.arrived);
     assert!(report.rooms.len() >= 10, "{}", report.rooms.len());
 }
+
+// I§9, SC-006: at 38 moments in the game the reported scope holds every object
+// the hand-made list names and none it excludes; and at every prompt the answer
+// is approximate and well formed. ZIL records neither light nor whether a
+// container is open, nor scenery: everything under the room is listed and marked.
+#[test]
+fn scope_holds_what_the_game_shows() {
+    use zmachine_introspect::{Light, Reach, Visibility};
+    let report = check_scopes(ZORK1, "stories/zork1/introspection/scope.txt", |scope, here| {
+        let mut problems = Vec::new();
+        if scope.light != Light::Unknown {
+            problems.push(format!("{here}: ZIL does not record light"));
+        }
+        for entry in &scope.objects {
+            let nested = matches!(entry.reach, Reach::Inside | Reach::On);
+            if nested != (entry.visibility == Visibility::Unknown) {
+                problems.push(format!("{here}: {:?} is {:?} with visibility {:?}", entry.name, entry.reach, entry.visibility));
+            }
+            if entry.reach == Reach::On || entry.reach == Reach::Worn {
+                problems.push(format!("{here}: ZIL does not record surfaces or what is worn: {:?}", entry.name));
+            }
+            if entry.scenery != Tri::Unknown || entry.concealed != Tri::Unknown {
+                problems.push(format!("{here}: ZIL does not record scenery: {:?}", entry.name));
+            }
+        }
+        problems
+    });
+    assert!(report.problems.is_empty(), "{} problems:\n{}", report.problems.len(), report.problems.join("\n"));
+    assert!(report.entries >= 20, "SC-006 asks for at least 20 positions: {}", report.entries);
+    assert_eq!(report.prompts, 332);
+    assert_eq!(report.player_unknown, 6, "the six prompts where the player ties");
+    assert!(report.nested >= 200 && report.most_objects >= 10, "{report:?}");
+}

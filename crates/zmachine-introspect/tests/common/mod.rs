@@ -777,3 +777,115 @@ pub fn tour(game: Game, prefix: &[&str], steps: usize) -> TourReport {
         step += 1;
     }
 }
+
+use zmachine_introspect::{Exactness, Reach, Scope};
+
+/// What the scope checks found over a whole walkthrough.
+#[derive(Debug, Default)]
+pub struct ScopeReport {
+    pub prompts: usize,
+    /// Hand-made entries checked.
+    pub entries: usize,
+    pub most_objects: usize,
+    pub nested: usize,
+    pub player_unknown: usize,
+    pub problems: Vec<String>,
+}
+
+/// SC-006 and the rules every scope answer keeps (specification section 9): at
+/// each walkthrough line a hand-made entry names, everything it lists is in scope
+/// and nothing it excludes is; and at every command prompt the answer is
+/// approximate and well formed. `also` is given each answer for family checks.
+pub fn check_scopes(game: Game, scope_file: &str, mut also: impl FnMut(&Scope, &str) -> Vec<String>) -> ScopeReport {
+    let expected = expectations(scope_file);
+    let mut report = ScopeReport::default();
+    walk(game, |machine, stop| {
+        if stop.wants != Wants::Line {
+            return;
+        }
+        let view = machine.view();
+        let i = Introspector::new(&view);
+        let here = format!("{} stop {} (line {:?})", game.name, stop.number, stop.line.as_ref().map(|l| l.0));
+        let answer = i.scope(&view);
+        if answer.exactness != Exactness::Approximate {
+            report.problems.push(format!("{here}: scope is not labelled approximate"));
+        }
+        let Ok(location) = i.location(&view).value else {
+            return;
+        };
+        let scope = match answer.value {
+            Ok(scope) => scope,
+            Err(reason) => {
+                report.problems.push(format!("{here}: scope unknown: {reason:?}"));
+                return;
+            }
+        };
+        if stop.command_prompt {
+            report.prompts += 1;
+        }
+        report.most_objects = report.most_objects.max(scope.objects.len());
+        report.player_unknown += scope.player.is_err() as usize;
+        // No object twice; the room is not an entry.
+        let mut numbers: Vec<u16> = scope.objects.iter().map(|e| e.object).collect();
+        numbers.sort_unstable();
+        if numbers.windows(2).any(|pair| pair[0] == pair[1]) {
+            report.problems.push(format!("{here}: an object is listed twice"));
+        }
+        if numbers.contains(&location.room) {
+            report.problems.push(format!("{here}: the room is an entry"));
+        }
+        for entry in &scope.objects {
+            match (entry.reach, entry.within) {
+                (Reach::Inside | Reach::On, Some(within)) => {
+                    report.nested += 1;
+                    if !numbers.contains(&within) {
+                        report.problems.push(format!("{here}: {:?} is within {within}, which is not listed", entry.name));
+                    }
+                }
+                (Reach::Inside | Reach::On, None) => report.problems.push(format!("{here}: {:?} is within nothing", entry.name)),
+                (_, Some(_)) => report.problems.push(format!("{here}: {:?} is {:?} yet within something", entry.name, entry.reach)),
+                _ => {}
+            }
+        }
+        // What is carried is the inventory, and the reverse.
+        let mut carried: Vec<u16> = scope.objects.iter().filter(|e| matches!(e.reach, Reach::Carried | Reach::Worn)).map(|e| e.object).collect();
+        carried.sort_unstable();
+        match i.inventory(&view).value {
+            Ok(inventory) => {
+                let mut held: Vec<u16> = inventory.iter().map(|c| c.object).collect();
+                held.sort_unstable();
+                if held != carried || scope.player.is_err() {
+                    report.problems.push(format!("{here}: carried {carried:?} against inventory {held:?}"));
+                }
+            }
+            Err(reason) => {
+                if scope.player != Err(reason) || !carried.is_empty() {
+                    report.problems.push(format!("{here}: the player is unknown ({reason:?}) but scope says {:?} and carries {carried:?}", scope.player));
+                }
+            }
+        }
+        report.problems.extend(also(&scope, &here));
+        // The hand-made expectations for this line.
+        let names: Vec<String> = scope.objects.iter().filter_map(|e| e.name.clone().ok()).collect();
+        let Some((line, _)) = &stop.line else { return };
+        for entry in expected.iter().filter(|e| e.line == *line) {
+            report.entries += 1;
+            if location.name.as_deref() != Ok(entry.room.as_str()) {
+                report.problems.push(format!("{here}: expected to be in {:?}, the location is {:?}", entry.room, location.name));
+                continue;
+            }
+            for (key, list) in &entry.items {
+                for name in list.split(',').map(str::trim).filter(|n| !n.is_empty()) {
+                    let listed = names.iter().any(|n| n == name);
+                    match key.as_str() {
+                        "has" if !listed => report.problems.push(format!("{here} ({}): {name:?} should be in scope; listed {names:?}", entry.room)),
+                        "not" if listed => report.problems.push(format!("{here} ({}): {name:?} should not be in scope", entry.room)),
+                        "has" | "not" => {}
+                        other => report.problems.push(format!("{here}: unknown key {other:?}")),
+                    }
+                }
+            }
+        }
+    });
+    report
+}

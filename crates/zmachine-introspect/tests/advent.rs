@@ -357,3 +357,73 @@ fn a_tour_through_reported_exits_arrives_where_they_say() {
         );
     }
 }
+
+// I§9, SC-006: at 39 moments in the game the reported scope holds every object
+// the hand-made list names and none it excludes; and at every prompt the answer
+// is approximate and well formed. Inform records light, containers and scenery.
+#[test]
+fn scope_holds_what_the_game_shows() {
+    use zmachine_introspect::{Light, Reach, Visibility};
+    for game in BUILDS {
+        let mut closed_containers = 0;
+        let report = check_scopes(game, "stories/advent/introspection/scope.txt", |scope, here| {
+            let mut problems = Vec::new();
+            if scope.light == Light::Unknown {
+                problems.push(format!("{here}: Inform records light"));
+            }
+            for entry in &scope.objects {
+                if entry.visibility != Visibility::Visible {
+                    problems.push(format!("{here}: Inform records whether a container is open: {:?}", entry.name));
+                }
+                if entry.scenery == Tri::Unknown || entry.concealed == Tri::Unknown {
+                    problems.push(format!("{here}: Inform records scenery: {:?}", entry.name));
+                }
+                if scope.light == Light::Dark && !matches!(entry.reach, Reach::Carried | Reach::Worn | Reach::Inside | Reach::On) {
+                    problems.push(format!("{here}: in the dark only what is carried is listed: {:?}", entry.name));
+                }
+            }
+            problems
+        });
+        assert!(report.problems.is_empty(), "{} problems:\n{}", report.problems.len(), report.problems.join("\n"));
+        assert!(report.entries >= 20, "{}: SC-006 asks for at least 20 positions: {}", game.name, report.entries);
+        assert_eq!(report.prompts, 172, "{}", game.name);
+        assert_eq!(report.player_unknown, 0, "{}", game.name);
+        assert!(report.nested >= 3 && report.most_objects >= 8, "{report:?}");
+        let _ = &mut closed_containers;
+    }
+}
+
+// I§9: a closed, opaque container hides what is in it; open, it shows it. And in
+// the dark only what is carried is listed. Played off the walkthrough's route.
+#[test]
+fn scope_respects_closed_containers_and_darkness() {
+    use zmachine_introspect::{Light, Reach};
+    let names = |machine: &Machine| -> (Light, Vec<(String, Reach)>) {
+        let view = machine.view();
+        let scope = Introspector::new(&view).scope(&view).value.unwrap();
+        (scope.light, scope.objects.into_iter().map(|e| (e.name.unwrap(), e.reach)).collect())
+    };
+    // The bottle holds water; it is a closed container that is transparent, so
+    // the water shows. The cage, closed on the bird, is transparent too.
+    let machine = play(ADVENT5, &["in", "take bottle"]);
+    let (light, listed) = names(&machine);
+    assert_eq!(light, Light::Lit);
+    assert!(listed.contains(&("small bottle".to_string(), Reach::Carried)), "{listed:?}");
+    assert!(listed.iter().any(|(name, reach)| name == "tasty food" && *reach == Reach::InRoom), "{listed:?}");
+
+    // Underground with the lamp, then the lamp off: only what is carried.
+    let route = ["in", "take keys", "take lamp", "out", "s", "s", "s", "unlock grate with keys", "open grate", "d", "w", "on", "w", "off"];
+    let machine = play(ADVENT5, &route);
+    let (light, listed) = names(&machine);
+    assert_eq!(light, Light::Dark);
+    let carried: Vec<&str> = listed.iter().map(|(name, _)| name.as_str()).collect();
+    assert_eq!(carried.len(), 2, "{listed:?}");
+    assert!(carried.contains(&"brass lantern") && carried.contains(&"set of keys"));
+    assert!(listed.iter().all(|(_, reach)| *reach == Reach::Carried));
+    // With the lamp on again, the room's things are back: the black rod lies here.
+    let mut lit = route.to_vec();
+    lit.push("on");
+    let (light, listed) = names(&play(ADVENT5, &lit));
+    assert_eq!(light, Light::Lit);
+    assert!(listed.iter().any(|(name, reach)| name.starts_with("black rod") && *reach == Reach::InRoom), "{listed:?}");
+}
