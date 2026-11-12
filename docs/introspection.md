@@ -2,50 +2,196 @@
 
 **Version**: 0.1.0 | **Status**: draft
 
-A specification for reading the state of a running Z-machine game without changing it.
-It is written so that any interpreter could implement it. Section numbers are stable:
-tests and other documents cite them as "I§" followed by the number.
+A specification for reading the state of a running Z-machine game without changing it:
+where the player is, which ways lead out, what is here and what is carried. It is
+written so that any interpreter could implement it; one implementation accompanies it.
+Section numbers are stable, and are cited elsewhere as "I§" followed by the number.
 
-This is a skeleton. Each section states what it will define; the sections are filled in
-as the reference implementation is built, and none is renumbered.
+"Standard" means the Z-Machine Standards Document, version 1.1, and "§" one of its
+sections.
 
 ## 1. Rules for every query
 
-The rules below hold for all six queries.
+There are six queries: `object_tree`, `dictionary`, `location`, `inventory`, `exits` and
+`scope`. These rules hold for all of them.
 
 ### 1.1 Reads only
 
-No query writes to the game's memory, stack, random state, screen or output, and none
-runs the game's code.
+No query writes to the game's memory, stack, random-number state, screen or output, and
+none runs any of the game's code. A game plays exactly the same whether queries are
+asked or not, and whichever are asked: the same text, the same transcript, the same
+save files.
 
 ### 1.2 Any time
 
-A query may be asked whenever the interpreter has stopped for its host.
+A query may be asked whenever the interpreter has stopped for its host: when the game
+wants a line or a key, when it asks to save or restore, before it has run at all, after
+it has ended, and after it has faulted. A query answers from the state as it stands. It
+does not fail because of when it is asked; before a game's start-up code has run, the
+honest answer to some queries is that the player is not yet anywhere.
 
 ### 1.3 Unknown is an answer
 
-"Unknown" is distinct from an empty answer.
+Every query, and many parts of an answer, can be unknown, with a reason (section 2).
+Unknown is not the same as empty. "No exits" is a list of none; "exits unknown" is a
+reason. A caller must be able to tell them apart, and a rendering must keep them apart.
 
 ### 1.4 No guessing
 
-Where the story file's contents do not settle an answer, it is unknown. A tie is unknown.
+An answer is given only where the story file's contents settle it by the rules of this
+specification. Where they do not, the answer is unknown. Where two candidates fit a
+rule, the answer is unknown: a tie is never broken by a preference. The one sanctioned
+approximation is `scope`, which says that it is one.
 
 ### 1.5 Exactness is declared
 
-Every answer says whether it is exact or approximate.
+Every answer says whether it is `exact`, the fact, or `approximate`, the best the
+stored facts allow. Only `scope` is ever `approximate`, and it always is. An unknown
+answer still says which it would have been.
 
 ### 1.6 Never fails
 
-A damaged table yields "unknown" for what could not be read. No query fails.
+A story file is data from outside. Whatever it contains, a query returns an answer: if
+a table cannot be read, because a number in it is out of range, a chain in it loops, or
+it runs off the end of the file, the part that depended on it is unknown with the
+reason `damaged`. No query reads outside the story file, and the work a query does is
+bounded by the size of the file and the number of its objects.
 
 ### 1.7 Deterministic
 
-The same story file in the same state gives the same answer.
+The same story file in the same state gives the same answers, on every run and every
+machine. An implementation keeps nothing from one query that changes the answer to the
+next: after a restore, a restart or an undo, the answers are those of the state arrived
+at.
 
 ## 2. Answers
 
-The form of an answer, the reasons an answer or a part of one can be unknown, exactness,
-and the JSON rendering.
+### 2.1 The form of an answer
+
+An answer has two parts:
+
+| Field | Value |
+| --- | --- |
+| `exactness` | `exact` or `approximate` |
+| `value` | What the query returns, or an unknown |
+
+The values of the six queries are described in sections 4 to 9, as records of named
+fields. A field is one of: a number; text; one of a fixed set of words; a list; another
+record; or nothing ("none"), where the description says a field may be none.
+
+### 2.2 Unknown, and its reasons
+
+Wherever a description says a value or a field may be unknown, it is either the value
+or an unknown carrying one of these reasons:
+
+| Reason | When |
+| --- | --- |
+| `unrecognised-family` | The query, or the field, needs a family (section 3) and the story file is of none |
+| `no-player` | The player cannot be found, or is not placed anywhere |
+| `ambiguous-player` | More than one object fits the family's rule for the player |
+| `inconsistent` | Two stored facts that the family keeps in step disagree; or the answer was asked of a different story file from the one the implementation was prepared for |
+| `not-determinable` | The story file's contents do not settle it |
+| `damaged` | A table could not be read (section 1.6) |
+
+A field that can be unknown is never simply left out. Some fields hold a fact that a
+family may not record at all; those take one of three words, `yes`, `no` or `unknown`,
+and are described as such where they occur.
+
+### 2.3 The JSON rendering
+
+An implementation that offers its answers as text does so in JSON, as follows. The
+record descriptions in sections 4 to 9 give the fields and their order.
+
+- A record is a JSON object whose keys are the field names, in the order given.
+- A number is a JSON number; text is a JSON string; a word from a fixed set is a JSON
+  string holding the word; a list is a JSON array; none is `null`.
+- An unknown is the object `{"unknown":"<reason>"}`, in place of the value.
+- An answer is `{"exactness":"…","value":…}`.
+- In `scope`, the field `player` is the string `"known"` or an unknown.
+- In a conditional exit, `destination` and `destination_name` are `null`.
+
+So an inventory that is not known is
+
+```text
+{"exactness":"exact","value":{"unknown":"no-player"}}
+```
+
+and one that is known to be empty is
+
+```text
+{"exactness":"exact","value":[]}
+```
+
+### 2.4 What a host writes
+
+Two arrangements of answers are fixed here, so that tools can read any implementation.
+
+**One line for each stop.** A host that reports as a game is played writes, each time
+the game waits for a line or a key, one JSON object on one line:
+
+| Field | Value |
+| --- | --- |
+| `spec` | The version of this specification the answers follow |
+| `stop` | The number of this stop, counting from 1 |
+| `wants` | `line` or `key` |
+| `family` | `inform6`, `zil` or `unrecognised` |
+| `location`, `exits`, `inventory`, `scope` | The four answers |
+
+**The tables.** A host that reports a story file's tables writes one JSON object with
+`spec`, `family`, and either or both of `object_tree` and `dictionary`, each an answer.
+
+### 2.5 Worked examples
+
+From Zork I (family `zil`), after `open mailbox` and `take leaflet` at the start of the
+game; and from Advent (family `inform6`), after `in` and `take lamp`. Long lists are cut
+short here with an ellipsis, which is not part of the rendering.
+
+`location`:
+
+```text
+{"exactness":"exact","value":{"room":64,"name":"West of House","holder":null,"lit":"unknown"}}
+{"exactness":"exact","value":{"room":38,"name":"Inside Building","holder":null,"lit":"yes"}}
+```
+
+`inventory`:
+
+```text
+{"exactness":"exact","value":[{"object":76,"name":"leaflet","worn":"unknown","contents":[]}]}
+{"exactness":"exact","value":[{"object":43,"name":"brass lantern","worn":"no","contents":[]}]}
+```
+
+`exits`. Zork I's house can be walked around, and its west side has no way in; in
+version 3 a word is stored cut to six letters. Advent's building has a way west and a
+way out, and stores a refusal for `in`, which is therefore absent:
+
+```text
+{"exactness":"exact","value":{"exits":[{"direction":31,"words":["n","north"],"kind":"fixed","destination":137,"destination_name":"North of House"},{"direction":29,"words":["w","west"],"kind":"fixed","destination":87,"destination_name":"Forest"}, … ,{"direction":25,"words":["se","southe"],"kind":"fixed","destination":209,"destination_name":"South of House"}],"unknown":[]}}
+{"exactness":"exact","value":{"exits":[{"direction":10,"words":["w","west"],"kind":"fixed","destination":30,"destination_name":"At End Of Road"},{"direction":18,"words":["out"],"kind":"fixed","destination":30,"destination_name":"At End Of Road"}],"unknown":[]}}
+```
+
+`scope`. ZIL records neither light nor scenery; Inform 6 records both:
+
+```text
+{"exactness":"approximate","value":{"light":"unknown","player":"known","objects":[{"object":230,"name":"small mailbox","reach":"in-room","within":null,"visibility":"visible","scenery":"unknown","concealed":"unknown"}, … ,{"object":76,"name":"leaflet","reach":"carried","within":null,"visibility":"visible","scenery":"unknown","concealed":"unknown"}]}}
+{"exactness":"approximate","value":{"light":"lit","player":"known","objects":[{"object":32,"name":"stream","reach":"in-room","within":null,"visibility":"visible","scenery":"yes","concealed":"no"}, … ,{"object":42,"name":"tasty food","reach":"in-room","within":null,"visibility":"visible","scenery":"no","concealed":"no"}, … ,{"object":43,"name":"brass lantern","reach":"carried","within":null,"visibility":"visible","scenery":"no","concealed":"no"}]}}
+```
+
+`object_tree`, one object from each game. Advent's maze rooms print as "Maze" whatever
+they are stored as:
+
+```text
+{"number":230,"name":"small mailbox","printed_name":"small mailbox","parent":64,"children":[76],"attributes":[13,18],"properties":[18,17,16,10]}
+{"number":116,"name":"(Alike_Maze_1)","printed_name":"Maze","parent":null,"children":[],"attributes":[],"properties":[46,35,18,15,10,9,8,7,2]}
+```
+
+`dictionary`, two words from each game:
+
+```text
+{"word":"lamp","parts":["noun"],"direction":null}
+{"word":"west","parts":["adjective","direction"],"direction":29}
+{"word":"north","parts":["noun","direction"],"direction":7}
+{"word":"save","parts":["verb","meta"],"direction":null}
+```
 
 ## 3. Families
 
@@ -543,6 +689,55 @@ room. `inventory`, `holder` and the carried part of `scope` are then those of
 labelled exact can be wrong.** It is to be closed before version 1 of this
 specification.
 
+### 10.2 Ties for the player in a ZIL game
+
+The rule of section 7.2 can tie, and then `inventory`, `holder` and the carried part of
+`scope` are unknown. This is a limit on how much is answered, not on whether what is
+answered is right. In a complete game of Zork I it happens at about one prompt in fifty.
+
+### 10.3 Translated Inform libraries
+
+Three of the four names in section 3.1 rule 3 are in the library's parser and are the
+same in every language. `compass` is in the library's language file. A game compiled
+with a translated library that names it otherwise is `unrecognised`.
+
+### 10.4 Versions of the library and of ZIL
+
+Section 3.1 fixes property and attribute numbers by the order of the library's
+declarations, checked against library 6.12. A library that declares them in another
+order, or a game that declares an attribute of its own before including the library,
+fails rules 4 or 5 and is `unrecognised`. `worn` (attribute 26) is on no object at any
+point of the game the rules were checked against, and rests on the declaration order.
+
+Section 3.2 describes version 3 story files and was checked against one of them. ZIL's
+later versions lay out the dictionary's data differently and are `unrecognised`.
+
+### 10.5 Exits are the room's table
+
+Section 8.3: a game's code may refuse a listed exit, or move the player elsewhere, when
+the command is given or on arrival.
+
+### 10.6 Scope is approximate
+
+Section 9.3.
+
+### 10.7 Other dictionaries
+
+Section 5: only the dictionary the header names is read.
+
 ## 11. Versioning
 
-What kind of change moves which part of the version number.
+The version has three parts, major, minor and patch.
+
+- **Major** changes when a query or a field is removed, when the meaning of a field or
+  of a reason changes, or when a rule changes in a way that makes a previously exact
+  answer different. A reader written for one major version cannot rely on the next.
+- **Minor** changes when a query, a field, a reason, a family, or a word in a fixed set
+  is added. A reader written for an earlier minor version still reads what it knew, and
+  must ignore fields and tolerate words it does not know.
+- **Patch** changes for corrections of wording that alter no answer.
+
+While the major version is 0 the specification is a draft, and a minor version may
+change anything. The known limit of section 10.1 is to be closed before version 1.
+
+A host states the version its answers follow in the `spec` field (section 2.4).

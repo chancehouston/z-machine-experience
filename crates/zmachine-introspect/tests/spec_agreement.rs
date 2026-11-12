@@ -22,7 +22,10 @@ fn sections(document: &str) -> Vec<(String, String)> {
             let rest = l.trim_start_matches('#').trim();
             let (number, title) = rest.split_once(' ')?;
             let number = number.trim_end_matches('.');
-            number.chars().all(|c| c.is_ascii_digit() || c == '.').then(|| (number.to_string(), title.to_string()))
+            number
+                .chars()
+                .all(|c| c.is_ascii_digit() || c == '.')
+                .then(|| (number.to_string(), title.to_string()))
         })
         .collect()
 }
@@ -34,7 +37,9 @@ fn the_document_and_the_implementation_list_the_same_queries() {
     let document = specification();
     let described: Vec<String> = sections(&document)
         .into_iter()
-        .filter(|(number, title)| !number.contains('.') && title.starts_with('`') && title.ends_with('`'))
+        .filter(|(number, title)| {
+            !number.contains('.') && title.starts_with('`') && title.ends_with('`')
+        })
         .map(|(_, title)| title.trim_matches('`').to_string())
         .collect();
     assert_eq!(described, QUERIES);
@@ -45,16 +50,28 @@ fn the_document_and_the_implementation_list_the_same_queries() {
 #[test]
 fn the_versions_agree() {
     let document = specification();
-    let line = document.lines().find(|l| l.starts_with("**Version**:")).expect("a version line");
-    assert!(line.contains(&format!("**Version**: {SPEC_VERSION} ")), "{line}");
+    let line = document
+        .lines()
+        .find(|l| l.starts_with("**Version**:"))
+        .expect("a version line");
+    assert!(
+        line.contains(&format!("**Version**: {SPEC_VERSION} ")),
+        "{line}"
+    );
     let machine = load(ZORK1.story, 1);
     let view = machine.view();
     let i = Introspector::new(&view);
     assert_eq!(i.spec_version(), SPEC_VERSION);
     assert!(stop_line(&i, &view, 1, "line").starts_with(&format!(r#"{{"spec":"{SPEC_VERSION}""#)));
     // Section 11 says what moves the version.
-    let versioning = document.split("## 11. Versioning").nth(1).expect("section 11");
-    assert!(versioning.contains("major") && versioning.contains("minor"), "section 11 says what changes which part");
+    let versioning = document
+        .split("## 11. Versioning")
+        .nth(1)
+        .expect("section 11");
+    assert!(
+        versioning.contains("major") && versioning.contains("minor"),
+        "section 11 says what changes which part"
+    );
 }
 
 /// Every field name in the JSON the implementation writes for both games, at
@@ -98,10 +115,19 @@ fn fields_and_reasons_agree() {
     let fields = written_fields();
     assert!(fields.len() >= 35, "{fields:?}");
     for field in &fields {
-        assert!(document.contains(&format!("`{field}`")), "the document does not name the field `{field}`");
+        assert!(
+            document.contains(&format!("`{field}`")),
+            "the document does not name the field `{field}`"
+        );
     }
     // The reasons, from the table in section 2.
-    let section = document.split("## 2. Answers").nth(1).unwrap().split("\n## 3.").next().unwrap();
+    let section = document
+        .split("## 2. Answers")
+        .nth(1)
+        .unwrap()
+        .split("\n## 3.")
+        .next()
+        .unwrap();
     let listed: BTreeSet<String> = section
         .lines()
         .filter(|l| l.starts_with("| `"))
@@ -109,18 +135,32 @@ fn fields_and_reasons_agree() {
         .filter(|word| word.contains('-') || *word == "inconsistent" || *word == "damaged")
         .map(str::to_string)
         .collect();
-    let offered: BTreeSet<String> = Unknown::ALL.iter().map(|u| u.as_str().to_string()).collect();
-    assert_eq!(listed, offered, "the reasons in section 2 against the implementation's");
+    let offered: BTreeSet<String> = Unknown::ALL
+        .iter()
+        .map(|u| u.as_str().to_string())
+        .collect();
+    assert_eq!(
+        listed, offered,
+        "the reasons in section 2 against the implementation's"
+    );
 }
 
 // FR-040: every test that cites a section of the document ("I§") cites one that
 // exists.
 #[test]
 fn every_cited_section_exists() {
-    let numbers: BTreeSet<String> = sections(&specification()).into_iter().map(|(n, _)| n).collect();
+    let numbers: BTreeSet<String> = sections(&specification())
+        .into_iter()
+        .map(|(n, _)| n)
+        .collect();
     let mut cited = BTreeSet::new();
     let mut files = Vec::new();
-    for directory in ["crates/zmachine-introspect/src", "crates/zmachine-introspect/tests", "crates/zmachine-introspect/tests/common", "crates/zmachine-cli/tests"] {
+    for directory in [
+        "crates/zmachine-introspect/src",
+        "crates/zmachine-introspect/tests",
+        "crates/zmachine-introspect/tests/common",
+        "crates/zmachine-cli/tests",
+    ] {
         for entry in std::fs::read_dir(format!("{ROOT}/{directory}")).unwrap() {
             let path = entry.unwrap().path();
             if path.extension().is_some_and(|e| e == "rs") {
@@ -131,14 +171,27 @@ fn every_cited_section_exists() {
     for path in files {
         let text = std::fs::read_to_string(&path).unwrap();
         for (at, _) in text.match_indices("I\u{a7}") {
-            let number: String = text[at + 3..].chars().take_while(|c| c.is_ascii_digit() || *c == '.').collect();
+            let number: String = text[at + 3..]
+                .chars()
+                .take_while(|c| c.is_ascii_digit() || *c == '.')
+                .collect();
             let number = number.trim_end_matches('.').to_string();
-            assert!(numbers.contains(&number), "{}: I\u{a7}{number} is not a section of the document", path.display());
+            // "cited I§" in a file's heading names the convention, not a section.
+            if number.is_empty() {
+                continue;
+            }
+            assert!(
+                numbers.contains(&number),
+                "{}: I\u{a7}{number} is not a section of the document",
+                path.display()
+            );
             cited.insert(number);
         }
     }
     // The query sections and the rules are all cited by some test.
-    for needed in ["1.1", "1.6", "1.7", "2", "3.1", "3.2", "4", "5", "6", "7", "8", "9"] {
+    for needed in [
+        "1.1", "1.6", "1.7", "2", "3.1", "3.2", "4", "5", "6", "7", "8", "9",
+    ] {
         assert!(cited.contains(needed), "no test cites I\u{a7}{needed}");
     }
 }
@@ -148,15 +201,27 @@ fn every_cited_section_exists() {
 #[test]
 fn the_document_does_not_depend_on_this_implementation() {
     let document = specification();
-    for foreign in ["crates/", "Vec<", "Result<", "Option<", "&View", "::", "fn ", "impl ", "cargo "] {
-        assert!(!document.contains(foreign), "the document contains {foreign:?}");
+    for foreign in [
+        "crates/", "Vec<", "Result<", "Option<", "&View", "::", "fn ", "impl ", "cargo ",
+    ] {
+        assert!(
+            !document.contains(foreign),
+            "the document contains {foreign:?}"
+        );
     }
     // Every numbered section has something in it.
     let all = sections(&document);
     assert!(all.len() >= 25, "{}", all.len());
     for pair in document.split("\n## ").skip(1) {
         let body: String = pair.lines().skip(1).collect::<Vec<_>>().join("\n");
-        assert!(body.trim().len() > 80, "a section is nearly empty: {:?}", pair.lines().next());
+        assert!(
+            body.trim().len() > 80,
+            "a section is nearly empty: {:?}",
+            pair.lines().next()
+        );
     }
-    assert!(!document.contains("This is a skeleton"), "the skeleton's note is gone");
+    assert!(
+        !document.contains("This is a skeleton"),
+        "the skeleton's note is gone"
+    );
 }
