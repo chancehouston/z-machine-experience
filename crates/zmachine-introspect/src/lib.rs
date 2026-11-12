@@ -8,6 +8,7 @@
 mod answer;
 mod family;
 mod inform;
+pub mod json;
 mod table;
 mod zil;
 
@@ -25,6 +26,8 @@ mod family_tests;
 mod fixtures;
 #[cfg(test)]
 mod inform_tests;
+#[cfg(test)]
+mod json_tests;
 #[cfg(test)]
 mod lib_tests;
 #[cfg(test)]
