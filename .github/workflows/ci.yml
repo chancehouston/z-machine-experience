@@ -47,17 +47,17 @@ jobs:
       - name: Check dfrotz version
         run: dfrotz -v | head -1 | grep -F "FROTZ V2.55"
 
-      # Optimized, because one of these tests times the full walkthrough (SC-005).
-      # The introspection queries' limit is five milliseconds (feature 003, SC-010),
-      # and the test holds to it on a developer's machine. A shared runner stalls
-      # now and then (7.1 ms over one prompt, once), so here the limit only catches
-      # queries that have become slow in earnest. The same goes for the experience
-      # layer's ten milliseconds for a command and its snapshot (feature 004,
-      # SC-003): 44 ms over one command, once, against a mean of 0.1 ms.
+      # Optimized, because these tests time things. Every timing test holds to its
+      # specification's limit on a developer's machine: five milliseconds for the
+      # introspection queries (feature 003, SC-010), ten for a command and its
+      # snapshot (feature 004, SC-003), fifty to start, five seconds for a whole
+      # walkthrough (SC-005). A shared runner stalls now and then: 7.1 ms over one
+      # prompt once, 44 ms over one command once, against means of 0.5 and 0.1 ms.
+      # So here every limit is multiplied by one factor, under which a test still
+      # catches code that has become slow in earnest.
       - name: Test against dfrotz, and timing
         env:
-          QUERY_LIMIT_MILLIS: "50"
-          COMMAND_LIMIT_MILLIS: "250"
+          TIME_LIMIT_FACTOR: "25"
         run: cargo test --workspace --release -- --ignored
 
   # The iPhone app (feature 004). It needs Xcode with an iOS 26 or later

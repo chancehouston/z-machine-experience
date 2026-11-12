@@ -7,17 +7,14 @@ mod common;
 use common::*;
 use std::time::{Duration, Instant};
 use zmachine_experience::{Seed, Session};
+use zmachine_testkit::time_limit;
 
 /// The limit for one command and its snapshot: the specification's ten
-/// milliseconds. COMMAND_LIMIT_MILLIS gives another, for a machine that is not the
-/// measure of the layer: a shared CI runner once took 44 ms over one command,
-/// where a developer's Mac takes 0.3 ms over the slowest and 0.1 ms on average.
+/// milliseconds, times `TIME_LIMIT_FACTOR` where a machine is not the measure of
+/// the layer. A shared CI runner once took 44 ms over one command, where a
+/// developer's Mac takes 0.3 ms over the slowest and 0.1 ms on average.
 fn command_limit() -> Duration {
-    let millis = std::env::var("COMMAND_LIMIT_MILLIS")
-        .ok()
-        .and_then(|millis| millis.parse().ok())
-        .unwrap_or(10);
-    Duration::from_millis(millis)
+    time_limit(Duration::from_millis(10))
 }
 
 // SC-003: over the whole walkthrough, the slowest command together with the
@@ -96,5 +93,8 @@ fn a_session_starts_quickly() {
         assert!(json.len() > 100);
     }
     println!("slowest of 20 starts: {slowest:?}");
-    assert!(slowest < Duration::from_millis(50), "{slowest:?}");
+    assert!(
+        slowest < time_limit(Duration::from_millis(50)),
+        "{slowest:?}"
+    );
 }
