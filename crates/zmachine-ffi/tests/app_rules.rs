@@ -89,7 +89,8 @@ fn a_typed_line_is_sent_from_one_place() {
     assert!(calls[0].1.contains(", typed)"), "{}", calls[0].1);
 
     // Followed back: `typed` reaches the engine only from the game model, and
-    // the model only from the view's `send`, which passes the field's text.
+    // the model only from the view's `send`, which is given the field's text by
+    // the send button and by the field itself on Return.
     let callers: Vec<(&str, &str)> = sources
         .iter()
         .flat_map(|(name, text)| text.lines().map(move |l| (name.as_str(), l)))
@@ -106,7 +107,16 @@ fn a_typed_line_is_sent_from_one_place() {
         "the line sent is the field's text"
     );
     assert!(view.contains("game.send(typed: typed)"));
-    assert!(view.contains("TextField(") && view.contains("text: $line"));
+    assert!(view.contains("CommandField(") && view.contains("text: $line"));
+    assert!(view.contains("onReturn: send"));
+    // On Return the field hands over its own text, as it was typed.
+    let field = &sources
+        .iter()
+        .find(|(n, _)| n == "Lamplight/CommandField.swift")
+        .unwrap()
+        .1;
+    assert!(field.contains("let typed = field.text ?? \"\"\n"));
+    assert!(field.contains("parent.onReturn(typed)"));
 }
 
 // SC-011: no command word is written in the app. The only place the words for

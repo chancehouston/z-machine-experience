@@ -185,7 +185,7 @@ tested without a phone (FR-027). User Stories 1 to 4 are then presentation.
 - [x] T051 [P] Update `.github/workflows/ci.yml` (research R11): find which Xcode the macOS runner has; if it can build for iOS 26, add a job that runs `scripts/build-ios.sh` and the UI tests on a simulator the runner has, and otherwise add the job with a step that prints a notice and skips. Record what was found. The existing jobs are unchanged apart from now covering the two new crates
 - [x] T052 [P] Update `README.md`: the demo in the status and the phases; how to build and run Lamplight; the new crates and `apps/ios` in the layout; what the demo does not do (remember a game, show inventory or objects, run on Android); that the compass is dark at questions and at one prompt of Zork I
 - [x] T053 Run every step of `specs/004-first-demo/quickstart.md` and correct the document or the code wherever they disagree
-- [ ] T054 Run `cargo clippy --workspace --all-targets -- -D warnings` and `cargo fmt --check` and fix what they report; confirm with `git diff main -- crates/zmachine-core/tests crates/zmachine-cli/tests crates/zmachine-introspect/tests` that no earlier test changed; launch the app in the simulator and play twenty moves by hand through the simulator tool, by taps and by typing, noting anything a test did not catch; list at the end of this file what was done differently from the plan, including any test that was not seen to fail before its code was written
+- [x] T054 Run `cargo clippy --workspace --all-targets -- -D warnings` and `cargo fmt --check` and fix what they report; confirm with `git diff main -- crates/zmachine-core/tests crates/zmachine-cli/tests crates/zmachine-introspect/tests` that no earlier test changed; launch the app in the simulator and play twenty moves by hand through the simulator tool, by taps and by typing, noting anything a test did not catch; list at the end of this file what was done differently from the plan, including any test that was not seen to fail before its code was written
 
 ---
 
@@ -340,11 +340,48 @@ its code existed.
   nothing has been pushed. The job detects it at run time: with no iPhone simulator on
   iOS 26 or later it prints a notice and does nothing more. It has never run.
 
+### Played by hand (T054, 12 November 2026, after the merge)
+
+Twenty moves on iPhone 17 Pro, iOS 26.0, through the simulator tool: nine taps and
+eleven typed lines, from West of House through the kitchen window, the living room, the
+trap door, the cellar, the gallery, the studio, up the chimney to the kitchen and the
+attic, and back to the living room. Then `quit`, `y`, "New game", and About. The place,
+score (35) and moves (20) were right at every step; every lit control moved the player;
+the two "may be blocked" taps did what the game said (`down` in the living room before
+the rug was moved: "You can't go that way."; `up` in the studio: let through); the
+compass was dimmed at the question and at the end; "New game" gave move 0.
+
+What no test caught:
+
+- **Characters typed straight after Return were lost.** SwiftUI's field gives the
+  focus up on Return and `send()` gave it back; what was typed in between went nowhere.
+  With the tool typing at once after Return, "read leaflet" did not arrive at all. At a
+  human pace nothing was lost. **Fixed afterwards** (branch `fix-keystrokes-after-return`):
+  the field is a UIKit one that keeps the focus on Return
+  (`apps/ios/Lamplight/CommandField.swift`), and lines typed while a command is being
+  answered wait their turn. The same three lines typed straight through then arrived
+  whole. `testTypingStraightThroughReturn` was added, but it passed before the fix: the
+  test framework waits between keys, so it cannot show this defect. It was shown by hand,
+  before and after. A first attempt, a field that grows downward, was worse (Return put
+  the keyboard away and sent nothing) and was thrown away.
+  The change first broke `testTheEndAndANewGameTenTimes` (the keyboard stayed up after the
+  game ended, hiding the compass in the new game); the field now puts it away when it
+  goes. The new test failed once in a full run, reading no moves count, and then passed
+  six times alone and in the next full run (20 passed, 1 skipped, iOS 26.0); why it failed
+  that once is not known. Not run on iOS 27.
+- **A way that has been opened still says "may be blocked".** After `open window`, in
+  and west at Behind House keep the question mark. That is what the introspection
+  interface reports, and it is not wrong, but it reads oddly.
+- **The compass shows a way the text has not mentioned.** In the living room, down is
+  "may be blocked" before the rug is moved.
+- **The opening sits at the bottom of the transcript at launch and at the top after
+  "New game".**
+- **The license in About keeps its own line breaks**, so each line wraps twice on a
+  phone.
+
+Not done by hand: dark appearance, the largest text size, and iOS 27 (the automated
+tests cover all three).
+
 ### Not done
 
-- **T054, playing twenty moves by hand through the simulator tool**: the tool asks the
-  owner for access to the simulator, and no one was there to grant it. The rest of T054
-  was done: clippy and the format check are clean, 690 tests pass across the workspace,
-  and `git diff main` over the earlier features' test folders shows one file added
-  (`crates/zmachine-core/tests/waiting_at.rs`) and none changed. T054 is left unmarked
-  until the app has been played by hand.
+No task is left unmarked. Of the findings above, only the first is fixed.
