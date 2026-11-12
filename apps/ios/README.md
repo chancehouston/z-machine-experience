@@ -20,3 +20,36 @@ committed:
 
 Xcode 27 or later, XcodeGen (`brew install xcodegen`), and the Rust targets
 `aarch64-apple-ios` and `aarch64-apple-ios-sim`.
+
+## Build, run, test
+
+From the repository root:
+
+```bash
+scripts/build-ios.sh
+```
+
+```bash
+xcodebuild -project apps/ios/Lamplight.xcodeproj -scheme Lamplight -destination 'platform=iOS Simulator,name=iPhone 18 Pro,OS=27.2' CODE_SIGNING_ALLOWED=NO build
+```
+
+```bash
+scripts/test-ios.sh 27
+```
+
+For iOS 26.0 the destination is `platform=iOS Simulator,name=iPhone 17 Pro,OS=26.0`, and
+the test script takes `26`. A destination must name the system version as well as the
+model: model names differ from one version to the next.
+
+## Files
+
+| File | Holds |
+| --- | --- |
+| `Lamplight/Engine.swift` | The one owner of the session; the only file that touches the C interface |
+| `Lamplight/Snapshot.swift` | The snapshot's fields, decoded from the layer's JSON |
+| `Lamplight/Game.swift` | What is on screen: the turns so far and the newest snapshot |
+| `Lamplight/GameView.swift` | The screen: status, transcript, field, end states |
+| `Lamplight/CompassLayout.swift` | Where each of the twelve places goes, and its symbol |
+| `Lamplight/CompassView.swift` | How each state is drawn |
+| `Lamplight/AboutView.swift` | The About sheet |
+| `LamplightUITests/` | Tests of the screen, by accessibility identifier |

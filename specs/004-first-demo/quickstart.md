@@ -64,9 +64,26 @@ dims the compass while the game asks whether you mean it; `y` ends the game and 
 ## 6. The automated UI tests
 
 ```bash
-xcodebuild -project apps/ios/Lamplight.xcodeproj -scheme Lamplight -destination 'platform=iOS Simulator,name=iPhone 18 Pro,OS=27.2' -derivedDataPath temp/ios CODE_SIGNING_ALLOWED=NO test
+scripts/test-ios.sh 27
 ```
 
-Expected: pass. For iOS 26.0, use the destination
-`platform=iOS Simulator,name=iPhone 17 Pro,OS=26.0`. The simulator's model names differ
-from one system version to the next, so the destination must name both.
+```bash
+scripts/test-ios.sh 26
+```
+
+Expected: one line per test, each passed, on iPhone 18 Pro with iOS 27.2 and on iPhone
+17 Pro with iOS 26.0. The simulator's model names differ from one system version to the
+next, so the script names both in each destination. A run takes about fifteen minutes.
+`testScreenshots` is skipped unless a folder is given for the pictures:
+
+```bash
+TEST_RUNNER_SHOTS=$PWD/specs/004-first-demo/screenshots TEST_RUNNER_SHOTS_SUFFIX=light scripts/test-ios.sh 26 -only-testing:LamplightUITests/LamplightUITests/testScreenshots
+```
+
+## 7. Timing
+
+```bash
+cargo test --release -p zmachine-experience --test speed -- --ignored --nocapture
+```
+
+Expected: pass; the slowest command with its snapshot is well under a millisecond.
