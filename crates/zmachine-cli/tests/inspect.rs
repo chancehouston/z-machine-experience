@@ -387,3 +387,105 @@ fn bad_files_are_refused_and_the_options_are_documented() {
         assert!(help.contains(option), "{option} in:\n{help}");
     }
 }
+
+/// A game pack for Zork I as committed, with these entries. The identity is the
+/// corpus manifest's, the header's release and the header's serial.
+fn zork1_pack(entries: &str) -> String {
+    format!(
+        "pack: 1\nsha256: 37084966477dff679282de42974b2077156b1bd68fad92a65d4ea94d8eb64d79\nrelease: 119\nserial: 880429\n{entries}"
+    )
+}
+
+// Feature 006 (specs/006-game-packs/contracts/commands.md, "`zm`"; FR-006).
+// I§12.2, I§2.4: `--pack FILE` gives the reader a game pack, and each line says
+// in the field `pack`, after `family`, what became of it. A pack that is refused
+// or is another story's is not an error; a file that cannot be read is.
+#[test]
+fn pack_gives_a_game_pack_and_the_line_says_what_became_of_it() {
+    let dir = scratch_dir("pack");
+    let run = |pack: Option<&str>| {
+        let out_file = dir.join("inspect.jsonl");
+        let pack_file = dir.join("story.pack");
+        let mut args = vec!["--seed".to_string(), "1".to_string()];
+        if let Some(text) = pack {
+            std::fs::write(&pack_file, text).unwrap();
+            args.extend(["--pack".to_string(), path(&pack_file)]);
+        }
+        args.extend(["--inspect".to_string(), path(&out_file), story("zork1/zork1.z3")]);
+        let args: Vec<&str> = args.iter().map(String::as_str).collect();
+        let out = zm(&args, "north\n");
+        assert_eq!(out.status.code(), Some(0), "{}", text(&out.stderr));
+        std::fs::read_to_string(&out_file).unwrap()
+    };
+    let field = |written: &str| {
+        let line = written.lines().next().unwrap().to_string();
+        let start = r#"{"spec":"0.2.0","stop":1,"wants":"line","family":"zil","pack":""#;
+        assert!(line.starts_with(start), "{line}");
+        line[start.len()..].split('"').next().unwrap().to_string()
+    };
+    assert_eq!(field(&run(None)), "none");
+    let right = zork1_pack("open-attribute: 11\n");
+    let with = run(Some(&right));
+    assert_eq!(field(&with), "in-force");
+    assert_eq!(
+        field(&run(Some(&right.replace("release: 119", "release: 118")))),
+        "not-matching"
+    );
+    assert_eq!(field(&run(Some("pack: 9\n"))), "refused");
+    // Playing is the same with a pack as without.
+    let played = |pack: Option<&str>| {
+        let pack_file = dir.join("played.pack");
+        let mut args = vec!["--seed", "1"];
+        let name = path(&pack_file);
+        if let Some(text) = pack {
+            std::fs::write(&pack_file, text).unwrap();
+            args.extend(["--pack", &name]);
+        }
+        let file = story("zork1/zork1.z3");
+        args.push(&file);
+        text(&zm(&args, "north\neast\nopen window\nin\n").stdout)
+    };
+    assert_eq!(played(Some(&right)), played(None));
+
+    // A file that cannot be read is an error before the game starts.
+    let missing = dir.join("no-such.pack");
+    let out = zm(
+        &["--pack", &path(&missing), &story("zork1/zork1.z3")],
+        "north\n",
+    );
+    assert_eq!(out.status.code(), Some(2));
+    assert!(text(&out.stderr).contains("no-such.pack"), "{}", text(&out.stderr));
+    assert_eq!(text(&out.stdout), "", "the game did not start");
+    let out = zm(&["--pack"], "");
+    assert_eq!(out.status.code(), Some(2));
+    assert!(text(&out.stderr).contains("--pack needs a value"));
+}
+
+// I§12.3: on Zork I with its "open" attribute given, the window behind the house
+// is a door, closed and then open, to the same room.
+#[test]
+fn a_door_is_reported_closed_and_then_open() {
+    let dir = scratch_dir("door");
+    let (out_file, pack_file) = (dir.join("inspect.jsonl"), dir.join("story.pack"));
+    std::fs::write(&pack_file, zork1_pack("open-attribute: 11\n")).unwrap();
+    let out = zm(
+        &[
+            "--seed", "1", "--pack", &path(&pack_file), "--inspect", &path(&out_file),
+            &story("zork1/zork1.z3"),
+        ],
+        "north\neast\nopen window\n",
+    );
+    assert_eq!(out.status.code(), Some(0), "{}", text(&out.stderr));
+    let written = std::fs::read_to_string(&out_file).unwrap();
+    let lines: Vec<&str> = written.lines().collect();
+    assert_eq!(lines.len(), 4);
+    let door = |line: &str| {
+        let at = line.find(r#""kind":"door""#).unwrap_or_else(|| panic!("no door: {line}"));
+        line[at..].split('}').next().unwrap().to_string()
+    };
+    assert!(!lines[0].contains(r#""kind":"door""#), "no door at the start");
+    let (closed, open) = (door(lines[2]), door(lines[3]));
+    assert!(closed.ends_with(r#""state":"closed","source":"pack""#), "{closed}");
+    assert!(open.ends_with(r#""state":"open","source":"pack""#), "{open}");
+    assert_eq!(closed.replace("closed", "open"), open, "the same door and room");
+}
