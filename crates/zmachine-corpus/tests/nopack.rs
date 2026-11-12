@@ -49,7 +49,11 @@ fn the_report_without_the_pack_is_the_report_of_a_story_with_none() {
     assert!(marked.contains("\npack in-force entries 2\n"), "{marked}");
     assert_ne!(marked, plain);
     // A story with no pack keeps one report.
-    assert!(!without.path("stories/corpus/reports/nopack/toy.txt").exists());
+    assert!(
+        !without
+            .path("stories/corpus/reports/nopack/toy.txt")
+            .exists()
+    );
 }
 
 // FR-021: the run compares both reports with those kept.
@@ -97,11 +101,10 @@ fn the_kept_reports_without_packs_have_feature_005s_figures() {
         "conditional 113 moved 89 stayed 24 question 0 ended 0 fault 0",
     )];
     let mut checked = 0;
-    for (id, trials, fixed_confirmed, fixed_wrong, none_confirmed, none_wrong, conditional) in was
-    {
-        let Ok(text) = std::fs::read_to_string(repo(&format!(
-            "stories/corpus/reports/nopack/{id}.txt"
-        ))) else {
+    for (id, trials, fixed_confirmed, fixed_wrong, none_confirmed, none_wrong, conditional) in was {
+        let Ok(text) =
+            std::fs::read_to_string(repo(&format!("stories/corpus/reports/nopack/{id}.txt")))
+        else {
             continue;
         };
         let report = zmachine_corpus::report::Report::read(&text).unwrap();
@@ -162,7 +165,12 @@ fn a_walkthrough_with_a_pack_gives_the_reference_transcript() {
                 }
             },
         );
-        assert_eq!(replay.transcript, read_text(game.reference), "{}", game.name);
+        assert_eq!(
+            replay.transcript,
+            read_text(game.reference),
+            "{}",
+            game.name
+        );
         assert!(trials > 1000, "{}: {trials}", game.name);
     }
 }

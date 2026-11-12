@@ -5,19 +5,21 @@ places 356 walkthrough 330 crawl 26
 rooms visited 109 named-not-reached 1
 budget rooms 400 trials 40000 reached no
 trials 4628 wordless 0
-fixed confirmed 801 wrong-known 35 wrong-unexplained 0
-none confirmed 3591 wrong-known 66 wrong-unexplained 0 other 2
-conditional 113 moved 89 stayed 24 question 0 ended 0 fault 0
+fixed confirmed 795 wrong-known 33 wrong-unexplained 0
+none confirmed 3578 wrong-known 63 wrong-unexplained 0 other 2
+conditional 55 moved 37 stayed 18 question 0 ended 0 fault 0
 unknown 0 moved 0 stayed 0 question 0 ended 0 fault 0
 no-verdict 20
+pack in-force entries 3
+open confirmed 52 wrong-known 0 wrong-unexplained 0
+closed confirmed 6 wrong-known 0 wrong-unexplained 0 other 0
+distrusted 24 moved 9 stayed 15 question 0 ended 0 fault 0
 detail
 3 29 fixed 3 stayed 4
+8 29 distrusted moved 249 2
+8 29 distrusted stayed 4
 15 30 fixed 205 question 2
 19 22 conditional moved 193 1
-27 20 conditional moved 85 16
-27 30 conditional moved 85 16
-33 23 conditional moved 75 4
-33 23 conditional stayed 3
 37 22 fixed 174 stayed 1
 40 28 fixed 47 stayed 5
 40 31 fixed 30 stayed 5
@@ -52,10 +54,6 @@ detail
 75 22 conditional stayed 17
 81 22 conditional moved 152 1
 81 26 fixed 81 stayed 1
-85 21 conditional moved 27 8
-85 21 conditional stayed 1
-85 29 conditional moved 27 8
-85 29 conditional stayed 1
 90 31 fixed 90 stayed 4
 95 23 fixed 86 stayed 3
 95 29 fixed 86 stayed 3
@@ -63,7 +61,8 @@ detail
 111 23 fixed 178 stayed 1
 111 31 fixed 178 stayed 1
 112 28 fixed 112 stayed 4
-129 22 none moved 176 1
+129 22 distrusted moved 176 3
+129 22 distrusted stayed 1
 134 29 fixed 134 stayed 1
 153 19 none moved 38 1
 153 20 none moved 38 1
@@ -118,11 +117,10 @@ detail
 182 27 none moved 53 1
 182 28 none moved 53 1
 182 31 none moved 53 1
-216 23 conditional stayed 1
 220 23 conditional moved 27 1
 244 21 none question 1
 244 29 none question 1
-249 20 fixed 8 stayed 1
-249 20 none moved 8 1
-249 30 fixed 8 stayed 1
-249 30 none moved 8 1
+249 20 distrusted moved 8 2
+249 20 distrusted stayed 5
+249 30 distrusted moved 8 2
+249 30 distrusted stayed 5

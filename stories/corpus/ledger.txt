@@ -165,15 +165,6 @@ cause: The player is in a vehicle, and the vehicle's own routine refuses a walk 
   direction before the room's table is read.
 
 story: zork1
-room: 129
-direction: 22
-reported: none
-outcome: moved 176
-cause: The exit depends on a flag that the room's own routine sets afresh when a command
-  begins. The stored value is the one left by the command before, and here it is out
-  of date.
-
-story: zork1
 room: 174
 direction: 19
 reported: none
@@ -364,43 +355,6 @@ reported: none
 outcome: moved 53
 cause: A timed event moves the player's vehicle on at the end of this turn, whatever the
   command was. The direction itself does nothing.
-
-story: zork1
-room: 249
-direction: 20
-reported: fixed 8
-outcome: stayed
-cause: The exit depends on a flag that the room's own routine sets afresh when a command
-  begins. The stored value is the one left by the command before, and here it is out
-  of date.
-
-story: zork1
-room: 249
-direction: 20
-reported: none
-outcome: moved 8
-cause: The exit depends on a flag that the room's own routine sets afresh when a command
-  begins. The stored value is the one left by the command before, and here it is out
-  of date.
-
-story: zork1
-room: 249
-direction: 30
-reported: fixed 8
-outcome: stayed
-cause: The exit depends on a flag that the room's own routine sets afresh when a command
-  begins. The stored value is the one left by the command before, and here it is out
-  of date.
-
-story: zork1
-room: 249
-direction: 30
-reported: none
-outcome: moved 8
-cause: The exit depends on a flag that the room's own routine sets afresh when a command
-  begins. The stored value is the one left by the command before, and here it is out
-  of date.
-# Zork I, places the crawl reached (T030).
 
 story: zork1
 room: 51

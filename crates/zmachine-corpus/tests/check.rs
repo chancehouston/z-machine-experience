@@ -359,9 +359,15 @@ fn a_well_formed_pack_for_a_story_of_the_manifest_passes() {
 fn a_malformed_pack_is_refused_with_its_file_and_line() {
     let scratch = good();
     scratch.pack("toy", &toy(), "open-attribute: 9\nlit-attribute: 3\n");
-    pack_fails_with(&scratch, "packs/toy.pack:6: a key this format does not have");
+    pack_fails_with(
+        &scratch,
+        "packs/toy.pack:6: a key this format does not have",
+    );
     scratch.pack("toy", &toy(), "open-attribute: 32\n");
-    pack_fails_with(&scratch, "packs/toy.pack:5: open-attribute is a number from 0 to 31");
+    pack_fails_with(
+        &scratch,
+        "packs/toy.pack:5: open-attribute is a number from 0 to 31",
+    );
 }
 
 // FR-023: an entry with no story to test it on may not exist; nor two packs for
@@ -372,7 +378,10 @@ fn a_pack_must_be_the_one_pack_of_a_story_the_corpus_holds() {
     let mut other = Toy::new(3);
     other.way(0, NORTH, 1);
     scratch.pack("toy", &other.build(), "");
-    pack_fails_with(&scratch, "packs/toy.pack: its digest is no story's in the manifest");
+    pack_fails_with(
+        &scratch,
+        "packs/toy.pack: its digest is no story's in the manifest",
+    );
 
     let scratch = good();
     scratch.pack("toy", &toy(), "");
@@ -399,7 +408,10 @@ fn an_entry_for_a_story_of_another_family_is_refused() {
     scratch.pack("toy", &toy(), "");
     pack_passes(&scratch);
     scratch.pack("toy", &toy(), "untrusted-variable: 40\n");
-    pack_fails_with(&scratch, "packs/toy.pack: an entry, for a story of family inform");
+    pack_fails_with(
+        &scratch,
+        "packs/toy.pack: an entry, for a story of family inform",
+    );
 }
 
 // I§12.2: the release and the serial are the story file's own; where the file
@@ -411,7 +423,12 @@ fn a_pack_states_its_storys_own_release_and_serial() {
     edit(&scratch, "packs/toy.pack", "release: 1\n", "release: 2\n");
     pack_fails_with(&scratch, "packs/toy.pack: the story's release is 1");
     scratch.pack("toy", &toy(), "");
-    edit(&scratch, "packs/toy.pack", "serial: 000000\n", "serial: 000001\n");
+    edit(
+        &scratch,
+        "packs/toy.pack",
+        "serial: 000000\n",
+        "serial: 000001\n",
+    );
     pack_fails_with(&scratch, "packs/toy.pack: the story's serial is 000000");
     // Where the file is absent these cannot be checked, and are not.
     std::fs::remove_file(scratch.path("stories/toy/toy.z3")).unwrap();
@@ -433,7 +450,9 @@ fn the_check_shows_ledger_entries_on_marked_answers() {
     assert_eq!(failures, Vec::<String>::new());
     assert_eq!(
         notes,
-        ["stories/corpus/ledger.txt:8: on an answer that rests on a pack: toy 3 29 open 2 stayed: The room is dark."]
+        [
+            "stories/corpus/ledger.txt:8: on an answer that rests on a pack: toy 3 29 open 2 stayed: The room is dark."
+        ]
     );
 }
 

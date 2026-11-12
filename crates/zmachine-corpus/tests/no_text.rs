@@ -11,7 +11,7 @@ use zmachine_introspect::Introspector;
 
 /// The words of the report format. A game's word that is one of these cannot be
 /// told from the format's own.
-const KEYWORDS: [&str; 32] = [
+const KEYWORDS: [&str; 40] = [
     "story",
     "sha256",
     "version",
@@ -44,12 +44,28 @@ const KEYWORDS: [&str; 32] = [
     "fault",
     "unknown",
     "no-verdict",
+    // Feature 006: a run that was given a game pack.
+    "pack",
+    "in-force",
+    "not-matching",
+    "refused",
+    "entries",
+    "open",
+    "closed",
+    "distrusted",
 ];
 
 fn report_files() -> Vec<std::path::PathBuf> {
     let mut files: Vec<_> = std::fs::read_dir(repo(REPORTS))
         .unwrap()
         .map(|entry| entry.unwrap().path())
+        .chain(
+            // The reports of runs with packs set aside (feature 006).
+            std::fs::read_dir(repo(zmachine_corpus::corpus::NOPACK))
+                .into_iter()
+                .flatten()
+                .map(|entry| entry.unwrap().path()),
+        )
         .filter(|path| path.extension().is_some_and(|e| e == "txt"))
         .collect();
     files.sort();
@@ -150,4 +166,121 @@ fn no_committed_storys_names_are_in_its_report_or_the_ledger() {
         searched += 1;
     }
     assert!(searched >= 3);
+}
+
+// ---------------------------------------------------------------------------
+// Game packs (specs/006-game-packs/research.md R13; FR-003; SC-008)
+// ---------------------------------------------------------------------------
+
+/// The words a pack's comment may use, besides numbers.
+const COMMENT_WORDS: [&str; 6] = ["a", "game", "pack", "docs", "introspection", "section"];
+
+/// Why a pack's text is not of the format's grammar, read by this test's own
+/// reader and not the crate's: the line, from 1, and the fault. A line is blank,
+/// a comment, or a known key and a value of digits, of hexadecimal digits, or
+/// for the serial of six letters or digits. A comment may hold no word of
+/// `names`, and no word at all but the format's own.
+fn pack_fault(text: &str, names: &[String]) -> Option<(usize, String)> {
+    for (number, line) in text.lines().enumerate().map(|(i, l)| (i + 1, l)) {
+        let fault = |why: &str| Some((number, why.to_string()));
+        if line.trim().is_empty() {
+            continue;
+        }
+        if let Some(comment) = line.strip_prefix('#') {
+            for word in comment
+                .split(|c: char| !c.is_ascii_alphanumeric())
+                .filter(|w| !w.is_empty())
+            {
+                let word = word.to_lowercase();
+                if names.contains(&word) {
+                    return fault(&format!("the comment holds {word:?}, a word of a game"));
+                }
+                let plain = word.bytes().all(|b| b.is_ascii_digit())
+                    || COMMENT_WORDS.contains(&word.as_str())
+                    || word == "md";
+                if !plain {
+                    return fault(&format!("the comment holds {word:?}"));
+                }
+            }
+            continue;
+        }
+        let Some((key, value)) = line.split_once(": ") else {
+            return fault("not a key and a value");
+        };
+        let digits = !value.is_empty() && value.bytes().all(|b| b.is_ascii_digit());
+        let good = match key {
+            "pack" | "release" | "open-attribute" | "untrusted-variable" => digits,
+            "sha256" => {
+                value.len() == 64
+                    && value
+                        .bytes()
+                        .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+            }
+            "serial" => value.len() == 6 && value.bytes().all(|b| b.is_ascii_alphanumeric()),
+            _ => return fault("a key the format does not have"),
+        };
+        if !good {
+            return fault("a value that is not a number, a digest or a serial");
+        }
+    }
+    None
+}
+
+/// Every word of four letters or more in a committed story's dictionary, and
+/// every word of its objects' names.
+fn game_words() -> Vec<String> {
+    let root = std::path::Path::new(ROOT);
+    let stories = manifest::read(&read_text(MANIFEST)).unwrap();
+    let mut names = Vec::new();
+    for story in stories.iter().filter(|s| s.tier == Tier::Committed) {
+        let machine = load_bytes(present(root, story).unwrap(), story.seed);
+        let view = machine.view();
+        let introspector = Introspector::new(&view);
+        for object in introspector.object_tree(&view).value.unwrap_or_default() {
+            if let Ok(name) = object.printed_name {
+                names.extend(name.to_lowercase().split_whitespace().map(str::to_string));
+            }
+        }
+        for word in introspector.dictionary(&view).value.unwrap_or_default() {
+            if word.word.chars().count() >= 4 {
+                names.push(word.word.to_lowercase());
+            }
+        }
+    }
+    names.retain(|name| !COMMENT_WORDS.contains(&name.as_str()) && name.len() >= 4);
+    assert!(names.len() > 1000, "{}", names.len());
+    names
+}
+
+// I§12.1: "A pack has nowhere to hold a condition, a script, or any text of a
+// game." SC-008, FR-003: every pack the repository holds is of the grammar and
+// nothing else, and its comments hold no word of any committed story.
+#[test]
+fn no_pack_holds_a_word_of_a_game() {
+    let names = game_words();
+    let mut read = 0;
+    for entry in std::fs::read_dir(repo("packs")).unwrap().flatten() {
+        let path = entry.path();
+        if path.extension().is_some_and(|e| e == "pack") {
+            let text = std::fs::read_to_string(&path).unwrap();
+            assert_eq!(pack_fault(&text, &names), None, "{}", path.display());
+            read += 1;
+        }
+    }
+    assert!(read >= 1, "the repository holds a pack");
+
+    // The reader refuses what it is there to refuse.
+    let good = "# A game pack (docs/introspection.md, section 12).\npack: 1\nopen-attribute: 11\n";
+    assert_eq!(pack_fault(good, &names), None);
+    for (bad, line) in [
+        ("# The trap door of the kitchen.\npack: 1\n", 1),
+        ("pack: 1\n# Zork\n", 2),
+        ("pack: 1\nopen-attribute: window\n", 2),
+        ("pack: 1\nname: zork\n", 2),
+        ("pack: 1\nopen-attribute: 11 if the lamp is lit\n", 2),
+        ("pack: 1\nserial: 88 429\n", 2),
+    ] {
+        assert_eq!(pack_fault(bad, &names).map(|f| f.0), Some(line), "{bad}");
+    }
+    assert!(names.contains(&"zork".to_string()) && names.contains(&"window".to_string()));
 }
