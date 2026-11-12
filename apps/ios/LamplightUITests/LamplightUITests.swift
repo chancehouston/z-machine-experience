@@ -261,7 +261,7 @@ final class LamplightUITests: XCTestCase {
         XCTAssertEqual(element(app, "status.place").label, "North of House")
 
         element(app, "button.compass").tap()
-        XCTAssertTrue(element(app, "compass.north").waitForExistence(timeout: 2))
+        XCTAssertTrue(element(app, "compass.north").waitForExistence(timeout: patience))
         XCTAssertTrue(element(app, "compass.north").isHittable)
         XCTAssertEqual(element(app, "compass.north").label, "North, to Forest Path")
     }
@@ -355,7 +355,7 @@ final class LamplightUITests: XCTestCase {
         let app = launch()
         _ = turn(app, 0)
         element(app, "button.about").tap()
-        XCTAssertTrue(app.staticTexts["Lamplight"].waitForExistence(timeout: 2))
+        XCTAssertTrue(app.staticTexts["Lamplight"].waitForExistence(timeout: patience))
         XCTAssertTrue(element(app, "about.demonstration").exists)
         let license = element(app, "about.license")
         XCTAssertTrue(license.exists)

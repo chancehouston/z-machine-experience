@@ -252,7 +252,9 @@ fn each_walkthrough_takes_under_five_seconds() {
         our_transcript(build, &dir);
         let elapsed = started.elapsed();
         assert!(
-            elapsed.as_secs_f64() < 5.0,
+            // Five seconds, times TIME_LIMIT_FACTOR on a machine that is not the
+            // measure of the interpreter.
+            elapsed < zmachine_testkit::time_limit(std::time::Duration::from_secs(5)),
             "{build}: the walkthrough took {elapsed:?}"
         );
     }
