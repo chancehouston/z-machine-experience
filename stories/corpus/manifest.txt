@@ -11,6 +11,8 @@ tier: committed
 path: stories/zork1/zork1.z3
 seed: 11
 walkthrough: stories/zork1/fidelity/walkthrough.txt
+inventory: inventory
+aside: north / east / open window / west / take bottle
 
 id: advent-z5
 sha256: 9df430b9454ebee51de43d10af6c5616ad56b8f4f59389130c132449d99e9b05

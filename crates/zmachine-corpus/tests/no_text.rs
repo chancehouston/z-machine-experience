@@ -11,7 +11,7 @@ use zmachine_introspect::Introspector;
 
 /// The words of the report format. A game's word that is one of these cannot be
 /// told from the format's own.
-const KEYWORDS: [&str; 40] = [
+const KEYWORDS: [&str; 52] = [
     "story",
     "sha256",
     "version",
@@ -53,6 +53,19 @@ const KEYWORDS: [&str; 40] = [
     "open",
     "closed",
     "distrusted",
+    // Feature 007: the comparison of the inventory with the game's listing.
+    "inventory",
+    "compared",
+    "agreed",
+    "differed-known",
+    "differed-unexplained",
+    "unjudged",
+    "no-listing",
+    "empty",
+    "through-closed",
+    "seen",
+    "kept",
+    "listed",
 ];
 
 fn report_files() -> Vec<std::path::PathBuf> {
@@ -91,7 +104,7 @@ fn every_report_is_of_the_format_and_nothing_else() {
         assert_eq!(report.write(), text, "{}", path.display());
         for word in text.split_whitespace() {
             let plain = KEYWORDS.contains(&word)
-                || matches!(word, "detail" | "lost")
+                || matches!(word, "detail" | "lost" | "unlisted")
                 || word == report.id
                 || word == report.sha256
                 || word.bytes().all(|b| b.is_ascii_digit());
@@ -209,7 +222,11 @@ fn pack_fault(text: &str, names: &[String]) -> Option<(usize, String)> {
         };
         let digits = !value.is_empty() && value.bytes().all(|b| b.is_ascii_digit());
         let good = match key {
-            "pack" | "release" | "open-attribute" | "untrusted-variable" => digits,
+            "pack"
+            | "release"
+            | "open-attribute"
+            | "untrusted-variable"
+            | "transparent-attribute" => digits,
             "sha256" => {
                 value.len() == 64
                     && value
@@ -279,6 +296,7 @@ fn no_pack_holds_a_word_of_a_game() {
         ("pack: 1\nname: zork\n", 2),
         ("pack: 1\nopen-attribute: 11 if the lamp is lit\n", 2),
         ("pack: 1\nserial: 88 429\n", 2),
+        ("pack: 2\ntransparent-attribute: glass\n", 2),
     ] {
         assert_eq!(pack_fault(bad, &names).map(|f| f.0), Some(line), "{bad}");
     }

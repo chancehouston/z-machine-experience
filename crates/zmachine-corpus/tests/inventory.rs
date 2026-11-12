@@ -390,3 +390,44 @@ fn an_absent_story_is_ignored() {
         "{said:?}"
     );
 }
+
+// SC-003; research R2: on Zork I, with the short aside its manifest entry gives
+// (it carries a closed thing that can be seen through), attribute 12 is proven
+// to mean see-through, and a pack naming any of the other 31 is contradicted by
+// the game's own listing.
+#[test]
+fn only_attribute_12_is_zork1s_see_through() {
+    use zmachine_corpus::packs::{Proof, prove_transparent};
+    let root = std::path::Path::new(ROOT);
+    let (stories, ledger) = zmachine_corpus::corpus::load(root).unwrap();
+    let story = stories.iter().find(|s| s.id == "zork1").unwrap();
+    assert!(!story.asides.is_empty(), "zork1 has an aside");
+    let image = read("stories/zork1/zork1.z3");
+    let script = read_text("stories/zork1/fidelity/walkthrough.txt");
+    for attribute in 0..32 {
+        let pack = pack_for(
+            &image,
+            &format!("open-attribute: 11\ntransparent-attribute: {attribute}\n"),
+        )
+        .replace("pack: 1", "pack: 2");
+        let (report, _, _) = zmachine_corpus::walk::run_story_with(
+            story,
+            image.clone(),
+            Some(&script),
+            &ledger,
+            Some(&pack),
+            None,
+        );
+        let expected = if attribute == 12 {
+            Proof::Proven
+        } else {
+            Proof::Contradicted
+        };
+        assert_eq!(
+            prove_transparent(&report),
+            expected,
+            "attribute {attribute}: {:?}",
+            report.inventory
+        );
+    }
+}
