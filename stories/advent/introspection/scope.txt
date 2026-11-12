@@ -1,0 +1,190 @@
+# Advent scope expectations, made by hand from fidelity/walkthrough.txt,
+# fidelity/reference_z5.scr and (for object names and attributes) advent.inf.
+# See SCOPE-README.md in this directory.
+# "at line N" = the game is waiting for the command on line N of walkthrough.txt.
+# has: must be in scope.  not: must not be in scope (it is in another room).
+# has: lists are deliberately subsets. Dwarves, the axe, the troll and the
+# bridge are never listed. The walkthrough never puts the player in darkness
+# (the lamp is only off inside the lit building), so there is no dark entry.
+
+# Opening position. Nothing portable here; "well house" and "stream" are
+# scenery objects that advent.inf places here through found_in.
+at line 3 | At End Of Road
+  has: well house, stream
+  not: set of keys, brass lantern, tasty food, small bottle
+
+# The building with its four objects, plus two fixed scenery objects.
+at line 5 | Inside Building
+  has: set of keys, tasty food, brass lantern, small bottle, spring, pair of 1 foot diameter sewer pipes
+  not: wicker cage, little bird
+
+# The grate is a static door object present on both sides (found_in).
+at line 11 | Outside Grate
+  has: steel grate, set of keys, brass lantern
+  not: tasty food, small bottle, wicker cage
+
+at line 14 | In Cobble Crawl
+  has: wicker cage, set of keys, brass lantern
+  not: tasty food, small bottle
+
+# "debris" is fixed scenery in this room.
+at line 17 | In Debris Room
+  has: black rod with a rusty star on the end, debris, set of keys, brass lantern, wicker cage
+  not: little bird, tasty food
+
+# Carrying the cage with the bird in it. Catching the bird closes the cage
+# (give wicker_cage ~open), but the cage has the transparent attribute in
+# advent.inf, so the bird inside is still in scope.
+at line 20 | Orange River Chamber
+  has: wicker cage, little bird, set of keys, brass lantern
+  not: black rod with a rusty star on the end, small bottle
+
+at line 23 | Low Room
+  has: large gold nugget, wicker cage, little bird, set of keys, brass lantern
+  not: black rod with a rusty star on the end, tasty food
+
+at line 26 | Hall of the Mountain King
+  has: snake, wicker cage, little bird, set of keys, brass lantern, large gold nugget
+  not: tasty food, small bottle
+
+# Bird released, cage and keys dropped.
+at line 28 | Hall of the Mountain King
+  has: little bird, wicker cage, set of keys, brass lantern, large gold nugget
+  not: small bottle, tasty food
+
+at line 32 | Low N/S Passage
+  has: bars of silver, brass lantern, large gold nugget, precious jewelry
+  not: wicker cage, set of keys, little bird
+
+at line 35 | In West Side Chamber
+  has: rare coins, brass lantern, large gold nugget, precious jewelry, bars of silver
+  not: wicker cage, set of keys
+
+at line 40 | West Side of Fissure
+  has: diamonds, brass lantern, large gold nugget, precious jewelry, bars of silver, rare coins
+  not: set of keys, small bottle
+
+at line 46 | Dead End
+  has: treasure chest, brass lantern, large gold nugget, precious jewelry, bars of silver, rare coins, diamonds
+  not: set of keys, wicker cage
+
+# Seven things carried.
+at line 48 | Inside Building
+  has: tasty food, small bottle, brass lantern, treasure chest, diamonds, rare coins, bars of silver, precious jewelry, large gold nugget
+  not: set of keys, wicker cage, little bird
+
+# Carrying an open container (the bottle) with water in it; six treasures on
+# the floor. The lamp is off but the building is lit.
+at line 53 | Inside Building
+  has: brass lantern, tasty food, small bottle, bottled water, treasure chest, diamonds, rare coins, bars of silver, precious jewelry, large gold nugget, spring
+  not: set of keys, wicker cage, little bird
+
+at line 57 | Secret Canyon
+  has: dragon, Persian rug, brass lantern, tasty food, small bottle, bottled water, set of keys
+  not: wicker cage, little bird, large gold nugget
+
+at line 64 | In West Pit
+  has: plant, brass lantern, tasty food, small bottle, bottled water, set of keys, Persian rug
+  not: wicker cage, large gold nugget
+
+# "pool of oil" is fixed scenery; the bottle is empty at this moment.
+at line 72 | In East Pit
+  has: pool of oil, brass lantern, tasty food, small bottle, set of keys, Persian rug
+  not: plant, wicker cage
+
+at line 76 | Giant Room
+  has: nest of golden eggs, scrawled inscription, brass lantern, tasty food, small bottle, bottled oil, set of keys, Persian rug
+  not: plant, jeweled trident
+
+# The (now empty) bottle has just been dropped here.
+at line 80 | Immense N/S Passage
+  has: rusty door, small bottle, brass lantern, tasty food, set of keys, Persian rug, nest of golden eggs
+  not: jeweled trident, wicker cage
+
+at line 81 | In Cavern With Waterfall
+  has: jeweled trident, waterfall, brass lantern, tasty food, set of keys, Persian rug, nest of golden eggs
+  not: small bottle, wicker cage
+
+at line 93 | In Chamber of Boulders
+  has: rare spices, boulders, brass lantern, tasty food, set of keys, Persian rug, jeweled trident
+  not: small bottle, wicker cage
+
+at line 99 | In Barren Room
+  has: large cave bear, golden chain, dust, brass lantern, tasty food, set of keys, Persian rug, jeweled trident, rare spices
+  not: small bottle, wicker cage, large gold nugget
+
+at line 105 | Inside Building
+  has: brass lantern, jeweled trident, set of keys, Persian rug, rare spices, golden chain, large gold nugget, precious jewelry, bars of silver, rare coins, diamonds, treasure chest
+  not: small bottle, wicker cage, little bird
+
+at line 114 | Alcove
+  has: brass lantern, jeweled trident
+  not: ming vase, set of keys
+
+# Nothing is carried here (everything was dropped to fit through the tunnel).
+# The room has its own light.
+at line 116 | Plover Room
+  has: emerald the size of a plover's egg
+  not: brass lantern, jeweled trident
+
+# "stone tablet" is a static object. The room is lit only by the carried lamp.
+at line 121 | The Dark Room
+  has: platinum pyramid, stone tablet, brass lantern, jeweled trident, emerald the size of a plover's egg
+  not: ming vase, velvet pillow
+
+at line 123 | Oriental Room
+  has: ming vase, ancient oriental drawings, brass lantern, jeweled trident, emerald the size of a plover's egg, platinum pyramid
+  not: velvet pillow, set of keys
+
+# Three fixed scenery objects.
+at line 126 | In Soft Room
+  has: velvet pillow, carpet, curtains, moss, brass lantern, jeweled trident, emerald the size of a plover's egg, platinum pyramid, ming vase
+  not: set of keys, small bottle
+
+# "sign" is a static object. The magazines are left out because their stored
+# name contains quotation marks.
+at line 131 | In Anteroom
+  has: sign, brass lantern, jeweled trident, emerald the size of a plover's egg, platinum pyramid, ming vase, velvet pillow
+  not: set of keys, small bottle
+
+at line 136 | Shell Room
+  has: giant clam, brass lantern, jeweled trident, emerald the size of a plover's egg, platinum pyramid, ming vase, velvet pillow
+  not: wicker cage, small bottle
+
+at line 139 | Cul-de-Sac
+  has: glistening pearl, brass lantern, jeweled trident, emerald the size of a plover's egg, platinum pyramid, ming vase, velvet pillow
+  not: giant clam, wicker cage
+
+# The cave has started closing, which removes the set of keys from play, so
+# the keys are not listed (neither in has: nor in not:).
+at line 142 | Inside Building
+  has: brass lantern, jeweled trident, emerald the size of a plover's egg, platinum pyramid, ming vase, velvet pillow, glistening pearl, golden chain, Persian rug, rare spices, large gold nugget, precious jewelry, bars of silver, rare coins, diamonds, treasure chest
+  not: nest of golden eggs, wicker cage, small bottle
+
+at line 146 | Giant Room
+  has: nest of golden eggs, scrawled inscription, brass lantern
+  not: velvet pillow, ming vase, small bottle
+
+# All fifteen treasures and the pillow on the floor of the building.
+at line 150 | Inside Building
+  has: brass lantern, nest of golden eggs, golden chain, Persian rug, emerald the size of a plover's egg, jeweled trident, platinum pyramid, ming vase, glistening pearl, velvet pillow, rare spices, large gold nugget, precious jewelry, bars of silver, rare coins, diamonds, treasure chest
+  not: wicker cage, little bird, small bottle
+
+# End game. The player's possessions were taken away; advent.inf moves the
+# bottle, clam, lantern and star rod here. "sleeping dwarves" is scenery.
+at line 167 | NE End of Repository
+  has: brass lantern, small bottle, giant clam, black rod with a rusty star on the end, sleeping dwarves, enormous mirror
+  not: little bird, velvet pillow, black rod with a rusty mark on the end
+
+at line 168 | SW End of Repository
+  has: little bird, velvet pillow, steel grate, black rod with a rusty mark on the end, enormous mirror
+  not: brass lantern, small bottle, giant clam
+
+at line 170 | NE End of Repository
+  has: black rod with a rusty mark on the end, black rod with a rusty star on the end, brass lantern, small bottle, giant clam
+  not: little bird, velvet pillow
+
+# Last command before winning.
+at line 172 | SW End of Repository
+  has: little bird, velvet pillow, steel grate
+  not: black rod with a rusty mark on the end, black rod with a rusty star on the end, brass lantern, small bottle

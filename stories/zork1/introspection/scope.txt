@@ -1,0 +1,180 @@
+# Zork I scope expectations, made by hand from fidelity/walkthrough.txt and
+# fidelity/reference.scr. See stories/advent/introspection/SCOPE-README.md.
+# "at line N" = the game is waiting for the command on line N of walkthrough.txt.
+# has: must be in scope.  not: must not be in scope (it is in another room).
+# has: lists are deliberately subsets; objects whose stored name never appears
+# in a transcript listing (rope, knives, canary, bauble, map, trophy case,
+# troll, thief ...) are left out.
+
+# Opening position. The leaflet is inside the closed mailbox, so not listed.
+at line 3 | West of House
+  has: small mailbox
+  not: brass lantern, sword, brown sack
+
+# Just took the egg out of the nest.
+at line 7 | Up a Tree
+  has: jewel-encrusted egg
+  not: small mailbox, brass lantern
+
+# Kitchen table (a surface) with the sack and bottle on it. The sack is still
+# closed, so its contents are not listed.
+at line 12 | Kitchen
+  has: kitchen table, brown sack, glass bottle, jewel-encrusted egg
+  not: small mailbox, brass lantern, sword
+
+at line 13 | Living Room
+  has: brass lantern, sword, jewel-encrusted egg
+  not: brown sack, glass bottle, small mailbox
+
+at line 26 | Gallery
+  has: painting, brass lantern
+  not: sword, jewel-encrusted egg
+
+# Trophy case is open with the painting in it; the egg lies on the floor.
+at line 37 | Living Room
+  has: painting, jewel-encrusted egg, brass lantern
+  not: sword, brown sack
+
+at line 40 | The Troll Room
+  has: sword, bloody axe, brass lantern
+  not: painting, jewel-encrusted egg
+
+at line 47 | Torch Room
+  has: brass lantern, torch
+  not: sword, painting
+
+at line 50 | Egyptian Room
+  has: gold coffin, brass lantern, torch
+  not: brass bell, painting
+
+# The coffin is carried but still closed: the sceptre inside is not listed.
+at line 53 | Altar
+  has: black book, pair of candles, brass lantern, torch, gold coffin
+  not: brass bell, painting, sword
+
+# Carrying an open container (the coffin) with the sceptre in it.
+at line 60 | Living Room
+  has: gold coffin, sceptre, brass lantern, torch, painting, jewel-encrusted egg
+  not: brown sack, brass bell, sword
+
+at line 72 | End of Rainbow
+  has: torch, sceptre, pot of gold
+  not: brass lantern, gold coffin, painting
+
+at line 88 | Loud Room
+  has: platinum bar, torch
+  not: brass lantern, pot of gold, sword
+
+at line 94 | Maintenance Room
+  has: wrench, screwdriver, torch, platinum bar, matchbook
+  not: brass lantern, sword
+
+at line 99 | Dam
+  has: torch, platinum bar, matchbook, wrench, screwdriver
+  not: brass lantern, hand-held air pump
+
+at line 107 | Reservoir North
+  has: hand-held air pump, torch, platinum bar, matchbook, screwdriver, trunk of jewels
+  not: wrench, brass lantern
+
+# On foot beside the beached boat; the boat is an open container holding the
+# buoy and the label.
+at line 128 | Shore
+  has: magic boat, red buoy, tan label, torch, matchbook, screwdriver, trunk of jewels, large emerald, platinum bar
+  not: hand-held air pump, wrench, brass lantern
+
+at line 130 | Sandy Beach
+  has: shovel, trunk of jewels, torch, matchbook, screwdriver, large emerald, platinum bar
+  not: magic boat, red buoy, tan label
+
+at line 137 | Sandy Cave
+  has: shovel, beautiful jeweled scarab, torch, matchbook, screwdriver, large emerald, platinum bar
+  not: trunk of jewels, magic boat
+
+at line 142 | Aragain Falls
+  has: torch, matchbook, screwdriver, large emerald, platinum bar, beautiful jeweled scarab, trunk of jewels
+  not: shovel, magic boat, red buoy
+
+# Open trophy case with four treasures; seven things carried.
+at line 151 | Living Room
+  has: sceptre, pot of gold, gold coffin, painting, brass lantern, jewel-encrusted egg, torch, matchbook, screwdriver, large emerald, platinum bar, beautiful jeweled scarab, trunk of jewels
+  not: shovel, red buoy, sword
+
+# The sack has just been opened: garlic and lunch are visible inside it.
+at line 158 | Kitchen
+  has: kitchen table, brown sack, clove of garlic, lunch, glass bottle, torch, matchbook, screwdriver, brass lantern
+  not: jewel-encrusted egg, painting, small mailbox
+
+at line 169 | Temple
+  has: brass bell, torch, matchbook, screwdriver, brass lantern, clove of garlic
+  not: black book, pair of candles, sword
+
+# Eight things carried.
+at line 175 | Entrance to Hades
+  has: torch, matchbook, screwdriver, brass lantern, clove of garlic, brass bell, black book, pair of candles
+  not: sword, jewel-encrusted egg
+
+at line 183 | Land of the Dead
+  has: crystal skull, torch, matchbook, screwdriver, brass lantern, clove of garlic, pair of candles
+  not: black book, sword
+
+at line 187 | Mirror Room
+  has: pair of candles, torch, matchbook, screwdriver, brass lantern, clove of garlic, crystal skull
+  not: black book, crystal trident
+
+at line 190 | Atlantis Room
+  has: crystal trident, torch, matchbook, screwdriver, brass lantern, clove of garlic, crystal skull
+  not: pair of candles, black book
+
+at line 199 | Bat Room
+  has: jade figurine, crystal trident, crystal skull, torch, matchbook, screwdriver, brass lantern, clove of garlic
+  not: pair of candles, sapphire-encrusted bracelet
+
+# The basket (open container) holds the torch and the screwdriver.
+at line 202 | Shaft Room
+  has: basket, torch, screwdriver, matchbook, brass lantern, clove of garlic, crystal skull, crystal trident, jade figurine
+  not: pair of candles, sapphire-encrusted bracelet
+
+at line 213 | Dead End
+  has: small pile of coal, matchbook, brass lantern, clove of garlic, crystal skull, crystal trident, jade figurine, sapphire-encrusted bracelet
+  not: torch, screwdriver
+
+# After DROP ALL: nothing is carried, everything is on the floor (the lantern
+# is still on).
+at line 235 | Timber Room
+  has: sapphire-encrusted bracelet, jade figurine, crystal trident, crystal skull, clove of garlic, brass lantern, matchbook, broken timber
+  not: torch, screwdriver, small pile of coal
+
+# Nothing carried; the lowered basket holds three things.
+at line 236 | Drafty Room
+  has: basket, small pile of coal, screwdriver, torch
+  not: brass lantern, matchbook, crystal skull
+
+# The diamond is in the machine, whose lid has just been opened.
+at line 245 | Machine Room
+  has: huge diamond, torch, screwdriver
+  not: brass lantern, matchbook, jade figurine
+
+# Late game: open trophy case with eight treasures; eight things carried.
+at line 273 | Living Room
+  has: beautiful jeweled scarab, large emerald, trunk of jewels, platinum bar, sceptre, pot of gold, gold coffin, painting, jewel-encrusted egg, brass lantern, clove of garlic, crystal skull, crystal trident, jade figurine, sapphire-encrusted bracelet, huge diamond, torch
+  not: matchbook, screwdriver, sword
+
+at line 292 | Maze
+  has: skeleton key, leather bag of coins, jewel-encrusted egg, torch
+  not: brass lantern, clove of garlic, sword
+
+# The thief is dead.
+at line 305 | Treasure Room
+  has: chalice, stiletto, jewel-encrusted egg, torch, leather bag of coins
+  not: brass lantern, clove of garlic, bloody axe
+
+# Near the end: sixteen treasures in the open trophy case.
+at line 323 | Living Room
+  has: jewel-encrusted egg, leather bag of coins, chalice, crystal skull, crystal trident, jade figurine, sapphire-encrusted bracelet, huge diamond, beautiful jeweled scarab, large emerald, trunk of jewels, platinum bar, sceptre, pot of gold, gold coffin, painting, brass lantern, clove of garlic, torch
+  not: sword, bloody axe, small mailbox, brown sack
+
+# Last moves of the game.
+at line 331 | West of House
+  has: small mailbox
+  not: torch, brass lantern, jewel-encrusted egg, painting

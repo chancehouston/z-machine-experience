@@ -1,0 +1,351 @@
+# Zork I: expected exits of the player's room at chosen moments of the walkthrough.
+# Hand-made from the ZIL source (historicalsource/zork1, commit
+# 97b7b3d68c075dd9af7da499c3e9690ada3471fd, file 1dungeon.zil) and the reference
+# transcript. See README.md beside this file for the format and the rules.
+#
+# "at line N" = the game is waiting for the command on line N of
+# ../fidelity/walkthrough.txt. Directions appear in the fixed order
+# north east west south northeast northwest southeast southwest up down in out land.
+
+# Opening position. WON-FLAG false: southwest and in are not exits. East is a refusal.
+at line 3 | West of House
+  north: fixed North of House
+  west: fixed Forest
+  south: fixed South of House
+  northeast: fixed North of House
+  southeast: fixed South of House
+
+# South is a refusal.
+at line 4 | North of House
+  north: fixed Forest Path
+  east: fixed Behind House
+  west: fixed West of House
+  southeast: fixed Behind House
+  southwest: fixed West of House
+
+# North is the Clearing with the grating; east and west are two different Forest rooms.
+at line 5 | Forest Path
+  north: fixed Clearing
+  east: fixed Forest
+  west: fixed Forest
+  south: fixed North of House
+  up: fixed Up a Tree
+
+# Up is a refusal.
+at line 6 | Up a Tree
+  down: fixed Forest Path
+
+# Kitchen window still closed: door exits are conditional whatever the door's state.
+at line 10 | Behind House
+  north: fixed North of House
+  east: fixed Clearing
+  west: conditional
+  south: fixed South of House
+  northwest: fixed North of House
+  southwest: fixed South of House
+  in: conditional
+
+# Kitchen window now open: unchanged.
+at line 11 | Behind House
+  north: fixed North of House
+  east: fixed Clearing
+  west: conditional
+  south: fixed South of House
+  northwest: fixed North of House
+  southwest: fixed South of House
+  in: conditional
+
+# Down depends on FALSE-FLAG, which is never set: not an exit.
+at line 12 | Kitchen
+  east: conditional
+  west: fixed Living Room
+  up: fixed Attic
+  out: conditional
+
+# MAGIC-FLAG false: west is not an exit. Down is decided by a routine.
+at line 13 | Living Room
+  east: fixed Kitchen
+  down: conditional
+
+# Up depends on the trap door (a door object). West is a refusal.
+at line 20 | Cellar
+  north: fixed The Troll Room
+  south: fixed East of Chasm
+  up: conditional
+
+# Troll alive, TROLL-FLAG false: east and west are not exits.
+at line 21 | The Troll Room
+  south: fixed Cellar
+
+# Troll dead, TROLL-FLAG true.
+at line 22 | The Troll Room
+  east: fixed East-West Passage
+  west: fixed Maze
+  south: fixed Cellar
+
+# Down is a refusal.
+at line 25 | East of Chasm
+  north: fixed Cellar
+  east: fixed Gallery
+
+at line 26 | Gallery
+  north: fixed Studio
+  west: fixed East of Chasm
+
+# Up (the chimney) is decided by a routine.
+at line 28 | Studio
+  south: fixed Gallery
+  up: conditional
+
+at line 34 | Attic
+  down: fixed Kitchen
+
+at line 41 | East-West Passage
+  north: fixed Chasm
+  east: fixed Round Room
+  west: fixed The Troll Room
+  down: fixed Chasm
+
+at line 42 | Round Room
+  north: fixed North-South Passage
+  east: fixed Loud Room
+  west: fixed East-West Passage
+  south: fixed Narrow Passage
+  southeast: fixed Engravings Cave
+
+# Rope not yet tied, DOME-FLAG false: down is not an exit.
+at line 44 | Dome Room
+  west: fixed Engravings Cave
+
+# Rope tied, DOME-FLAG true.
+at line 45 | Dome Room
+  west: fixed Engravings Cave
+  down: fixed Torch Room
+
+# Up is a refusal.
+at line 46 | Torch Room
+  south: fixed Temple
+  down: fixed Temple
+
+at line 49 | Temple
+  north: fixed Torch Room
+  east: fixed Egyptian Room
+  south: fixed Altar
+  up: fixed Torch Room
+  down: fixed Egyptian Room
+  out: fixed Torch Room
+
+# COFFIN-CURE still has its initial value, false: down is not an exit.
+at line 53 | Altar
+  north: fixed Temple
+
+# The Forest west of the Forest Path. Up and west are refusals; south is another Forest room.
+at line 54 | Forest
+  north: fixed Clearing
+  east: fixed Forest Path
+  south: fixed Forest
+
+# The Clearing east of the house (not the one with the grating). Up is a refusal.
+at line 66 | Clearing
+  north: fixed Forest
+  east: fixed Canyon View
+  west: fixed Behind House
+  south: fixed Forest
+
+# South is a refusal.
+at line 67 | Canyon View
+  east: fixed Rocky Ledge
+  west: fixed Forest
+  northwest: fixed Clearing
+  down: fixed Rocky Ledge
+
+# Sceptre not yet waved, RAINBOW-FLAG false: up, northeast and east are not exits.
+at line 70 | End of Rainbow
+  southwest: fixed Canyon Bottom
+
+# Sceptre waved, RAINBOW-FLAG true.
+at line 71 | End of Rainbow
+  east: fixed On the Rainbow
+  northeast: fixed On the Rainbow
+  southwest: fixed Canyon Bottom
+  up: fixed On the Rainbow
+
+at line 87 | Loud Room
+  east: fixed Damp Cave
+  west: fixed Round Room
+  up: fixed Deep Canyon
+
+at line 90 | Deep Canyon
+  east: fixed Dam
+  northwest: fixed Reservoir South
+  southwest: fixed North-South Passage
+  down: fixed Loud Room
+
+at line 91 | Dam
+  north: fixed Dam Lobby
+  east: fixed Dam Base
+  west: fixed Reservoir South
+  south: fixed Deep Canyon
+  down: fixed Dam Base
+
+# Sluice gates open but the reservoir has not drained yet, LOW-TIDE false: north is not an exit.
+at line 102 | Reservoir South
+  east: fixed Dam
+  west: fixed Stream View
+  southeast: fixed Deep Canyon
+  southwest: fixed Chasm
+
+# Reservoir drained, LOW-TIDE true.
+at line 104 | Reservoir South
+  north: fixed Reservoir
+  east: fixed Dam
+  west: fixed Stream View
+  southeast: fixed Deep Canyon
+  southwest: fixed Chasm
+
+# Down is a refusal.
+at line 105 | Reservoir
+  north: fixed Reservoir North
+  west: fixed Stream
+  south: fixed Reservoir South
+  up: fixed Stream
+
+# LOW-TIDE true.
+at line 107 | Reservoir North
+  north: fixed Atlantis Room
+  south: fixed Reservoir
+
+at line 129 | Sandy Beach
+  south: fixed Shore
+  northeast: fixed Sandy Cave
+
+at line 141 | Shore
+  north: fixed Sandy Beach
+  south: fixed Aragain Falls
+
+# RAINBOW-FLAG true. Down is a refusal.
+at line 142 | Aragain Falls
+  north: fixed Shore
+  west: fixed On the Rainbow
+  up: fixed On the Rainbow
+
+at line 143 | On the Rainbow
+  east: fixed Aragain Falls
+  west: fixed End of Rainbow
+
+# Two commands have been processed here without the coffin: COFFIN-CURE true.
+at line 173 | Altar
+  north: fixed Temple
+  down: fixed Cave
+
+# Spirits not yet exorcised, LLD-FLAG false: south and in are not exits.
+at line 175 | Entrance to Hades
+  up: fixed Cave
+
+# Exorcism complete, LLD-FLAG true.
+at line 181 | Entrance to Hades
+  south: fixed Land of the Dead
+  up: fixed Cave
+  in: fixed Land of the Dead
+
+at line 182 | Land of the Dead
+  north: fixed Entrance to Hades
+  out: fixed Entrance to Hades
+
+# The southern Mirror Room (MIRROR-ROOM-2), before rubbing the mirror.
+at line 187 | Mirror Room
+  north: fixed Narrow Passage
+  east: fixed Cave
+  west: fixed Winding Passage
+
+# The northern Mirror Room (MIRROR-ROOM-1), after rubbing the mirror.
+at line 188 | Mirror Room
+  north: fixed Cold Passage
+  east: fixed Cave
+  west: fixed Twisting Passage
+
+at line 196 | Mine Entrance
+  west: fixed Squeaky Room
+  south: fixed Slide Room
+  in: fixed Squeaky Room
+
+# Down is a refusal.
+at line 200 | Shaft Room
+  north: fixed Smelly Room
+  west: fixed Bat Room
+
+# The first Coal Mine room (MINE-1). East leads back to this same room.
+at line 207 | Coal Mine
+  north: fixed Gas Room
+  east: fixed Coal Mine
+  northeast: fixed Coal Mine
+
+# EMPTY-HANDED still has its initial value, false: west is not an exit.
+at line 234 | Timber Room
+  east: fixed Ladder Bottom
+
+# EMPTY-HANDED was set true by the command that brought the player here.
+at line 236 | Drafty Room
+  east: fixed Timber Room
+  south: fixed Machine Room
+  out: fixed Timber Room
+
+# The first Maze room (MAZE-1). North leads back to this same room.
+at line 289 | Maze
+  north: fixed Maze
+  east: fixed The Troll Room
+  west: fixed Maze
+  south: fixed Maze
+
+# The second Maze room (MAZE-2). Down is decided by a routine.
+at line 290 | Maze
+  east: fixed Maze
+  south: fixed Maze
+  down: conditional
+
+# Cyclops present: MAGIC-FLAG and CYCLOPS-FLAG false, so east and up are not exits.
+at line 298 | Cyclops Room
+  northwest: fixed Maze
+
+# Cyclops fled: MAGIC-FLAG and CYCLOPS-FLAG true.
+at line 299 | Cyclops Room
+  east: fixed Strange Passage
+  northwest: fixed Maze
+  up: fixed Treasure Room
+
+at line 300 | Treasure Room
+  down: fixed Cyclops Room
+
+at line 308 | Strange Passage
+  east: fixed Living Room
+  west: fixed Cyclops Room
+  in: fixed Cyclops Room
+
+# MAGIC-FLAG true: west is now an exit.
+at line 309 | Living Room
+  east: fixed Kitchen
+  west: fixed Strange Passage
+  down: conditional
+
+# North is a refusal.
+at line 330 | South of House
+  east: fixed Behind House
+  west: fixed West of House
+  south: fixed Forest
+  northeast: fixed Behind House
+  northwest: fixed West of House
+
+# All 350 points scored, WON-FLAG true: southwest and in are now exits.
+at line 331 | West of House
+  north: fixed North of House
+  west: fixed Forest
+  south: fixed South of House
+  northeast: fixed North of House
+  southeast: fixed South of House
+  southwest: fixed Stone Barrow
+  in: fixed Stone Barrow
+
+# Last position of the game. Entering the barrow (west) is handled by the room's
+# action routine, not by an exit property.
+at line 332 | Stone Barrow
+  northeast: fixed West of House
