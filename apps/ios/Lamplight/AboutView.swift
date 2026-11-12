@@ -9,7 +9,24 @@ struct AboutView: View {
         guard let url = Bundle.main.url(forResource: "story-license", withExtension: "txt"),
             let text = try? String(contentsOf: url, encoding: .utf8)
         else { return "" }
-        return text
+        return Self.reflowed(text)
+    }
+
+    /// The notice with each paragraph as one run of text. Its own line ends
+    /// are for a wide page, and on a phone every line would wrap twice. The
+    /// words and the paragraphs are unchanged.
+    static func reflowed(_ notice: String) -> String {
+        notice
+            .replacingOccurrences(of: "\r\n", with: "\n")
+            .components(separatedBy: "\n\n")
+            .map { paragraph in
+                paragraph
+                    .split(separator: "\n")
+                    .map { $0.trimmingCharacters(in: .whitespaces) }
+                    .joined(separator: " ")
+            }
+            .filter { !$0.isEmpty }
+            .joined(separator: "\n\n")
     }
 
     var body: some View {

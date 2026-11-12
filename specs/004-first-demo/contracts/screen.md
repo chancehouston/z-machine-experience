@@ -35,6 +35,9 @@ the next turn written directly after the prompt that ends it, as on a terminal, 
 apart as the player's (weight and colour). A tapped command and a typed one look the
 same (FR-011). The app does not alter the text.
 
+A transcript shorter than its room sits at the bottom of it, next to the compass and the
+field, at launch and after "New game" alike.
+
 ## The compass
 
 | State | Appearance | Tap |
@@ -109,5 +112,7 @@ and unknown exits.
 ## About
 
 The app's name, a line saying it is a demonstration, and the bundled story's license
-notice and source, as the repository records them. The word "Zork" appears only inside
+notice and source, as the repository records them. Each paragraph of the notice is
+drawn as one run of text: the line ends inside a paragraph are for a wide page, and the
+words are unchanged. The word "Zork" appears only inside
 that notice and in the game's own text.
