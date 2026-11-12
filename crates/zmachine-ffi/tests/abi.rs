@@ -350,6 +350,7 @@ fn the_header_and_the_library_agree() {
             "zmx_session_free",
             "zmx_session_new",
             "zmx_session_new_game",
+            "zmx_session_new_with_pack",
             "zmx_session_send_line",
             "zmx_session_snapshot",
             "zmx_session_tap",
@@ -469,4 +470,69 @@ fn unsafe_is_explained_here_and_absent_elsewhere() {
             }
         }
     }
+}
+
+// Feature 006 (specs/006-game-packs/contracts/commands.md, "The experience
+// layer and the C interface"): a session may be given a game pack's text. Null,
+// bytes that are not UTF-8 and a pack that cannot be read are all no pack.
+#[test]
+fn a_session_may_be_given_a_game_pack() {
+    let story = story();
+    let open_with = |pack: *const std::ffi::c_char| {
+        let session = zmx_session_new_with_pack(
+            story.as_ptr(),
+            story.len(),
+            11,
+            1,
+            0,
+            pack,
+            std::ptr::null_mut(),
+        );
+        assert!(!session.is_null());
+        session
+    };
+    let behind = |session: *mut zmx_session| {
+        for (turns, line) in [(1, "north"), (2, "east")] {
+            assert_eq!(
+                zmx_session_send_line(session, 1, turns, c(line).as_ptr()),
+                1
+            );
+        }
+        let json = snapshot(session, 3);
+        zmx_session_free(session);
+        json
+    };
+    let plain = behind(open());
+    assert!(!plain.contains(r#""state":"door""#), "{plain}");
+
+    let bad_utf8 = [0xFFu8, 0xFE, 0];
+    assert_eq!(behind(open_with(std::ptr::null())), plain);
+    assert_eq!(behind(open_with(bad_utf8.as_ptr().cast())), plain);
+    assert_eq!(behind(open_with(c("not a pack").as_ptr())), plain);
+
+    let pack = std::fs::read_to_string(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../packs/zork1.pack"
+    ))
+    .unwrap();
+    let with = behind(open_with(c(&pack).as_ptr()));
+    assert!(
+        with.contains(r#""place":"west","label":"West","state":"door","command":"west""#),
+        "{with}"
+    );
+    assert_ne!(with, plain);
+
+    // A story that will not load says why, as without a pack.
+    let mut error = std::ptr::null_mut();
+    let none = zmx_session_new_with_pack(
+        [3u8; 10].as_ptr(),
+        10,
+        1,
+        1,
+        0,
+        c(&pack).as_ptr(),
+        &mut error,
+    );
+    assert!(none.is_null() && !error.is_null());
+    zmx_string_free(error);
 }

@@ -28,6 +28,14 @@ zmx_session *zmx_session_new(const uint8_t *story, size_t length,
                              uint32_t seed, int has_seed, uint32_t entropy,
                              char **error);
 
+/* As zmx_session_new, with the text of a game pack for the story
+ * (docs/introspection.md, section 12): a NUL-terminated UTF-8 string, or NULL
+ * for none. The text is read before the call returns. A pack that cannot be
+ * read, or that is another story's, changes nothing and is not an error. */
+zmx_session *zmx_session_new_with_pack(const uint8_t *story, size_t length,
+                                       uint32_t seed, int has_seed, uint32_t entropy,
+                                       const char *pack, char **error);
+
 /* Destroys a session. NULL is allowed. */
 void zmx_session_free(zmx_session *session);
 

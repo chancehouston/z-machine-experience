@@ -1,7 +1,7 @@
 //! The compass: which of twelve places lead somewhere, and what a tap on each
 //! sends (specs/004-first-demo/data-model.md "Compass"; research R5).
 
-use zmachine_introspect::{Answer, ExitKind, Exits};
+use zmachine_introspect::{Answer, DoorState, ExitKind, Exits};
 
 /// A place on the compass.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -85,6 +85,8 @@ pub enum PlaceState {
     Open,
     /// The game decides.
     Maybe,
+    /// A closed door: a way that is there, and shut (feature 006).
+    Door,
     /// Does not lead anywhere.
     Closed,
     /// Cannot be told.
@@ -98,6 +100,7 @@ impl PlaceState {
         match self {
             PlaceState::Open => "open",
             PlaceState::Maybe => "maybe",
+            PlaceState::Door => "door",
             PlaceState::Closed => "closed",
             PlaceState::Unknown => "unknown",
             PlaceState::Idle => "idle",
@@ -111,7 +114,8 @@ pub struct CompassPlace {
     pub place: Place,
     pub label: &'static str,
     pub state: PlaceState,
-    /// The line a tap sends; present exactly when the state is open or maybe.
+    /// The line a tap sends; present exactly when the state is open, maybe or
+    /// door.
     pub command: Option<String>,
     /// The destination's name, for an open place where it is known.
     pub leads_to: Option<String>,
@@ -154,6 +158,7 @@ fn spoken(label: &str, state: PlaceState, leads_to: Option<&str>) -> String {
         (PlaceState::Open, Some(to)) => format!("{label}, to {to}"),
         (PlaceState::Open, None) => label.to_string(),
         (PlaceState::Maybe, _) => format!("{label}, may be blocked"),
+        (PlaceState::Door, _) => format!("{label}, closed door"),
         (PlaceState::Closed, _) => format!("{label}, no exit"),
         (PlaceState::Unknown, _) => format!("{label}, unknown"),
         (PlaceState::Idle, _) => format!("{label}, not available now"),
@@ -161,7 +166,10 @@ fn spoken(label: &str, state: PlaceState, leads_to: Option<&str>) -> String {
 }
 
 fn place_in(place: Place, state: PlaceState, leads_to: Option<String>) -> CompassPlace {
-    let offered = matches!(state, PlaceState::Open | PlaceState::Maybe);
+    let offered = matches!(
+        state,
+        PlaceState::Open | PlaceState::Maybe | PlaceState::Door
+    );
     CompassPlace {
         place,
         label: place.label(),
@@ -245,9 +253,18 @@ impl Compass {
                     exit.destination_name.clone().and_then(Result::ok),
                 ),
                 ExitKind::Conditional => (PlaceState::Maybe, None),
-                // A door needs a game pack, which this layer does not pass yet
-                // (feature 006, User Story 5): until it does, the game decides.
-                ExitKind::Door => (PlaceState::Maybe, None),
+                // A door a game pack let be read (docs/introspection.md, 12.3).
+                // Open, it is a way like any other. Closed, it is still a way
+                // to try, and the room behind it is not told: the player has
+                // not seen through it.
+                ExitKind::Door => match exit.state {
+                    Some(DoorState::Open) => (
+                        PlaceState::Open,
+                        exit.destination_name.clone().and_then(Result::ok),
+                    ),
+                    Some(DoorState::Closed) => (PlaceState::Door, None),
+                    None => (PlaceState::Maybe, None),
+                },
             };
             match place_of(&exit.words) {
                 Some(place) => put(place, state, leads_to, &mut known),

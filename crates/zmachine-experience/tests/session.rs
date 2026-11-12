@@ -616,3 +616,119 @@ fn a_session_marked_failed_reports_a_fault_until_a_new_game() {
         Ok(())
     );
 }
+
+// ---------------------------------------------------------------------------
+// Game packs (feature 006, User Story 5; specs/006-game-packs/contracts/
+// commands.md, "The experience layer and the C interface")
+// ---------------------------------------------------------------------------
+
+fn with_pack(pack: Option<&str>) -> Session {
+    Session::with_pack(read("stories/zork1/zork1.z3"), Seed::Fixed(11), pack)
+        .expect("the game starts")
+}
+
+fn place(s: &Session, place: zmachine_experience::Place) -> zmachine_experience::CompassPlace {
+    s.compass().place(place).expect("a place").clone()
+}
+
+// FR-033: with no pack, with a pack that is another story's, and with one that
+// cannot be read, a session is the session it was.
+#[test]
+fn a_session_with_no_pack_in_force_is_unchanged() {
+    let pack = read_text("packs/zork1.pack");
+    for given in [
+        None,
+        Some("not a pack"),
+        Some(pack.replace("release: 119", "release: 118").as_str()),
+    ] {
+        let (mut plain, mut other) = (game(11), with_pack(given));
+        for line in ["north", "east", "open window", "west"] {
+            assert_eq!(other.snapshot_json(0), plain.snapshot_json(0), "{given:?}");
+            say(&mut plain, line);
+            say(&mut other, line);
+        }
+        assert_eq!(other.snapshot_json(0), plain.snapshot_json(0), "{given:?}");
+    }
+}
+
+// FR-030 to FR-032: with the story's pack, a closed door is a place of state
+// `door`, offered; a tap on it sends the direction and nothing else; and once
+// the door is opened by a typed command the place is an open way.
+#[test]
+fn a_closed_door_is_shown_tried_and_then_open() {
+    use zmachine_experience::{Place, PlaceState};
+    let pack = read_text("packs/zork1.pack");
+    let (mut s, mut plain) = (with_pack(Some(&pack)), game(11));
+    for line in ["north", "east"] {
+        say(&mut s, line);
+        say(&mut plain, line);
+    }
+    // Behind the house: the window, to the west and in. Without a pack both
+    // "may be blocked".
+    for way in [Place::West, Place::In] {
+        assert_eq!(place(&plain, way).state, PlaceState::Maybe);
+        let shut = place(&s, way);
+        assert_eq!(shut.state, PlaceState::Door, "{way:?}");
+        assert_eq!(shut.command.as_deref(), Some(way.id()));
+        assert!(shut.spoken.ends_with(", closed door"), "{}", shut.spoken);
+        assert_eq!(shut.leads_to, None);
+    }
+    let json = s.snapshot_json(0);
+    assert!(
+        json.contains(r#"{"place":"west","label":"West","state":"door","command":"west","leads_to":null,"spoken":"West, closed door"}"#),
+        "{json}"
+    );
+
+    // A tap on the closed door types the direction; the game answers as it
+    // would have, and the player is where they were.
+    let before = s.turns().len();
+    s.tap(s.stamp(), Place::West)
+        .expect("a closed door is offered");
+    plain
+        .tap(plain.stamp(), Place::West)
+        .expect("so is a way that may be blocked");
+    assert_eq!(s.turns().len(), before + 1);
+    let turn = s.turns().last().unwrap();
+    assert_eq!(turn.command.as_deref(), Some("west"));
+    assert_eq!(turn.text, plain.turns().last().unwrap().text);
+    assert_eq!(place(&s, Place::West).state, PlaceState::Door);
+
+    say(&mut s, "open window");
+    for way in [Place::West, Place::In] {
+        let open = place(&s, way);
+        assert_eq!(open.state, PlaceState::Open, "{way:?}");
+        assert_eq!(open.leads_to.as_deref(), Some("Kitchen"));
+    }
+    s.tap(s.stamp(), Place::West).unwrap();
+    assert_eq!(s.status().unwrap().place, "Kitchen");
+
+    // The pack belongs to the story file: a new game has it too.
+    s.new_game(Seed::Fixed(11));
+    for line in ["north", "east"] {
+        say(&mut s, line);
+    }
+    assert_eq!(place(&s, Place::West).state, PlaceState::Door);
+}
+
+// FR-014: the whole text of a game played with the pack is the text of the same
+// game played without it.
+#[test]
+fn a_pack_changes_no_text_of_the_game() {
+    let pack = read_text("packs/zork1.pack");
+    let (mut s, mut plain) = (with_pack(Some(&pack)), game(11));
+    for line in [
+        "north",
+        "east",
+        "open window",
+        "in",
+        "west",
+        "take lamp",
+        "east",
+        "out",
+    ] {
+        say(&mut s, line);
+        say(&mut plain, line);
+    }
+    let text = |s: &Session| -> Vec<String> { s.turns().iter().map(|t| t.text.clone()).collect() };
+    assert_eq!(text(&s), text(&plain));
+}

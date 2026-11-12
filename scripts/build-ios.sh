@@ -54,6 +54,18 @@ cp "$story" "$resources/story.z3"
 source=$(sed -n 's/^| Source | <\(.*\)>, path `\(.*\)` |$/Source: \1 (\2)/p' stories/zork1/SOURCE.md)
 { echo "$source"; echo; cat stories/zork1/LICENSE; } > "$resources/story-license.txt"
 echo "Copied the story (digest verified), its source and its license to $resources"
+# The story's game pack (docs/introspection.md, section 12), if it has one. It is
+# copied only if it names this story file; the layer checks the same again.
+pack=packs/zork1.pack
+rm -f "$resources/story.pack"
+if [ -f "$pack" ]; then
+    if ! grep -qx "sha256: $actual" "$pack"; then
+        echo "$pack does not name $story" >&2
+        exit 1
+    fi
+    cp "$pack" "$resources/story.pack"
+    echo "Copied the story's game pack to $resources"
+fi
 
 (cd apps/ios && xcodegen generate --quiet)
 echo "Generated apps/ios/Lamplight.xcodeproj"

@@ -20,7 +20,8 @@ Option<u16>`, `state: Option<DoorState>` and `source: Source`; `ExitKind` gains 
 Session::new(story, seed)                               unchanged
 Session::with_pack(story, seed, pack: Option<&str>)
 zmx_session_new(...)                                    unchanged
-zmx_session_new_with_pack(story, len, entropy, pack)    pack: a C string, or null
+zmx_session_new_with_pack(story, len, seed, has_seed, entropy, pack, error)
+                                                        pack: a C string, or null
 ```
 
 A null or unreadable pack is no pack. The snapshot's compass may hold the state word
@@ -29,10 +30,12 @@ snapshot changes.
 
 ## The app
 
-The app's resources hold `story.pack` beside `story.z3`. At a new session the app reads
-it, if it is there, and passes its text. A closed door is drawn in a way that differs
-from the other four states without relying on colour, and is read aloud as "(direction),
-closed door".
+The app's resources hold `story.pack` beside `story.z3`. Like the story, it is copied
+there by `scripts/build-ios.sh` and is not committed; the script copies it only if it
+names the story it is copied beside. At a new session the app reads it, if it is there,
+and passes its text unread. A closed door is drawn as an outlined upright panel with the
+direction's arrow, where the other states are discs, a dot or a dashed ring, and is read
+aloud as "(direction), closed door".
 
 ## `zm`
 

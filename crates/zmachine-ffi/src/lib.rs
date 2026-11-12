@@ -95,6 +95,31 @@ pub extern "C" fn zmx_session_new(
     entropy: u32,
     error: *mut *mut c_char,
 ) -> *mut zmx_session {
+    zmx_session_new_with_pack(
+        story,
+        length,
+        seed,
+        has_seed,
+        entropy,
+        std::ptr::null(),
+        error,
+    )
+}
+
+/// As `zmx_session_new`, with the text of a game pack for the story
+/// (docs/introspection.md, section 12): a NUL-terminated string, or null for
+/// none. A pack that is not UTF-8, cannot be read or is another story's changes
+/// nothing.
+#[unsafe(no_mangle)]
+pub extern "C" fn zmx_session_new_with_pack(
+    story: *const u8,
+    length: usize,
+    seed: u32,
+    has_seed: c_int,
+    entropy: u32,
+    pack: *const c_char,
+    error: *mut *mut c_char,
+) -> *mut zmx_session {
     let result = catch_unwind(|| {
         if story.is_null() {
             return Err("No story file was given.".to_string());
@@ -108,7 +133,9 @@ pub extern "C" fn zmx_session_new(
         } else {
             Seed::Fresh(entropy)
         };
-        Session::new(bytes, seed).map_err(|e| e.message)
+        // Null, or bytes that are not UTF-8, are no pack. The text is copied
+        // into the interface before the call returns.
+        Session::with_pack(bytes, seed, text(pack)).map_err(|e| e.message)
     });
     let message = match result {
         Ok(Ok(session)) => {

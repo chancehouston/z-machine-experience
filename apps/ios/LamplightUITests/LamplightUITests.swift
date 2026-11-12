@@ -129,9 +129,52 @@ final class LamplightUITests: XCTestCase {
         waitForPlace(app, "North of House")
         element(app, "compass.east").tap()
         waitForPlace(app, "Behind House")
-        XCTAssertEqual(value(app, "compass.west"), "maybe")
-        XCTAssertEqual(element(app, "compass.west").label, "West, may be blocked")
+        // The way west is through a window, which the story's game pack lets be
+        // read as a door (feature 006). Before packs this was "may be blocked".
+        XCTAssertEqual(value(app, "compass.west"), "door")
+        XCTAssertEqual(element(app, "compass.west").label, "West, closed door")
         XCTAssertEqual(value(app, "compass.east"), "open")
+    }
+
+    // Feature 006, User Story 5 (specs/006-game-packs/spec.md FR-030, FR-031;
+    // SC-010): a closed door is shown as closed and can be tried; opened by a
+    // typed command it is an open way; and a way the game decides in its own
+    // code still may be blocked.
+    @MainActor
+    func testADoorClosedThenOpen() {
+        let app = launch()
+        _ = turn(app, 0)
+        element(app, "compass.north").tap()
+        waitForPlace(app, "North of House")
+        element(app, "compass.east").tap()
+        waitForPlace(app, "Behind House")
+        for way in ["west", "in"] {
+            XCTAssertEqual(value(app, "compass.\(way)"), "door", way)
+            XCTAssertTrue(element(app, "compass.\(way)").label.hasSuffix(", closed door"), way)
+            XCTAssertTrue(element(app, "compass.\(way)").isEnabled, "a closed door can be tried")
+        }
+        // Trying it types the direction; the game refuses, and nothing else is done.
+        element(app, "compass.west").tap()
+        _ = turn(app, 3)
+        XCTAssertEqual(element(app, "turn.3.command").label, "west")
+        XCTAssertEqual(element(app, "status.place").label, "Behind House")
+        XCTAssertEqual(value(app, "compass.west"), "door")
+
+        type(app, "open window")
+        _ = turn(app, 4)
+        // The keyboard is up after typing, and the compass away: bring it back.
+        element(app, "button.compass").tap()
+        XCTAssertEqual(value(app, "compass.west"), "open")
+        XCTAssertEqual(element(app, "compass.west").label, "West, to Kitchen")
+        element(app, "compass.west").tap()
+        waitForPlace(app, "Kitchen")
+        XCTAssertEqual(element(app, "compass.east").label, "East, to Behind House")
+
+        // The next room has a way down that the game decides in its own code.
+        element(app, "compass.west").tap()
+        waitForPlace(app, "Living Room")
+        XCTAssertEqual(value(app, "compass.down"), "maybe")
+        XCTAssertEqual(element(app, "compass.down").label, "Down, may be blocked")
     }
 
     // S§ "What the app sends", "Waiting states"; FR-010, FR-011, FR-016;

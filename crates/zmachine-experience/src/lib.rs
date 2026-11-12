@@ -144,8 +144,24 @@ fn load(story: &[u8], seed: Seed) -> Result<Machine, StartError> {
 impl Session {
     /// Loads the story file and runs it to its first stop.
     pub fn new(story: Vec<u8>, seed: Seed) -> Result<Session, StartError> {
+        Session::with_pack(story, seed, None)
+    }
+
+    /// As [`Session::new`], with the text of a game pack for the story
+    /// (docs/introspection.md, section 12). A pack that cannot be read, or is
+    /// another story's, changes nothing.
+    pub fn with_pack(
+        story: Vec<u8>,
+        seed: Seed,
+        pack: Option<&str>,
+    ) -> Result<Session, StartError> {
         let machine = load(&story, seed)?;
-        let introspector = Introspector::new(&machine.view());
+        // The interface is made once for the story file, so a pack in force
+        // stays in force through every new game.
+        let introspector = match pack {
+            Some(text) => Introspector::with_pack(&machine.view(), text),
+            None => Introspector::new(&machine.view()),
+        };
         let mut session = Session {
             story,
             machine,

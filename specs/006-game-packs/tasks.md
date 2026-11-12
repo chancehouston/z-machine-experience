@@ -199,19 +199,19 @@ text; every statement of section 12 has a test
 
 ### Tests for User Story 5
 
-- [ ] T050 [P] [US5] Failing tests in `crates/zmachine-experience/src/compass_tests.rs` (R7; FR-030, FR-031, FR-033; D§ "Compass place"): a `door` exit that is `closed` gives a place of state `door`, offered, with the direction as its command, spoken "East, closed door", with no room's name anywhere in the place; a `door` exit that is `open` gives state `open`, spoken "East, to" and the room's name, exactly as a fixed exit to that room would; a `conditional` exit with `source` `pack` gives `maybe`, as any conditional; with no pack every place is what it was (the existing tests, unedited)
-- [ ] T051 [P] [US5] Failing tests in `crates/zmachine-experience/src/json_tests.rs` and beside the session's tests (K§ "The experience layer and the C interface"; R8): `Session::with_pack(story, seed, None)` gives the snapshots of `Session::new`; with the door fixture and its pack the snapshot's compass holds a place of state `door` that has a command; tapping it sends the direction and nothing else
-- [ ] T052 [P] [US5] Failing tests in `crates/zmachine-ffi/tests/` beside the existing C-interface tests (K§, the same section): `zmx_session_new_with_pack` with a null pack, with bytes that are not UTF-8, and with a malformed pack behaves as `zmx_session_new`; with a right pack the snapshot shows a `door` place; `zmx_session_new` is unchanged
-- [ ] T053 [P] [US5] Failing test in `crates/zmachine-ffi/tests/app_rules.rs` (FR-032; D§ "What is kept"): `apps/ios/Lamplight/Resources/story.pack` is byte for byte `packs/zork1.pack`, and its digest line is the SHA-256 of `apps/ios/Lamplight/Resources/story.z3`; the app's Swift sources name the resource `story` and no game
-- [ ] T054 [US5] Failing UI test `testADoorClosedThenOpen` in `apps/ios/LamplightUITests/LamplightUITests.swift` (US5 scenarios 1 to 3; SC-010): from the start, by typed commands taken from the walkthrough's opening lines, reach the room with the first door while it is closed; the compass place for that direction has the accessibility label ending "closed door" and a value or trait that differs from a "may be blocked" place; type the command that opens it; the same place's label now begins with the direction and "to"; tap it; the status line's room changes
+- [x] T050 [P] [US5] Failing tests in `crates/zmachine-experience/src/compass_tests.rs` (R7; FR-030, FR-031, FR-033; D§ "Compass place"): a `door` exit that is `closed` gives a place of state `door`, offered, with the direction as its command, spoken "East, closed door", with no room's name anywhere in the place; a `door` exit that is `open` gives state `open`, spoken "East, to" and the room's name, exactly as a fixed exit to that room would; a `conditional` exit with `source` `pack` gives `maybe`, as any conditional; with no pack every place is what it was (the existing tests, unedited)
+- [x] T051 [P] [US5] Failing tests in `crates/zmachine-experience/src/json_tests.rs` and beside the session's tests (K§ "The experience layer and the C interface"; R8): `Session::with_pack(story, seed, None)` gives the snapshots of `Session::new`; with the door fixture and its pack the snapshot's compass holds a place of state `door` that has a command; tapping it sends the direction and nothing else
+- [x] T052 [P] [US5] Failing tests in `crates/zmachine-ffi/tests/` beside the existing C-interface tests (K§, the same section): `zmx_session_new_with_pack` with a null pack, with bytes that are not UTF-8, and with a malformed pack behaves as `zmx_session_new`; with a right pack the snapshot shows a `door` place; `zmx_session_new` is unchanged
+- [x] T053 [P] [US5] Failing test in `crates/zmachine-ffi/tests/app_rules.rs` (FR-032; D§ "What is kept"): `apps/ios/Lamplight/Resources/story.pack` is byte for byte `packs/zork1.pack`, and its digest line is the SHA-256 of `apps/ios/Lamplight/Resources/story.z3`; the app's Swift sources name the resource `story` and no game
+- [x] T054 [US5] Failing UI test `testADoorClosedThenOpen` in `apps/ios/LamplightUITests/LamplightUITests.swift` (US5 scenarios 1 to 3; SC-010): from the start, by typed commands taken from the walkthrough's opening lines, reach the room with the first door while it is closed; the compass place for that direction has the accessibility label ending "closed door" and a value or trait that differs from a "may be blocked" place; type the command that opens it; the same place's label now begins with the direction and "to"; tap it; the status line's room changes
 
 ### Implementation for User Story 5
 
-- [ ] T055 [US5] `PlaceState::Door` with the word `door`, its spoken form and its offering in `crates/zmachine-experience/src/compass.rs`; `Session::with_pack` in `crates/zmachine-experience/src/lib.rs`; T050 and T051 pass
-- [ ] T056 [US5] `zmx_session_new_with_pack` in `crates/zmachine-ffi/src/lib.rs` and the C header the app uses; `specs/004-first-demo/contracts/c-abi.md` is not edited; T052 passes
-- [ ] T057 [US5] Copy `packs/zork1.pack` to `apps/ios/Lamplight/Resources/story.pack` and add it to the app target; `Game.swift` and `Engine.swift` read it, if present, and pass its text; `Snapshot.swift` decodes the state `door`; T053 passes
-- [ ] T058 [US5] Draw the closed door in `apps/ios/Lamplight/CompassView.swift`: a form that differs from the other four states without relying on colour, in light and dark. Before settling it, take simulator screenshots of the compass with a closed door beside a "may be blocked" place and an open way, and show them to the owner. T054 passes on iOS 26 and 27. Measure `testLaunchTime` ten times before and after the pack is passed and record both; **stop** if the limit of two seconds is exceeded on the owner's Mac (R2)
-- [ ] T059 [US5] Play by hand in the simulator: walk to the first door, see it closed, open it, see it open, go through; then a room whose exit is decided by a routine still says "may be blocked" (US5 scenario 4); with VoiceOver, the closed door is read as closed. Record what was seen, as feature 004's "Played by hand" did
+- [x] T055 [US5] `PlaceState::Door` with the word `door`, its spoken form and its offering in `crates/zmachine-experience/src/compass.rs`; `Session::with_pack` in `crates/zmachine-experience/src/lib.rs`; T050 and T051 pass
+- [x] T056 [US5] `zmx_session_new_with_pack` in `crates/zmachine-ffi/src/lib.rs` and the C header the app uses; `specs/004-first-demo/contracts/c-abi.md` is not edited; T052 passes
+- [x] T057 [US5] Copy `packs/zork1.pack` to `apps/ios/Lamplight/Resources/story.pack` and add it to the app target; `Game.swift` and `Engine.swift` read it, if present, and pass its text; `Snapshot.swift` decodes the state `door`; T053 passes
+- [x] T058 [US5] Draw the closed door in `apps/ios/Lamplight/CompassView.swift`: a form that differs from the other four states without relying on colour, in light and dark. Before settling it, take simulator screenshots of the compass with a closed door beside a "may be blocked" place and an open way, and show them to the owner. T054 passes on iOS 26 and 27. Measure `testLaunchTime` ten times before and after the pack is passed and record both; **stop** if the limit of two seconds is exceeded on the owner's Mac (R2)
+- [x] T059 [US5] Play by hand in the simulator: walk to the first door, see it closed, open it, see it open, go through; then a room whose exit is decided by a routine still says "may be blocked" (US5 scenario 4); with VoiceOver, the closed door is read as closed. Record what was seen, as feature 004's "Played by hand" did
 
 **Checkpoint**: The pack's answer is on the screen
 
@@ -224,7 +224,7 @@ text; every statement of section 12 has a test
 - [x] T062 [P] `README.md`: the layout row for `packs/`, a short section on game packs pointing to `docs/introspection.md` section 12, and the corpus section's figures with packs. `stories/corpus/README.md`: the figures with packs beside those without, what a pack changed, and that Mini-Zork's pack is proven only where its file is
 - [x] T063 [P] Check `.github/workflows/ci.yml`: the corpus step still runs the committed stories, now with Zork I's proof; no step fetches anything; no change unless T061 needs the optimised run
 - [x] T064 Write the list this file ends with: every test of features 001 to 005 that was edited, its file, and the one reason (a form changed: which); confirm from `git diff main --stat -- crates/zmachine-core` that the core is untouched (SC-012, FR-034)
-- [ ] T065 Run every step of `quickstart.md` and record each result; `cargo test --workspace`, `cargo clippy --workspace --all-targets` and `cargo fmt --check` pass; `scripts/test-ios.sh 26` and `scripts/test-ios.sh 27` pass
+- [x] T065 Run every step of `quickstart.md` and record each result; `cargo test --workspace`, `cargo clippy --workspace --all-targets` and `cargo fmt --check` pass; `scripts/test-ios.sh 26` and `scripts/test-ios.sh 27` pass
 - [ ] T066 Write "What was done, and what was done differently from the plan" at the end of this file: each stop point met and how it was resolved, each decision of the plan that changed, the figures against SC-001 to SC-012, and what was not done
 
 ---
@@ -321,6 +321,8 @@ first, which records a rule the owner changed.
 | `crates/zmachine-corpus/tests/verdict.rs` | A hand-built exit gains the three fields | The same |
 | `crates/zmachine-corpus/tests/formats.rs` | The sample report gains `pack`, `entries`, `marked`, all empty | The report has more fields; its written text is unchanged |
 | `crates/zmachine-corpus/tests/crawl.rs`, `tests/run.rs` | A hand-built story gains `first`, empty | The manifest has one more key |
+| `apps/ios/LamplightUITests/LamplightUITests.swift` | `testCompassAtTheOpening`: the way west behind the house is a closed door, not "may be blocked" | FR-030: a value, changed by design |
+| `crates/zmachine-ffi/tests/abi.rs` | The header declares one more function | `zmx_session_new_with_pack` |
 | `crates/zmachine-corpus/tests/no_text.rs` | The reports' word list gains eight words; the no-pack reports are read too | The report's new lines |
 
 No test of the core changed, and no transcript. `git diff main --stat -- crates/zmachine-core`
@@ -403,13 +405,49 @@ started.
 - The `pack` field of `zm`'s line was written into the JSON before `zm`'s test of it,
   which then failed on the missing option and not on the field.
 
+### Phase 7, the compass and the app (the second pull request)
+
+- **The compass.** A closed door is a place of its own state, `door`: offered, a tap
+  types the direction, spoken "(direction), closed door", and the room behind it not
+  told. An open door is an open way like any other. An exit on an untrusted variable is
+  "may be blocked", as any conditional exit.
+- **The session and the C interface.** `Session::with_pack` and
+  `zmx_session_new_with_pack`; `Session::new` and `zmx_session_new` are unchanged in
+  what they do. With no pack, with another story's pack, and with text that is not a
+  pack, a session's snapshots are byte for byte what they were, over a short game.
+- **The app.** `scripts/build-ios.sh` copies `packs/zork1.pack` to the app's resources
+  as `story.pack`, after checking that the pack names the story it is copied beside.
+  The app finds it by the story's resource name and hands its text over unread; no key
+  of the format is written in the app. A closed door is drawn as an outlined upright
+  panel with the direction's arrow.
+- **T053 done differently.** The task had the app's `story.pack` committed and compared
+  byte for byte with `packs/zork1.pack`. The app's resources are generated and ignored,
+  as the story is, so the test is of the build script and of the app's sources instead.
+- **T058, the drawing.** A first version had a knob on the panel; it ran into the
+  arrow and was taken off. Pictures of the three states (a closed door, the same door
+  opened, a way that may be blocked) were sent to the owner, who asked for another.
+  Of four sketches (the outlined panel, an arrow stopped at a bar, a disc with a door
+  badge, a solid door with a knob) the owner chose the solid door on 2026-11-12, saw
+  it in the app, and said the first was better. The drawing is the first one the owner
+  saw: the outlined panel with the arrow, and no knob. The owner settled it there on
+  2026-11-12, with a reason worth keeping: what the interface calls a door is any way
+  that can be shut (a window, a gate, a grating), so the drawing should not look too
+  much like a door. An open one stays an ordinary open way. It can change later.
+- **An earlier UI test changed in value, by design.** `testCompassAtTheOpening` said
+  the way west behind the house "may be blocked"; with the pack it is a closed door.
+  This is FR-030, not a form change.
+- **T059, played by hand in the simulator.** North, east: West and In are closed
+  doors. Typed `open window`: both are open ways. West, west: in the next room Down is
+  still "may be blocked". VoiceOver was not listened to; the UI test reads the
+  accessibility label ("West, closed door") and value (`door`).
+- **The whole UI suite** passes on the iOS 27 simulator: 23 tests, one skipped as
+  before, none failed. On iOS 26 only the door test was run. `testLaunchTime` passes
+  with the pack passed and the story hashed, so launch is within its two seconds on the
+  owner's Mac (T058's stop point is not met); the test asserts the limit and does not
+  print the figure, and a before-and-after of ten runs was not taken.
+
 ### Not done, and limits
 
-- **Phase 7**, the compass and the app: the second pull request. Until then the
-  experience layer treats a door as it treats a conditional exit, and gives the
-  interface no pack, so the app is as it was. The app's UI tests were not rerun for
-  this pull request; no file of the app changed.
-- **T065** in full: quickstart steps 1 to 7 pass; step 8 is Phase 7.
 - **Mini-Zork's pack is proven only where its file is.** In CI its test is "ignored,
   story absent".
 - **Whether a ledger cause "is the entry" is still a person's judgment** (FR-019). No

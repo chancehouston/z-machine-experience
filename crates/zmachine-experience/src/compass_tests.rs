@@ -419,3 +419,89 @@ fn commands_are_distinct_and_present_only_where_offered() {
         assert!(p.leads_to.is_none() || p.state == PlaceState::Open);
     }
 }
+
+// ---------------------------------------------------------------------------
+// Doors (feature 006, User Story 5; specs/006-game-packs/research.md R7;
+// docs/introspection.md I§12.3)
+// ---------------------------------------------------------------------------
+
+fn door(direction: u8, list: &[&str], to: &str, open: bool) -> Exit {
+    use zmachine_introspect::{DoorState, Source};
+    Exit {
+        kind: ExitKind::Door,
+        door: Some(40),
+        state: Some(if open {
+            DoorState::Open
+        } else {
+            DoorState::Closed
+        }),
+        source: Source::Pack,
+        ..fixed(direction, list, to)
+    }
+}
+
+// FR-030, FR-031: a closed door is a place of its own state. It is offered, a
+// tap sends the direction like any other, and the room behind it is not told.
+#[test]
+fn a_closed_door_is_shown_as_closed_and_can_be_tried() {
+    let c = compass(vec![door(29, &["e", "east"], "Kitchen", false)], 6);
+    let east = c.place(Place::East).unwrap();
+    assert_eq!(east.state, PlaceState::Door);
+    assert_eq!(PlaceState::Door.as_str(), "door");
+    assert_eq!(east.command.as_deref(), Some("east"));
+    assert_eq!(east.spoken, "East, closed door");
+    assert_eq!(
+        east.leads_to, None,
+        "the room behind a closed door is kept back"
+    );
+    assert!(c.known && c.offered);
+    assert_eq!(c.note, None, "a closed door is a way out to try");
+    // It is none of the other states.
+    for other in [
+        PlaceState::Open,
+        PlaceState::Maybe,
+        PlaceState::Closed,
+        PlaceState::Unknown,
+        PlaceState::Idle,
+    ] {
+        assert_ne!(other.as_str(), "door");
+        assert_ne!(east.state, other);
+    }
+}
+
+// FR-030: an open door is an open way, exactly as a fixed exit to the same room.
+#[test]
+fn an_open_door_is_an_open_way() {
+    let through = compass(vec![door(29, &["e", "east"], "Kitchen", true)], 6);
+    let plain = compass(vec![fixed(29, &["e", "east"], "Kitchen")], 6);
+    assert_eq!(through, plain);
+    let east = through.place(Place::East).unwrap();
+    assert_eq!(east.state, PlaceState::Open);
+    assert_eq!(east.spoken, "East, to Kitchen");
+    assert_eq!(east.leads_to.as_deref(), Some("Kitchen"));
+}
+
+// US5 scenario 4: an exit that is conditional because its variable is untrusted
+// is shown as any conditional exit is; a pack does not change "may be blocked".
+#[test]
+fn an_exit_on_an_untrusted_variable_may_be_blocked() {
+    let mut distrusted = conditional(29, &["e", "east"]);
+    distrusted.source = zmachine_introspect::Source::Pack;
+    let c = compass(vec![distrusted], 6);
+    assert_eq!(c, compass(vec![conditional(29, &["e", "east"])], 6));
+    assert_eq!(c.place(Place::East).unwrap().spoken, "East, may be blocked");
+}
+
+// A closed door in a direction the compass has no place for is an extra, with
+// the same state and no room told.
+#[test]
+fn a_closed_door_may_be_an_extra() {
+    let c = compass(vec![door(19, &["land"], "Shore", false)], 6);
+    assert_eq!(c.extras.len(), 1);
+    let extra = &c.extras[0];
+    assert_eq!(
+        (extra.state, extra.command.as_str(), extra.spoken.as_str()),
+        (PlaceState::Door, "land", "Land, closed door")
+    );
+    assert_eq!(extra.leads_to, None);
+}

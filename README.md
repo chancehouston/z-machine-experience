@@ -191,8 +191,9 @@ cargo run --release -p zmachine-cli -- --pack packs/zork1.pack --inspect - stori
 ```
 
 With Zork I's pack a door is reported as a door, open or closed, with the room behind
-it, where without one the answer is "conditional". The iPhone app does not use packs
-yet.
+it, where without one the answer is "conditional". The iPhone app carries the pack of
+the story it carries: its compass draws a closed door as a door, and an open one as an
+open way.
 
 ```text
 cargo run -q --release -p zmachine-corpus -- check

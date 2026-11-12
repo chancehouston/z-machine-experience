@@ -41,7 +41,11 @@ final class Game {
             return
         }
         do {
-            let engine = try Engine(story: story, seed: seed)
+            // The story's game pack, if the bundle holds one beside it. Its
+            // text is handed over as it is; the app reads none of it.
+            let pack = Bundle.main.url(forResource: name, withExtension: "pack")
+                .flatMap { try? String(contentsOf: $0, encoding: .utf8) }
+            let engine = try Engine(story: story, pack: pack, seed: seed)
             self.engine = engine
             show(await engine.snapshot(since: 0))
         } catch {

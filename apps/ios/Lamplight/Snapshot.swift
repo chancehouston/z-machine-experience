@@ -47,10 +47,10 @@ struct Compass: Decodable, Sendable, Equatable {
 }
 
 enum PlaceState: String, Decodable, Sendable {
-    case open, maybe, closed, unknown, idle
+    case open, maybe, door, closed, unknown, idle
 
     /// Whether a tap on a control in this state is sent.
-    var sends: Bool { self == .open || self == .maybe }
+    var sends: Bool { self == .open || self == .maybe || self == .door }
 }
 
 struct CompassPlace: Decodable, Sendable, Equatable {
