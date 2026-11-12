@@ -90,16 +90,25 @@ pub struct Answer<T> {
 
 impl<T> Answer<T> {
     pub fn exact(value: T) -> Self {
-        Answer { value: Ok(value), exactness: Exactness::Exact }
+        Answer {
+            value: Ok(value),
+            exactness: Exactness::Exact,
+        }
     }
 
     pub fn approximate(value: T) -> Self {
-        Answer { value: Ok(value), exactness: Exactness::Approximate }
+        Answer {
+            value: Ok(value),
+            exactness: Exactness::Approximate,
+        }
     }
 
     /// An answer that is not known. `exactness` says what it would have been.
     pub fn unknown(reason: Unknown, exactness: Exactness) -> Self {
-        Answer { value: Err(reason), exactness }
+        Answer {
+            value: Err(reason),
+            exactness,
+        }
     }
 
     pub fn is_unknown(&self) -> bool {

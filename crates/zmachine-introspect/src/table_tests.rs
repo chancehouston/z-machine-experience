@@ -6,7 +6,10 @@ use zmachine_core::{LoadOptions, Machine};
 use zmachine_testkit::op;
 use zmachine_testkit::{Object, Object5, Story, Story5};
 
-const OPTIONS: LoadOptions = LoadOptions { seed: Some(1), entropy: 0 };
+const OPTIONS: LoadOptions = LoadOptions {
+    seed: Some(1),
+    entropy: 0,
+};
 
 fn machine(image: Vec<u8>) -> Machine {
     Machine::load(image, OPTIONS).expect("the test story loads")
@@ -47,7 +50,12 @@ fn story5(version: u8) -> Vec<u8> {
     let mut room = Object5::new("Room");
     room.child = 2;
     room.attributes = 1 << 47 | 1; // attributes 0 and 47
-    room.props = vec![(5, vec![1, 2, 3]), (20, vec![9]), (63, vec![0xAA, 0xBB]), (40, vec![7; 20])];
+    room.props = vec![
+        (5, vec![1, 2, 3]),
+        (20, vec![9]),
+        (63, vec![0xAA, 0xBB]),
+        (40, vec![7; 20]),
+    ];
     let mut lamp = Object5::new("brass lamp");
     lamp.parent = 1;
     lamp.sibling = 3;
@@ -77,11 +85,20 @@ fn the_layout_is_read_from_the_header() {
         let b = Bytes::now(&m.view());
         let layout = Layout::read(b);
         assert_eq!(layout.version, version);
-        assert_eq!(layout.unpack(0x100), 0x100 * [0, 0, 0, 2, 0, 4, 0, 0, 8][version as usize]);
-        assert_eq!(layout.high_memory, u16::from_be_bytes([image[4], image[5]]) as usize);
+        assert_eq!(
+            layout.unpack(0x100),
+            0x100 * [0, 0, 0, 2, 0, 4, 0, 0, 8][version as usize]
+        );
+        assert_eq!(
+            layout.high_memory,
+            u16::from_be_bytes([image[4], image[5]]) as usize
+        );
         assert_eq!(b.len(), image.len());
         assert_eq!(b.byte(0), Some(version));
-        assert_eq!(b.word(0x12), Some(u16::from_be_bytes([image[0x12], image[0x13]])));
+        assert_eq!(
+            b.word(0x12),
+            Some(u16::from_be_bytes([image[0x12], image[0x13]]))
+        );
         assert_eq!(b.byte(image.len()), None);
     }
 }
@@ -105,7 +122,11 @@ fn an_objects_links_and_attributes() {
         let b = Bytes::now(&m.view());
         let layout = Layout::read(b);
         let room = layout.object(b, 1).unwrap();
-        assert_eq!((room.parent, room.sibling, room.child), (0, 0, 2), "version {version}");
+        assert_eq!(
+            (room.parent, room.sibling, room.child),
+            (0, 0, 2),
+            "version {version}"
+        );
         let lamp = layout.object(b, 2).unwrap();
         assert_eq!((lamp.parent, lamp.sibling, lamp.child), (1, 3, 4));
         let top = if version == 3 { 31 } else { 47 };
@@ -113,7 +134,11 @@ fn an_objects_links_and_attributes() {
         assert_eq!(layout.attributes(b, 2), Some(vec![]));
         assert_eq!(layout.has_attribute(b, 1, top), Some(true));
         assert_eq!(layout.has_attribute(b, 1, 1), Some(false));
-        assert_eq!(layout.has_attribute(b, 1, top + 1), None, "no such attribute");
+        assert_eq!(
+            layout.has_attribute(b, 1, top + 1),
+            None,
+            "no such attribute"
+        );
     }
 }
 
@@ -124,9 +149,17 @@ fn an_objects_name() {
         let m = machine(image);
         let b = Bytes::now(&m.view());
         let layout = Layout::read(b);
-        assert_eq!(layout.name(b, 1).as_deref(), Some("Room"), "version {version}");
+        assert_eq!(
+            layout.name(b, 1).as_deref(),
+            Some("Room"),
+            "version {version}"
+        );
         assert_eq!(layout.name(b, 2).as_deref(), Some("brass lamp"));
-        assert_eq!(layout.name(b, 3).as_deref(), Some(""), "an object with no name");
+        assert_eq!(
+            layout.name(b, 3).as_deref(),
+            Some(""),
+            "an object with no name"
+        );
         assert_eq!(layout.name(b, 5).as_deref(), Some("the the thing"));
     }
 }
@@ -147,7 +180,9 @@ fn an_objects_properties() {
             assert_eq!(shape, [(63, 2), (40, 20), (20, 1), (5, 3)]);
         }
         let five = layout.property(b, 1, 5).unwrap().unwrap();
-        let data: Vec<u8> = (0..five.len).map(|i| b.byte(five.at + i).unwrap()).collect();
+        let data: Vec<u8> = (0..five.len)
+            .map(|i| b.byte(five.at + i).unwrap())
+            .collect();
         assert_eq!(data, [1, 2, 3]);
         let first = props[0];
         assert_eq!(b.word(first.at), Some(0xAABB));
@@ -167,7 +202,11 @@ fn globals_now_and_as_shipped() {
         assert_eq!(layout.global(Bytes::shipped(&view), 7), Some(0xABCD));
         assert_eq!(layout.global(Bytes::now(&view), 0), Some(1));
         assert_eq!(layout.global(Bytes::now(&view), 239), Some(0));
-        assert_eq!(layout.global(Bytes::now(&view), 240), None, "there are 240 globals");
+        assert_eq!(
+            layout.global(Bytes::now(&view), 240),
+            None,
+            "there are 240 globals"
+        );
     }
 }
 
@@ -181,8 +220,13 @@ fn the_dictionary_and_its_words() {
         let layout = Layout::read(b);
         let d = layout.dictionary(b).unwrap();
         assert_eq!(d.count, 3, "version {version}");
-        assert_eq!((d.entry_len, d.text_len), if version == 3 { (7, 4) } else { (9, 6) });
-        let words: Vec<String> = (0..d.count).map(|i| layout.word(b, d.first + i * d.entry_len).unwrap()).collect();
+        assert_eq!(
+            (d.entry_len, d.text_len),
+            if version == 3 { (7, 4) } else { (9, 6) }
+        );
+        let words: Vec<String> = (0..d.count)
+            .map(|i| layout.word(b, d.first + i * d.entry_len).unwrap())
+            .collect();
         if version == 3 {
             assert_eq!(words, ["lamp", "north", "take"]);
         } else {
@@ -202,7 +246,10 @@ fn text_is_decoded() {
     let m = machine(image);
     let b = Bytes::now(&m.view());
     let layout = Layout::read(b);
-    assert_eq!(layout.text(b, layout.unpack(plain)).as_deref(), Some("Hello, World! 42\nnext @ line"));
+    assert_eq!(
+        layout.text(b, layout.unpack(plain)).as_deref(),
+        Some("Hello, World! 42\nnext @ line")
+    );
 }
 
 // §3.5.5, §3.8.5: a story file may supply its own alphabet table and Unicode
@@ -221,8 +268,7 @@ fn a_custom_alphabet_and_unicode_table_are_used() {
     let unicode = s.scratch(&[1, 0x03, 0xB1]);
     let extension = s.scratch(&[0, 3, 0, 0, 0, 0, (unicode >> 8) as u8, unicode as u8]);
     s.header_word(0x36, extension);
-    // "ab" encoded with the default alphabet reads back as "ba"; then ZSCII 155.
-    let text = s.raw_string(&[0x18, 0xE5, 0x94 | 0x80 & 0, 0xDB][..2]);
+    // ZSCII 155, written as a ten-bit code.
     let escape = s.raw_string(&{
         // z-chars 5 6 then the ten bits of 155 (4, 27), padded with 5.
         let z = [5u16, 6, 4, 27, 5, 5];
@@ -235,11 +281,11 @@ fn a_custom_alphabet_and_unicode_table_are_used() {
     let m = machine(image);
     let b = Bytes::now(&m.view());
     let layout = Layout::read(b);
-    // 0x18E5 is z-chars 6, 7, 5: 'a' and 'b' by the default table, with no end bit;
-    // the reader must stop at the end bit of the next word or fail, so test the
-    // escape, which is complete, and a complete two-letter string.
-    let _ = text;
-    assert_eq!(layout.text(b, layout.unpack(escape)).as_deref(), Some("\u{3b1}"));
+    assert_eq!(
+        layout.text(b, layout.unpack(escape)).as_deref(),
+        Some("\u{3b1}")
+    );
+    // Z-characters 6 and 7 are 'a' and 'b' by the default table, 'b' and 'a' by this one.
     let mut s2 = Story5::new(5);
     let alphabet = s2.scratch(&table);
     s2.header_word(0x34, alphabet);
@@ -260,7 +306,11 @@ fn nothing_outside_the_file_is_read() {
         let b = Bytes::now(&m.view());
         let layout = Layout::read(b);
         for number in [0u16, 6, 255, 256, 0xFFFF] {
-            assert_eq!(layout.object(b, number), None, "version {version}, object {number}");
+            assert_eq!(
+                layout.object(b, number),
+                None,
+                "version {version}, object {number}"
+            );
             assert_eq!(layout.name(b, number), None);
             assert_eq!(layout.attributes(b, number), None);
             assert_eq!(layout.properties(b, number), None);
@@ -270,12 +320,6 @@ fn nothing_outside_the_file_is_read() {
         assert_eq!(layout.text(b, image.len() - 1), None);
         assert_eq!(layout.text(b, usize::MAX), None);
         assert_eq!(layout.word(b, image.len() - 2), None);
-        // The last bytes of the file are zero padding or code: text starting in
-        // zeros has no end bit and runs off the end.
-        let zeros = vec![0u8; 64];
-        let mut padded = image.clone();
-        padded.extend(&zeros);
-        let _ = padded;
     }
 }
 
@@ -283,11 +327,19 @@ fn nothing_outside_the_file_is_read() {
 #[test]
 fn damaged_tables_do_not_panic() {
     for (_, image) in images() {
-        for (at, value) in [(0x0A, 0xFFu8), (0x0B, 0xFE), (0x08, 0xFF), (0x0C, 0xFF), (0x18, 0xFF)] {
+        for (at, value) in [
+            (0x0A, 0xFFu8),
+            (0x0B, 0xFE),
+            (0x08, 0xFF),
+            (0x0C, 0xFF),
+            (0x18, 0xFF),
+        ] {
             let mut damaged = image.clone();
             damaged[at] = value;
             // The core may refuse the file; if it loads, every reader must cope.
-            let Ok(m) = Machine::load(damaged, OPTIONS) else { continue };
+            let Ok(m) = Machine::load(damaged, OPTIONS) else {
+                continue;
+            };
             let b = Bytes::now(&m.view());
             let layout = Layout::read(b);
             for number in 0..=layout.last_object.min(300) {

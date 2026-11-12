@@ -24,7 +24,10 @@ fn sources() -> Vec<(String, String)> {
 #[test]
 fn the_crate_depends_only_on_the_core() {
     let manifest = std::fs::read_to_string(Path::new(CRATE).join("Cargo.toml")).unwrap();
-    let section = manifest.split("\n[dependencies]").nth(1).expect("a dependencies section");
+    let section = manifest
+        .split("\n[dependencies]")
+        .nth(1)
+        .expect("a dependencies section");
     let section = section.split("\n[").next().unwrap();
     let names: Vec<&str> = section
         .lines()
@@ -41,8 +44,22 @@ fn the_crate_has_no_unsafe_and_no_io() {
     for (name, text) in sources() {
         for (number, line) in text.lines().enumerate() {
             let code = line.split("//").next().unwrap_or("");
-            for banned in ["unsafe ", "std::fs", "std::io", "std::net", "std::env", "println!", "eprintln!", "print!(", "std::process"] {
-                assert!(!code.contains(banned), "src/{name}:{}: {banned} in {line:?}", number + 1);
+            for banned in [
+                "unsafe ",
+                "std::fs",
+                "std::io",
+                "std::net",
+                "std::env",
+                "println!",
+                "eprintln!",
+                "print!(",
+                "std::process",
+            ] {
+                assert!(
+                    !code.contains(banned),
+                    "src/{name}:{}: {banned} in {line:?}",
+                    number + 1
+                );
             }
         }
     }
@@ -58,11 +75,22 @@ fn the_crate_knows_no_game() {
         for (number, line) in text.lines().enumerate() {
             let lower = line.to_ascii_lowercase();
             for game in ["zork", "advent", "czech", "praxix", "colossal"] {
-                assert!(!lower.contains(game), "src/{name}:{}: names a game: {line:?}", number + 1);
+                assert!(
+                    !lower.contains(game),
+                    "src/{name}:{}: names a game: {line:?}",
+                    number + 1
+                );
             }
             // A serial number is six digits (§11.1); so is a date written that way.
-            let digits = line.as_bytes().windows(6).any(|w| w.iter().all(u8::is_ascii_digit));
-            assert!(!digits, "src/{name}:{}: a six-digit literal: {line:?}", number + 1);
+            let digits = line
+                .as_bytes()
+                .windows(6)
+                .any(|w| w.iter().all(u8::is_ascii_digit));
+            assert!(
+                !digits,
+                "src/{name}:{}: a six-digit literal: {line:?}",
+                number + 1
+            );
         }
     }
 }

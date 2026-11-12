@@ -8,7 +8,14 @@ fn each_unknown_reason_has_its_word() {
     let words: Vec<&str> = Unknown::ALL.iter().map(|u| u.as_str()).collect();
     assert_eq!(
         words,
-        ["unrecognised-family", "no-player", "ambiguous-player", "inconsistent", "not-determinable", "damaged"]
+        [
+            "unrecognised-family",
+            "no-player",
+            "ambiguous-player",
+            "inconsistent",
+            "not-determinable",
+            "damaged"
+        ]
     );
 }
 
