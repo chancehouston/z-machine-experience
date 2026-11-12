@@ -114,7 +114,8 @@ impl Machine {
     /// Ends the last line if the game quits leaving one unfinished, as the
     /// reference interpreter does on the screen and in the transcript.
     pub(crate) fn end_last_line(&mut self) {
-        if self.line_open {
+        // The line feed is for the main text; it is never drawn on the canvas.
+        if self.line_open && self.window == 0 {
             self.emit("\n");
         }
         self.flush_chunk();
@@ -253,7 +254,6 @@ impl Machine {
             self.preloaded.extend(self.charset.zscii_to_char(code));
         }
         let max_len = capacity.saturating_sub(present);
-        self.screen.clear_overlay();
         self.state = State::AwaitingLine { text, parse, max_len };
         self.pending = Some(ins);
         Ok(Event::LineWanted { max_len })
@@ -269,6 +269,7 @@ impl Machine {
             self.transcript.push_str(line);
             self.transcript.push('\n');
         }
+        self.screen.clear_overlay();
         let zscii: Vec<u8> = line
             .chars()
             .take(max_len)
@@ -301,6 +302,7 @@ impl Machine {
 
     /// Completes a read_char with the key's ZSCII code. The key is not echoed.
     pub(crate) fn finish_read_char(&mut self, code: u16) {
+        self.screen.clear_overlay();
         if let Some(ins) = self.pending.take() {
             let result = self.store(&ins, code);
             self.fault_later(result);

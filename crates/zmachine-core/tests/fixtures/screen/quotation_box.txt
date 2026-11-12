@@ -1,0 +1,53 @@
+Compression mode NONE, hiding top 0 lines
+Line numbering ON
+Line-type display ON
+Using normal formatting.
+Loading quotation_box.z5.
+01   Y2                  Score: 0  Moves: 0
+02  
+03  
+04         Plugh, he said
+05  
+06  
+07] >
+08  
+09  
+10  
+11  
+12  
+13  
+14  
+15  
+16  
+17  
+18  
+19  
+20  
+21  
+22  
+23  
+24  
+07T >01   Y2                  Score: 0  Moves: 1
+02  
+03  
+04         Plugh, he said
+05  
+06  
+07  >look
+08  After the box.
+09  
+10] >
+11  
+12  
+13  
+14  
+15  
+16  
+17  
+18  
+19  
+20  
+21  
+22  
+23  
+24  

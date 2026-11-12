@@ -491,3 +491,139 @@ pub fn key_probe() -> Vec<u8> {
     story.main(&main);
     story.build()
 }
+
+/// A version 5 program that draws on the screen, for checking the screen model
+/// (specs/002-v5-v8/contracts/screen-model.md, test programs 1 to 3).
+pub struct ScreenProgram {
+    pub name: &'static str,
+    pub purpose: &'static str,
+    pub image: Vec<u8>,
+    /// One line for each time the program waits: a whole line for a read, a line
+    /// of one character for a keypress.
+    pub input: &'static [&'static str],
+}
+
+/// The three screen programs that are also run under the reference interpreter.
+/// They draw only within the first 40 columns and 8 rows, so the same program
+/// serves a small canvas in unit tests and dfrotz's 80 by 24.
+///
+/// dfrotz's screens for them are in `crates/zmachine-core/tests/fixtures/screen/`.
+pub fn screen_programs() -> Vec<ScreenProgram> {
+    use crate::Story5;
+    use Arg::*;
+    let print = |s: &str| [op::op0(op::PRINT), zencode(s)].concat();
+    let window = |n: u8| op::var(op::SET_WINDOW, &[S(n)]);
+    let split = |n: u8| op::var(op::SPLIT_WINDOW, &[S(n)]);
+    let cursor = |row: u8, column: u8| op::var(op::SET_CURSOR, &[S(row), S(column)]);
+    let style = |n: u8| op::var(op::SET_TEXT_STYLE, &[S(n)]);
+    let erase = |n: i16| op::var(op::ERASE_WINDOW, &[L(n as u16)]);
+    let key = || [op::var(op::READ_CHAR, &[S(1)]), op::store(16)].concat();
+    // A status line the way the Inform library draws one.
+    let status = |place: &str, score: &str| {
+        [
+            split(1),
+            window(1),
+            cursor(1, 1),
+            style(1),
+            print(&" ".repeat(40)),
+            cursor(1, 2),
+            print(place),
+            cursor(1, 22),
+            print(score),
+            style(0),
+            window(0),
+        ]
+        .concat()
+    };
+
+    let build = |name, purpose, input, code: &dyn Fn(&[u8]) -> Vec<Vec<u8>>| {
+        let mut story = Story5::new(5);
+        story.word("look");
+        let text = story.text_buffer(40, "");
+        let parse = story.parse_buffer(5);
+        let read = [op::var(op::AREAD, &[L(text), L(parse)]), op::store(16)].concat();
+        let mut main = code(&read).concat();
+        main.extend(op::op0(op::QUIT));
+        story.main(&main);
+        ScreenProgram { name, purpose, image: story.build(), input }
+    };
+
+    vec![
+        build(
+            "status_line",
+            "1: a status line drawn the Inform library's way, redrawn after a move",
+            &["north", "look"],
+            &|read| {
+                vec![
+                    print("At the road.\n\n"),
+                    status("End Of Road", "Score: 0  Moves: 0"),
+                    print(">"),
+                    read.to_vec(),
+                    print("In the building.\n\n"),
+                    status("Inside Building", "Score: 5  Moves: 1"),
+                    print(">"),
+                    read.to_vec(),
+                ]
+            },
+        ),
+        build(
+            "quotation_box",
+            "2: a boxed quotation the veneer's way: enlarge, draw, shrink to one row",
+            &["look", "look"],
+            &|read| {
+                vec![
+                    print("Some text first.\n\n"),
+                    split(6),
+                    window(1),
+                    style(1),
+                    cursor(3, 6),
+                    print("                 "),
+                    cursor(4, 6),
+                    print("  Plugh, he said "),
+                    cursor(5, 6),
+                    print("                 "),
+                    style(0),
+                    window(0),
+                    status("Y2", "Score: 0  Moves: 0"),
+                    print(">"),
+                    read.to_vec(),
+                    print("After the box.\n\n"),
+                    status("Y2", "Score: 0  Moves: 1"),
+                    print(">"),
+                    read.to_vec(),
+                ]
+            },
+        ),
+        build(
+            "menu",
+            "3: a full-screen menu: clear everything, split, draw, wait for a key",
+            &["n", "q"],
+            &|_| {
+                vec![
+                    print("Before the menu.\n"),
+                    erase(-1),
+                    split(8),
+                    window(1),
+                    cursor(1, 1),
+                    style(1),
+                    print(" Menu "),
+                    style(0),
+                    cursor(3, 3),
+                    print("> Instructions"),
+                    cursor(4, 5),
+                    print("History"),
+                    cursor(8, 1),
+                    print("N = next  Q = quit"),
+                    key(),
+                    cursor(3, 3),
+                    print(" "),
+                    cursor(4, 3),
+                    print(">"),
+                    key(),
+                    erase(-1),
+                    print("Back in the game.\n"),
+                ]
+            },
+        ),
+    ]
+}

@@ -12,7 +12,7 @@ leaves something open, this contract says what was chosen and marks it **(choice
 - Receives the game's ordinary text, delivered to the host as styled runs in the order
   printed. The core does not wrap it (§7.2 concerns buffering; layout is the host's).
 - Is the only window whose text is transcribed **(choice, following Frotz)**.
-- `erase_window 0` and `erase_window -1` add a **clear marker** to the output: a run with
+- `erase_window 0`, `-1` and `-2` add a **clear marker** to the output: a run with
   no text and a flag saying the lower window was cleared at this point. In plain
   `take_output` text the marker is absent. Nothing is written to the transcript.
 
@@ -40,7 +40,8 @@ screen size from the host.
 - `erase_window 1` empties the top `height` rows and moves the cursor to the top left
   (§8.7.3.2.1). `erase_window -1` unsplits, empties the whole canvas and selects the
   lower window (§8.7.3.3). `erase_window -2` empties the whole canvas without unsplitting
-  or changing the selected window (§15). `erase_line 1` empties from the cursor to the
+  or changing the selected window (§15). `erase_window 0` empties the rows below the
+  upper window, which is where an overlay lies. `erase_line 1` empties from the cursor to the
   end of its row (§8.7.3.4); any other value does nothing.
 - Upper-window text is never buffered, wrapped or transcribed, and is always fixed pitch
   (§8.7.2.4).

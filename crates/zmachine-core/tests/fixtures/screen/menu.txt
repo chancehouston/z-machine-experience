@@ -1,0 +1,77 @@
+Compression mode NONE, hiding top 0 lines
+Line numbering ON
+Line-type display ON
+Using normal formatting.
+Loading menu.z5.
+01   Menu
+02  
+03    > Instructions
+04      History
+05  
+06  
+07  
+08] N = next  Q = quit
+09  
+10  
+11  
+12  
+13  
+14  
+15  
+16  
+17  
+18  
+19  
+20  
+21  
+22  
+23  
+24  
+08) N = next  Q = quit01   Menu
+02  
+03      Instructions
+04]   > History
+05  
+06  
+07  
+08  N = next  Q = quit
+09  
+10  
+11  
+12  
+13  
+14  
+15  
+16  
+17  
+18  
+19  
+20  
+21  
+22  
+23  
+24  
+04)   >01  Back in the game.
+02] 
+03  
+04  
+05  
+06  
+07  
+08  
+09  
+10  
+11  
+12  
+13  
+14  
+15  
+16  
+17  
+18  
+19  
+20  
+21  
+22  
+23  
+24  

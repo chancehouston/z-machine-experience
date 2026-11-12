@@ -130,24 +130,124 @@ impl Screen {
         std::mem::take(&mut self.changed)
     }
 
-    // The canvas operations arrive with User Story 3; until then they do nothing
-    // beyond keeping the cursor, which `print_table` reads.
-
-    pub(crate) fn set_cursor(&mut self, row: u16, column: u16) {
-        self.cursor = (row, column);
+    fn index(&self, row: u16, column: u16) -> usize {
+        (row as usize - 1) * self.width as usize + column as usize - 1
     }
 
-    pub(crate) fn split(&mut self, _height: u16) {}
+    /// Empties the rows from `first` to `last`, counting from 1.
+    fn clear_rows(&mut self, first: u16, last: u16) {
+        if first > last {
+            return;
+        }
+        let (from, to) = (self.index(first, 1), self.index(last, self.width) + 1);
+        if self.cells[from..to].iter().any(Option::is_some) {
+            self.cells[from..to].fill(None);
+            self.changed = true;
+        }
+    }
 
-    pub(crate) fn select_upper(&mut self) {}
+    fn move_cursor(&mut self, row: u16, column: u16) {
+        if self.cursor != (row, column) {
+            self.cursor = (row, column);
+            self.changed = true;
+        }
+    }
 
-    pub(crate) fn erase_window(&mut self, _which: i16) {}
+    /// §8.7.2.3: moves the cursor. A position off the canvas is brought to the
+    /// nearest one on it.
+    pub(crate) fn set_cursor(&mut self, row: u16, column: u16) {
+        self.move_cursor(row.clamp(1, self.rows), column.clamp(1, self.width));
+    }
 
-    pub(crate) fn erase_line(&mut self) {}
+    /// §8.7.2.1: sets the upper window's height, at most the whole screen. Cells
+    /// keep their contents; a cursor left below the window goes to its top left.
+    pub(crate) fn split(&mut self, height: u16) {
+        let height = height.min(self.rows);
+        if height != self.height {
+            self.height = height;
+            self.changed = true;
+        }
+        if self.cursor.0 > height {
+            self.move_cursor(1, 1);
+        }
+    }
 
-    pub(crate) fn write(&mut self, _text: &str, _style: Style) {}
+    /// §8.7.2: selecting the upper window puts its cursor at the top left.
+    pub(crate) fn select_upper(&mut self) {
+        self.move_cursor(1, 1);
+    }
 
-    pub(crate) fn clear_overlay(&mut self) {}
+    /// §8.7.3.2.1, §8.7.3.3, §15 erase_window.
+    pub(crate) fn erase_window(&mut self, which: i16) {
+        match which {
+            // The lower window: whatever the game drew below its upper window goes.
+            0 => self.clear_rows(self.height + 1, self.rows),
+            1 => {
+                self.clear_rows(1, self.height);
+                self.move_cursor(1, 1);
+            }
+            -1 => {
+                self.clear_rows(1, self.rows);
+                if self.height != 0 {
+                    self.height = 0;
+                    self.changed = true;
+                }
+                self.move_cursor(1, 1);
+            }
+            -2 => self.clear_rows(1, self.rows),
+            _ => {}
+        }
+    }
 
-    pub(crate) fn reset(&mut self) {}
+    /// §8.7.3.4: empties from the cursor to the end of its row.
+    pub(crate) fn erase_line(&mut self) {
+        let (row, column) = self.cursor;
+        if column > self.width {
+            return;
+        }
+        let (from, to) = (self.index(row, column), self.index(row, self.width) + 1);
+        if self.cells[from..to].iter().any(Option::is_some) {
+            self.cells[from..to].fill(None);
+            self.changed = true;
+        }
+    }
+
+    /// Writes text at the cursor. A character past the right edge is discarded; a
+    /// new-line goes to the start of the next row, or nowhere on the last row.
+    pub(crate) fn write(&mut self, text: &str, style: Style) {
+        for ch in text.chars() {
+            let (row, column) = self.cursor;
+            if ch == '\n' {
+                if row < self.rows {
+                    self.move_cursor(row + 1, 1);
+                }
+                continue;
+            }
+            if column > self.width {
+                continue;
+            }
+            let at = self.index(row, column);
+            if self.cells[at] != Some((ch, style)) {
+                self.cells[at] = Some((ch, style));
+            }
+            // §8.7.3.1: printing in the last column is legal, and leaves the cursor
+            // past the edge.
+            self.cursor = (row, column + 1);
+            self.changed = true;
+        }
+    }
+
+    /// Empties whatever the game drew below its upper window (the overlay), which
+    /// a terminal would have scrolled away once the player answered.
+    pub(crate) fn clear_overlay(&mut self) {
+        self.clear_rows(self.height + 1, self.rows);
+    }
+
+    /// §8.7.3.3 on restart: blank and unsplit.
+    pub(crate) fn reset(&mut self) {
+        let blank = Screen::new(self.width, self.rows);
+        if self.cells != blank.cells || self.height != 0 || self.cursor != (1, 1) {
+            *self = Screen { changed: true, ..blank };
+        }
+    }
 }
