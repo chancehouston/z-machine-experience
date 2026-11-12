@@ -81,11 +81,11 @@ fn the_crate_knows_no_game() {
                     number + 1
                 );
             }
-            // A serial number is six digits (§11.1); so is a date written that way.
+            // A serial number is exactly six digits (§11.1). The Standard's
+            // alphabet table, which has all ten in a row, is not one.
             let digits = line
-                .as_bytes()
-                .windows(6)
-                .any(|w| w.iter().all(u8::is_ascii_digit));
+                .split(|c: char| !c.is_ascii_digit())
+                .any(|run| run.len() == 6);
             assert!(
                 !digits,
                 "src/{name}:{}: a six-digit literal: {line:?}",

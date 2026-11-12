@@ -15,7 +15,11 @@ fn the_games_are_recognised() {
         ("stories/advent/advent.z8", Family::Inform6),
     ] {
         let machine = load(story, 1);
-        assert_eq!(Introspector::new(&machine.view()).family(), family, "{story}");
+        assert_eq!(
+            Introspector::new(&machine.view()).family(),
+            family,
+            "{story}"
+        );
     }
 }
 
@@ -24,20 +28,50 @@ fn the_games_are_recognised() {
 // dictionary are still answered in full.
 #[test]
 fn the_test_programs_are_unrecognised() {
-    for story in ["stories/czech/czech.z3", "stories/czech/czech.z5", "stories/czech/czech.z8", "stories/praxix/praxix.z5"] {
+    for story in [
+        "stories/czech/czech.z3",
+        "stories/czech/czech.z5",
+        "stories/czech/czech.z8",
+        "stories/praxix/praxix.z5",
+    ] {
         let machine = load(story, 1);
         let view = machine.view();
         let i = Introspector::new(&view);
         assert_eq!(i.family(), Family::Unrecognised, "{story}");
-        assert_eq!(i.location(&view).value.err(), Some(Unknown::UnrecognisedFamily), "{story}");
-        assert_eq!(i.inventory(&view).value.err(), Some(Unknown::UnrecognisedFamily), "{story}");
-        assert_eq!(i.exits(&view).value.err(), Some(Unknown::UnrecognisedFamily), "{story}");
+        assert_eq!(
+            i.location(&view).value.err(),
+            Some(Unknown::UnrecognisedFamily),
+            "{story}"
+        );
+        assert_eq!(
+            i.inventory(&view).value.err(),
+            Some(Unknown::UnrecognisedFamily),
+            "{story}"
+        );
+        assert_eq!(
+            i.exits(&view).value.err(),
+            Some(Unknown::UnrecognisedFamily),
+            "{story}"
+        );
         let scope = i.scope(&view);
-        assert_eq!(scope.value.err(), Some(Unknown::UnrecognisedFamily), "{story}");
-        assert_eq!(scope.exactness, Exactness::Approximate, "{story}: scope is approximate even when unknown");
+        assert_eq!(
+            scope.value.err(),
+            Some(Unknown::UnrecognisedFamily),
+            "{story}"
+        );
+        assert_eq!(
+            scope.exactness,
+            Exactness::Approximate,
+            "{story}: scope is approximate even when unknown"
+        );
         assert!(!i.object_tree(&view).value.unwrap().is_empty(), "{story}");
         let words = i.dictionary(&view).value.unwrap();
-        assert!(words.iter().all(|w| w.parts == Err(Unknown::UnrecognisedFamily)), "{story}");
+        assert!(
+            words
+                .iter()
+                .all(|w| w.parts == Err(Unknown::UnrecognisedFamily)),
+            "{story}"
+        );
     }
 }
 
@@ -45,13 +79,28 @@ fn the_test_programs_are_unrecognised() {
 // every stop of a game, from before it has run to after it has ended.
 #[test]
 fn the_family_does_not_change_during_play() {
-    for (game, family) in [(ZORK1, Family::Zil), (ADVENT5, Family::Inform6), (ADVENT8, Family::Inform6)] {
+    for (game, family) in [
+        (ZORK1, Family::Zil),
+        (ADVENT5, Family::Inform6),
+        (ADVENT8, Family::Inform6),
+    ] {
         let fresh = load(game.story, game.seed);
-        assert_eq!(Introspector::new(&fresh.view()).family(), family, "{} before it runs", game.name);
+        assert_eq!(
+            Introspector::new(&fresh.view()).family(),
+            family,
+            "{} before it runs",
+            game.name
+        );
         let mut stops = 0;
         walk(game, |machine, stop| {
             if stop.number % 25 == 1 || stop.wants == Wants::Nothing {
-                assert_eq!(Introspector::new(&machine.view()).family(), family, "{} at stop {}", game.name, stop.number);
+                assert_eq!(
+                    Introspector::new(&machine.view()).family(),
+                    family,
+                    "{} at stop {}",
+                    game.name,
+                    stop.number
+                );
                 stops += 1;
             }
         });

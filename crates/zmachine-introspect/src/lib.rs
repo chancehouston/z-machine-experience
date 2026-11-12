@@ -13,6 +13,7 @@ mod zil;
 
 pub use answer::{Answer, Exactness, Part, Tri, Unknown};
 
+use family::Adapter;
 use table::{Bytes, Layout};
 use zmachine_core::View;
 
@@ -265,12 +266,20 @@ pub struct Scope {
 #[derive(Clone, Debug)]
 pub struct Introspector {
     layout: Layout,
+    adapter: Adapter,
+    /// The story file's length and checksum, to know it again.
+    identity: (usize, Option<u16>),
 }
 
 impl Introspector {
     pub fn new(view: &View<'_>) -> Introspector {
+        let shipped = Bytes::shipped(view);
+        let layout = Layout::read(shipped);
+        let adapter = family::recognise(&layout, shipped);
         Introspector {
-            layout: Layout::read(Bytes::shipped(view)),
+            layout,
+            adapter,
+            identity: (view.len(), view.shipped_word(0x1C)),
         }
     }
 
@@ -281,28 +290,53 @@ impl Introspector {
 
     /// The family the story file was recognised as (specification section 3).
     pub fn family(&self) -> Family {
-        Family::Unrecognised
+        match self.adapter {
+            Adapter::Inform(_) => Family::Inform6,
+            Adapter::Zil(_) => Family::Zil,
+            Adapter::None => Family::Unrecognised,
+        }
+    }
+
+    /// Why a family-dependent query cannot be answered at all, if it cannot.
+    fn refusal(&self, view: &View<'_>) -> Option<Unknown> {
+        if self.identity != (view.len(), view.shipped_word(0x1C)) {
+            // The view is of some other story file.
+            return Some(Unknown::Inconsistent);
+        }
+        matches!(self.adapter, Adapter::None).then_some(Unknown::UnrecognisedFamily)
     }
 
     /// The room the player is in (specification section 6).
-    pub fn location(&self, _view: &View<'_>) -> Answer<Location> {
+    pub fn location(&self, view: &View<'_>) -> Answer<Location> {
+        if let Some(reason) = self.refusal(view) {
+            return Answer::unknown(reason, Exactness::Exact);
+        }
         Answer::unknown(Unknown::Damaged, Exactness::Exact)
     }
 
     /// What the player carries (specification section 7).
-    pub fn inventory(&self, _view: &View<'_>) -> Answer<Vec<Carried>> {
+    pub fn inventory(&self, view: &View<'_>) -> Answer<Vec<Carried>> {
+        if let Some(reason) = self.refusal(view) {
+            return Answer::unknown(reason, Exactness::Exact);
+        }
         Answer::unknown(Unknown::Damaged, Exactness::Exact)
     }
 
     /// The directions that lead out of the player's location (specification
     /// section 8).
-    pub fn exits(&self, _view: &View<'_>) -> Answer<Exits> {
+    pub fn exits(&self, view: &View<'_>) -> Answer<Exits> {
+        if let Some(reason) = self.refusal(view) {
+            return Answer::unknown(reason, Exactness::Exact);
+        }
         Answer::unknown(Unknown::Damaged, Exactness::Exact)
     }
 
     /// The objects the player could plausibly act on (specification section 9).
     /// Always approximate.
-    pub fn scope(&self, _view: &View<'_>) -> Answer<Scope> {
+    pub fn scope(&self, view: &View<'_>) -> Answer<Scope> {
+        if let Some(reason) = self.refusal(view) {
+            return Answer::unknown(reason, Exactness::Approximate);
+        }
         Answer::unknown(Unknown::Damaged, Exactness::Approximate)
     }
 
@@ -344,18 +378,7 @@ impl Introspector {
     /// of objects; a link out of range, a loop, or a child that names another
     /// parent makes the list `damaged`.
     pub(crate) fn children(&self, b: Bytes, number: u16) -> Part<Vec<u16>> {
-        let node = self.layout.object(b, number).ok_or(Unknown::Damaged)?;
-        let mut children = Vec::new();
-        let mut next = node.child;
-        while next != 0 {
-            let child = self.layout.object(b, next).ok_or(Unknown::Damaged)?;
-            if child.parent != number || children.len() >= self.layout.last_object as usize {
-                return Err(Unknown::Damaged);
-            }
-            children.push(next);
-            next = child.sibling;
-        }
-        Ok(children)
+        self.layout.children(b, number).ok_or(Unknown::Damaged)
     }
 
     /// What the game prints for an object.

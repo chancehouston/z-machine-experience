@@ -39,7 +39,11 @@ fn inform_rule_2_the_metaclasses() {
     for (number, name) in [(1u16, "Klass"), (2, "object"), (3, ""), (4, "Strings")] {
         let mut f = Inform::new();
         f.object(number).name = name.to_string();
-        assert_eq!(family_of(f.build()), Family::Unrecognised, "object {number} named {name:?}");
+        assert_eq!(
+            family_of(f.build()),
+            Family::Unrecognised,
+            "object {number} named {name:?}"
+        );
     }
 }
 
@@ -49,7 +53,11 @@ fn inform_rule_3_the_librarys_objects() {
     for number in [inf::COMPASS, inf::PLAYER, inf::DARKNESS, inf::LIBRARY] {
         let mut f = Inform::new();
         f.object(number).name = "something else".to_string();
-        assert_eq!(family_of(f.build()), Family::Unrecognised, "object {number} renamed");
+        assert_eq!(
+            family_of(f.build()),
+            Family::Unrecognised,
+            "object {number} renamed"
+        );
     }
     // Two objects named `compass`: which is meant is not settled.
     let mut f = Inform::new();
@@ -66,10 +74,18 @@ fn inform_rule_3_the_librarys_objects() {
 fn inform_rule_4_the_compass() {
     let mut f = Inform::new();
     f.without_prop(inf::S, 21);
-    assert_eq!(family_of(f.build()), Family::Unrecognised, "a child without property 21");
+    assert_eq!(
+        family_of(f.build()),
+        Family::Unrecognised,
+        "a child without property 21"
+    );
     let mut f = Inform::new();
     f.prop(inf::S, 21, vec![0, 7]);
-    assert_eq!(family_of(f.build()), Family::Unrecognised, "two children with one value");
+    assert_eq!(
+        family_of(f.build()),
+        Family::Unrecognised,
+        "two children with one value"
+    );
     for value in [0u16, 3, 64, 0x1234] {
         let mut f = Inform::new();
         f.prop(inf::S, 21, value.to_be_bytes().to_vec());
@@ -77,16 +93,28 @@ fn inform_rule_4_the_compass() {
     }
     let mut f = Inform::new();
     f.prop(inf::S, 21, vec![0, 21]);
-    assert_eq!(family_of(f.build()), Family::Unrecognised, "a value the child itself provides");
+    assert_eq!(
+        family_of(f.build()),
+        Family::Unrecognised,
+        "a value the child itself provides"
+    );
     let mut f = Inform::new();
     f.prop(inf::S, 21, vec![8]);
-    assert_eq!(family_of(f.build()), Family::Unrecognised, "a property of one byte");
+    assert_eq!(
+        family_of(f.build()),
+        Family::Unrecognised,
+        "a property of one byte"
+    );
     // A compass with no children gives no directions to check, and no exits.
     let mut f = Inform::new();
     for child in [inf::N, inf::S, inf::IN, inf::OUT] {
         f.object(child).parent = 0;
     }
-    assert_eq!(family_of(f.build()), Family::Unrecognised, "an empty compass");
+    assert_eq!(
+        family_of(f.build()),
+        Family::Unrecognised,
+        "an empty compass"
+    );
 }
 
 // I§3.1 rule 5: the attributes are numbered as the library declares them.
@@ -94,16 +122,32 @@ fn inform_rule_4_the_compass() {
 fn inform_rule_5_attribute_numbering() {
     let mut f = Inform::new();
     f.attrs(inf::PLAYER, &[0, 3, 16, 23, 30]);
-    assert_eq!(family_of(f.build()), Family::Unrecognised, "the player with an extra attribute");
+    assert_eq!(
+        family_of(f.build()),
+        Family::Unrecognised,
+        "the player with an extra attribute"
+    );
     let mut f = Inform::new();
     f.attrs(inf::PLAYER, &[1, 4, 17, 24]);
-    assert_eq!(family_of(f.build()), Family::Unrecognised, "every attribute shifted by one");
+    assert_eq!(
+        family_of(f.build()),
+        Family::Unrecognised,
+        "every attribute shifted by one"
+    );
     let mut f = Inform::new();
     f.attrs(inf::COMPASS, &[4]);
-    assert_eq!(family_of(f.build()), Family::Unrecognised, "the compass not concealed");
+    assert_eq!(
+        family_of(f.build()),
+        Family::Unrecognised,
+        "the compass not concealed"
+    );
     let mut f = Inform::new();
     f.attrs(inf::N, &[18]);
-    assert_eq!(family_of(f.build()), Family::Unrecognised, "a direction not scenery");
+    assert_eq!(
+        family_of(f.build()),
+        Family::Unrecognised,
+        "a direction not scenery"
+    );
 }
 
 // I§3.1 rule 6: exactly one global holds the library object as shipped.
@@ -111,10 +155,18 @@ fn inform_rule_5_attribute_numbering() {
 fn inform_rule_6_the_location_variable() {
     let mut f = Inform::new();
     f.globals.clear();
-    assert_eq!(family_of(f.build()), Family::Unrecognised, "no global holds it");
+    assert_eq!(
+        family_of(f.build()),
+        Family::Unrecognised,
+        "no global holds it"
+    );
     let mut f = Inform::new();
     f.globals.push((40, inf::LIBRARY));
-    assert_eq!(family_of(f.build()), Family::Unrecognised, "two globals hold it");
+    assert_eq!(
+        family_of(f.build()),
+        Family::Unrecognised,
+        "two globals hold it"
+    );
 }
 
 // I§3: recognition reads the story file as shipped. What the game has since
@@ -152,15 +204,29 @@ fn zil_rule_1_not_inform() {
 #[test]
 fn zil_rule_3_direction_words() {
     let mut f = Zil::new();
-    // Leave three: north (with its synonym n), south, east.
-    f.words.retain(|(w, _)| !["west", "down", "up"].contains(w));
+    // Leave three direction words: north, south, east. The rule counts words.
+    f.words
+        .retain(|(w, _)| !["n", "west", "down", "up"].contains(w));
     for number in [zl::KITCHEN, zl::CELLAR] {
-        f.object(number).props.retain(|(p, _)| ![zl::WEST, zl::DOWN, zl::UP].contains(p));
+        f.object(number)
+            .props
+            .retain(|(p, _)| ![zl::WEST, zl::DOWN, zl::UP].contains(p));
     }
-    assert_eq!(family_of(f.build()), Family::Unrecognised, "three directions, four words");
+    assert_eq!(
+        family_of(f.build()),
+        Family::Unrecognised,
+        "three direction words"
+    );
+    // With the synonym back there are four words, which is enough.
+    f.words.push(("n", [0x13, zl::NORTH, 0]));
+    assert_eq!(family_of(f.build()), Family::Zil, "four direction words");
     let mut f = Zil::new();
     f.words.retain(|(_, data)| data[0] & 0x10 == 0);
-    assert_eq!(family_of(f.build()), Family::Unrecognised, "no direction words");
+    assert_eq!(
+        family_of(f.build()),
+        Family::Unrecognised,
+        "no direction words"
+    );
 }
 
 // I§3.2 rule 4: every object with a direction property, parentless ones aside,
@@ -169,10 +235,18 @@ fn zil_rule_3_direction_words() {
 fn zil_rule_4_one_parent_for_all_rooms() {
     let mut f = Zil::new();
     f.prop(zl::BOAT, zl::NORTH, vec![zl::KITCHEN as u8]);
-    assert_eq!(family_of(f.build()), Family::Unrecognised, "a direction property on a thing in a room");
+    assert_eq!(
+        family_of(f.build()),
+        Family::Unrecognised,
+        "a direction property on a thing in a room"
+    );
     let mut f = Zil::new();
     f.object(zl::ROOMS).parent = zl::DIAMOND as u8;
-    assert_eq!(family_of(f.build()), Family::Unrecognised, "the rooms' parent has a parent");
+    assert_eq!(
+        family_of(f.build()),
+        Family::Unrecognised,
+        "the rooms' parent has a parent"
+    );
     // A parentless object with a direction property is left aside, as the rule says.
     let mut f = Zil::new();
     f.prop(zl::DIAMOND, zl::NORTH, vec![99]);
@@ -187,10 +261,18 @@ fn zil_rule_5_the_shape_of_exits() {
     assert_eq!(family_of(f.build()), Family::Unrecognised, "six bytes");
     let mut f = Zil::new();
     f.prop(zl::HALL, zl::EAST, vec![zl::LAMP as u8]);
-    assert_eq!(family_of(f.build()), Family::Unrecognised, "a one-byte value that is not a room");
+    assert_eq!(
+        family_of(f.build()),
+        Family::Unrecognised,
+        "a one-byte value that is not a room"
+    );
     let mut f = Zil::new();
     f.prop(zl::HALL, zl::EAST, vec![200]);
-    assert_eq!(family_of(f.build()), Family::Unrecognised, "a one-byte value past the last object");
+    assert_eq!(
+        family_of(f.build()),
+        Family::Unrecognised,
+        "a one-byte value past the last object"
+    );
 }
 
 // I§3.1, I§3.2: no file can satisfy both sets of rules. Rule 1 of each excludes

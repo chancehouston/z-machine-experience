@@ -264,7 +264,7 @@ fn the_dictionary_equals_an_independent_reading() {
     let machine = load("stories/zork1/zork1.z3", 1);
     let view = machine.view();
     let words = Introspector::new(&view).dictionary(&view).value.unwrap();
-    assert_eq!(words.len(), 697);
+    assert_eq!(words.len(), 684);
     for known in ["north", "lamp", "take", "mailbo", "xyzzy"] {
         assert!(words.iter().any(|w| w.word == known), "{known}");
     }

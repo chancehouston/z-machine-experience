@@ -190,6 +190,37 @@ impl Layout {
         }
     }
 
+    /// An object's children in the tree's order: its child, then each sibling.
+    /// `None` if a link is out of range, the chain is longer than there are
+    /// objects, or a child names some other parent.
+    pub fn children(&self, b: Bytes, number: u16) -> Option<Vec<u16>> {
+        let mut children = Vec::new();
+        let mut next = self.object(b, number)?.child;
+        while next != 0 {
+            let child = self.object(b, next)?;
+            if child.parent != number || children.len() >= self.last_object as usize {
+                return None;
+            }
+            children.push(next);
+            next = child.sibling;
+        }
+        Some(children)
+    }
+
+    /// The bytes of a property.
+    pub fn data(&self, b: Bytes, property: &Property) -> Option<Vec<u8>> {
+        (0..property.len).map(|i| b.byte(property.at + i)).collect()
+    }
+
+    /// The value of a property that is exactly two bytes long.
+    pub fn property_word(&self, b: Bytes, number: u16, property: u8) -> Option<u16> {
+        let p = self.property(b, number, property)??;
+        if p.len != 2 {
+            return None;
+        }
+        b.word(p.at)
+    }
+
     fn attribute_bytes(&self) -> usize {
         if self.version > 3 { 6 } else { 4 }
     }

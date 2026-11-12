@@ -587,7 +587,9 @@ const V3_TRANSCRIPT_PROBES: [u64; 15] = [
 #[test]
 fn dictionary_words_can_carry_data_bytes() {
     let mut v3 = crate::Story::new();
-    v3.word("take").word_data("north", [0x13, 0x1F, 0]).word_data("down", [0x18, 0xFA, 0x16]);
+    v3.word("take")
+        .word_data("north", [0x13, 0x1F, 0])
+        .word_data("down", [0x18, 0xFA, 0x16]);
     v3.header_byte(0x3C, b'x');
     let north = v3.word_address("north") as usize;
     let take = v3.word_address("take") as usize;
@@ -610,4 +612,3 @@ fn dictionary_words_can_carry_data_bytes() {
         assert_eq!(image[take + 6..take + 9], [0, 0, 0]);
     }
 }
-

@@ -5,7 +5,10 @@ use zmachine_core::{Event, LoadOptions, Machine};
 use zmachine_testkit::op::{self, Arg};
 use zmachine_testkit::{Object, Object5, Story, Story5};
 
-pub const OPTIONS: LoadOptions = LoadOptions { seed: Some(1), entropy: 0 };
+pub const OPTIONS: LoadOptions = LoadOptions {
+    seed: Some(1),
+    entropy: 0,
+};
 
 /// Runs an image to its end, so that whatever its start-up code set is in memory.
 pub fn run(image: Vec<u8>) -> Machine {
@@ -119,7 +122,12 @@ impl Inform {
     pub fn new() -> Inform {
         use inf::*;
         let direction = |name: &str, property: u8| {
-            object5(name, COMPASS, &[17], vec![(21, word(property as u16)), (2, word(1)), (3, word(0))])
+            object5(
+                name,
+                COMPASS,
+                &[17],
+                vec![(21, word(property as u16)), (2, word(1)), (3, word(0))],
+            )
         };
         let objects = vec![
             object5("Class", 0, &[], vec![]),
@@ -136,7 +144,12 @@ impl Inform {
             object5("(Inform Library)", 0, &[16], vec![]),
             // Kitchen: north to the hall, south refused by a string (late), in by
             // a routine (late), out to the door.
-            object5("Kitchen", 0, &[9], vec![(7, word(HALL)), (18, word(DOOR)), (2, word(1))]),
+            object5(
+                "Kitchen",
+                0,
+                &[9],
+                vec![(7, word(HALL)), (18, word(DOOR)), (2, word(1))],
+            ),
             object5("Hall", 0, &[9], vec![(8, word(KITCHEN))]),
             // A cage in the kitchen: a container, closed and opaque.
             object5("cage", KITCHEN, &[4, 15], vec![]),
@@ -148,9 +161,19 @@ impl Inform {
             object5("table", KITCHEN, &[20, 17], vec![]),
             object5("plate", TABLE, &[3], vec![]),
             // A door between the rooms: parentless, with the door attribute.
-            object5("door", 0, &[5, 17], vec![(39, [word(KITCHEN), word(HALL)].concat())]),
+            object5(
+                "door",
+                0,
+                &[5, 17],
+                vec![(39, [word(KITCHEN), word(HALL)].concat())],
+            ),
             // A stream present in the kitchen and the maze by `found_in`.
-            object5("stream", 0, &[17], vec![(39, [word(KITCHEN), word(MAZE)].concat())]),
+            object5(
+                "stream",
+                0,
+                &[17],
+                vec![(39, [word(KITCHEN), word(MAZE)].concat())],
+            ),
             // A room whose printed name is its short_name (late).
             object5("(Maze_1)", 0, &[9], vec![(7, word(MAZE))]),
             object5("hat", KITCHEN, &[2], vec![]),
@@ -164,7 +187,18 @@ impl Inform {
             stamp: *b"6.44",
             objects,
             globals: vec![(LOCATION as usize, LIBRARY)],
-            words: vec![("n", [0x80, 0, 0]), ("north", [0x80, 0, 0]), ("s", [0x80, 0, 0]), ("south", [0x80, 0, 0]), ("in", [0x41, 0xFF, 0]), ("out", [0x41, 0xFE, 0]), ("take", [0x41, 0xFD, 0]), ("lamp", [0x80, 0, 0]), ("to", [0x08, 0, 0]), ("all", [0x8C, 0, 0])],
+            words: vec![
+                ("n", [0x80, 0, 0]),
+                ("north", [0x80, 0, 0]),
+                ("s", [0x80, 0, 0]),
+                ("south", [0x80, 0, 0]),
+                ("in", [0x41, 0xFF, 0]),
+                ("out", [0x41, 0xFE, 0]),
+                ("take", [0x41, 0xFD, 0]),
+                ("lamp", [0x80, 0, 0]),
+                ("to", [0x08, 0, 0]),
+                ("all", [0x8C, 0, 0]),
+            ],
             late: vec![
                 (N, 1, Late::Words(vec!["n", "north"])),
                 (S, 1, Late::Words(vec!["s", "south"])),
@@ -192,7 +226,8 @@ impl Inform {
 
     pub fn without_prop(&mut self, number: u16, property: u8) -> &mut Self {
         self.object(number).props.retain(|(p, _)| *p != property);
-        self.late.retain(|(n, p, _)| !(*n == number && *p == property));
+        self.late
+            .retain(|(n, p, _)| !(*n == number && *p == property));
         self
     }
 
@@ -236,7 +271,10 @@ impl Inform {
                     continue;
                 }
                 let me = i as u16 + 1;
-                let siblings: Vec<u16> = (0..objects.len()).filter(|&j| objects[j].parent == parent).map(|j| j as u16 + 1).collect();
+                let siblings: Vec<u16> = (0..objects.len())
+                    .filter(|&j| objects[j].parent == parent)
+                    .map(|j| j as u16 + 1)
+                    .collect();
                 let position = siblings.iter().position(|&s| s == me).unwrap();
                 objects[i].sibling = siblings.get(position + 1).copied().unwrap_or(0);
                 if position == 0 {
@@ -261,14 +299,21 @@ impl Inform {
                 match late {
                     Late::Text(text) => resolved[i] = word(story.string(text)),
                     Late::Words(words) => {
-                        resolved[i] = words.iter().flat_map(|w| word(story.word_address(w))).collect();
+                        resolved[i] = words
+                            .iter()
+                            .flat_map(|w| word(story.word_address(w)))
+                            .collect();
                     }
                     Late::Routine(_) => {}
                 }
             }
             (story.build(), resolved)
         };
-        let placeholders: Vec<Vec<u8>> = self.late.iter().map(|(_, _, late)| placeholder(late)).collect();
+        let placeholders: Vec<Vec<u8>> = self
+            .late
+            .iter()
+            .map(|(_, _, late)| placeholder(late))
+            .collect();
         let (_, resolved) = lay(&placeholders);
         lay(&resolved).0
     }
@@ -335,14 +380,18 @@ impl Zil {
                 "Kitchen",
                 ROOMS as u8,
                 vec![
-                    (NORTH, vec![hall]),                                   // UEXIT
-                    (SOUTH, vec![0x12, 0x34]),                             // NEXIT: a message
-                    (EAST, vec![0x23, 0x45, 0]),                           // FEXIT: a routine
-                    (DOWN, vec![cellar, 16 + TRAP_OPEN, 0x12, 0x34]),      // CEXIT: a flag
-                    (WEST, vec![hall, DOOR as u8, 0x12, 0x34, 0]),         // DEXIT: a door
+                    (NORTH, vec![hall]),                              // UEXIT
+                    (SOUTH, vec![0x12, 0x34]),                        // NEXIT: a message
+                    (EAST, vec![0x23, 0x45, 0]),                      // FEXIT: a routine
+                    (DOWN, vec![cellar, 16 + TRAP_OPEN, 0x12, 0x34]), // CEXIT: a flag
+                    (WEST, vec![hall, DOOR as u8, 0x12, 0x34, 0]),    // DEXIT: a door
                 ],
             ),
-            object3("Hall", ROOMS as u8, vec![(SOUTH, vec![kitchen]), (NORTH, vec![hall])]),
+            object3(
+                "Hall",
+                ROOMS as u8,
+                vec![(SOUTH, vec![kitchen]), (NORTH, vec![hall])],
+            ),
             object3("Cellar", ROOMS as u8, vec![(UP, vec![kitchen, 5, 0, 0])]),
             // The player, and two more things that start with no parent.
             object3("you", 0, vec![]),
@@ -409,7 +458,10 @@ impl Zil {
                 continue;
             }
             let me = i as u8 + 1;
-            let siblings: Vec<u8> = (0..objects.len()).filter(|&j| objects[j].parent == parent).map(|j| j as u8 + 1).collect();
+            let siblings: Vec<u8> = (0..objects.len())
+                .filter(|&j| objects[j].parent == parent)
+                .map(|j| j as u8 + 1)
+                .collect();
             let position = siblings.iter().position(|&s| s == me).unwrap();
             objects[i].sibling = siblings.get(position + 1).copied().unwrap_or(0);
             if position == 0 {
