@@ -71,6 +71,22 @@ pub const BOOM: u8 = 253;
 const DOOR: u8 = 254;
 /// The attribute the toy's `open` sets on its door and `close` clears.
 pub const OPEN_ATTR: u8 = 9;
+/// The attribute a toy's bag has when it is see-through.
+pub const CLEAR_ATTR: u8 = 8;
+
+/// What a toy's `inventory` command prints of the gem in its bag, once the bag
+/// and the key are taken. It always names the bag and the key.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Listing {
+    /// As a game would: the gem while the bag is open or see-through.
+    Honest,
+    /// The gem, whatever the bag's state.
+    Always,
+    /// Never the gem.
+    Never,
+    /// Nothing that names anything carried.
+    Nonsense,
+}
 
 fn column(direction: u8) -> usize {
     DIRECTIONS
@@ -100,6 +116,12 @@ pub struct Toy {
     pub door: Option<(usize, u8, usize)>,
     /// Global variables that hold 1 from the start.
     pub set: Vec<u8>,
+    /// Things to carry, in the first room: a bag with a gem in it, and a key.
+    /// `take` takes the bag and the key; `open` and `close` set and clear
+    /// `OPEN_ATTR` on the bag; `inventory` lists as this says.
+    pub carrying: Option<Listing>,
+    /// With `true` the bag has `CLEAR_ATTR` from the start.
+    pub clear_bag: bool,
 }
 
 impl Toy {
@@ -113,7 +135,16 @@ impl Toy {
             odd_north_word: false,
             door: None,
             set: Vec::new(),
+            carrying: None,
+            clear_bag: false,
         }
+    }
+
+    /// The bag's, the gem's and the key's object numbers, in a toy that has
+    /// things to carry and no door.
+    pub fn things(&self) -> (u16, u16, u16) {
+        let first = FIRST as u16 + self.tables.len() as u16 + 1;
+        (first, first + 1, first + 2)
     }
 
     /// The door's object number.
@@ -181,9 +212,17 @@ impl Toy {
             story.word_data("sunward", [flags, NORTH, column(NORTH) as u8 + 1]);
         }
         story.word_data("look", [0x41, 0xF0, 0]);
-        if self.door.is_some() {
+        assert!(
+            self.door.is_none() || self.carrying.is_none(),
+            "a toy has a door or things to carry, not both"
+        );
+        if self.door.is_some() || self.carrying.is_some() {
             story.word_data("open", [0x41, 0xF1, 7]);
             story.word_data("close", [0x41, 0xF2, 8]);
+        }
+        if self.carrying.is_some() {
+            story.word_data("take", [0x41, 0xF3, 9]);
+            story.word_data("inventory", [0x41, 0xF4, 10]);
         }
         for &global in &self.set {
             story.global(global as usize, 1);
@@ -215,11 +254,32 @@ impl Toy {
                 0
             };
             room.props = table.clone();
+            if i == 0 && self.carrying.is_some() {
+                room.child = door;
+            }
             story.object(room);
         }
         story.object(Object::new("you"));
         if self.door.is_some() {
             story.object(Object::new("door"));
+        }
+        // The bag takes the door's number: `open` and `close` act on it.
+        let (bag, gem, key) = (door, door + 1, door + 2);
+        if self.carrying.is_some() {
+            let mut thing = Object::new("bag");
+            thing.parent = FIRST;
+            thing.child = gem;
+            thing.sibling = key;
+            if self.clear_bag {
+                thing.attributes |= 0x8000_0000 >> CLEAR_ATTR;
+            }
+            story.object(thing);
+            let mut thing = Object::new("gem");
+            thing.parent = bag;
+            story.object(thing);
+            let mut thing = Object::new("key");
+            thing.parent = FIRST;
+            story.object(thing);
         }
 
         let text = story.scratch(&{
@@ -257,9 +317,13 @@ impl Toy {
         a.branch(op::op1(op::JZ, V(WORD)), true, "loop");
         a.code([op::op2(op::LOADB, V(WORD), S(6)), op::store(COLUMN)].concat());
         a.branch(op::op1(op::JZ, V(COLUMN)), true, "loop");
-        if self.door.is_some() {
+        if self.door.is_some() || self.carrying.is_some() {
             a.branch(op::op2(op::JE, V(COLUMN), S(7)), true, "open");
             a.branch(op::op2(op::JE, V(COLUMN), S(8)), true, "close");
+        }
+        if self.carrying.is_some() {
+            a.branch(op::op2(op::JE, V(COLUMN), S(9)), true, "take");
+            a.branch(op::op2(op::JE, V(COLUMN), S(10)), true, "inventory");
         }
         a.code([op::op2(op::SUB, V(ROOM), S(FIRST)), op::store(ACTION)].concat());
         a.code([op::op2(op::MUL, V(ACTION), S(6)), op::store(ACTION)].concat());
@@ -277,13 +341,41 @@ impl Toy {
         a.code(op::op2(op::STORE, S(ROOM), V(ACTION)));
         a.code(op::op2(op::INSERT_OBJ, S(player), V(ACTION)));
         a.jump("loop");
-        if self.door.is_some() {
+        if let Some(listing) = self.carrying {
+            a.label("take");
+            a.code(op::op2(op::INSERT_OBJ, S(key), S(player)));
+            a.code(op::op2(op::INSERT_OBJ, S(bag), S(player)));
+            a.jump("loop");
+            a.label("inventory");
+            // Nothing is listed until the bag is carried.
+            a.branch(op::op2(op::JIN, S(bag), S(player)), false, "loop");
+            if listing == Listing::Nonsense {
+                a.code(print("eh "));
+                a.jump("loop");
+            }
+            a.code(print("bag key "));
+            match listing {
+                Listing::Always => a.jump("gem"),
+                Listing::Never | Listing::Nonsense => a.jump("loop"),
+                Listing::Honest => {
+                    a.branch(op::op2(op::TEST_ATTR, S(bag), S(OPEN_ATTR)), true, "gem");
+                    a.branch(op::op2(op::TEST_ATTR, S(bag), S(CLEAR_ATTR)), true, "gem");
+                    a.jump("loop");
+                }
+            }
+            a.label("gem");
+            a.code(print("gem "));
+            a.jump("loop");
+        }
+        if self.door.is_some() || self.carrying.is_some() {
             a.label("open");
             a.code(op::op2(op::SET_ATTR, S(door), S(OPEN_ATTR)));
             a.jump("loop");
             a.label("close");
             a.code(op::op2(op::CLEAR_ATTR, S(door), S(OPEN_ATTR)));
             a.jump("loop");
+        }
+        if self.door.is_some() {
             a.label("door");
             a.branch(op::op2(op::TEST_ATTR, S(door), S(OPEN_ATTR)), false, "loop");
             a.code(op::op2(op::STORE, S(ROOM), S(behind)));

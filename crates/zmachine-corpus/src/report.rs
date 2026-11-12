@@ -110,6 +110,39 @@ pub struct Report {
     pub marked: Marked,
     /// Each case whose verdict is not "confirmed", with how many trials.
     pub detail: Vec<(Case, usize)>,
+    /// The comparison of what is seen of the inventory with the game's own
+    /// listing, for a story whose manifest gives its inventory command.
+    pub inventory: Option<Inventory>,
+    /// Each difference, with how many times it was met.
+    pub inventory_detail: Vec<(Difference, usize)>,
+}
+
+/// The inventory comparison's figures (specs/007-inventory-panel/research.md
+/// R9). The first five count objects; the next three count places.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct Inventory {
+    pub compared: usize,
+    pub agreed: usize,
+    pub differed_known: usize,
+    pub differed_unexplained: usize,
+    /// Objects the interface could not say were seen or not.
+    pub unjudged: usize,
+    pub no_listing: usize,
+    pub empty: usize,
+    pub unknown: usize,
+    /// Objects seen through a closed thing, and listed: what proves a
+    /// `transparent-attribute`.
+    pub through_closed: usize,
+}
+
+/// A carried object the interface and the game's listing disagree about.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct Difference {
+    pub room: u16,
+    pub object: u16,
+    /// What the interface said: seen, or kept back.
+    pub seen: bool,
+    pub listed: bool,
 }
 
 /// Where a file departs from its format: the line, from 1, and why.
@@ -322,6 +355,22 @@ impl Report {
             }
             state => line(format!("pack {}", state.as_str())),
         }
+        // Only a story whose manifest gives its inventory command has this line.
+        if let Some(i) = &self.inventory {
+            line(format!(
+                "inventory compared {} agreed {} differed-known {} differed-unexplained {} \
+                 unjudged {} no-listing {} empty {} unknown {} through-closed {}",
+                i.compared,
+                i.agreed,
+                i.differed_known,
+                i.differed_unexplained,
+                i.unjudged,
+                i.no_listing,
+                i.empty,
+                i.unknown,
+                i.through_closed
+            ));
+        }
         line("detail".to_string());
         // By room, then direction, then the rest as text.
         let mut detail: Vec<(u16, u8, String, usize)> = self
@@ -339,6 +388,17 @@ impl Report {
         detail.sort();
         for (room, direction, rest, count) in detail {
             line(format!("{room} {direction} {rest} {count}"));
+        }
+        let mut differences = self.inventory_detail.clone();
+        differences.sort();
+        for (d, count) in differences {
+            line(format!(
+                "inventory {} {} {} {} {count}",
+                d.room,
+                d.object,
+                if d.seen { "seen" } else { "kept" },
+                if d.listed { "listed" } else { "unlisted" }
+            ));
         }
         out
     }
@@ -495,6 +555,37 @@ impl Report {
             }
             _ => {}
         }
+        if lines
+            .get(at - 1)
+            .is_some_and(|line| line.starts_with("inventory "))
+        {
+            let n = get(
+                at,
+                "inventory compared # agreed # differed-known # differed-unexplained # unjudged # \
+                 no-listing # empty # unknown # through-closed #",
+            )?;
+            let inventory = Inventory {
+                compared: n[0],
+                agreed: n[1],
+                differed_known: n[2],
+                differed_unexplained: n[3],
+                unjudged: n[4],
+                no_listing: n[5],
+                empty: n[6],
+                unknown: n[7],
+                through_closed: n[8],
+            };
+            if inventory.compared
+                != inventory.agreed
+                    + inventory.differed_known
+                    + inventory.differed_unexplained
+                    + inventory.unjudged
+            {
+                return refuse(at, "the objects compared do not add up");
+            }
+            report.inventory = Some(inventory);
+            at += 1;
+        }
         if report.verdicts() != report.trials {
             return refuse(7, "the verdicts do not add up to the trials");
         }
@@ -503,6 +594,50 @@ impl Report {
         }
         for (i, line) in lines.iter().enumerate().skip(at) {
             let words: Vec<&str> = line.split(' ').collect();
+            // The inventory's differences come after every exit's detail.
+            if words.first() == Some(&"inventory") {
+                let number = |word: &str| numbers(word, "#").and_then(|n| u16::try_from(n[0]).ok());
+                let difference = match words.as_slice() {
+                    [
+                        _,
+                        room,
+                        object,
+                        seen @ ("seen" | "kept"),
+                        listed @ ("listed" | "unlisted"),
+                        count,
+                    ] if report.inventory.is_some() => {
+                        match (number(room), number(object), numbers(count, "#")) {
+                            (Some(room), Some(object), Some(count)) => Some((
+                                Difference {
+                                    room,
+                                    object,
+                                    seen: *seen == "seen",
+                                    listed: *listed == "listed",
+                                },
+                                count[0],
+                            )),
+                            _ => None,
+                        }
+                    }
+                    _ => None,
+                };
+                match difference {
+                    Some((d, _)) if d.seen == d.listed => {
+                        return refuse(i + 1, "seen and listed do not differ");
+                    }
+                    Some(found) => report.inventory_detail.push(found),
+                    None => {
+                        return refuse(
+                            i + 1,
+                            "expected `inventory room object seen|kept listed|unlisted count`",
+                        );
+                    }
+                }
+                continue;
+            }
+            if !report.inventory_detail.is_empty() {
+                return refuse(i + 1, "an exit's detail after the inventory's");
+            }
             let Some((case, rest)) = Case::read(&words) else {
                 return refuse(i + 1, "expected `room direction reported outcome count`");
             };

@@ -28,6 +28,8 @@ pub fn entry(id: &str) -> Story {
         walkthrough: None,
         opening: vec![],
         first: vec![],
+        inventory: None,
+        asides: vec![],
         rooms: None,
         trials: None,
         line: 1,
