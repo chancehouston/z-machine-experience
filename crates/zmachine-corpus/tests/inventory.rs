@@ -176,10 +176,6 @@ fn asking_changes_nothing() {
 
 use zmachine_corpus::corpus::{Mode, command, corpus_lines};
 
-fn lines(text: &[&str]) -> Vec<String> {
-    text.iter().map(|l| l.to_string()).collect()
-}
-
 /// A scratch repository holding a toy with things to carry, walked by `walk`,
 /// with an inventory command, further manifest lines, and a pack of version 2
 /// holding these entries.

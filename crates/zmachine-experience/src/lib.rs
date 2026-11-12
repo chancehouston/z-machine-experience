@@ -15,8 +15,11 @@ mod transcript;
 mod compass_tests;
 #[cfg(test)]
 mod json_tests;
+#[cfg(test)]
+mod strip_tests;
 
 pub use compass::{Compass, CompassPlace, Extra, NOTE_NONE, NOTE_UNKNOWN, Place, PlaceState};
+pub use strip::{ItemState, NOTE_NOT_KNOWN, NOTE_NOTHING, Strip, StripItem};
 pub use transcript::{Source, Turn};
 
 use zmachine_core::{Event, HostError, Key, LoadOptions, Machine, StatusKind, StatusLine};
@@ -118,6 +121,7 @@ pub struct Session {
     message: Option<String>,
     status: Option<Status>,
     compass: Compass,
+    strip: Strip,
     ceiling: u64,
 }
 
@@ -175,6 +179,7 @@ impl Session {
             message: None,
             status: None,
             compass: Compass::idle(),
+            strip: Strip::default(),
             ceiling: INSTRUCTION_CEILING,
         };
         session.open();
@@ -270,6 +275,9 @@ impl Session {
             }
             _ => Compass::idle(),
         };
+        // What is carried is asked for at every stop, whatever the game is
+        // waiting for; a host shows it as not current when it is not a command.
+        self.strip = Strip::of(&self.introspector.inventory(&self.machine.view()));
         text
     }
 
@@ -405,6 +413,11 @@ impl Session {
 
     pub fn compass(&self) -> &Compass {
         &self.compass
+    }
+
+    /// What to show of the inventory (specs/007-inventory-panel).
+    pub fn inventory(&self) -> &Strip {
+        &self.strip
     }
 
     pub fn turns(&self) -> &[Turn] {

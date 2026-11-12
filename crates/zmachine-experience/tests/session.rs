@@ -732,3 +732,157 @@ fn a_pack_changes_no_text_of_the_game() {
     let text = |s: &Session| -> Vec<String> { s.turns().iter().map(|t| t.text.clone()).collect() };
     assert_eq!(text(&s), text(&plain));
 }
+
+// ---------------------------------------------------------------------------
+// The inventory strip (feature 007; specs/007-inventory-panel/contracts/
+// commands.md, "The experience layer")
+// ---------------------------------------------------------------------------
+
+/// The strip's items as (name, state, names shown inside).
+fn carried(s: &Session) -> Vec<(String, &'static str, Vec<String>)> {
+    s.inventory()
+        .items
+        .iter()
+        .map(|i| {
+            (
+                i.name.clone(),
+                i.state.as_str(),
+                i.contents.iter().map(|c| c.name.clone()).collect(),
+            )
+        })
+        .collect()
+}
+
+// FR-019, FR-020, FR-024; US3 scenarios 1 to 4: the strip follows the game with
+// no action by the player, and shows what the game's own listing would.
+#[test]
+fn the_strip_follows_what_is_carried() {
+    let pack = read_text("packs/zork1.pack");
+    let mut s = with_pack(Some(&pack));
+    assert_eq!(s.inventory().note, Some("Carrying nothing"));
+    assert!(s.inventory().known && s.inventory().items.is_empty());
+
+    say(&mut s, "open mailbox");
+    say(&mut s, "take leaflet");
+    assert_eq!(carried(&s), [("leaflet".to_string(), "plain", vec![])]);
+    assert_eq!(s.inventory().note, None);
+    assert_eq!(s.inventory().spoken, "Carrying: leaflet");
+
+    for line in [
+        "north",
+        "east",
+        "open window",
+        "west",
+        "take sack",
+        "take bottle",
+    ] {
+        say(&mut s, line);
+    }
+    // The sack is closed: what is in it is kept back. The bottle is closed and
+    // can be seen through: its water is shown.
+    assert_eq!(
+        carried(&s),
+        [
+            (
+                "glass bottle".to_string(),
+                "closed",
+                vec!["quantity of water".to_string()]
+            ),
+            ("brown sack".to_string(), "closed", vec![]),
+            ("leaflet".to_string(), "plain", vec![]),
+        ]
+    );
+    say(&mut s, "open sack");
+    assert_eq!(
+        carried(&s)[1],
+        (
+            "brown sack".to_string(),
+            "open",
+            vec!["clove of garlic".to_string(), "lunch".to_string()]
+        )
+    );
+    assert_eq!(
+        s.inventory().spoken,
+        "Carrying: glass bottle, closed, holding quantity of water; brown sack, open, holding clove of garlic and lunch; leaflet"
+    );
+    say(&mut s, "drop all");
+    assert_eq!(s.inventory().note, Some("Carrying nothing"));
+
+    // A new game's strip is the new game's.
+    s.new_game(Seed::Fixed(11));
+    assert_eq!(s.inventory().note, Some("Carrying nothing"));
+}
+
+// FR-020; US4 scenario 2: with no pack the interface cannot say whether a
+// container is open, and the strip shows the container and claims nothing.
+#[test]
+fn without_a_pack_the_strip_keeps_back_what_is_in_a_container() {
+    let mut s = game(11);
+    for line in [
+        "north",
+        "east",
+        "open window",
+        "west",
+        "take sack",
+        "take bottle",
+        "open sack",
+    ] {
+        say(&mut s, line);
+    }
+    assert_eq!(
+        carried(&s),
+        [
+            ("glass bottle".to_string(), "plain", vec![]),
+            ("brown sack".to_string(), "plain", vec![]),
+        ]
+    );
+    assert_eq!(s.inventory().spoken, "Carrying: glass bottle; brown sack");
+}
+
+// K§ "The experience layer": the snapshot has `inventory` after `compass`.
+#[test]
+fn the_snapshot_holds_the_strip() {
+    let pack = read_text("packs/zork1.pack");
+    let mut s = with_pack(Some(&pack));
+    let json = s.snapshot_json(0);
+    assert!(
+        json.ends_with(r#""extras":[]},"inventory":{"known":true,"note":"Carrying nothing","spoken":"Carrying nothing","items":[]}}"#),
+        "{}",
+        &json[json.len().saturating_sub(160)..]
+    );
+    for line in ["north", "east", "open window", "west", "take bottle"] {
+        say(&mut s, line);
+    }
+    let json = s.snapshot_json(0);
+    assert!(
+        json.ends_with(
+            r#""inventory":{"known":true,"note":null,"spoken":"Carrying: glass bottle, closed, holding quantity of water","items":[{"name":"glass bottle","state":"closed","contents":[{"name":"quantity of water","state":"plain","contents":[]}]}]}}"#
+        ),
+        "{}",
+        &json[json.len().saturating_sub(300)..]
+    );
+}
+
+// SC-007: over a whole game the strip is not known at 6 prompts, which are
+// those where the interface cannot tell which object is the player
+// (docs/introspection.md I§7.2); everywhere else nothing need be typed to learn
+// what is carried. And the game's text is what it was (FR-006).
+#[test]
+fn over_a_whole_game_the_strip_is_known_but_for_six_prompts() {
+    let pack = read_text("packs/zork1.pack");
+    let script = read_text("stories/zork1/fidelity/walkthrough.txt");
+    let (mut s, mut plain) = (with_pack(Some(&pack)), game(11));
+    let (mut prompts, mut not_known) = (0, 0);
+    for line in script.lines().skip(2) {
+        if s.waiting() == Waiting::Command {
+            prompts += 1;
+            not_known += !s.inventory().known as usize;
+        }
+        let _ = s.send_line(s.stamp(), line);
+        let _ = plain.send_line(plain.stamp(), line);
+    }
+    assert!(prompts > 320, "{prompts}");
+    assert_eq!(not_known, 6);
+    let text = |s: &Session| -> Vec<String> { s.turns().iter().map(|t| t.text.clone()).collect() };
+    assert_eq!(text(&s), text(&plain));
+}

@@ -208,8 +208,14 @@ fn the_snapshot_has_every_field_in_order() {
             "message",
             "status",
             "turns",
-            "compass"
+            "compass",
+            // Feature 007: what the player carries.
+            "inventory"
         ]
+    );
+    assert_eq!(
+        snapshot.get("inventory").keys(),
+        ["known", "note", "spoken", "items"]
     );
     assert_eq!(snapshot.get("generation").number(), 1.0);
     assert_eq!(snapshot.get("turn_count").number(), 1.0);
