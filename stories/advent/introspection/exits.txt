@@ -1,0 +1,301 @@
+# Hand-made exit expectations for Advent (stories/advent/advent.inf).
+# Derived from the source and from fidelity/reference_z5.scr only.
+# See README.md in this directory for the format and the rules.
+#
+# "at line N" = the game is waiting for the command on line N of
+# stories/advent/fidelity/walkthrough.txt (line 3 is the first command).
+# Directions whose property value is a string are deliberately omitted;
+# the comment above each entry says which ones.
+
+# Opening position. Aboveground class supplies no direction properties.
+at line 3 | At End Of Road
+  north: fixed In Forest
+  south: fixed In A Valley
+  east: fixed Inside Building
+  west: fixed At Hill In Road
+  up: fixed At Hill In Road
+  down: fixed In A Valley
+  in: fixed Inside Building
+
+# in_to is a string ("The pipes are too small.") - omitted.
+at line 5 | Inside Building
+  west: fixed At End Of Road
+  out: fixed At End Of Road
+
+at line 9 | In A Valley
+  north: fixed At End Of Road
+  south: fixed At Slit In Streambed
+  east: fixed In Forest
+  west: fixed In Forest
+  up: fixed In Forest
+  down: fixed At Slit In Streambed
+
+# d_to and in_to are strings ("You don't fit through a two-inch slit!") - omitted.
+at line 10 | At Slit In Streambed
+  north: fixed In A Valley
+  south: fixed Outside Grate
+  east: fixed In Forest
+  west: fixed In Forest
+
+# d_to is a routine (opens the grate if unlocked, returns the Grate door).
+# Grate is still locked at this moment.
+at line 11 | Outside Grate
+  north: fixed At Slit In Streambed
+  south: fixed In Forest
+  east: fixed In Forest
+  west: fixed In Forest
+  down: conditional
+
+# u_to is the Grate object itself (a door).
+at line 13 | Below the Grate
+  west: fixed In Cobble Crawl
+  up: conditional
+
+# Lamp not yet switched on here, but this room has the light attribute,
+# so the player is not in darkness.
+at line 14 | In Cobble Crawl
+  east: fixed Below the Grate
+  west: fixed In Debris Room
+
+at line 17 | In Debris Room
+  east: fixed In Cobble Crawl
+  west: fixed Sloping E/W Canyon
+  up: fixed Sloping E/W Canyon
+
+at line 18 | Sloping E/W Canyon
+  east: fixed In Debris Room
+  west: fixed Orange River Chamber
+  up: fixed Orange River Chamber
+  down: fixed In Debris Room
+
+at line 20 | Orange River Chamber
+  east: fixed Sloping E/W Canyon
+  west: fixed At Top of Small Pit
+
+# w_to is a string ("The crack is far too small...") - omitted.
+# d_to is a routine (kills the player if carrying the nugget).
+at line 21 | At Top of Small Pit
+  east: fixed Orange River Chamber
+  down: conditional
+
+# u_to is a routine (refuses if carrying the nugget).
+at line 22 | In Hall of Mists
+  north: fixed Hall of the Mountain King
+  south: fixed Low Room
+  west: fixed On East Bank of Fissure
+  up: conditional
+  down: fixed Hall of the Mountain King
+
+at line 23 | Low Room
+  north: fixed In Hall of Mists
+
+at line 26 | Hall of the Mountain King
+  north: fixed Low N/S Passage
+  south: fixed In South Side Chamber
+  east: fixed In Hall of Mists
+  west: fixed In West Side Chamber
+  southwest: fixed Secret E/W Canyon Above Tight Canyon
+  up: fixed In Hall of Mists
+
+at line 29 | In South Side Chamber
+  north: fixed Hall of the Mountain King
+
+at line 35 | In West Side Chamber
+  east: fixed Hall of the Mountain King
+  west: fixed N/S and E/W Crossover
+  up: fixed N/S and E/W Crossover
+
+# n_to is Dead_End_7, whose printed name comes from the DeadendRoom class.
+at line 37 | N/S and E/W Crossover
+  north: fixed Dead End
+  south: fixed At West End of Long Hall
+  east: fixed In West Side Chamber
+  west: fixed At East End of Long Hall
+
+at line 38 | At East End of Long Hall
+  north: fixed N/S and E/W Crossover
+  east: fixed At West End of Hall of Mists
+  west: fixed At West End of Long Hall
+  up: fixed At West End of Hall of Mists
+  down: fixed N/S and E/W Crossover
+
+# s_to and u_to are Alike_Maze_1, printed name "Maze".
+at line 39 | At West End of Hall of Mists
+  north: fixed West Side of Fissure
+  south: fixed Maze
+  east: fixed West Side of Fissure
+  west: fixed At East End of Long Hall
+  up: fixed Maze
+
+# e_to is a string ("The fissure is too wide.") - omitted; the rod is never
+# waved in this walkthrough, so it stays a string.
+# d_to is a string inherited from class FissureRoom - omitted.
+at line 40 | West Side of Fissure
+  north: fixed At West End of Hall of Mists
+  west: fixed At West End of Hall of Mists
+
+# Alike_Maze_1. out_to is a string inherited from class MazeRoom - omitted.
+# n_to leads back to this same room.
+at line 43 | Maze
+  north: fixed Maze
+  south: fixed Maze
+  east: fixed Maze
+  west: fixed Maze
+  up: fixed At West End of Hall of Mists
+
+# Alike_Maze_2. out_to string inherited from MazeRoom - omitted.
+at line 44 | Maze
+  south: fixed Maze
+  east: fixed Maze
+  west: fixed Maze
+
+# Alike_Maze_3. n_to is Dead_End_13, d_to is Dead_End_3 (both "Dead End").
+# out_to string inherited from MazeRoom - omitted.
+at line 45 | Maze
+  north: fixed Dead End
+  south: fixed Maze
+  east: fixed Maze
+  down: fixed Dead End
+
+# Dead_End_13, the pirate's dead end. Both exits go to Alike_Maze_13.
+at line 46 | Dead End
+  southeast: fixed Maze
+  out: fixed Maze
+
+at line 56 | Secret E/W Canyon Above Tight Canyon
+  east: fixed Hall of the Mountain King
+  west: fixed Secret Canyon
+  down: fixed N/S Canyon
+
+# n_to, e_to and out_to are all routines (dragon / canyon_from logic).
+at line 57 | Secret Canyon
+  north: conditional
+  east: conditional
+  out: conditional
+
+# In_Secret_N_S_Canyon_0 (the one above the slab room).
+at line 61 | Secret N/S Canyon
+  north: fixed In Mirror Canyon
+  south: fixed Secret Canyon
+  down: fixed Slab Room
+
+at line 62 | Slab Room
+  north: fixed Bedquilt
+  south: fixed At West End of Twopit Room
+  up: fixed Secret N/S Canyon
+
+# u_to is a string ("It is too far up for you to reach.") - omitted.
+at line 63 | At West End of Twopit Room
+  east: fixed At East End of Twopit Room
+  west: fixed Slab Room
+  down: fixed In West Pit
+
+at line 64 | In West Pit
+  up: fixed At West End of Twopit Room
+
+at line 71 | At East End of Twopit Room
+  east: fixed In Swiss Cheese Room
+  west: fixed At West End of Twopit Room
+  down: fixed In East Pit
+
+at line 75 | In Narrow Corridor
+  east: fixed In West Pit
+  west: fixed Giant Room
+  down: fixed In West Pit
+
+at line 77 | Giant Room
+  north: fixed Immense N/S Passage
+  south: fixed In Narrow Corridor
+  east: fixed Recent Cave-in
+
+# n_to is a routine (returns the rusty door). Door still rusted shut here.
+at line 78 | Immense N/S Passage
+  north: conditional
+  south: fixed Giant Room
+
+at line 83 | Steep Incline Above Large Room
+  north: fixed In Cavern With Waterfall
+  down: fixed Large Low Room
+
+at line 84 | Large Low Room
+  north: fixed Dead End Crawl
+  southeast: fixed Oriental Room
+  southwest: fixed Sloping Corridor
+
+# ne_to is the named routine CrossRicketyBridge.
+at line 86 | On SW Side of Chasm
+  northeast: conditional
+  southwest: fixed Sloping Corridor
+  down: fixed Sloping Corridor
+
+# sw_to is the named routine CrossRicketyBridge.
+at line 89 | On NE Side of Chasm
+  northeast: fixed In Corridor
+  southwest: conditional
+
+at line 91 | At Fork in Path
+  west: fixed In Corridor
+  northeast: fixed At Junction With Warm Walls
+  southeast: fixed In Limestone Passage
+  down: fixed In Limestone Passage
+
+at line 98 | In Front of Barren Room
+  east: fixed In Barren Room
+  west: fixed In Limestone Passage
+  up: fixed In Limestone Passage
+  in: fixed In Barren Room
+
+at line 99 | In Barren Room
+  west: fixed In Front of Barren Room
+  out: fixed In Front of Barren Room
+
+# e_to is a routine (the tight tunnel; prints a refusal and returns true
+# when the player carries too much - still a routine, so conditional).
+at line 114 | Alcove
+  east: conditional
+  northwest: fixed Misty Cavern
+
+# w_to is a routine (same tight tunnel from the other side).
+at line 116 | Plover Room
+  west: conditional
+  northeast: fixed The Dark Room
+
+# The Dark Room has no light attribute, but the lamp is on at this moment.
+at line 121 | The Dark Room
+  south: fixed Plover Room
+
+at line 125 | In Swiss Cheese Room
+  south: fixed In Tall E/W Canyon
+  east: fixed In Soft Room
+  west: fixed At East End of Twopit Room
+  northeast: fixed Bedquilt
+  northwest: fixed Oriental Room
+
+# The random wandering is in a before routine, not in the properties,
+# so all six properties are plain rooms.
+at line 129 | Bedquilt
+  north: fixed Junction of Three Secret Canyons
+  south: fixed Slab Room
+  east: fixed At Complex Junction
+  west: fixed In Swiss Cheese Room
+  up: fixed In Dusty Rock Room
+  down: fixed In Anteroom
+
+# s_to is a routine (refuses if carrying the clam/oyster).
+at line 136 | Shell Room
+  south: conditional
+  up: fixed Arched Hall
+  down: fixed Ragged Corridor
+
+at line 139 | Cul-de-Sac
+  up: fixed Ragged Corridor
+  out: fixed Ragged Corridor
+
+# Late game: after the cave closes the player is moved to the repository.
+at line 167 | NE End of Repository
+  southwest: fixed SW End of Repository
+
+# d_to is the RepositoryGrate object (a door).
+at line 168 | SW End of Repository
+  northeast: fixed NE End of Repository
+  down: conditional

@@ -13,7 +13,7 @@ pub(crate) struct Position {
 }
 
 /// The most recent positions, newest last, up to a limit the host sets.
-#[derive(Debug, Default)]
+#[derive(Clone, Debug, Default)]
 pub(crate) struct History {
     positions: Vec<Position>,
 }

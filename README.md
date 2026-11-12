@@ -11,8 +11,9 @@ walk, tap an object to pick it up. Typing is always still available.
 
 ## Status
 
-The interpreter works and is tested for Z-machine versions 3, 5 and 8. The touch
-interface does not exist yet.
+The interpreter works and is tested for Z-machine versions 3, 5 and 8, and so does the
+read-only introspection interface that the touch layer will be built on. The touch
+interface itself does not exist yet.
 
 What the core does today:
 
@@ -33,11 +34,29 @@ What the core does today:
 - **Survives bad input.** Thousands of damaged story files and save files are run in the
   tests; each is refused or faulted with a message, and none crashes the host.
 
+What the introspection interface does today:
+
+- **Answers six questions about a running game** without changing it: the object tree,
+  the dictionary, where the player is, what they carry, which ways lead out, and what is
+  within reach. Its contract is a written specification,
+  [docs/introspection.md](docs/introspection.md), that another interpreter could
+  implement.
+- **Recognises two families of game from their contents alone**: Infocom's ZIL (tested
+  on Zork I) and Inform 6 with its standard library (tested on Adventure). Nothing in it
+  names a game.
+- **Agrees with the games.** At every prompt of both full walkthroughs the location is
+  the room the game names and the inventory is what the game lists; every exit it
+  reports with a destination led there; and its exits match lists made by hand from the
+  games' sources for 49 rooms of Zork I and 50 of Adventure.
+- **Says "unknown" when it does not know.** It never guesses and never breaks a tie.
+- **Changes nothing.** With every question asked at every prompt, transcripts and save
+  files are byte for byte the same.
+
 The project proceeds in three phases:
 
 1. **Faithful core.** Done: versions 3, 5 and 8, with czech and praxix passing.
-2. **Introspection interface.** A written spec, and an implementation on the core, for
-   reading live game state. Not started.
+2. **Introspection interface.** Done: the specification at version 0.1.0 and its
+   implementation, for Infocom/ZIL and Inform 6 games.
 3. **First demo.** A game boots on a phone, room text shows, and a tappable compass of
    exits works end to end. Not started.
 
@@ -73,6 +92,23 @@ there are three more:
 When a game wants a single key, type it and press return; an empty line is the return
 key.
 
+To watch what the introspection interface reports as you play, or to dump a story file's
+tables:
+
+```text
+cargo run --release -p zmachine-cli -- --inspect - stories/zork1/zork1.z3
+```
+
+```text
+cargo run --release -p zmachine-cli -- --tree --dictionary stories/advent/advent.z5
+```
+
+| Option | What it does |
+| --- | --- |
+| `--inspect FILE` | Each time the game waits for input, writes one line of JSON to FILE: the location, exits, inventory and objects in reach. `-` writes to standard error |
+| `--tree` | Prints the object tree as JSON and exits |
+| `--dictionary` | Prints the dictionary as JSON and exits |
+
 ## Tests
 
 ```text
@@ -94,14 +130,18 @@ cargo test --workspace --release -- --ignored
 | Path | What it is |
 | --- | --- |
 | `crates/zmachine-core` | The interpreter. No dependencies, no `unsafe`, no I/O of its own. |
+| `crates/zmachine-introspect` | The introspection interface: read-only queries over a running game. |
 | `crates/zmachine-cli` | `zm`, the command-line host. |
 | `crates/zmachine-testkit` | Builds small story files in memory, for tests. |
 | `stories/` | Story files that may be redistributed, each with its license record. |
 | `stories/zork1/fidelity/` | The Zork I walkthrough and what Frotz makes of it. |
 | `stories/advent/fidelity/` | The same for Adventure in versions 5 and 8, with undo and save files. |
+| `stories/*/introspection/` | Exits and scope worked out by hand from each game's source, for the tests. |
+| `docs/introspection.md` | The introspection specification. |
 | `docs/divergences.md` | Every intentional difference from Frotz. Currently none. |
 | `specs/001-v3-core/` | The specification, plan and task list for the version 3 core. |
 | `specs/002-v5-v8/` | The same for versions 5 and 8, with the screen model's contract. |
+| `specs/003-introspection/` | The same for the introspection interface. |
 
 ## How it fits together
 
@@ -125,6 +165,19 @@ Two rules shape the design:
   compiler family. When an adapter cannot answer, the interface falls back to typing.
 
 The introspection interface is written as a spec that other interpreters could adopt.
+
+What it cannot do, stated in the specification's section 10:
+
+- **Zork's inventory is "unknown" at about one prompt in fifty.** ZIL does not say which
+  variable holds the player, so the player is found by elimination, and the rule can
+  tie. A tie is reported, never broken.
+- **Zork's light and open containers are not known.** ZIL numbers attributes game by
+  game. Everything in the room is listed, with what is inside other things marked as of
+  unknown visibility.
+- **An Inform game that swaps the player to another character** in the same room is not
+  always detected. Adventure never does this.
+- **An exit is what the room's table says.** A game's own code can still refuse it or
+  send the player elsewhere; Adventure's forest does.
 
 ## Scope
 

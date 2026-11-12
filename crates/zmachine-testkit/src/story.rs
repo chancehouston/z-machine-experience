@@ -64,6 +64,8 @@ pub struct Story {
     prop_defaults: [u16; 31],
     objects: Vec<Object>,
     words: Vec<String>,
+    word_data: Vec<(String, [u8; 3])>,
+    header_bytes: Vec<(usize, u8)>,
     separators: Vec<u8>,
     abbreviations: Vec<(usize, String)>,
     scratch: Vec<u8>,
@@ -91,6 +93,8 @@ impl Story {
             prop_defaults: [0; 31],
             objects: Vec::new(),
             words: Vec::new(),
+            word_data: Vec::new(),
+            header_bytes: Vec::new(),
             separators: b".,\"".to_vec(),
             abbreviations: Vec::new(),
             scratch: Vec::new(),
@@ -151,6 +155,33 @@ impl Story {
     pub fn word(&mut self, word: &str) -> &mut Self {
         self.data_still_open("dictionary words");
         self.words.push(word.to_string());
+        self
+    }
+
+    /// Adds a dictionary word whose entry carries these three data bytes (§13.3),
+    /// as a compiler's parser tables would.
+    pub fn word_data(&mut self, word: &str, data: [u8; 3]) -> &mut Self {
+        self.word(word);
+        self.word_data.push((word.to_string(), data));
+        self
+    }
+
+    /// The address of a word's dictionary entry. Freezes the data layout.
+    pub fn word_address(&mut self, word: &str) -> u16 {
+        self.freeze();
+        let low = self.low.as_ref().unwrap();
+        let at = self.dictionary_at + 1 + low[self.dictionary_at] as usize;
+        let count = u16::from_be_bytes([low[at + 1], low[at + 2]]) as usize;
+        let key = zencode_dict(word);
+        let index = (0..count)
+            .find(|i| low[at + 3 + i * 7..at + 7 + i * 7] == key)
+            .unwrap_or_else(|| panic!("{word} is not in the dictionary"));
+        (at + 3 + index * 7) as u16
+    }
+
+    /// Sets a byte of the header that the builder does not otherwise write.
+    pub fn header_byte(&mut self, offset: usize, value: u8) -> &mut Self {
+        self.header_bytes.push((offset, value));
         self
     }
 
@@ -264,7 +295,8 @@ impl Story {
         low.extend((keys.len() as u16).to_be_bytes());
         for key in keys {
             low.extend(key);
-            low.extend([0, 0, 0]);
+            let data = self.word_data.iter().find(|(w, _)| zencode_dict(w) == key);
+            low.extend(data.map_or([0, 0, 0], |(_, d)| *d));
         }
         if !low.len().is_multiple_of(2) {
             low.push(0);
@@ -373,6 +405,9 @@ impl Story {
         put(&mut image, 0x18, ABBREVIATIONS);
         let len = image.len();
         put(&mut image, 0x1A, len / 2);
+        for (offset, value) in &self.header_bytes {
+            image[*offset] = *value;
+        }
         let sum = image[0x40..].iter().fold(0u32, |a, &b| a + b as u32) & 0xFFFF;
         put(&mut image, 0x1C, sum as usize);
         image

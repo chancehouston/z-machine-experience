@@ -1,0 +1,15 @@
+[package]
+name = "zmachine-introspect"
+version = "0.1.0"
+description = "Read-only introspection of a running Z-machine game: docs/introspection.md."
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+zmachine-core = { path = "../zmachine-core" }
+
+[dev-dependencies]
+zmachine-testkit = { path = "../zmachine-testkit" }
+sha2 = "0.10"

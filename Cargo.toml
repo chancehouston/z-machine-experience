@@ -1,6 +1,11 @@
 [workspace]
 resolver = "3"
-members = ["crates/zmachine-core", "crates/zmachine-testkit", "crates/zmachine-cli"]
+members = [
+    "crates/zmachine-core",
+    "crates/zmachine-introspect",
+    "crates/zmachine-testkit",
+    "crates/zmachine-cli",
+]
 
 [workspace.package]
 edition = "2024"
