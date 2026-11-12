@@ -459,7 +459,19 @@ final class LamplightUITests: XCTestCase {
             XCTAssertGreaterThanOrEqual(control.frame.height, 44, place)
             frames.append((place, control.frame))
         }
-        for identifier in ["field.command", "button.send", "button.about", "status.place"] {
+        // A figure in the status line is on one line: wider than it is tall. (A
+        // first version of the bar passed every other check here while wrapping
+        // "Score" a letter to a line.)
+        for identifier in ["status.score", "status.moves"] {
+            let frame = element(app, identifier).frame
+            XCTAssertGreaterThan(frame.width, frame.height, "\(identifier) \(frame)")
+        }
+        XCTAssertLessThan(
+            element(app, "status.place").frame.height, 200, "the place is not squeezed into a column")
+        for identifier in [
+            "field.command", "button.send", "button.about", "status.place", "status.score",
+            "status.moves",
+        ] {
             XCTAssertTrue(element(app, identifier).isHittable, identifier)
             frames.append((identifier, element(app, identifier).frame))
         }

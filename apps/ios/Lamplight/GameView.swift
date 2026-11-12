@@ -8,6 +8,9 @@ struct GameView: View {
     @State private var showingAbout = false
     @FocusState private var typing: Bool
 
+    /// `-showLaunchTime` adds the time the launch took to the screen.
+    private let showsLaunchTime = ProcessInfo.processInfo.arguments.contains("-showLaunchTime")
+
     var body: some View {
         Group {
             if let failure = game.startFailure {
@@ -22,6 +25,11 @@ struct GameView: View {
             } else if let showing = game.showing {
                 VStack(spacing: 0) {
                     StatusBar(status: showing.status) { showingAbout = true }
+                    if showsLaunchTime, let millis = game.launchMillis {
+                        Text(verbatim: String(millis))
+                            .font(.caption.monospacedDigit())
+                            .accessibilityIdentifier("debug.launchMillis")
+                    }
                     Divider()
                     TranscriptView(turns: game.turns, keyboardUp: typing)
                     Divider()
@@ -116,31 +124,62 @@ private struct StatusBar: View {
     let status: Status?
     let about: () -> Void
 
+    @Environment(\.dynamicTypeSize) private var typeSize
+
     var body: some View {
-        HStack(spacing: 12) {
-            Text(verbatim: status?.place ?? "")
-                .font(.headline)
-                .accessibilityIdentifier("status.place")
-            Spacer(minLength: 8)
-            if let score = status?.score {
-                figure("Score", String(score), "status.score")
+        Group {
+            if typeSize.isAccessibilitySize {
+                // At the largest sizes the figures go under the place.
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(alignment: .top, spacing: 12) {
+                        place.lineLimit(2)
+                        Spacer(minLength: 8)
+                        aboutButton
+                    }
+                    HStack(spacing: 16) { figures }
+                }
+            } else {
+                HStack(spacing: 12) {
+                    place.lineLimit(1)
+                    Spacer(minLength: 8)
+                    figures
+                    aboutButton
+                }
             }
-            if let moves = status?.moves {
-                figure("Moves", String(moves), "status.moves")
-            }
-            if let hours = status?.hours, let minutes = status?.minutes {
-                Text(verbatim: String(hours) + ":" + (minutes < 10 ? "0" : "") + String(minutes))
-                    .font(.subheadline.monospacedDigit())
-                    .accessibilityIdentifier("status.time")
-            }
-            Button(action: about) {
-                Image(systemName: "info.circle")
-            }
-            .accessibilityLabel("About")
-            .accessibilityIdentifier("button.about")
         }
         .padding(.horizontal)
         .padding(.vertical, 8)
+    }
+
+    private var place: some View {
+        Text(verbatim: status?.place ?? "")
+            .font(.headline)
+            .accessibilityIdentifier("status.place")
+    }
+
+    @ViewBuilder
+    private var figures: some View {
+        if let score = status?.score {
+            figure("Score", String(score), "status.score")
+        }
+        if let moves = status?.moves {
+            figure("Moves", String(moves), "status.moves")
+        }
+        if let hours = status?.hours, let minutes = status?.minutes {
+            Text(verbatim: String(hours) + ":" + (minutes < 10 ? "0" : "") + String(minutes))
+                .font(.subheadline.monospacedDigit())
+                .lineLimit(1)
+                .fixedSize()
+                .accessibilityIdentifier("status.time")
+        }
+    }
+
+    private var aboutButton: some View {
+        Button(action: about) {
+            Image(systemName: "info.circle")
+        }
+        .accessibilityLabel("About")
+        .accessibilityIdentifier("button.about")
     }
 
     private func figure(_ name: LocalizedStringKey, _ number: String, _ identifier: String) -> some View {
@@ -149,6 +188,8 @@ private struct StatusBar: View {
             Text(verbatim: number).monospacedDigit()
         }
         .font(.subheadline)
+        .lineLimit(1)
+        .fixedSize()
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Text(name))
         .accessibilityValue(Text(verbatim: number))

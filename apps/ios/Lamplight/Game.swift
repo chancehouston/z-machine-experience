@@ -14,12 +14,23 @@ final class Game {
     private(set) var startFailure: String?
     /// A command is being worked out; nothing else is sent meanwhile.
     private(set) var busy = false
+    /// Milliseconds from the start of the process to the first snapshot's
+    /// being handed to the screen.
+    private(set) var launchMillis: Int?
 
     private var engine: Engine?
 
     /// Reads the story from the bundle and starts a game. `-seed N` fixes the
     /// game's randomness and `-story NAME` names another resource.
     func start() async {
+        #if DEBUG
+            // For tests of how a snapshot is drawn: a hand-made one, in place of
+            // a game. Nothing can be sent, as there is no game to send it to.
+            if let json = ProcessInfo.processInfo.environment["LAMPLIGHT_FIXTURE_SNAPSHOT"] {
+                show(try? JSONDecoder().decode(Snapshot.self, from: Data(json.utf8)))
+                return
+            }
+        #endif
         let defaults = UserDefaults.standard
         let name = defaults.string(forKey: "story") ?? "story"
         let seed = defaults.string(forKey: "seed").flatMap { UInt32($0) }
@@ -69,5 +80,8 @@ final class Game {
             turns.append(contentsOf: snapshot.turns.filter { $0.number >= turns.count })
         }
         showing = snapshot
+        if launchMillis == nil {
+            launchMillis = LaunchClock.millisSinceProcessStart()
+        }
     }
 }
