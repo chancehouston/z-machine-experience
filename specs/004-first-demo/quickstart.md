@@ -73,7 +73,7 @@ scripts/test-ios.sh 26
 
 Expected: one line per test, each passed, on iPhone 18 Pro with iOS 27.2 and on iPhone
 17 Pro with iOS 26.0. The simulator's model names differ from one system version to the
-next, so the script names both in each destination. A run takes about fifteen minutes.
+next, so the script names both in each destination. A run takes about ten minutes.
 `testScreenshots` is skipped unless a folder is given for the pictures:
 
 ```bash

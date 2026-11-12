@@ -147,7 +147,7 @@ iOS 26 or later, and press Run. To run the app's UI tests from the command line:
 scripts/test-ios.sh 27
 ```
 
-(`26` runs them on iOS 26.0.) They take about fifteen minutes.
+(`26` runs them on iOS 26.0.) They take about ten minutes.
 
 ## Tests
 
