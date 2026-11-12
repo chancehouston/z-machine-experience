@@ -75,9 +75,15 @@ fixed, conditional, or unknown. A direction it leaves out is "not an exit".
 
 - **The directions of a story** are the distinct direction numbers among its dictionary
   words, in ascending order. They are found once per story.
-- **The word for a direction** is its longest stored word; among equals, the first in
-  alphabetical order. (Version 3 stores six letters: `northe` is what is sent, and the
-  game reads it as it reads the same letters typed.)
+- **The word for a direction** is its ordinary English word (north, northeast, ..., up,
+  down, in, out) where the dictionary has it for that direction, which is the word the
+  compass sends; otherwise its longest stored word. Among words equally good, the
+  longest, then the first in alphabetical order. (Version 3 stores six letters: `northe`
+  is what is sent, and the game reads it as it reads the same letters typed.)
+  *Amended in Phase 6*: the first rule was the longest word alone. On one fetched story
+  the longest word reported for north is a word the game shares among all its
+  directions and answers with a question, so every trial of north was the instrument's
+  error.
 - **A direction with no word** is not tried; it is counted as "wordless".
 - **What was reported** for a direction at a place: the entry in `exits` (fixed with its
   destination, or conditional); else the entry in `unknown`; else "not an exit". Where

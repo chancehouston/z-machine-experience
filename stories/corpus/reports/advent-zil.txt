@@ -1,0 +1,27 @@
+story advent-zil
+sha256 03c19b3730f1b46b6e882944a255d1d58e4148e51fcce423dcd96792f476ebfa
+version 3 family zil seed 1
+places 7 walkthrough 0 crawl 7
+rooms visited 7 named-not-reached 0
+budget rooms 400 trials 40000 reached no
+trials 84 wordless 0
+fixed confirmed 19 wrong-known 0 wrong-unexplained 0
+none confirmed 51 wrong-known 0 wrong-unexplained 0 other 0
+conditional 14 moved 10 stayed 4 question 0 ended 0 fault 0
+unknown 0 moved 0 stayed 0 question 0 ended 0 fault 0
+no-verdict 0
+detail
+200 20 conditional stayed 1
+200 28 conditional moved 204 1
+200 29 conditional moved 204 1
+200 30 conditional moved 204 1
+201 28 conditional moved 204 1
+201 29 conditional moved 204 1
+202 21 conditional moved 204 1
+202 28 conditional moved 204 1
+202 29 conditional moved 204 1
+204 28 conditional stayed 1
+204 30 conditional stayed 1
+204 31 conditional stayed 1
+214 30 conditional moved 204 1
+219 31 conditional moved 204 1

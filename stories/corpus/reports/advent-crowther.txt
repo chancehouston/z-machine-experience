@@ -1,0 +1,13 @@
+story advent-crowther
+sha256 93be8c77302b7931567995ef1246b3739086d0b3e2e02a2bd751ec83cd0fdc19
+version 8 family none seed 1
+places 1 walkthrough 0 crawl 1
+rooms visited 1 named-not-reached 0
+budget rooms 400 trials 40000 reached no
+trials 0 wordless 0
+fixed confirmed 0 wrong-known 0 wrong-unexplained 0
+none confirmed 0 wrong-known 0 wrong-unexplained 0 other 0
+conditional 0 moved 0 stayed 0 question 0 ended 0 fault 0
+unknown 0 moved 0 stayed 0 question 0 ended 0 fault 0
+no-verdict 0
+detail

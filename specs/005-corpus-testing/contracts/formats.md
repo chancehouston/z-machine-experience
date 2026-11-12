@@ -51,7 +51,7 @@ opening: <a second answer, if the game asks twice>
 | `path` | yes | relative to the repository's root. `fetched` must be under `stories/local/corpus/`; `committed` must not be |
 | `seed` | yes | 0 to 2147483647 |
 | `walkthrough` | no | a path; only with `tier: committed` |
-| `opening` | no, may repeat | one answer to a line; this key alone may repeat, in order |
+| `opening` | no, may repeat | one answer to a line or a key; this key alone may repeat, in order. `(space)` is one space and `(return)` an empty line |
 | `rooms`, `trials` | no | the crawl's budget for this story |
 
 **The manifest check** fails when: a required key is missing; a key is not known; two

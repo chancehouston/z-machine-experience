@@ -373,3 +373,16 @@ fn a_ledger_that_departs_from_the_format_is_refused_with_the_line() {
     );
     assert_eq!(ledger::read(&(twice + "\n")).expect_err("refused").0, 17);
 }
+
+// F§ "The manifest": an opening answer written `(space)` is one space, and
+// `(return)` is an empty line; neither can be written safely as it is.
+#[test]
+fn an_opening_answer_may_be_a_space_or_an_empty_line() {
+    let text = ENTRY.replace(
+        "opening: no\nopening: yes\n",
+        "opening: (space)\nopening: (return)\nopening: n\n",
+    );
+    assert_ne!(text, ENTRY);
+    let stories = manifest::read(&text).expect("the manifest reads");
+    assert_eq!(stories[1].opening, [" ", "", "n"]);
+}

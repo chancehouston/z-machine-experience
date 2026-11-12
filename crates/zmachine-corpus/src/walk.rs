@@ -280,6 +280,15 @@ pub fn run_story(story: &Story, bytes: Vec<u8>, script: Option<&str>, ledger: &L
     run_story_traced(story, bytes, script, ledger).0
 }
 
+/// The family as the corpus's files write it.
+pub fn family(introspector: &Introspector) -> &'static str {
+    match introspector.family() {
+        Family::Zil => "zil",
+        Family::Inform6 => "inform",
+        Family::Unrecognised => "none",
+    }
+}
+
 fn tools(machine: &Machine) -> Tools {
     let view = machine.view();
     let introspector = Introspector::new(&view);
@@ -321,6 +330,10 @@ pub fn run_story_watching(
         budget_trials: story.trials.unwrap_or(TRIALS),
         ..Report::default()
     };
+    // The family is a fact about the file, whether or not any place is reached.
+    if let Ok(machine) = load(bytes.clone(), story.seed) {
+        report.family = family(&Introspector::new(&machine.view())).to_string();
+    }
     let mut tally = Tally {
         watch,
         ..Tally::default()
@@ -414,12 +427,6 @@ pub fn run_story_watching(
         for (room, _) in &queue {
             tally.visited.remove(room);
         }
-        report.family = match tools.introspector.family() {
-            Family::Zil => "zil",
-            Family::Inform6 => "inform",
-            Family::Unrecognised => "none",
-        }
-        .to_string();
     }
     report.places = report.walkthrough + report.crawl;
     let shown = std::mem::take(&mut tally.shown);

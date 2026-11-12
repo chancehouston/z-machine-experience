@@ -15,10 +15,36 @@ pub struct Direction {
     pub word: Option<String>,
 }
 
+/// The ordinary English words for the twelve directions of a compass.
+const ORDINARY: [&str; 12] = [
+    "north",
+    "northeast",
+    "east",
+    "southeast",
+    "south",
+    "southwest",
+    "west",
+    "northwest",
+    "up",
+    "down",
+    "in",
+    "out",
+];
+
+/// Whether a stored word is an ordinary direction word: the word itself, or its
+/// start as a dictionary keeps it (six letters in version 3, nine later).
+fn ordinary(word: &str) -> bool {
+    ORDINARY
+        .iter()
+        .any(|name| *name == word || (word.len() >= 6 && name.starts_with(word)))
+}
+
 /// The directions of a story, in ascending order of number: the distinct
-/// direction numbers among its dictionary's words, each with its longest stored
-/// word, and among words equally long the first in alphabetical order. A story
-/// whose dictionary cannot be read as a family's has none.
+/// direction numbers among its dictionary's words. The word for each is its
+/// ordinary English word where it has one, which is what the compass sends;
+/// otherwise its longest stored word. Among words equally good, the longest,
+/// then the first in alphabetical order. A story whose dictionary cannot be
+/// read as a family's has none.
 pub fn directions(introspector: &Introspector, view: &View<'_>) -> Vec<Direction> {
     let Ok(words) = introspector.dictionary(view).value else {
         return Vec::new();
@@ -29,12 +55,10 @@ pub fn directions(introspector: &Introspector, view: &View<'_>) -> Vec<Direction
             continue;
         };
         let best = found.entry(number).or_default();
+        let rank = |w: &str| (ordinary(w), w.len(), std::cmp::Reverse(w.to_string()));
         let better = match best {
             None => true,
-            Some(held) => {
-                (word.word.len(), std::cmp::Reverse(&word.word))
-                    > (held.len(), std::cmp::Reverse(&*held))
-            }
+            Some(held) => rank(&word.word) > rank(held),
         };
         if better && !word.word.is_empty() {
             *best = Some(word.word);

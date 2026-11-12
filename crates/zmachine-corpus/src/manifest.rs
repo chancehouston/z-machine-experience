@@ -151,7 +151,11 @@ fn story(entry: &[(usize, &str, &str)]) -> Result<Story, Refusal> {
                 _ => return refuse("the seed is 0 to 2147483647"),
             },
             "walkthrough" => story.walkthrough = Some(value.to_string()),
-            "opening" => story.opening.push(value.to_string()),
+            "opening" => story.opening.push(match value {
+                "(space)" => " ".to_string(),
+                "(return)" => String::new(),
+                other => other.to_string(),
+            }),
             "rooms" | "trials" => match number(value) {
                 Some(n) if key == "rooms" => story.rooms = Some(n as usize),
                 Some(n) => story.trials = Some(n as usize),

@@ -218,3 +218,23 @@ fn trials_leave_the_machine_they_were_copied_from_alone() {
     ];
     assert_eq!(seen(machine, &lines), seen(twin, &lines));
 }
+
+// R4, as amended: the word sent is the ordinary English word for the direction
+// where the story has it, which is what the compass sends. A longer word that
+// also names the direction may be one the game does not take as a move.
+#[test]
+fn the_ordinary_word_for_a_direction_is_preferred_to_a_longer_one() {
+    let mut toy = Toy::new(2);
+    toy.odd_north_word = true;
+    let machine = toy.machine();
+    let found = directions(&introspector(&machine), &machine.view());
+    assert_eq!(found.last(), Some(&word(NORTH, "north")));
+    // Zork I's dictionary keeps six letters: the ordinary word is its start.
+    let machine = load("stories/zork1/zork1.z3", 11);
+    let found = directions(&introspector(&machine), &machine.view());
+    let words: Vec<&str> = found.iter().filter_map(|d| d.word.as_deref()).collect();
+    for expected in ["north", "northe", "southw", "up", "down", "in", "out"] {
+        assert!(words.contains(&expected), "{expected} in {words:?}");
+    }
+    assert!(!words.contains(&"inside"), "{words:?}");
+}

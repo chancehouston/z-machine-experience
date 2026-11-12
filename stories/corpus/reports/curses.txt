@@ -1,0 +1,13 @@
+story curses
+sha256 330100bf1c1ab8ed64065ceb58145ebb87cb6faef5b331fbc6684be4f14fe7da
+version 5 family none seed 1
+places 1 walkthrough 0 crawl 1
+rooms visited 1 named-not-reached 0
+budget rooms 400 trials 40000 reached no
+trials 0 wordless 0
+fixed confirmed 0 wrong-known 0 wrong-unexplained 0
+none confirmed 0 wrong-known 0 wrong-unexplained 0 other 0
+conditional 0 moved 0 stayed 0 question 0 ended 0 fault 0
+unknown 0 moved 0 stayed 0 question 0 ended 0 fault 0
+no-verdict 0
+detail

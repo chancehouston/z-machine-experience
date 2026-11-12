@@ -87,6 +87,9 @@ pub struct Toy {
     /// With `false` the dictionary has no direction words, so the story is of
     /// no family; the game plays the same.
     pub direction_words: bool,
+    /// With `true` north has a further word, longer than `north`, that is no
+    /// compass word: `sunward`.
+    pub odd_north_word: bool,
 }
 
 impl Toy {
@@ -97,6 +100,7 @@ impl Toy {
             behaviour: vec![[STAY; 6]; rooms],
             start: 0,
             direction_words: true,
+            odd_north_word: false,
         }
     }
 
@@ -139,6 +143,9 @@ impl Toy {
             ("down", DOWN),
         ] {
             story.word_data(word, [flags, direction, column(direction) as u8 + 1]);
+        }
+        if self.odd_north_word {
+            story.word_data("sunward", [flags, NORTH, column(NORTH) as u8 + 1]);
         }
         story.word_data("look", [0x41, 0xF0, 0]);
 
