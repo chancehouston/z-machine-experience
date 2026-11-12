@@ -151,3 +151,28 @@ fn inventory_at_known_moments() {
         "prompts with a container that holds something: {nested}"
     );
 }
+
+// I§8, SC-004: at 59 moments in the game, in 49 rooms, the reported exits are the
+// ones worked out by hand from the game's ZIL source, including every form of
+// exit and flag exits before and after their flags change.
+#[test]
+fn exits_equal_the_hand_made_expectations() {
+    let (checked, problems) = check_expected_exits(ZORK1, EXITS, 6);
+    assert!(problems.is_empty(), "{} problems:\n{}", problems.len(), problems.join("\n"));
+    assert!(checked >= 50, "entries checked: {checked}");
+    let rooms: std::collections::BTreeSet<String> = expectations(EXITS).into_iter().map(|e| e.room).collect();
+    assert!(rooms.len() >= 25, "SC-004 asks for at least 25 rooms: {}", rooms.len());
+}
+
+// I§8, SC-003, FR-038: every move the walkthrough makes through an exit reported
+// with a destination arrives there.
+#[test]
+fn moves_through_fixed_exits_arrive_where_the_exits_say() {
+    let report = check_moves(ZORK1, 6);
+    assert!(report.problems.is_empty(), "{} problems:\n{}", report.problems.len(), report.problems.join("\n"));
+    println!("Zork I: {} arrived, {} conditional, stayed: {:?}", report.arrived, report.conditional, report.stayed);
+    assert!(report.arrived >= 100, "SC-003 asks for at least 100 such moves: {}", report.arrived);
+    assert_eq!(report.wordless, 0, "every ZIL direction has a word");
+    assert!(report.exits_seen >= 1000, "{}", report.exits_seen);
+    assert!(report.stayed.len() <= 3, "a fixed exit the game did not let the player through: {:?}", report.stayed);
+}

@@ -218,3 +218,46 @@ fn inventory_at_known_moments() {
     });
     assert!(caged >= 3, "prompts carrying the caged bird: {caged}");
 }
+
+// I§8, SC-004: at 50 moments in the game, in 50 rooms, the reported exits are the
+// ones worked out by hand from the game's source: rooms, doors, routines and
+// directions refused by a string.
+#[test]
+fn exits_equal_the_hand_made_expectations() {
+    for game in BUILDS {
+        let (checked, problems) = check_expected_exits(game, EXITS, 9);
+        assert!(problems.is_empty(), "{} problems:\n{}", problems.len(), problems.join("\n"));
+        assert!(checked >= 45, "{}: entries checked: {checked}", game.name);
+    }
+    let rooms: std::collections::BTreeSet<String> = expectations(EXITS).into_iter().map(|e| e.room).collect();
+    assert!(rooms.len() >= 25, "SC-004 asks for at least 25 rooms: {}", rooms.len());
+}
+
+// I§8, SC-003, FR-038: every move the walkthrough makes through an exit reported
+// with a destination arrives there.
+#[test]
+fn moves_through_fixed_exits_arrive_where_the_exits_say() {
+    for game in BUILDS {
+        let report = check_moves(game, 9);
+        assert!(report.problems.is_empty(), "{} problems:\n{}", report.problems.len(), report.problems.join("\n"));
+        println!("{}: {} arrived, {} conditional, stayed: {:?}", game.name, report.arrived, report.conditional, report.stayed);
+        assert!(report.arrived >= 100, "{}: SC-003 asks for at least 100 such moves: {}", game.name, report.arrived);
+        assert_eq!(report.wordless, 0, "{}", game.name);
+        assert!(report.stayed.len() <= 3, "{}: {:?}", game.name, report.stayed);
+    }
+}
+
+// I§8, I§3.1: the words for the compass directions come from the compass, and
+// `in` and `out`, which the library takes as verbs, are found in the dictionary.
+#[test]
+fn exits_carry_the_words_that_name_them() {
+    let machine = play(ADVENT5, &[]);
+    let view = machine.view();
+    let exits = Introspector::new(&view).exits(&view).value.unwrap();
+    let words_of = |word: &str| exits.exits.iter().find(|e| e.words.iter().any(|w| w == word)).map(|e| e.words.clone());
+    assert_eq!(words_of("north"), Some(vec!["n".to_string(), "north".to_string()]));
+    assert_eq!(words_of("in"), Some(vec!["in".to_string()]));
+    let up = words_of("up").unwrap();
+    assert!(up.contains(&"u".to_string()) && up.len() >= 2, "{up:?}");
+    assert!(exits.unknown.is_empty());
+}

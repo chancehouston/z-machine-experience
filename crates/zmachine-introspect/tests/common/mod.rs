@@ -472,3 +472,148 @@ pub fn check_inventories(game: Game, heading: &str) -> InventoryReport {
     });
     report
 }
+
+use zmachine_introspect::{ExitKind, Exits};
+
+/// Renders an exits answer in the form of the hand-made files: one
+/// `word: fixed <room>` or `word: conditional` per exit, by its longest word.
+fn describe(exits: &Exits) -> Vec<String> {
+    let mut out: Vec<String> = exits
+        .exits
+        .iter()
+        .map(|exit| {
+            let word = exit.words.iter().max_by_key(|w| w.len()).cloned().unwrap_or_else(|| format!("#{}", exit.direction));
+            match exit.kind {
+                ExitKind::Fixed => format!("{word}: fixed {}", exit.destination_name.clone().map_or("?".to_string(), |n| n.unwrap_or_else(|e| format!("<{e:?}>")))),
+                ExitKind::Conditional => format!("{word}: conditional"),
+            }
+        })
+        .collect();
+    out.extend(exits.unknown.iter().map(|u| format!("{:?}: unknown {:?}", u.words, u.reason)));
+    out
+}
+
+/// SC-004: at each walkthrough line a hand-made entry names, the reported exits
+/// are the expected ones, direction for direction. `word_len` is how many
+/// characters of a word the story file's dictionary keeps. Returns the number of
+/// entries checked and the problems found.
+pub fn check_expected_exits(game: Game, exits_file: &str, word_len: usize) -> (usize, Vec<String>) {
+    let expected = expectations(exits_file);
+    let mut problems = Vec::new();
+    let mut checked = 0;
+    walk(game, |machine, stop| {
+        let Some((line, _)) = &stop.line else { return };
+        for entry in expected.iter().filter(|e| e.line == *line && stop.wants == Wants::Line) {
+            checked += 1;
+            let here = format!("{} line {line} ({})", game.name, entry.room);
+            let view = machine.view();
+            let i = Introspector::new(&view);
+            let name = i.location(&view).value.ok().and_then(|l| l.name.ok());
+            if name.as_deref() != Some(entry.room.as_str()) {
+                problems.push(format!("{here}: the location is {name:?}"));
+                continue;
+            }
+            let answer = i.exits(&view);
+            if answer.exactness != zmachine_introspect::Exactness::Exact {
+                problems.push(format!("{here}: not exact"));
+            }
+            let exits = match answer.value {
+                Ok(exits) => exits,
+                Err(reason) => {
+                    problems.push(format!("{here}: exits unknown: {reason:?}"));
+                    continue;
+                }
+            };
+            let reported = describe(&exits);
+            let mut matched = vec![false; exits.exits.len()];
+            for (direction, what) in &entry.items {
+                let cut: String = direction.chars().take(word_len).collect();
+                let Some(index) = exits.exits.iter().position(|e| e.words.contains(&cut)) else {
+                    problems.push(format!("{here}: no exit {direction} ({what}); reported {reported:?}"));
+                    continue;
+                };
+                matched[index] = true;
+                let exit = &exits.exits[index];
+                let ok = match what.strip_prefix("fixed ") {
+                    Some(room) => exit.kind == ExitKind::Fixed && exit.destination_name.clone().and_then(Result::ok).as_deref() == Some(room) && exit.destination.is_some(),
+                    None => what == "conditional" && exit.kind == ExitKind::Conditional && exit.destination.is_none() && exit.destination_name.is_none(),
+                };
+                if !ok {
+                    problems.push(format!("{here}: {direction} should be {what}; reported {reported:?}"));
+                }
+            }
+            for (index, exit) in exits.exits.iter().enumerate() {
+                if !matched[index] {
+                    problems.push(format!("{here}: an exit that is not expected: {:?}; reported {reported:?}", exit.words));
+                }
+            }
+            if !exits.unknown.is_empty() {
+                problems.push(format!("{here}: directions unknown: {reported:?}"));
+            }
+        }
+    });
+    (checked, problems)
+}
+
+/// What following the reported exits found over a whole walkthrough.
+#[derive(Debug, Default)]
+pub struct MoveReport {
+    /// Moves made through a reported fixed exit that arrived where it said.
+    pub arrived: usize,
+    /// Commands naming a reported fixed exit after which the player had not moved.
+    pub stayed: Vec<String>,
+    /// Commands naming a reported conditional exit.
+    pub conditional: usize,
+    /// Reported exits with no word.
+    pub wordless: usize,
+    pub exits_seen: usize,
+    pub problems: Vec<String>,
+}
+
+/// SC-003, FR-038: every move through an exit reported with a destination arrives
+/// at that destination.
+pub fn check_moves(game: Game, word_len: usize) -> MoveReport {
+    let mut report = MoveReport::default();
+    let mut previous: Option<(u16, Exits, String)> = None;
+    walk(game, |machine, stop| {
+        if !stop.command_prompt {
+            return;
+        }
+        let view = machine.view();
+        let i = Introspector::new(&view);
+        let here = format!("{} stop {} (line {:?})", game.name, stop.number, stop.line);
+        let (Ok(location), answer) = (i.location(&view).value, i.exits(&view)) else {
+            report.problems.push(format!("{here}: location unknown"));
+            return;
+        };
+        let exits = match answer.value {
+            Ok(exits) => exits,
+            Err(reason) => {
+                report.problems.push(format!("{here}: exits unknown: {reason:?}"));
+                return;
+            }
+        };
+        if let Some((room, before, command)) = &previous {
+            let word: String = command.trim().to_ascii_lowercase().chars().take(word_len).collect();
+            if let Some(exit) = before.exits.iter().find(|e| e.words.contains(&word)) {
+                match (exit.kind, exit.destination) {
+                    (ExitKind::Fixed, Some(destination)) if destination == location.room => report.arrived += 1,
+                    (ExitKind::Fixed, Some(_)) if location.room == *room => report.stayed.push(format!("{here}: {command:?}")),
+                    (ExitKind::Fixed, destination) => report.problems.push(format!("{here}: {command:?} was reported to lead to {destination:?} ({:?}) but the player is in {} {:?}", exit.destination_name, location.room, location.name)),
+                    (ExitKind::Conditional, _) => report.conditional += 1,
+                }
+            }
+        }
+        report.exits_seen += exits.exits.len();
+        report.wordless += exits.exits.iter().filter(|e| e.words.is_empty()).count();
+        // No direction twice, nor in both lists (data-model.md validation rules).
+        let mut directions: Vec<u8> = exits.exits.iter().map(|e| e.direction).chain(exits.unknown.iter().map(|u| u.direction)).collect();
+        directions.sort_unstable();
+        if directions.windows(2).any(|pair| pair[0] == pair[1]) {
+            report.problems.push(format!("{here}: a direction is reported twice"));
+        }
+        let command = stop.line.clone().map(|(_, text)| text).unwrap_or_default();
+        previous = Some((location.room, exits, command));
+    });
+    report
+}
