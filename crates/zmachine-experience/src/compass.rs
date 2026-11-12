@@ -117,13 +117,13 @@ pub const NOTE_NONE: &str = "No exits here";
 impl Compass {
     /// A compass that offers nothing.
     pub(crate) fn idle() -> Compass {
-        Compass {
-            offered: false,
-            known: false,
-            note: None,
-            places: Vec::new(),
-            extras: Vec::new(),
-        }
+        Compass { offered: false, known: false, note: None, places: Vec::new(), extras: Vec::new() }
+    }
+
+    /// The compass for a room's exits, as the introspection interface reports
+    /// them. `word_len` is how many characters of a word the story file keeps.
+    pub(crate) fn of(_exits: &zmachine_introspect::Answer<zmachine_introspect::Exits>, _word_len: usize) -> Compass {
+        Compass::idle()
     }
 
     pub fn place(&self, place: Place) -> Option<&CompassPlace> {

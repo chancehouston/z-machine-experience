@@ -10,6 +10,9 @@ mod compass;
 mod json;
 mod transcript;
 
+#[cfg(test)]
+mod compass_tests;
+
 pub use compass::{Compass, CompassPlace, Extra, NOTE_NONE, NOTE_UNKNOWN, Place, PlaceState};
 pub use transcript::{Source, Turn};
 
