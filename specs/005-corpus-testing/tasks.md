@@ -473,7 +473,7 @@ Fourteen stories, 913 places, 454 rooms, 11,258 trials.
 | All | 2,285 of 2,369 | 8,447 of 8,602 | 152 of 233 |
 
 No direction was reported unknown in a story introspection recognised; three stories it
-did not recognise at all. All 227 wrong trials are in the ledger, 211 entries, none of
+did not recognise at all. All 227 wrong trials are in the ledger, 210 entries, none of
 them a misreading of an exit table.
 
 ### Not done, and limits
