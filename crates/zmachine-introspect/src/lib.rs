@@ -6,8 +6,11 @@
 #![forbid(unsafe_code)]
 
 mod answer;
+mod table;
 
 pub use answer::{Answer, Exactness, Part, Tri, Unknown};
 
 #[cfg(test)]
 mod answer_tests;
+#[cfg(test)]
+mod table_tests;
