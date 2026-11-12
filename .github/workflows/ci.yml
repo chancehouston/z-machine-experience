@@ -51,10 +51,13 @@ jobs:
       # The introspection queries' limit is five milliseconds (feature 003, SC-010),
       # and the test holds to it on a developer's machine. A shared runner stalls
       # now and then (7.1 ms over one prompt, once), so here the limit only catches
-      # queries that have become slow in earnest.
+      # queries that have become slow in earnest. The same goes for the experience
+      # layer's ten milliseconds for a command and its snapshot (feature 004,
+      # SC-003): 44 ms over one command, once, against a mean of 0.1 ms.
       - name: Test against dfrotz, and timing
         env:
           QUERY_LIMIT_MILLIS: "50"
+          COMMAND_LIMIT_MILLIS: "250"
         run: cargo test --workspace --release -- --ignored
 
   # The iPhone app (feature 004). It needs Xcode with an iOS 26 or later
