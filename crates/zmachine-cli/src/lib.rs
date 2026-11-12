@@ -4,6 +4,7 @@
 //! randomness lives here; the core does none of it.
 
 pub mod ledger;
+pub mod term;
 
 use std::fs::File;
 use std::io::{BufRead, Write};
@@ -199,6 +200,8 @@ impl Wrapper {
                     self.end_word(&mut out);
                     self.spaces += 1;
                 }
+                // A change of style takes no room on the line (see `term`).
+                _ if term::is_marker(ch) => self.word.push(ch),
                 _ => {
                     // A word longer than a whole line is broken where it must be.
                     if self.word_len == self.width {
@@ -234,6 +237,9 @@ impl Wrapper {
 
     fn end_word(&mut self, out: &mut String) {
         if self.word_len == 0 {
+            // Nothing but changes of style, which are passed on as they are.
+            out.push_str(&self.word);
+            self.word.clear();
             return;
         }
         if self.column > 0 && self.column + self.spaces + self.word_len > self.width {
@@ -421,6 +427,14 @@ pub fn play(
     let mut since_input: u64 = 0;
     // Keys from the current input line that the game has not yet asked for.
     let mut keys: VecDeque<Key> = VecDeque::new();
+    // `main` settles `auto` by looking at the terminal; here it means plain.
+    let ansi = config.style == StyleMode::Ansi;
+    // The styles of the text last written, as a marker character.
+    let mut style_mark = term::marker(Default::default());
+    // What `--upper` last printed, so that it is printed again only when changed.
+    let mut shown_canvas = String::new();
+    // Whether the last thing written to `out` ended a line.
+    let mut at_line_start = true;
     loop {
         let slice = match config.max_instructions {
             Some(max) => SLICE.min(max - since_input),
@@ -429,7 +443,48 @@ pub fn play(
         let event = machine
             .run(slice)
             .expect("the driver answers every event in turn");
-        out.write_all(wrapper.push(&machine.take_output()).as_bytes())?;
+        let text = if ansi {
+            let mut text = String::new();
+            for run in machine.take_styled_output() {
+                let mark = term::marker(run.style);
+                if mark != style_mark && !run.text.is_empty() {
+                    style_mark = mark;
+                    text.push(mark);
+                }
+                text.push_str(&run.text);
+            }
+            text
+        } else {
+            machine.take_output()
+        };
+        let mut pending = wrapper.push(&text);
+        if matches!(event, Event::LineWanted { .. } | Event::KeyWanted) {
+            // The game is waiting: its prompt must appear, and with `--upper` so
+            // must what it has drawn, above the line the prompt is on.
+            pending.push_str(&wrapper.flush());
+            let canvas = match config.upper {
+                true => term::canvas(machine.screen(), ansi),
+                false => String::new(),
+            };
+            if canvas != shown_canvas {
+                let cut = pending.rfind('\n').map_or(0, |i| i + 1);
+                let (head, prompt) = pending.split_at(cut);
+                let mut shown = term::render(head);
+                if !(shown.ends_with('\n') || shown.is_empty() && at_line_start) {
+                    shown.push('\n');
+                }
+                let rule = "-".repeat(machine.screen().width() as usize);
+                shown.push_str(&format!("{rule}\n{canvas}{rule}\n"));
+                shown.push_str(prompt);
+                pending = shown;
+                shown_canvas = canvas;
+            }
+        }
+        let pending = term::render(&pending);
+        if let Some(last) = pending.chars().last() {
+            at_line_start = last == '\n';
+        }
+        out.write_all(pending.as_bytes())?;
         let recorded = machine.take_transcript();
         if let Some(file) = transcript.as_mut() {
             file.write_all(recorded.as_bytes())?;
@@ -449,7 +504,7 @@ pub fn play(
                 if let Some(max) = config.max_instructions
                     && since_input >= max
                 {
-                    out.write_all(wrapper.flush().as_bytes())?;
+                    out.write_all(term::render(&wrapper.flush()).as_bytes())?;
                     out.flush()?;
                     writeln!(
                         err,
@@ -459,7 +514,7 @@ pub fn play(
                 }
             }
             Event::LineWanted { .. } => {
-                out.write_all(wrapper.flush().as_bytes())?;
+                out.write_all(term::render(&wrapper.flush()).as_bytes())?;
                 out.flush()?;
                 // Keys left over from a line read for single keys are dropped.
                 keys.clear();
@@ -470,24 +525,28 @@ pub fn play(
                 if echo_input {
                     writeln!(out, "{line}")?;
                 }
+                at_line_start = true;
                 wrapper.line_ended();
                 let line = text_of_line(&line, err)?;
                 machine.provide_line(&line).expect("a line was wanted");
                 since_input = 0;
             }
             Event::Finished => {
-                out.write_all(wrapper.flush().as_bytes())?;
+                out.write_all(term::render(&wrapper.flush()).as_bytes())?;
+                if style_mark != term::marker(Default::default()) {
+                    out.write_all(term::RESET.as_bytes())?;
+                }
                 out.flush()?;
                 return Ok(EXIT_OK);
             }
             Event::Fault(fault) => {
-                out.write_all(wrapper.flush().as_bytes())?;
+                out.write_all(term::render(&wrapper.flush()).as_bytes())?;
                 out.flush()?;
                 writeln!(err, "zm: the story file stopped: {fault}")?;
                 return Ok(EXIT_FAULT);
             }
             Event::KeyWanted => {
-                out.write_all(wrapper.flush().as_bytes())?;
+                out.write_all(term::render(&wrapper.flush()).as_bytes())?;
                 out.flush()?;
                 // The reference's rule: the next unused character of the current
                 // line, and an empty line is the return key.
@@ -510,7 +569,7 @@ pub fn play(
                 since_input = 0;
             }
             Event::TranscriptRequested => {
-                out.write_all(wrapper.flush().as_bytes())?;
+                out.write_all(term::render(&wrapper.flush()).as_bytes())?;
                 out.flush()?;
                 let default = format!("{stem}.scr");
                 let name = ask_file_name("Transcript", &default, !echo_input, input, err)?;
@@ -538,7 +597,7 @@ pub fn play(
                     .expect("a transcript was requested");
             }
             Event::SaveRequested(bytes) => {
-                out.write_all(wrapper.flush().as_bytes())?;
+                out.write_all(term::render(&wrapper.flush()).as_bytes())?;
                 out.flush()?;
                 let default = format!("{stem}.qzl");
                 let name = ask_file_name("Save", &default, !echo_input, input, err)?;
@@ -560,7 +619,7 @@ pub fn play(
                 machine.save_result(stored).expect("a save was requested");
             }
             Event::RestoreRequested => {
-                out.write_all(wrapper.flush().as_bytes())?;
+                out.write_all(term::render(&wrapper.flush()).as_bytes())?;
                 out.flush()?;
                 let default = format!("{stem}.qzl");
                 let name = ask_file_name("Restore", &default, !echo_input, input, err)?;

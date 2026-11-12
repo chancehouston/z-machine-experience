@@ -1,5 +1,5 @@
 use std::io::{BufReader, IsTerminal, Write};
-use zmachine_cli::{EXIT_USAGE, Invocation, USAGE, parse_args, play};
+use zmachine_cli::{EXIT_USAGE, Invocation, StyleMode, USAGE, parse_args, play};
 
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
@@ -18,6 +18,15 @@ fn main() {
             std::process::exit(EXIT_USAGE);
         }
     };
+
+    // `--style auto`: escape codes only when a terminal will read them.
+    let mut config = config;
+    if config.style == StyleMode::Auto {
+        config.style = match std::io::stdout().is_terminal() {
+            true => StyleMode::Ansi,
+            false => StyleMode::Plain,
+        };
+    }
 
     let stdin = std::io::stdin();
     let mut out = std::io::stdout().lock();
