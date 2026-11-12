@@ -28,12 +28,13 @@ fn zm(args: &[&str], stdin: &str) -> Output {
         .stderr(Stdio::piped())
         .spawn()
         .expect("zm starts");
-    child
-        .stdin
-        .take()
-        .unwrap()
-        .write_all(stdin.as_bytes())
-        .unwrap();
+    // A run that ends before reading its input (a usage error) closes the pipe;
+    // on some systems the write then fails, which is not what is being tested.
+    match child.stdin.take().unwrap().write_all(stdin.as_bytes()) {
+        Ok(()) => {}
+        Err(e) if e.kind() == std::io::ErrorKind::BrokenPipe => {}
+        Err(e) => panic!("writing to zm: {e}"),
+    }
     child.wait_with_output().unwrap()
 }
 
