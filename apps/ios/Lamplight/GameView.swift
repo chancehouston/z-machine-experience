@@ -229,37 +229,42 @@ private struct TranscriptView: View {
     private let end = "transcript.end"
 
     var body: some View {
-        ScrollViewReader { proxy in
-            ScrollView {
-                VStack(alignment: .leading, spacing: 0) {
-                    ForEach(turns) { turn in
-                        let next = turn.number + 1 < turns.count ? turns[turn.number + 1].command : nil
-                        Text(drawn(turn, then: next))
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .accessibilityLabel(Text(verbatim: turn.text))
-                            .accessibilityIdentifier("turn.\(turn.number).text")
-                            .overlay(alignment: .bottomTrailing) {
-                                if let next {
-                                    Color.clear
-                                        .frame(width: 1, height: 1)
-                                        .accessibilityElement()
-                                        .accessibilityLabel(Text(verbatim: next))
-                                        .accessibilityIdentifier("turn.\(turn.number + 1).command")
+        GeometryReader { room in
+            ScrollViewReader { proxy in
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 0) {
+                        ForEach(turns) { turn in
+                            let next = turn.number + 1 < turns.count ? turns[turn.number + 1].command : nil
+                            Text(drawn(turn, then: next))
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .accessibilityLabel(Text(verbatim: turn.text))
+                                .accessibilityIdentifier("turn.\(turn.number).text")
+                                .overlay(alignment: .bottomTrailing) {
+                                    if let next {
+                                        Color.clear
+                                            .frame(width: 1, height: 1)
+                                            .accessibilityElement()
+                                            .accessibilityLabel(Text(verbatim: next))
+                                            .accessibilityIdentifier("turn.\(turn.number + 1).command")
+                                    }
                                 }
-                            }
+                        }
+                        Color.clear.frame(height: 1).id(end)
                     }
-                    Color.clear.frame(height: 1).id(end)
+                    .padding(.horizontal)
+                    .padding(.vertical, 8)
+                    // A transcript shorter than its room sits at the bottom, next
+                    // to the compass and the field, whenever it is drawn.
+                    .frame(minHeight: room.size.height, alignment: .bottom)
                 }
-                .padding(.horizontal)
-                .padding(.vertical, 8)
-            }
-            .defaultScrollAnchor(.bottom)
-            .accessibilityIdentifier("transcript")
-            .onChange(of: turns.count) {
-                withAnimation { proxy.scrollTo(end, anchor: .bottom) }
-            }
-            .onChange(of: keyboardUp) {
-                proxy.scrollTo(end, anchor: .bottom)
+                .defaultScrollAnchor(.bottom)
+                .accessibilityIdentifier("transcript")
+                .onChange(of: turns.count) {
+                    withAnimation { proxy.scrollTo(end, anchor: .bottom) }
+                }
+                .onChange(of: keyboardUp) {
+                    proxy.scrollTo(end, anchor: .bottom)
+                }
             }
         }
     }

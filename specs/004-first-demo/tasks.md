@@ -370,18 +370,27 @@ What no test caught:
   six times alone and in the next full run (20 passed, 1 skipped, iOS 26.0); why it failed
   that once is not known. Not run on iOS 27.
 - **A way that has been opened still says "may be blocked".** After `open window`, in
-  and west at Behind House keep the question mark. That is what the introspection
-  interface reports, and it is not wrong, but it reads oddly.
+  and west at Behind House keep the question mark. **Not fixed: it follows from a
+  decision already made.** These are door exits, and feature 003 (research R5) decided a
+  door exit in ZIL stays conditional, because which attribute means "open" differs from
+  game to game and the interface does not guess.
 - **The compass shows a way the text has not mentioned.** In the living room, down is
-  "may be blocked" before the rug is moved.
-- **The opening sits at the bottom of the transcript at launch and at the top after
-  "New game".**
-- **The license in About keeps its own line breaks**, so each line wraps twice on a
-  phone.
+  "may be blocked" before the rug is moved. **Not fixed, for the same reason:** that exit
+  is decided by a routine, and feature 003 (FR-020, R5) says an exit decided by the
+  game's code is reported as conditional. Hiding it would be a guess.
+- **The opening sat at the bottom of the transcript at launch and at the top after
+  "New game".** **Fixed** (branch `hand-play-findings`): a transcript shorter than its
+  room sits at the bottom whenever it is drawn. `testAShortTranscriptSitsAtTheBottom`
+  was seen to fail first. It failed at launch, not after "New game" as seen by hand: in
+  the test the opening was at the top at launch. Either way it was not in one place.
+- **The license in About kept its own line breaks**, so each line wrapped twice on a
+  phone. **Fixed**: each paragraph is drawn as one run of text, the words unchanged.
+  `testAbout` was extended and seen to fail first.
 
 Not done by hand: dark appearance, the largest text size, and iOS 27 (the automated
 tests cover all three).
 
 ### Not done
 
-No task is left unmarked. Of the findings above, only the first is fixed.
+No task is left unmarked. Of the five findings above, three are fixed; the two about
+the compass wait on a decision by the project owner.

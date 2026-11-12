@@ -310,6 +310,34 @@ final class LamplightUITests: XCTestCase {
         XCTAssertTrue(license.exists)
         XCTAssertTrue(license.label.contains("MIT License"), license.label)
         XCTAssertTrue(license.label.contains("Permission is hereby granted"))
+        // The notice's own line ends are for a wide page; on a phone each
+        // paragraph is one run of text, its words unchanged.
+        XCTAssertTrue(
+            license.label.contains("to any person obtaining a copy of this software"),
+            license.label)
+        XCTAssertTrue(license.label.contains(")\n\nMIT License\n\nCopyright"), license.label)
+    }
+
+    // Found by playing by hand: a transcript shorter than its room sat at the
+    // bottom at launch and at the top after "New game". It sits at the bottom,
+    // next to the compass, both times.
+    @MainActor
+    func testAShortTranscriptSitsAtTheBottom() {
+        let app = launch()
+        _ = turn(app, 0)
+        func gap() -> CGFloat {
+            element(app, "transcript").frame.maxY - element(app, "turn.0.text").frame.maxY
+        }
+        XCTAssertLessThan(abs(gap()), 30, "at launch")
+        type(app, "quit")
+        _ = turn(app, 1)
+        type(app, "y")
+        let again = element(app, "button.newGame")
+        XCTAssertTrue(again.waitForExistence(timeout: 5))
+        again.tap()
+        XCTAssertTrue(element(app, "compass.north").waitForExistence(timeout: 5))
+        XCTAssertFalse(element(app, "turn.1.text").waitForExistence(timeout: 1))
+        XCTAssertLessThan(abs(gap()), 30, "after a new game")
     }
 
     /// A hand-made snapshot: a compass with every place in one state, given
