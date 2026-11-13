@@ -271,3 +271,41 @@ fn the_app_carries_its_storys_pack_and_reads_none_of_it() {
         }
     }
 }
+
+// Feature 007, FR-023, FR-027: the strip of what is carried shows the layer's
+// words and nothing of the app's own, and nothing in it sends anything.
+#[test]
+fn the_strip_shows_the_layers_words_and_sends_nothing() {
+    let sources = app_swift();
+    let strip = &sources
+        .iter()
+        .find(|(n, _)| n == "Lamplight/InventoryStrip.swift")
+        .expect("the strip's view")
+        .1;
+    // Its code, without its comments.
+    let code: String = strip
+        .lines()
+        .map(|l| l.split("//").next().unwrap_or(""))
+        .collect::<Vec<_>>()
+        .join("\n");
+    for forbidden in ["Button", "onTapGesture", "zmx_", "game.", "Task {"] {
+        assert!(!code.contains(forbidden), "the strip holds {forbidden:?}");
+    }
+    // Every text it draws is handed to it: a note, a name, or what is spoken.
+    let texts: Vec<&str> = strip
+        .lines()
+        .filter(|l| l.contains("Text("))
+        .map(str::trim)
+        .collect();
+    assert_eq!(
+        texts,
+        [
+            "Text(verbatim: note)",
+            ".accessibilityLabel(Text(verbatim: strip.spoken))",
+            "Text(verbatim: item.name)"
+        ]
+    );
+    // Its only string literals are identifiers for tests.
+    let literals: Vec<&str> = strip.lines().flat_map(literals).collect();
+    assert_eq!(literals, ["inventory.note", "inventory.strip"]);
+}

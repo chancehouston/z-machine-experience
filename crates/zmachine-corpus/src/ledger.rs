@@ -1,7 +1,7 @@
 //! The ledger: wrong reports that are known, each with its cause
 //! (specs/005-corpus-testing/contracts/formats.md, "The ledger").
 
-use crate::report::{Case, Refusal};
+use crate::report::{Case, Difference, Refusal};
 use crate::verdict::{Verdict, judge};
 
 /// One known wrong report.
@@ -17,10 +17,29 @@ pub struct Entry {
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Ledger {
     pub entries: Vec<Entry>,
+    /// Entries of the second form: a difference between what is seen of the
+    /// inventory and what the game lists (specs/007-inventory-panel R9).
+    pub inventory: Vec<InventoryEntry>,
+}
+
+/// A known difference between what the interface says is seen of the inventory
+/// and what the game's own listing gives, with its cause.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct InventoryEntry {
+    pub story: String,
+    pub difference: Difference,
+    pub cause: String,
+    pub line: usize,
 }
 
 impl Ledger {
     /// Whether the ledger holds this case of this story.
+    pub fn knows_inventory(&self, story: &str, difference: &Difference) -> bool {
+        self.inventory
+            .iter()
+            .any(|e| e.story == story && e.difference == *difference)
+    }
+
     pub fn knows(&self, story: &str, case: &Case) -> bool {
         self.entries
             .iter()
@@ -28,7 +47,17 @@ impl Ledger {
     }
 }
 
-const KEYS: [&str; 6] = ["story", "room", "direction", "reported", "outcome", "cause"];
+const KEYS: [&str; 9] = [
+    "story",
+    "room",
+    "direction",
+    "reported",
+    "outcome",
+    "cause",
+    "object",
+    "seen",
+    "listed",
+];
 
 /// Reads a ledger, refusing the first line that departs from the format. Lines
 /// starting with `#` are comments; a blank line ends an entry; a line starting
@@ -42,7 +71,14 @@ pub fn read(text: &str) -> Result<Ledger, Refusal> {
             continue;
         }
         if line.trim().is_empty() {
-            if !entry.is_empty() {
+            if entry.iter().any(|(_, key, _)| *key == "object") {
+                let made = make_inventory(&entry)?;
+                if ledger.knows_inventory(&made.story, &made.difference) {
+                    return Err((made.line, "the same case is entered twice".to_string()));
+                }
+                ledger.inventory.push(made);
+                entry.clear();
+            } else if !entry.is_empty() {
                 let made = make(&entry)?;
                 if ledger.knows(&made.story, &made.case) {
                     return Err((made.line, "the same case is entered twice".to_string()));
@@ -75,6 +111,67 @@ pub fn read(text: &str) -> Result<Ledger, Refusal> {
         entry.push((number, key, value.to_string()));
     }
     Ok(ledger)
+}
+
+/// An entry of the second form: `story`, `room`, `object`, `seen`, `listed`,
+/// `cause`.
+fn make_inventory(entry: &[(usize, &str, String)]) -> Result<InventoryEntry, Refusal> {
+    let first = entry[0].0;
+    if let Some((_, key, _)) = entry
+        .iter()
+        .find(|(_, key, _)| ["direction", "reported", "outcome"].contains(key))
+    {
+        return Err((first, format!("an entry on the inventory has no `{key}`")));
+    }
+    let get = |key: &str| -> Result<(usize, &str), Refusal> {
+        entry
+            .iter()
+            .find(|(_, k, _)| *k == key)
+            .map(|(line, _, value)| (*line, value.as_str()))
+            .ok_or((first, format!("the entry has no `{key}`")))
+    };
+    let number = |(line, text): (usize, &str)| -> Result<u16, Refusal> {
+        (!text.is_empty() && text.bytes().all(|b| b.is_ascii_digit()))
+            .then(|| text.parse().ok())
+            .flatten()
+            .ok_or((line, "not a number".to_string()))
+    };
+    let (_, story) = get("story")?;
+    let room = number(get("room")?)?;
+    let object = number(get("object")?)?;
+    let (seen_line, seen) = get("seen")?;
+    let (listed_line, listed) = get("listed")?;
+    let (cause_line, cause) = get("cause")?;
+    let seen = match seen {
+        "seen" => true,
+        "kept" => false,
+        _ => return Err((seen_line, "seen is `seen` or `kept`".to_string())),
+    };
+    let listed = match listed {
+        "listed" => true,
+        "unlisted" => false,
+        _ => return Err((listed_line, "listed is `listed` or `unlisted`".to_string())),
+    };
+    if seen == listed {
+        return Err((
+            first,
+            "what was seen and what was listed do not differ".to_string(),
+        ));
+    }
+    if cause.trim().is_empty() {
+        return Err((cause_line, "a cause must be written".to_string()));
+    }
+    Ok(InventoryEntry {
+        story: story.to_string(),
+        difference: Difference {
+            room,
+            object,
+            seen,
+            listed,
+        },
+        cause: cause.to_string(),
+        line: first,
+    })
 }
 
 fn make(entry: &[(usize, &str, String)]) -> Result<Entry, Refusal> {

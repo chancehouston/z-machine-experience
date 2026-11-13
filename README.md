@@ -195,6 +195,14 @@ it, where without one the answer is "conditional". The iPhone app carries the pa
 the story it carries: its compass draws a closed door as a door, and an open one as an
 open way.
 
+A pack also says what of the player's inventory can be seen: which attribute means a
+container is open, and which means it can be seen through. The app shows what is
+carried in a row above the compass, always, and shows what the game's own inventory
+listing would: a closed sack with nothing in it, a closed glass bottle with its water.
+That is proven too. At every place the corpus asks a throwaway copy of the game for its
+inventory and sets what it lists against what the interface says is seen; the reply is
+read for the names of the things carried and then dropped, and nothing of it is kept.
+
 ```text
 cargo run -q --release -p zmachine-corpus -- check
 cargo run -q --release -p zmachine-corpus -- run
@@ -232,6 +240,7 @@ reported as ignored, not passed.
 | `specs/004-first-demo/` | The same for the first demo, with the C interface, the screen's contract and screenshots. |
 | `specs/005-corpus-testing/` | The same for corpus testing, with the formats of its files and its commands. |
 | `specs/006-game-packs/` | The same for game packs. |
+| `specs/007-inventory-panel/` | The same for the inventory strip. |
 
 ## How it fits together
 

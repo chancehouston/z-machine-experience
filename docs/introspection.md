@@ -1,6 +1,6 @@
 # Z-Machine Introspection Interface
 
-**Version**: 0.2.0 | **Status**: draft
+**Version**: 0.3.0 | **Status**: draft
 
 A specification for reading the state of a running Z-machine game without changing it:
 where the player is, which ways lead out, what is here and what is carried. It is
@@ -112,6 +112,8 @@ record descriptions in sections 4 to 9 give the fields and their order.
 - An exit's keys are, in order: `direction`, `words`, `kind`, `destination`,
   `destination_name`, `door`, `state`, `source`. `door` and `state` are `null` unless
   `kind` is `door` (section 12.5).
+- An inventory entry's keys are, in order: `object`, `name`, `worn`, `state`, `seen`,
+  `source`, `contents`. `state` is `null` for an object that holds nothing.
 
 So an inventory that is not known is
 
@@ -160,8 +162,8 @@ short here with an ellipsis, which is not part of the rendering.
 `inventory`:
 
 ```text
-{"exactness":"exact","value":[{"object":76,"name":"leaflet","worn":"unknown","contents":[]}]}
-{"exactness":"exact","value":[{"object":43,"name":"brass lantern","worn":"no","contents":[]}]}
+{"exactness":"exact","value":[{"object":76,"name":"leaflet","worn":"unknown","state":null,"seen":"yes","source":"file","contents":[]}]}
+{"exactness":"exact","value":[{"object":43,"name":"brass lantern","worn":"no","state":null,"seen":"yes","source":"file","contents":[]}]}
 ```
 
 `exits`. Zork I's house can be walked around, and its west side has no way in; in
@@ -483,16 +485,39 @@ The answer is a list, in the tree's order, of the player's children. Each entry 
 | `object` | The object's number |
 | `name` | Its printed name; a part that may be unknown |
 | `worn` | `yes`, `no` or `unknown` |
+| `state` | `open`, `closed` or `unknown`, or none |
+| `seen` | `yes`, `no` or `unknown` |
+| `source` | `file` or `pack` |
 | `contents` | The same, for the object's own children |
 
-Contents are listed whether or not the game would show them: whether a carried container
-is open is a matter for `scope` (section 9). An empty list means the player carries
-nothing, which is not the same as the inventory being unknown.
+`seen` says whether the game would show the player the object among what is carried.
+
+An entry at the top level is seen `yes`.
+
+An entry inside another is seen `yes` if the one it is in is seen `yes` and lets what it
+holds be seen; `no` if the one it is in is seen `no`, or is known not to let what it
+holds be seen; and `unknown` otherwise.
+
+`state` is `open`, `closed` or `unknown` if the object holds something at the moment of
+the query, and none if it holds nothing.
+
+`source` is `pack` if `state` or `seen` would be different were no game pack in force
+(section 12), and `file` otherwise.
+
+`contents` lists everything the object holds, whatever its marks: the answer marks; it
+does not filter. Choosing what to show a player is the caller's business.
+
+An empty list means the player carries nothing, which is not the same as the inventory
+being unknown.
 
 ### 7.1 Inform 6
 
 The player is `(self object)`. The answer is unknown exactly when `location` is (section
 6.1), for the same reason. `worn` is `yes` when the object has attribute 26.
+
+An object that holds something has no `state` if it has attribute 20 (`supporter`);
+otherwise its `state` is `open` if it has attribute 14 and `closed` if not. What it
+holds can be seen if it is a supporter, is open, or has attribute 23 (`transparent`).
 
 ### 7.2 ZIL
 
@@ -513,6 +538,16 @@ game creates unplaced (things made or revealed during play) can lie in the room 
 parser variable holds their number, and then tie with the player.
 
 `worn` is `unknown`.
+
+With no game pack fact to decide it, the `state` of an object that holds something is
+`unknown`, and what it holds is seen `unknown`: ZIL numbers "open" and "see-through"
+game by game.
+
+With `open-attribute: A` in force (section 12.3), the `state` is `open` if the object
+has attribute A and `closed` if not, and what an open object holds can be seen.
+
+With `transparent-attribute: T` in force (section 12.8), what an object with attribute
+T holds can be seen, whatever its `state`.
 
 In the reference implementation's tests, a complete game of Zork I has 332 command
 prompts; the inventory is `ambiguous-player` at 6 of them and agrees with the game's own
@@ -808,12 +843,13 @@ line missing or out of place. A pack is never applied in part.
 
 | Key | Value | Times |
 | --- | --- | --- |
-| `pack` | `1`, the version of this format | once |
+| `pack` | `1` or `2`, the version of this format | once |
 | `sha256` | 64 of the characters `0` to `9` and `a` to `f` | once |
 | `release` | a decimal number, 0 to 65535 | once |
 | `serial` | six characters, each a letter or a digit | once |
 | `open-attribute` | a decimal number, 0 to 31 | at most once |
 | `untrusted-variable` | a decimal number, 16 to 255 | any number of times; no value twice |
+| `transparent-attribute` | a decimal number, 0 to 31; only in a pack of version 2 | at most once |
 
 A decimal number has no sign and no leading zero, other than `0` itself.
 
@@ -826,6 +862,13 @@ serial: 000000
 open-attribute: 7
 untrusted-variable: 40
 ```
+
+The format's version is 2. A reader of version 2 reads packs of versions 1 and 2. A pack
+that holds `transparent-attribute` states `pack: 2`; in a pack of version 1 that key is
+a fault.
+
+A reader refuses a pack of a version it does not know, so a reader of version 1 given a
+pack of version 2 behaves as it does with no pack.
 
 A pack has nowhere to hold a condition, a script, or any text of a game.
 
@@ -875,6 +918,9 @@ query and `closed` if it has not.
 A closed door is in the `exits` list. It is not "not an exit": the way is there, and
 shut.
 
+The same attribute decides the `state` of a carried object that holds something
+(section 7.2). Its effect on exits is as above, whatever a pack says besides.
+
 ### 12.4 `untrusted-variable`
 
 `untrusted-variable: N` says that the value stored in variable N is not to be relied
@@ -908,7 +954,7 @@ The entries of the `unknown` list carry no mark.
 
 ### 12.6 What a pack may not do
 
-A pack changes the answer to no query but `exits`.
+A pack changes the answers to `exits` and `inventory`, and to no other query.
 
 An answer given with a pack in force is still a read of the story file's state at the
 moment of the query: sections 1.1, 1.2 and 1.7 hold unchanged, and nothing is run or
@@ -917,9 +963,26 @@ tried.
 "Open" is the door's stored state. The game has the last word (section 8.3), and may
 still refuse an open door.
 
-### 12.7 What changed from version 0.1.0
+### 12.7 What changed
+
+From version 0.1.0 to 0.2.0:
 
 - An exit has three more fields: `door`, `state` and `source`.
 - `kind` has a third word, `door`.
 - A host's line for each stop has one more field, `pack`.
 - Sections 8.2 and 10.4 point here.
+
+From version 0.2.0 to 0.3.0:
+
+- An inventory entry has three more fields: `state`, `seen` and `source`.
+- The pack format has a version 2, with one more key, `transparent-attribute`.
+- A pack may change the answer to `inventory` as well as to `exits`.
+
+### 12.8 `transparent-attribute`
+
+`transparent-attribute: T` says that, in this story file, attribute T is set on a thing
+whose contents can be seen while it is closed. With it in force, what a carried object
+with attribute T holds can be seen (section 7.2), whatever the object's `state`.
+
+It changes nothing about exits, and nothing about an object that does not have the
+attribute.

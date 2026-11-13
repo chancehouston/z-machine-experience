@@ -116,13 +116,26 @@ fn a_pack_changes_only_exits_and_no_transcript() {
         let mut other = pack.clone();
         other.replace_range(at..at + 1, last);
         let mut asked = 0;
+        let mut marked = 0;
         let replay = walk(game, |machine, _| {
             let view = machine.view();
             let plain = Introspector::new(&view);
             let with = Introspector::with_pack(&view, &pack);
             assert_eq!(with.pack(), PackState::InForce, "{}", game.name);
             assert_eq!(with.location(&view), plain.location(&view));
-            assert_eq!(with.inventory(&view), plain.inventory(&view));
+            // Feature 007: a pack may change the inventory's marks, and nothing
+            // else of it (I§7, I§12.6). With no pack every earlier field is what
+            // it was, and the marks are the family's.
+            let (packed, bare) = (with.inventory(&view), plain.inventory(&view));
+            assert_eq!(packed.exactness, bare.exactness);
+            match (&packed.value, &bare.value) {
+                (Ok(packed), Ok(bare)) => {
+                    assert_eq!(unmarked(packed), unmarked(bare));
+                    check_marks(bare, true, game.name == ZORK1.name);
+                    marked += changed(packed, bare);
+                }
+                (packed, bare) => assert_eq!(packed, bare),
+            }
             assert_eq!(with.scope(&view), plain.scope(&view));
             for i in [
                 Introspector::with_pack(&view, &other),
@@ -151,7 +164,68 @@ fn a_pack_changes_only_exits_and_no_transcript() {
             game.name
         );
         assert!(asked >= 170, "{}: {asked}", game.name);
+        // Zork I's "open" attribute marks what is in a carried container; the
+        // packs of the other two hold no entry and mark nothing.
+        assert_eq!(
+            marked > 0,
+            game.name == ZORK1.name,
+            "{}: {marked}",
+            game.name
+        );
     }
+}
+
+/// An inventory with its marks taken off: what the answer held before feature
+/// 007.
+fn unmarked(carried: &[zmachine_introspect::Carried]) -> Vec<(u16, String, String, Vec<u16>)> {
+    let mut out = Vec::new();
+    for entry in carried {
+        out.push((
+            entry.object,
+            format!("{:?}", entry.name),
+            format!("{:?}", entry.worn),
+            entry.contents.iter().map(|c| c.object).collect(),
+        ));
+        out.extend(unmarked(&entry.contents));
+    }
+    out
+}
+
+/// With no pack: every entry is the file's; the top level is seen; a ZIL story's
+/// containers and what they hold are unknown (I§7.2), and an Inform story's are
+/// never unknown (I§7.1); a thing that holds nothing has no state.
+fn check_marks(carried: &[zmachine_introspect::Carried], top: bool, zil: bool) {
+    use zmachine_introspect::{ContainerState, Tri};
+    for entry in carried {
+        assert_eq!(entry.source, Source::File);
+        if top {
+            assert_eq!(entry.seen, Tri::Yes);
+        } else if zil {
+            assert_eq!(entry.seen, Tri::Unknown);
+        } else {
+            assert_ne!(entry.seen, Tri::Unknown);
+        }
+        match (entry.contents.is_empty(), zil) {
+            (true, _) => assert_eq!(entry.state, None),
+            (false, true) => assert_eq!(entry.state, Some(ContainerState::Unknown)),
+            (false, false) => assert_ne!(entry.state, Some(ContainerState::Unknown)),
+        }
+        check_marks(&entry.contents, false, zil);
+    }
+}
+
+/// How many entries have marks that differ, each of which must say `pack`.
+fn changed(
+    packed: &[zmachine_introspect::Carried],
+    bare: &[zmachine_introspect::Carried],
+) -> usize {
+    let mut count = 0;
+    for (with, without) in packed.iter().zip(bare) {
+        let differs = (with.state, with.seen) != (without.state, without.seen);
+        assert_eq!(with.source == Source::Pack, differs, "{with:?}");
+        count += differs as usize + changed(&with.contents, &without.contents);
+    }
+    count
 }
 
 // I§12.2: the tables are the same with a pack, on a whole game's file.

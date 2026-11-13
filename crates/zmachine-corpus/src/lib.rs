@@ -7,6 +7,7 @@
 
 pub mod corpus;
 pub mod directions;
+pub mod inventory;
 pub mod ledger;
 pub mod manifest;
 pub mod packs;

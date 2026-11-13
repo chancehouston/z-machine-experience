@@ -14,6 +14,11 @@ pub struct Pack {
     pub open_attribute: Option<u8>,
     /// Variables whose stored value is not to be relied on, in the file's order.
     pub untrusted_variables: Vec<u8>,
+    /// The format's version the file states: 1 or 2.
+    pub version: u8,
+    /// The attribute set on a thing whose contents can be seen while it is
+    /// closed (specification section 12.8).
+    pub transparent_attribute: Option<u8>,
 }
 
 /// Why a pack was refused: the line, counted from 1, and the fault.
@@ -55,6 +60,7 @@ impl PackState {
 pub(crate) struct Entries {
     pub open_attribute: Option<u8>,
     pub untrusted_variables: Vec<u8>,
+    pub transparent_attribute: Option<u8>,
 }
 
 /// A decimal number as the format writes one: digits only, no sign, and no
@@ -79,6 +85,8 @@ impl Pack {
             serial: [0; 6],
             open_attribute: None,
             untrusted_variables: Vec::new(),
+            version: 1,
+            transparent_attribute: None,
         };
         // How many lines that are not skipped have been read.
         let mut read = 0;
@@ -102,9 +110,13 @@ impl Pack {
             read += 1;
             match key {
                 "pack" if read == 1 => {
-                    if value != "1" {
-                        return Err(fault("a version of the format this reader does not know"));
-                    }
+                    pack.version = match value {
+                        "1" => 1,
+                        "2" => 2,
+                        _ => {
+                            return Err(fault("a version of the format this reader does not know"));
+                        }
+                    };
                 }
                 "sha256" if read == 2 => {
                     let hexadecimal = value.len() == 64
@@ -144,6 +156,20 @@ impl Pack {
                     }
                     pack.untrusted_variables.push(variable);
                 }
+                "transparent-attribute" if pack.version >= 2 => {
+                    let attribute = decimal(value, 0, 31)
+                        .ok_or_else(|| fault("transparent-attribute is a number from 0 to 31"))?;
+                    if pack
+                        .transparent_attribute
+                        .replace(attribute as u8)
+                        .is_some()
+                    {
+                        return Err(fault("transparent-attribute may be given once"));
+                    }
+                }
+                "transparent-attribute" => {
+                    return Err(fault("transparent-attribute needs a pack of version 2"));
+                }
                 _ => return Err(fault("a key this format does not have")),
             }
         }
@@ -158,13 +184,16 @@ impl Pack {
 
     /// Whether the pack states any fact.
     pub fn has_entries(&self) -> bool {
-        self.open_attribute.is_some() || !self.untrusted_variables.is_empty()
+        self.open_attribute.is_some()
+            || !self.untrusted_variables.is_empty()
+            || self.transparent_attribute.is_some()
     }
 
     pub(crate) fn entries(&self) -> Entries {
         Entries {
             open_attribute: self.open_attribute,
             untrusted_variables: self.untrusted_variables.clone(),
+            transparent_attribute: self.transparent_attribute,
         }
     }
 }

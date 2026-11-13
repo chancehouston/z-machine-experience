@@ -63,6 +63,8 @@ fn sample() -> Report {
         pack: zmachine_introspect::PackState::None,
         entries: 0,
         marked: Marked::default(),
+        inventory: None,
+        inventory_detail: vec![],
         detail: vec![
             (case(2, 28, Reported::None, Outcome::Moved(3)), 1),
             (case(2, 29, Reported::Fixed(3), Outcome::Moved(4)), 2),
@@ -668,4 +670,158 @@ fn a_manifest_may_give_first_commands() {
         "walkthrough: stories/zork1/fidelity/walkthrough.txt\nfirst: north\n",
     );
     assert_eq!(manifest::read(&both).unwrap_err().0, 13);
+}
+
+// ---------------------------------------------------------------------------
+// The inventory comparison (specs/007-inventory-panel/contracts/commands.md,
+// "The corpus's files"; data-model.md "Story", "Ledger entry")
+// ---------------------------------------------------------------------------
+
+// FR-012: the command that asks a game for its inventory is data about the
+// story. `aside` may repeat, and needs it.
+#[test]
+fn a_manifest_may_give_an_inventory_command_and_asides() {
+    let with = ENTRY.replace(
+        "opening: yes\n",
+        "opening: yes\ninventory: i\naside: north / take lamp\naside: east\n",
+    );
+    let stories = manifest::read(&with).expect("the manifest reads");
+    assert_eq!(stories[1].inventory.as_deref(), Some("i"));
+    assert_eq!(
+        stories[1].asides,
+        [
+            vec!["north".to_string(), "take lamp".to_string()],
+            vec!["east".to_string()]
+        ]
+    );
+    assert_eq!(
+        (stories[0].inventory.as_deref(), stories[0].asides.len()),
+        (None, 0)
+    );
+    let twice = ENTRY.replace(
+        "opening: yes\n",
+        "opening: yes\ninventory: i\ninventory: inv\n",
+    );
+    assert_eq!(manifest::read(&twice).unwrap_err().0, 27);
+    let alone = ENTRY.replace("opening: yes\n", "opening: yes\naside: north\n");
+    assert_eq!(manifest::read(&alone).unwrap_err().0, 26);
+}
+
+// R9: a ledger entry of the second form, for a difference between what is seen
+// and what the game lists.
+#[test]
+fn a_ledger_entry_may_be_on_the_inventory() {
+    use zmachine_corpus::report::Difference;
+    let entry = |seen: &str, listed: &str| {
+        format!(
+            "story: toy\nroom: 4\nobject: 9\nseen: {seen}\nlisted: {listed}\ncause: The game lists it by another name.\n"
+        )
+    };
+    let read = ledger::read(&entry("seen", "unlisted")).unwrap();
+    assert!(read.entries.is_empty());
+    assert_eq!(
+        read.inventory[0].difference,
+        Difference {
+            room: 4,
+            object: 9,
+            seen: true,
+            listed: false
+        }
+    );
+    assert_eq!(read.inventory[0].line, 1);
+    assert!(ledger::read(&entry("kept", "listed")).is_ok());
+    // The two must differ; the words are fixed; the forms do not mix.
+    assert_eq!(ledger::read(&entry("seen", "listed")).unwrap_err().0, 1);
+    assert_eq!(ledger::read(&entry("kept", "unlisted")).unwrap_err().0, 1);
+    assert_eq!(ledger::read(&entry("maybe", "listed")).unwrap_err().0, 4);
+    let mixed = entry("kept", "listed").replace("object: 9\n", "object: 9\ndirection: 31\n");
+    assert_eq!(ledger::read(&mixed).unwrap_err().0, 1);
+    let causeless =
+        entry("kept", "listed").replace("cause: The game lists it by another name.", "cause:");
+    assert_eq!(ledger::read(&causeless).unwrap_err().0, 6);
+}
+
+// R9: a report of a story with an inventory command has one more line, and a
+// detail line for each difference. Without the command a report is what it was.
+#[test]
+fn a_report_may_hold_the_inventory_comparison() {
+    use zmachine_corpus::report::{Difference, Inventory};
+    let mut report = sample();
+    report.inventory = Some(Inventory {
+        compared: 20,
+        agreed: 15,
+        differed_known: 2,
+        differed_unexplained: 1,
+        unjudged: 2,
+        no_listing: 1,
+        empty: 3,
+        unknown: 4,
+        through_closed: 5,
+    });
+    report.inventory_detail = vec![
+        (
+            Difference {
+                room: 3,
+                object: 9,
+                seen: false,
+                listed: true,
+            },
+            2,
+        ),
+        (
+            Difference {
+                room: 3,
+                object: 8,
+                seen: true,
+                listed: false,
+            },
+            1,
+        ),
+    ];
+    let written = report.write();
+    assert!(
+        written.contains(
+            "no-verdict 1\ninventory compared 20 agreed 15 differed-known 2 differed-unexplained 1 unjudged 2 no-listing 1 empty 3 unknown 4 through-closed 5\ndetail\n"
+        ),
+        "{written}"
+    );
+    assert!(
+        written.ends_with(
+            "3 31 fixed 2 lost 1\ninventory 3 8 seen unlisted 1\ninventory 3 9 kept listed 2\n"
+        ),
+        "{written}"
+    );
+    report.inventory_detail.sort();
+    assert_eq!(Report::read(&written), Ok(report));
+    assert!(!sample().write().contains("inventory"));
+
+    let with = |from: &str, to: &str| {
+        assert!(written.contains(from), "{from}");
+        Report::read(&written.replace(from, to))
+            .expect_err("refused")
+            .0
+    };
+    // The objects compared are those agreed, differed and unjudged.
+    assert_eq!(with("compared 20", "compared 21"), 13);
+    assert_eq!(with("through-closed 5", "through-closed many"), 13);
+    assert_eq!(
+        with(
+            "inventory 3 8 seen unlisted 1",
+            "inventory 3 8 seen listed 1"
+        ),
+        20
+    );
+    assert_eq!(
+        with(
+            "inventory 3 8 seen unlisted 1",
+            "inventory 3 sack seen unlisted 1"
+        ),
+        20
+    );
+    // An exit's detail after an inventory's.
+    let late = written.clone() + "3 31 fixed 2 stayed 1\n";
+    assert_eq!(Report::read(&late).expect_err("refused").0, 22);
+    // A detail line in a report with no comparison.
+    let plain = sample().write() + "inventory 3 8 seen unlisted 1\n";
+    assert_eq!(Report::read(&plain).expect_err("refused").0, 19);
 }

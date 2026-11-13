@@ -110,6 +110,12 @@ pub fn proofs(
             packs::prove_open(with),
         ));
     }
+    if let Some(attribute) = found.pack.transparent_attribute {
+        out.push((
+            format!("transparent-attribute {attribute}"),
+            packs::prove_transparent(with),
+        ));
+    }
     for &variable in &found.pack.untrusted_variables {
         let rest = packs::text(&found.pack, Some(variable));
         let proof = match report_with(root, story, ledger, Some(&rest)) {
@@ -132,6 +138,15 @@ pub fn command(root: &Path, mode: Mode, ids: &[String]) -> (Vec<String>, i32) {
         Ok(loaded) => loaded,
         Err(why) => return (vec![why], 1),
     };
+    if let Some(line) = ledger
+        .inventory
+        .iter()
+        .find(|e| !stories.iter().any(|s| s.id == e.story))
+        .map(|e| e.line)
+    {
+        let why = format!("{LEDGER}:{line}: the entry's story is not in the manifest");
+        return (vec![why], 1);
+    }
     if let Some(entry) = ledger
         .entries
         .iter()
@@ -162,6 +177,7 @@ pub fn command(root: &Path, mode: Mode, ids: &[String]) -> (Vec<String>, i32) {
     let mut failed = false;
     // The ledger's entries that a trial of this run matched.
     let mut matched = vec![false; ledger.entries.len()];
+    let mut matched_inventory = vec![false; ledger.inventory.len()];
     let mut ran: Vec<&str> = Vec::new();
     // The summary kept, and the lines of this run's stories.
     let kept_read = std::fs::read_to_string(root.join(SUMMARY))
@@ -200,6 +216,35 @@ pub fn command(root: &Path, mode: Mode, ids: &[String]) -> (Vec<String>, i32) {
             .collect();
         for (entry, matched) in ledger.entries.iter().zip(&mut matched) {
             *matched |= entry.story == story.id && wrong.contains(&&entry.case);
+        }
+        for (entry, matched) in ledger.inventory.iter().zip(&mut matched_inventory) {
+            *matched |= entry.story == story.id
+                && fresh
+                    .inventory_detail
+                    .iter()
+                    .any(|(difference, _)| *difference == entry.difference);
+        }
+        // A difference between what is seen of the inventory and what the game
+        // lists, with no cause written, fails as a wrong exit does.
+        let differing: Vec<String> = fresh
+            .inventory_detail
+            .iter()
+            .filter(|(difference, _)| !ledger.knows_inventory(&story.id, difference))
+            .map(|(d, _)| {
+                format!(
+                    "{} inventory wrong {} {} {} {}",
+                    story.id,
+                    d.room,
+                    d.object,
+                    if d.seen { "seen" } else { "kept" },
+                    if d.listed { "listed" } else { "unlisted" }
+                )
+            })
+            .collect();
+        if mode == Mode::Run && !differing.is_empty() {
+            lines.extend(differing);
+            failed = true;
+            continue;
         }
         let unexplained: Vec<&&Case> = wrong
             .iter()
@@ -299,6 +344,15 @@ pub fn command(root: &Path, mode: Mode, ids: &[String]) -> (Vec<String>, i32) {
     }
     // An entry that no trial matched, for a story that ran, has outlived its case.
     if mode == Mode::Run {
+        for (entry, matched) in ledger.inventory.iter().zip(matched_inventory) {
+            if !matched && ran.contains(&entry.story.as_str()) {
+                lines.push(format!(
+                    "{LEDGER}:{}: the entry matches no comparison",
+                    entry.line
+                ));
+                failed = true;
+            }
+        }
         for (entry, matched) in ledger.entries.iter().zip(matched) {
             if !matched && ran.contains(&entry.story.as_str()) {
                 lines.push(format!(

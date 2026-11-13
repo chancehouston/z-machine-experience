@@ -2,7 +2,7 @@
 //! "Snapshot JSON"). One line; every field always present, `null` where it has
 //! no value.
 
-use crate::{CompassPlace, Extra, Session, Status, Turn};
+use crate::{CompassPlace, Extra, Session, Status, StripItem, Turn};
 
 fn text(out: &mut String, value: &str) {
     out.push('"');
@@ -148,6 +148,29 @@ pub(crate) fn snapshot(session: &Session, since: usize) -> String {
     list(&mut out, &compass.places, place);
     key(&mut out, "extras");
     list(&mut out, &compass.extras, extra);
+    out.push('}');
+    let strip = session.inventory();
+    key(&mut out, "inventory");
+    out.push('{');
+    key(&mut out, "known");
+    out.push_str(if strip.known { "true" } else { "false" });
+    key(&mut out, "note");
+    optional_text(&mut out, strip.note);
+    key(&mut out, "spoken");
+    text(&mut out, &strip.spoken);
+    key(&mut out, "items");
+    list(&mut out, &strip.items, item);
     out.push_str("}}");
     out
+}
+
+fn item(out: &mut String, item: &StripItem) {
+    out.push('{');
+    key(out, "name");
+    text(out, &item.name);
+    key(out, "state");
+    text(out, item.state.as_str());
+    key(out, "contents");
+    list(out, &item.contents, self::item);
+    out.push('}');
 }

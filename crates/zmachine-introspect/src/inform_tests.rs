@@ -560,3 +560,64 @@ fn dictionary_parts_of_speech() {
     );
     assert_eq!(find("take").direction, None);
 }
+
+// I§7.1 (specs/007-inventory-panel/contracts/answers.md A§8): the Inform library
+// fixes the attributes, so the marks need no pack. A thing that holds something
+// is open with attribute 14 and closed without; what it holds is seen if it is
+// open, has attribute 23, or is a supporter, which has no state.
+#[test]
+fn inventory_marks_follow_the_librarys_attributes() {
+    use crate::{ContainerState, Source};
+    let marks = |setup: Vec<Vec<u8>>| {
+        let m = after(setup);
+        let view = m.view();
+        let carried = introspect(&m).inventory(&view).value.unwrap();
+        let holder = carried[0].clone();
+        assert_eq!(holder.seen, Tri::Yes);
+        for entry in [&holder, &holder.contents[0]] {
+            assert_eq!(entry.source, Source::File);
+        }
+        (
+            holder.state,
+            holder.contents[0].seen,
+            holder.contents[0].state,
+        )
+    };
+    let carry_box = || insert(inf::BOX, inf::PLAYER);
+    // The box starts open.
+    assert_eq!(
+        marks(vec![carry_box()]),
+        (Some(ContainerState::Open), Tri::Yes, None)
+    );
+    assert_eq!(
+        marks(vec![carry_box(), clear_attr(inf::BOX, 14)]),
+        (Some(ContainerState::Closed), Tri::No, None)
+    );
+    assert_eq!(
+        marks(vec![
+            carry_box(),
+            clear_attr(inf::BOX, 14),
+            set_attr(inf::BOX, 23)
+        ]),
+        (Some(ContainerState::Closed), Tri::Yes, None)
+    );
+    // A supporter carried: what is on it is seen, and it is neither open nor closed.
+    assert_eq!(
+        marks(vec![insert(inf::TABLE, inf::PLAYER)]),
+        (None, Tri::Yes, None)
+    );
+    // A closed box in the open box: the coin moved into it is not seen.
+    let m = after(vec![
+        carry_box(),
+        insert(inf::CAGE, inf::BOX),
+        insert(inf::COIN, inf::CAGE),
+    ]);
+    let view = m.view();
+    let carried = introspect(&m).inventory(&view).value.unwrap();
+    let cage = &carried[0].contents[0];
+    assert_eq!(
+        (cage.object, cage.seen, cage.state),
+        (inf::CAGE, Tri::Yes, Some(ContainerState::Closed))
+    );
+    assert_eq!(cage.contents[0].seen, Tri::No);
+}

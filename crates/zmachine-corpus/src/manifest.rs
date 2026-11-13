@@ -30,6 +30,12 @@ pub struct Story {
     /// Commands given at the first command prompts, each of which is a place,
     /// before the crawl starts (specs/006-game-packs/research.md R12).
     pub first: Vec<String>,
+    /// The command that asks the game what the player carries
+    /// (specs/007-inventory-panel/research.md R3).
+    pub inventory: Option<String>,
+    /// Short walks from the start, at whose prompts the inventory is compared
+    /// and no exit is tried (research R2).
+    pub asides: Vec<Vec<String>>,
     /// The crawl's budget for this story, when not the default.
     pub rooms: Option<usize>,
     pub trials: Option<usize>,
@@ -37,7 +43,7 @@ pub struct Story {
     pub line: usize,
 }
 
-const KEYS: [&str; 15] = [
+const KEYS: [&str; 17] = [
     "id",
     "sha256",
     "size",
@@ -51,6 +57,8 @@ const KEYS: [&str; 15] = [
     "walkthrough",
     "opening",
     "first",
+    "inventory",
+    "aside",
     "rooms",
     "trials",
 ];
@@ -86,7 +94,8 @@ pub fn read(text: &str) -> Result<Vec<Story>, Refusal> {
         if !KEYS.contains(&key) {
             return Err((number, format!("`{key}` is not a key of the manifest")));
         }
-        if !["opening", "first"].contains(&key) && entry.iter().any(|(_, k, _)| *k == key) {
+        if !["opening", "first", "aside"].contains(&key) && entry.iter().any(|(_, k, _)| *k == key)
+        {
             return Err((number, format!("`{key}` is given twice")));
         }
         entry.push((number, key, value));
@@ -115,6 +124,8 @@ fn story(entry: &[(usize, &str, &str)]) -> Result<Story, Refusal> {
         walkthrough: None,
         opening: Vec::new(),
         first: Vec::new(),
+        inventory: None,
+        asides: Vec::new(),
         rooms: None,
         trials: None,
         line: first,
@@ -162,6 +173,10 @@ fn story(entry: &[(usize, &str, &str)]) -> Result<Story, Refusal> {
                 other => other.to_string(),
             }),
             "first" => story.first.push(value.to_string()),
+            "inventory" => story.inventory = Some(value.to_string()),
+            "aside" => story
+                .asides
+                .push(value.split(" / ").map(str::to_string).collect()),
             "rooms" | "trials" => match number(value) {
                 Some(n) if key == "rooms" => story.rooms = Some(n as usize),
                 Some(n) => story.trials = Some(n as usize),
@@ -198,6 +213,12 @@ fn story(entry: &[(usize, &str, &str)]) -> Result<Story, Refusal> {
             ));
         }
         _ => {}
+    }
+    if story.inventory.is_none() && !story.asides.is_empty() {
+        return Err((
+            line_of("aside"),
+            "an aside compares the inventory, and needs `inventory`".to_string(),
+        ));
     }
     if story.walkthrough.is_some() && !story.first.is_empty() {
         return Err((

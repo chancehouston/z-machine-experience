@@ -7,9 +7,10 @@ use zmachine_core::{Event, Key, LoadError, LoadOptions, Machine, Settings};
 use zmachine_introspect::{Family, Introspector};
 
 use crate::directions::{Direction, directions};
+use crate::inventory::Asked;
 use crate::ledger::Ledger;
 use crate::manifest::Story;
-use crate::report::{Case, Outcomes, Reached, Report};
+use crate::report::{Case, Difference, Inventory, Outcomes, Reached, Report};
 use crate::trial::{LIMIT, Outcome, room, trial};
 use crate::verdict::{Reported, Verdict, judge, reported};
 
@@ -185,6 +186,9 @@ struct Tally {
     /// A room and direction whose trials are to be shown, and what they showed.
     watch: Option<(u16, u8)>,
     shown: Vec<Shown>,
+    /// The inventory comparison: its figures, and each difference.
+    inventory: Inventory,
+    differences: BTreeMap<Difference, usize>,
 }
 
 /// One trial as a person would have seen it: for `corpus explain`.
@@ -203,9 +207,47 @@ pub struct Shown {
 struct Tools {
     introspector: Introspector,
     directions: Vec<Direction>,
+    /// The story's inventory command, if the manifest gives one.
+    inventory: Option<String>,
 }
 
 impl Tally {
+    /// Sets what the interface says is seen of the inventory at a place against
+    /// the game's own listing, asked of a copy
+    /// (specs/007-inventory-panel/research.md R3, R4).
+    fn compare(&mut self, tools: &Tools, machine: &Machine) {
+        let Some(command) = &tools.inventory else {
+            return;
+        };
+        let here = room(machine, &tools.introspector).unwrap_or(0);
+        match crate::inventory::ask(machine, &tools.introspector, command) {
+            Asked::Unknown => self.inventory.unknown += 1,
+            Asked::Empty => self.inventory.empty += 1,
+            Asked::NoListing => self.inventory.no_listing += 1,
+            Asked::Listed(all) => {
+                for object in all {
+                    self.inventory.compared += 1;
+                    match object.seen {
+                        None => self.inventory.unjudged += 1,
+                        Some(seen) if seen == object.listed => {
+                            self.inventory.agreed += 1;
+                            self.inventory.through_closed += object.through_closed as usize;
+                        }
+                        Some(seen) => {
+                            let difference = Difference {
+                                room: here,
+                                object: object.object,
+                                seen,
+                                listed: object.listed,
+                            };
+                            *self.differences.entry(difference).or_default() += 1;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     /// Runs a trial of every direction at a place, `most` trials at the most.
     /// Returns the copies that moved, each with the room it reached, in the
     /// order tried.
@@ -229,6 +271,7 @@ impl Tally {
         if let Some(room) = here {
             self.visited.insert(room);
         }
+        self.compare(tools, machine);
         let mut moved = Vec::new();
         for direction in &tools.directions {
             if self.trials == stop_at {
@@ -289,7 +332,7 @@ pub fn family(introspector: &Introspector) -> &'static str {
     }
 }
 
-fn tools(machine: &Machine, pack: Option<&str>) -> Tools {
+fn tools(machine: &Machine, pack: Option<&str>, story: &Story) -> Tools {
     let view = machine.view();
     let introspector = match pack {
         Some(text) => Introspector::with_pack(&view, text),
@@ -299,6 +342,7 @@ fn tools(machine: &Machine, pack: Option<&str>) -> Tools {
     Tools {
         introspector,
         directions,
+        inventory: story.inventory.clone(),
     }
 }
 
@@ -336,6 +380,11 @@ pub fn run_story_with(
     pack: Option<&str>,
     watch: Option<(u16, u8)>,
 ) -> (Report, Vec<u16>, Vec<Shown>) {
+    let aside_bytes = if story.asides.is_empty() {
+        Vec::new()
+    } else {
+        bytes.clone()
+    };
     let mut report = Report {
         id: story.id.clone(),
         sha256: story.sha256.clone(),
@@ -348,14 +397,16 @@ pub fn run_story_with(
     };
     // The family is a fact about the file, whether or not any place is reached.
     if let Ok(machine) = load(bytes.clone(), story.seed) {
-        let made = tools(&machine, pack);
+        let made = tools(&machine, pack, story);
         report.family = family(&made.introspector).to_string();
         report.pack = made.introspector.pack();
         if report.pack == zmachine_introspect::PackState::InForce {
             report.entries = pack
                 .and_then(|text| zmachine_introspect::Pack::parse(text).ok())
                 .map_or(0, |p| {
-                    p.open_attribute.is_some() as usize + p.untrusted_variables.len()
+                    p.open_attribute.is_some() as usize
+                        + p.untrusted_variables.len()
+                        + p.transparent_attribute.is_some() as usize
                 });
         }
     }
@@ -374,7 +425,7 @@ pub fn run_story_with(
             // Rooms a trial reached before the walkthrough did, in the order met.
             let mut beside: Vec<(u16, Machine)> = Vec::new();
             let replay = walkthrough(bytes, script, story.seed, |driver, line| {
-                let tools = made.get_or_insert_with(|| tools(&driver.machine, pack));
+                let tools = made.get_or_insert_with(|| tools(&driver.machine, pack, story));
                 let Some(at) = driver.command_address else {
                     return;
                 };
@@ -405,7 +456,7 @@ pub fn run_story_with(
                     driver.answer(line);
                 }
                 if waiting && driver.stop() == Wants::Command {
-                    made = Some(tools(&driver.machine, pack));
+                    made = Some(tools(&driver.machine, pack, story));
                     address = driver.command_address;
                     if let (Some(tools), Some(_)) = (&made, address) {
                         // A place whose room is unknown is still a place.
@@ -454,6 +505,31 @@ pub fn run_story_with(
         }
     }
     report.places = report.walkthrough + report.crawl;
+    // Asides: short walks from the start, for the inventory only (research R2).
+    for aside in &story.asides {
+        let Ok(mut driver) = Driver::new(aside_bytes.clone(), story.seed) else {
+            continue;
+        };
+        for line in &story.opening {
+            driver.stop();
+            driver.command_address = None;
+            driver.answer(line);
+        }
+        for command in aside.iter().map(Some).chain(std::iter::once(None)) {
+            if driver.stop() != Wants::Command {
+                break;
+            }
+            let tools = made.get_or_insert_with(|| tools(&driver.machine, pack, story));
+            tally.compare(tools, &driver.machine);
+            match command {
+                Some(command) => driver.answer(command),
+                None => break,
+            }
+        }
+    }
+    if story.inventory.is_some() {
+        report.inventory = Some(tally.inventory);
+    }
     let shown = std::mem::take(&mut tally.shown);
     (tally.into_report(report, ledger), order, shown)
 }
@@ -465,6 +541,16 @@ impl Tally {
         report.wordless = self.wordless;
         report.rooms_visited = self.visited.len();
         report.named_not_reached = self.named.difference(&self.visited).count();
+        if let Some(inventory) = &mut report.inventory {
+            for (difference, count) in &self.differences {
+                if ledger.knows_inventory(&report.id, difference) {
+                    inventory.differed_known += count;
+                } else {
+                    inventory.differed_unexplained += count;
+                }
+                report.inventory_detail.push((*difference, *count));
+            }
+        }
         for (case, count) in self.cases {
             let outcomes = |o: &mut Outcomes| match case.outcome {
                 Outcome::Moved(_) => o.moved += count,

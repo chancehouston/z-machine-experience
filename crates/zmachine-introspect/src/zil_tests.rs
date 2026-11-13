@@ -393,3 +393,41 @@ fn dictionary_parts_of_speech() {
     assert_eq!(find("down").parts, Ok(vec![Direction, Preposition]));
     assert_eq!(find("take").direction, None);
 }
+
+// I§7, I§7.2 (specs/007-inventory-panel/contracts/answers.md A§1 to 6, 9): with
+// no game pack, every top-level entry is seen; a thing that holds nothing has no
+// state; a thing that holds something has state unknown, and what it holds is
+// seen unknown; and every earlier field is what it was.
+#[test]
+fn inventory_marks_without_a_pack() {
+    use crate::{ContainerState, Source};
+    let m = after(vec![
+        insert(zl::SACK, zl::PLAYER),
+        insert(zl::DIAMOND, zl::GARLIC),
+    ]);
+    let view = m.view();
+    let carried = introspect(&m).inventory(&view).value.unwrap();
+    let (sack, lamp) = (&carried[0], &carried[1]);
+    assert_eq!((sack.object, lamp.object), (zl::SACK, zl::LAMP));
+    assert_eq!((sack.seen, lamp.seen), (Tri::Yes, Tri::Yes));
+    assert_eq!(lamp.state, None, "it holds nothing");
+    assert_eq!(sack.state, Some(ContainerState::Unknown));
+    let garlic = &sack.contents[0];
+    assert_eq!((garlic.object, garlic.seen), (zl::GARLIC, Tri::Unknown));
+    assert_eq!(garlic.state, Some(ContainerState::Unknown));
+    let diamond = &garlic.contents[0];
+    assert_eq!(
+        (diamond.object, diamond.seen, diamond.state),
+        (zl::DIAMOND, Tri::Unknown, None)
+    );
+    for entry in [sack, lamp, garlic, diamond] {
+        assert_eq!(entry.source, Source::File);
+        assert_eq!(entry.worn, Tri::Unknown);
+    }
+    assert_eq!(sack.name, Ok("sack".to_string()));
+    assert_eq!(
+        sack.contents.len(),
+        1,
+        "contents lists everything, whatever its marks"
+    );
+}

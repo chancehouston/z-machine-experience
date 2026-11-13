@@ -139,7 +139,8 @@ pub fn check(root: &Path, stories: &[Story], ledger: &Ledger) -> (Vec<String>, V
 /// A pack's text, with one untrusted variable left out if asked.
 pub fn text(pack: &Pack, without: Option<u8>) -> String {
     let mut out = format!(
-        "pack: 1\nsha256: {}\nrelease: {}\nserial: {}\n",
+        "pack: {}\nsha256: {}\nrelease: {}\nserial: {}\n",
+        pack.version,
         pack.sha256,
         pack.release,
         String::from_utf8_lossy(&pack.serial)
@@ -151,6 +152,9 @@ pub fn text(pack: &Pack, without: Option<u8>) -> String {
         if Some(*variable) != without {
             out.push_str(&format!("untrusted-variable: {variable}\n"));
         }
+    }
+    if let Some(attribute) = pack.transparent_attribute {
+        out.push_str(&format!("transparent-attribute: {attribute}\n"));
     }
     out
 }
@@ -166,6 +170,18 @@ pub fn prove_open(with: &Report) -> Proof {
         Proof::Proven
     } else {
         Proof::NotProven
+    }
+}
+
+/// Whether the run with the pack proves its `transparent-attribute` entry
+/// (specs/007-inventory-panel/research.md R8): the game's own listing agrees
+/// with what the interface says is seen wherever no cause is written, and at
+/// least one thing is seen through a closed thing and listed.
+pub fn prove_transparent(with: &Report) -> Proof {
+    match &with.inventory {
+        Some(inventory) if inventory.differed_unexplained > 0 => Proof::Contradicted,
+        Some(inventory) if inventory.through_closed > 0 => Proof::Proven,
+        _ => Proof::NotProven,
     }
 }
 
