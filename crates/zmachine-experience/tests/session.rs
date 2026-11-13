@@ -1210,19 +1210,24 @@ fn each_reply_is_given_to_be_spoken() {
     assert_eq!(s.announcement(), Some(opening.as_str()));
 }
 
-// N§12: the snapshot ends with the announcement, as text or as null.
+// N§12: the announcement is in the snapshot, as text or as null. (It was the
+// last key until feature 011 put `notice` and `start_over` after it.)
 #[test]
-fn the_snapshot_ends_with_the_announcement() {
+fn the_snapshot_holds_the_announcement() {
     let s = session(asker());
     assert!(
-        s.snapshot_json(0).ends_with(r#","announcement":"Ready."}"#),
+        s.snapshot_json(0)
+            .contains(r#","announcement":"Ready.","notice":null,"#),
         "{}",
         s.snapshot_json(0)
     );
     // A turn that is only a prompt has nothing to say.
     let s = session(looper());
     assert_eq!(s.announcement(), None);
-    assert!(s.snapshot_json(0).ends_with(r#","announcement":null}"#));
+    assert!(
+        s.snapshot_json(0)
+            .contains(r#","announcement":null,"notice":null,"#)
+    );
 }
 
 // N§3 to 5; FR-004: the note of darkness is said on the turn the dark falls,

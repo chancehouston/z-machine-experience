@@ -180,6 +180,11 @@ pub(crate) fn snapshot(session: &Session, since: usize) -> String {
     // What a screen reader is to speak for the newest turn (feature 010).
     key(&mut out, "announcement");
     optional_text(&mut out, session.announcement());
+    // Words to show once, and the question before starting over (feature 011).
+    key(&mut out, "notice");
+    optional_text(&mut out, session.notice());
+    key(&mut out, "start_over");
+    optional_text(&mut out, session.start_over());
     out.push('}');
     out
 }

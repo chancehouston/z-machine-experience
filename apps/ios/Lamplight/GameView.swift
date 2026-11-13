@@ -73,12 +73,23 @@ struct GameView: View {
                             tapExtra: { index in Task { await game.tap(extra: index) } })
                         Divider()
                     }
+                    // The layer's words to show once: an earlier game that
+                    // could not be brought back, or a place that is not kept.
+                    if let notice = showing.notice {
+                        Text(verbatim: notice)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal)
+                            .padding(.top, 8)
+                            .accessibilityIdentifier("notice")
+                    }
                     bottomBar(showing)
                 }
             }
         }
         .task { await game.start() }
-        .sheet(isPresented: $showingAbout) { AboutView() }
+        .sheet(isPresented: $showingAbout) { AboutView(game: game) }
     }
 
     @ViewBuilder

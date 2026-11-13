@@ -10,9 +10,23 @@ final class LamplightUITests: XCTestCase {
     @MainActor
     private func launch(_ arguments: [String] = ["-seed", "11"]) -> XCUIApplication {
         let app = XCUIApplication()
-        app.launchArguments = arguments
+        // The app brings back the game it kept (feature 011). `-fresh` has it
+        // give that up first, so that every test starts from a new game.
+        app.launchArguments = arguments + ["-fresh"]
         app.launch()
         return app
+    }
+
+    /// Ends the app abruptly, as the system may, and opens it again on what
+    /// it kept: without `-fresh`, with `adding` and without `removing`.
+    @MainActor
+    private func relaunch(
+        _ app: XCUIApplication, adding: [String] = [], removing: [String] = []
+    ) {
+        app.terminate()
+        app.launchArguments.removeAll { $0 == "-fresh" || removing.contains($0) }
+        app.launchArguments += adding
+        app.launch()
     }
 
     /// How long to wait for something that is expected to appear: five seconds.
@@ -88,22 +102,194 @@ final class LamplightUITests: XCTestCase {
         XCTAssertEqual(value(app, "status.moves"), "0")
     }
 
-    // FR-005; US1 scenario 4: a new process is a new game.
+    // -----------------------------------------------------------------
+    // Feature 011: the game comes back where it was left
+    // (specs/011-resume-game/contracts/kept-game.md, cited A§). It replaces
+    // feature 004's FR-005, "each launch is a new game", and the test of it.
+    // -----------------------------------------------------------------
+
+    // A§1, A§2; FR-001 to FR-005; US1 scenarios 1 to 4.
     @MainActor
-    func testEachLaunchIsANewGame() {
+    func testTheGameComesBackWhereItWasLeft() {
+        let app = launch()
+        let opening = turn(app, 0)
+        element(app, "compass.north").tap()
+        let north = turn(app, 1)
+        type(app, "open mailbox")
+        let mailbox = turn(app, 2)
+
+        relaunch(app)
+        XCTAssertEqual(turn(app, 2), mailbox)
+        XCTAssertEqual(turn(app, 1), north)
+        XCTAssertEqual(turn(app, 0), opening)
+        XCTAssertEqual(element(app, "status.place").label, "North of House")
+        XCTAssertEqual(value(app, "status.moves"), "2")
+        XCTAssertEqual(value(app, "compass.north"), "open")
+        XCTAssertFalse(element(app, "notice").exists)
+        // Nothing stands between opening the app and a command.
+        type(app, "look")
+        XCTAssertTrue(turn(app, 3).hasPrefix("North of House"))
+        XCTAssertEqual(value(app, "status.moves"), "3")
+    }
+
+    // FR-010 to FR-012; US2 scenario 1: ended abruptly after each of several
+    // commands, the app has every answered turn each time.
+    @MainActor
+    func testNothingAnsweredIsLostWhenTheAppIsEndedAbruptly() {
+        let app = launch()
+        var texts = [turn(app, 0)]
+        for (number, way) in ["north", "west", "north", "west"].enumerated() {
+            element(app, "compass.\(way)").tap()
+            texts.append(turn(app, number + 1))
+            relaunch(app)
+            for (earlier, text) in texts.enumerated() {
+                XCTAssertEqual(turn(app, earlier), text, "turn \(earlier) after \(number + 1)")
+            }
+            XCTAssertFalse(element(app, "turn.\(number + 2).text").exists)
+        }
+    }
+
+    // Edge case; FR-016: an ended game comes back ended, and New game starts
+    // without asking. The new game is then the one that comes back.
+    @MainActor
+    func testAnEndedGameComesBackEnded() {
+        let app = launch()
+        _ = turn(app, 0)
+        type(app, "quit")
+        _ = turn(app, 1)
+        type(app, "y")
+        let ending = turn(app, 2)
+        XCTAssertTrue(element(app, "button.newGame").waitForExistence(timeout: patience))
+
+        relaunch(app)
+        XCTAssertEqual(turn(app, 2), ending)
+        XCTAssertTrue(app.staticTexts["The game has ended."].exists)
+        XCTAssertFalse(element(app, "field.command").exists)
+        element(app, "button.newGame").tap()
+        XCTAssertTrue(element(app, "field.command").waitForExistence(timeout: patience))
+        XCTAssertFalse(element(app, "turn.1.text").exists)
+
+        relaunch(app)
+        _ = turn(app, 0)
+        XCTAssertFalse(element(app, "turn.1.text").waitForExistence(timeout: 2))
+        XCTAssertTrue(element(app, "field.command").exists)
+    }
+
+    // FR-027: on reopening, the newest reply is asked to be spoken, once.
+    @MainActor
+    func testTheNewestReplyIsSpokenOnceOnReopening() {
+        let app = launch(["-seed", "11", "-speakAlways"])
+        _ = turn(app, 0)
+        element(app, "compass.north").tap()
+        let north = turn(app, 1)
+        XCTAssertEqual(asked(app, times: 2), spoken(north))
+
+        relaunch(app)
+        _ = turn(app, 1)
+        XCTAssertEqual(asked(app, times: 1), spoken(north))
+    }
+
+    // A§4; FR-014, FR-015; US4 scenarios 1 to 3; SC-007: starting over asks
+    // first, in the layer's words, and is not undone by opening the app again.
+    @MainActor
+    func testStartingOverAsksAndIsNotUndone() {
+        let app = launch()
+        _ = turn(app, 0)
+        element(app, "compass.north").tap()
+        let north = turn(app, 1)
+
+        // The button can be touched once the sheet has finished rising.
+        let ready = NSPredicate(format: "exists == true AND isHittable == true")
+        element(app, "button.about").tap()
+        let startOver = element(app, "button.startOver")
+        expectation(for: ready, evaluatedWith: startOver)
+        waitForExpectations(timeout: patience)
+        startOver.tap()
+        let question = app.staticTexts["Start over? The game in progress will be given up."]
+        XCTAssertTrue(question.waitForExistence(timeout: patience))
+        // Declined: by the dialog's Cancel where the system gives it one,
+        // and otherwise by touching away from it.
+        if app.buttons["Cancel"].exists {
+            app.buttons["Cancel"].tap()
+        } else {
+            app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.1)).tap()
+        }
+        let unasked = NSPredicate(format: "exists == false")
+        expectation(for: unasked, evaluatedWith: question)
+        waitForExpectations(timeout: patience)
+        expectation(for: ready, evaluatedWith: startOver)
+        waitForExpectations(timeout: patience)
+        element(app, "button.aboutDone").tap()
+        XCTAssertEqual(turn(app, 1), north, "declined: nothing has changed")
+
+        element(app, "button.about").tap()
+        expectation(for: ready, evaluatedWith: startOver)
+        waitForExpectations(timeout: patience)
+        startOver.tap()
+        XCTAssertTrue(question.waitForExistence(timeout: patience))
+        // The dialog's own button: the one of that name that is not the
+        // sheet's, which the dialog covers.
+        app.buttons.matching(
+            NSPredicate(
+                format: "label == %@ AND identifier != %@", "Start over", "button.startOver")
+        ).firstMatch.tap()
+        // The sheet goes and the new game is alone on the screen.
+        let gone = NSPredicate(format: "exists == false")
+        expectation(for: gone, evaluatedWith: element(app, "turn.1.text"))
+        waitForExpectations(timeout: patience)
+        _ = turn(app, 0)
+        XCTAssertEqual(element(app, "status.place").label, "West of House")
+        XCTAssertFalse(startOver.exists, "the sheet has closed")
+
+        relaunch(app)
+        _ = turn(app, 0)
+        XCTAssertFalse(element(app, "turn.1.text").waitForExistence(timeout: 2))
+    }
+
+    // A§5, A§6; FR-018; US5 scenarios 1, 4 and 5: a kept game that cannot be
+    // brought back gives a new game, and says so once.
+    @MainActor
+    func testADamagedKeptGameGivesANewGameAndSaysSoOnce() {
         let app = launch()
         _ = turn(app, 0)
         element(app, "compass.north").tap()
         _ = turn(app, 1)
-        app.terminate()
-        app.launch()
+
+        relaunch(app, adding: ["-damageKept"])
         _ = turn(app, 0)
-        // Given time to appear, nothing of the last game does.
-        XCTAssertFalse(
-            element(app, "turn.1.text").waitForExistence(timeout: 2),
-            "nothing of the last game is shown")
+        XCTAssertFalse(element(app, "turn.1.text").waitForExistence(timeout: 2))
+        XCTAssertEqual(
+            element(app, "notice").label,
+            "Your earlier game could not be brought back. This is a new game.")
         XCTAssertEqual(element(app, "status.place").label, "West of House")
-        XCTAssertEqual(value(app, "status.moves"), "0")
+
+        // The new game was kept, and comes back like any other, unremarked.
+        relaunch(app, removing: ["-damageKept"])
+        _ = turn(app, 0)
+        XCTAssertFalse(element(app, "notice").exists)
+        XCTAssertTrue(element(app, "field.command").exists)
+    }
+
+    // FR-020 in the simulator: opening on a kept game is within the launch
+    // limit. The long games are timed in the layer's own tests.
+    @MainActor
+    func testLaunchTimeIntoAKeptGame() {
+        let given = ProcessInfo.processInfo.environment["LAUNCH_LIMIT_MILLIS"]
+        let limit = given.flatMap { Int($0) } ?? 2000
+        let app = launch(["-seed", "11", "-showLaunchTime"])
+        _ = turn(app, 0)
+        for (number, way) in ["north", "west", "north", "west", "north", "west"].enumerated() {
+            element(app, "compass.\(way)").tap()
+            _ = turn(app, number + 1)
+        }
+        relaunch(app)
+        _ = turn(app, 6)
+        let shown = element(app, "debug.launchMillis")
+        XCTAssertTrue(shown.waitForExistence(timeout: patience))
+        let millis = Int(shown.label) ?? -1
+        XCTAssertGreaterThan(millis, 0, shown.label)
+        XCTAssertLessThan(millis, limit, shown.label)
+        print("launch into a kept game of seven turns: \(millis) ms")
     }
 
     // S§ "The compass", "For automated tests"; FR-007, FR-008, FR-009, FR-012;

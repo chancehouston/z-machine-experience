@@ -52,8 +52,31 @@ model: model names differ from one version to the next.
 | `Lamplight/CompassLayout.swift` | Where each of the twelve places goes, and its symbol |
 | `Lamplight/CompassView.swift` | How each state is drawn |
 | `Lamplight/AboutView.swift` | The About sheet |
+| `Lamplight/KeptFile.swift` | Where the game in progress is kept on the device; it holds the layer's bytes and does not read them |
 | `Lamplight/Announcer.swift` | Posts the layer's announcement for a turn to the system's screen reader |
 | `LamplightUITests/` | Tests of the screen, by accessibility identifier |
+
+## The kept game
+
+The app brings back the game that was in progress when it was last open
+(`specs/011-resume-game/`). This replaces the first demo's rule that each launch is a
+new game (feature 004, FR-005).
+
+- **What is kept** is made by the experience layer and stored as it is: which story,
+  the chance the game began with, and each input the player gave. It holds no text of
+  the game. Its form is `specs/011-resume-game/contracts/kept-game.md`.
+- **Where**: `Application Support/Kept/<story>.kept` in the app's own space, left out
+  of backups. Removing the app removes it. It is never committed or bundled.
+- **When**: after every turn, before the reply is shown and before another command is
+  taken, written whole and moved into place.
+- **Starting over** is in the About sheet and asks first. "New game" after an ending
+  does not ask.
+- **A notice** above the command field, in the layer's words, says once when an
+  earlier game could not be brought back, or when the game cannot be stored.
+
+Launched with `-fresh`, the app gives up what it kept before it starts; the UI tests
+pass it so that each begins with a new game. A debug build launched with `-damageKept`
+overwrites the kept file first, for the test of a game that cannot be brought back.
 
 ## For a screen reader
 

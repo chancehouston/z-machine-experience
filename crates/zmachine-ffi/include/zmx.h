@@ -36,6 +36,31 @@ zmx_session *zmx_session_new_with_pack(const uint8_t *story, size_t length,
                                        uint32_t seed, int has_seed, uint32_t entropy,
                                        const char *pack, char **error);
 
+/* As zmx_session_new_with_pack, with a kept game
+ * (specs/011-resume-game/contracts/kept-game.md): kept_length bytes at kept,
+ * as zmx_session_kept gave them and the caller stored them, or NULL for none.
+ * The bytes are read before the call returns; they need not be text. With a
+ * kept game that can be brought back the session is that game, and seed and
+ * entropy are not used. If outcome is not NULL, *outcome is set to 0 for a new
+ * game with nothing kept, 1 for a game brought back, and 2 for a new game
+ * because the kept one could not be brought back; the session's snapshot then
+ * carries a notice saying so. */
+zmx_session *zmx_session_open(const uint8_t *story, size_t length,
+                              uint32_t seed, int has_seed, uint32_t entropy,
+                              const char *pack,
+                              const uint8_t *kept, size_t kept_length,
+                              int *outcome, char **error);
+
+/* The kept game for the session as it stands: UTF-8 text for the caller to
+ * store as it is and hand back to zmx_session_open. The caller frees it with
+ * zmx_string_free. NULL for a NULL session or one that has stopped
+ * unexpectedly; what was stored before is then to be left as it is. */
+char *zmx_session_kept(zmx_session *session);
+
+/* The caller could not store the kept game. The next snapshot carries a notice
+ * saying so, the first time in a game. NULL is allowed. */
+void zmx_session_keep_failed(zmx_session *session);
+
 /* Destroys a session. NULL is allowed. */
 void zmx_session_free(zmx_session *session);
 

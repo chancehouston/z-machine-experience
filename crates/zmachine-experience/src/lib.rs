@@ -9,6 +9,7 @@
 mod announce;
 mod compass;
 mod json;
+mod kept;
 mod light;
 pub mod lookahead;
 mod strip;
@@ -21,6 +22,8 @@ mod compass_tests;
 #[cfg(test)]
 mod json_tests;
 #[cfg(test)]
+mod kept_tests;
+#[cfg(test)]
 mod light_tests;
 #[cfg(test)]
 mod lookahead_tests;
@@ -28,6 +31,14 @@ mod lookahead_tests;
 mod strip_tests;
 
 pub use announce::NOTE_ENDED;
+
+/// The layer's words when a kept game could not be brought back.
+pub const NOTE_NOT_BROUGHT_BACK: &str =
+    "Your earlier game could not be brought back. This is a new game.";
+/// The layer's words when a host could not keep the game.
+pub const NOTE_NOT_KEPT: &str = "Your place is not being kept.";
+/// The layer's question before a game in progress is given up.
+pub const ASK_START_OVER: &str = "Start over? The game in progress will be given up.";
 pub use compass::{Compass, CompassPlace, Extra, NOTE_NONE, NOTE_UNKNOWN, Place, PlaceState};
 pub use light::{Light, NOTE_DARK};
 pub use strip::{ItemState, NOTE_NOT_KNOWN, NOTE_NOTHING, Strip, StripItem};
@@ -95,6 +106,18 @@ impl Waiting {
     }
 }
 
+/// What became of the kept game a session was opened with
+/// (specs/011-resume-game/contracts/kept-game.md, L§1).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum Outcome {
+    /// No kept game was given: a new game.
+    New,
+    /// The kept game was brought back.
+    BroughtBack,
+    /// The kept game could not be brought back: a new game, with a notice.
+    CouldNot,
+}
+
 /// The game's status line.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Status {
@@ -143,6 +166,18 @@ pub struct Session {
     was_dark: bool,
     /// What a screen reader is to speak for the newest turn.
     announcement: Option<String>,
+    /// The SHA-256 of the story file: which story a kept game is of.
+    identity: String,
+    /// What the game in progress was started with.
+    chance: Seed,
+    /// How many inputs have been answered: the turns after the opening that
+    /// a kept game holds. A command that brought a fault is not among them.
+    answered: usize,
+    /// Words to show once: set when a game is opened or keeping fails, and
+    /// cleared when the next turn is recorded.
+    notice: Option<&'static str>,
+    /// Whether the player has been told, in this game, that it is not kept.
+    keep_failed_told: bool,
 }
 
 fn load(story: &[u8], seed: Seed) -> Result<Machine, StartError> {
@@ -180,7 +215,20 @@ impl Session {
         seed: Seed,
         pack: Option<&str>,
     ) -> Result<Session, StartError> {
+        Session::start(story, seed, pack, lookahead::LIMITS, INSTRUCTION_CEILING)
+    }
+
+    /// Loads the story file and runs it to its first stop, with these limits
+    /// in force from the first instruction.
+    fn start(
+        story: Vec<u8>,
+        seed: Seed,
+        pack: Option<&str>,
+        look_ahead: lookahead::Limits,
+        ceiling: u64,
+    ) -> Result<Session, StartError> {
         let machine = load(&story, seed)?;
+        let identity = kept::digest(&story);
         // The interface is made once for the story file, so a pack in force
         // stays in force through every new game.
         let introspector = match pack {
@@ -201,14 +249,148 @@ impl Session {
             compass: Compass::idle(),
             strip: Strip::default(),
             light: Light::default(),
-            ceiling: INSTRUCTION_CEILING,
-            look_ahead: lookahead::LIMITS,
+            ceiling,
+            look_ahead,
             looked: (0, 0),
             was_dark: false,
             announcement: None,
+            identity,
+            chance: seed,
+            answered: 0,
+            notice: None,
+            keep_failed_told: false,
         };
         session.open();
         Ok(session)
+    }
+
+    /// Makes a session from a story and, perhaps, a kept game
+    /// (specs/011-resume-game/contracts/kept-game.md, L§1). With kept bytes
+    /// that can be brought back, the game is the one they were made from, and
+    /// `chance` is not used. Otherwise it is a new game with `chance`; and if
+    /// kept bytes were given, the session has a notice saying they could not
+    /// be brought back.
+    pub fn open_kept(
+        story: Vec<u8>,
+        pack: Option<&str>,
+        chance: Seed,
+        kept: Option<&[u8]>,
+    ) -> Result<(Session, Outcome), StartError> {
+        Session::open_kept_within(story, pack, chance, kept, INSTRUCTION_CEILING)
+    }
+
+    /// As [`Session::open_kept`], with the instruction ceiling to hold while
+    /// the kept inputs are given. A host has no need to; tests do.
+    pub fn open_kept_within(
+        story: Vec<u8>,
+        pack: Option<&str>,
+        chance: Seed,
+        kept: Option<&[u8]>,
+        ceiling: u64,
+    ) -> Result<(Session, Outcome), StartError> {
+        let Some(bytes) = kept else {
+            return Session::with_pack(story, chance, pack).map(|s| (s, Outcome::New));
+        };
+        if let Some(session) = Session::bring_back(&story, pack, bytes, ceiling) {
+            return Ok((session, Outcome::BroughtBack));
+        }
+        let mut session = Session::with_pack(story, chance, pack)?;
+        session.notice = Some(NOTE_NOT_BROUGHT_BACK);
+        session.announce_notice();
+        Ok((session, Outcome::CouldNot))
+    }
+
+    /// The game a kept game was made from, or none if these bytes are not
+    /// one this story can be brought back from (L§2).
+    fn bring_back(story: &[u8], pack: Option<&str>, bytes: &[u8], ceiling: u64) -> Option<Session> {
+        let kept = kept::Kept::from_bytes(bytes).ok()?;
+        if kept.story != kept::digest(story) {
+            return None;
+        }
+        // Look-ahead tries ways on copies and never touches the game, so it
+        // is left out until the last stop, where it gives what it gave
+        // before (research R2).
+        let limits = |last: bool| {
+            if last {
+                lookahead::LIMITS
+            } else {
+                lookahead::OFF
+            }
+        };
+        let count = kept.inputs.len();
+        let mut session = Session::start(
+            story.to_vec(),
+            kept.chance,
+            pack,
+            limits(count == 0),
+            ceiling,
+        )
+        .ok()?;
+        for (index, (source, line)) in kept.inputs.iter().enumerate() {
+            // Each kept input was answered by a game that was waiting.
+            if !matches!(session.waiting, Waiting::Command | Waiting::Answer) {
+                return None;
+            }
+            session.look_ahead = limits(index + 1 == count);
+            session.give(line, *source);
+        }
+        session.look_ahead = lookahead::LIMITS;
+        session.ceiling = INSTRUCTION_CEILING;
+        if session.waiting == Waiting::Fault || session.answered != count {
+            return None;
+        }
+        let texts = session.turns.iter().map(|turn| turn.text.as_str());
+        (kept::transcript(texts) == kept.transcript).then_some(session)
+    }
+
+    /// The bytes a host stores so that this game can be brought back (L§6):
+    /// every answered input, and what is needed to know the game they give.
+    pub fn kept(&self) -> Vec<u8> {
+        let turns = &self.turns[..=self.answered.min(self.turns.len().saturating_sub(1))];
+        let inputs = turns
+            .iter()
+            .filter_map(|turn| Some((turn.source?, turn.command.clone()?)))
+            .collect();
+        kept::Kept {
+            story: self.identity.clone(),
+            chance: self.chance,
+            inputs,
+            transcript: kept::transcript(turns.iter().map(|turn| turn.text.as_str())),
+        }
+        .to_bytes()
+    }
+
+    /// A host could not store the kept game. The first time in a game, the
+    /// notice says so; after that nothing is said until a new game (L§8).
+    pub fn keep_failed(&mut self) {
+        if !self.keep_failed_told {
+            self.keep_failed_told = true;
+            self.notice = Some(NOTE_NOT_KEPT);
+        }
+    }
+
+    /// Words for the player to be shown once, or none.
+    pub fn notice(&self) -> Option<&str> {
+        self.notice
+    }
+
+    /// The question to put before this game is given up for a new one, or
+    /// none where nothing would be given up: the game has ended or faulted.
+    pub fn start_over(&self) -> Option<&str> {
+        match self.waiting {
+            Waiting::Command | Waiting::Answer => Some(ASK_START_OVER),
+            Waiting::Ended | Waiting::Fault => None,
+        }
+    }
+
+    /// Puts the notice before what is to be spoken for the newest turn (L§9).
+    fn announce_notice(&mut self) {
+        if let Some(notice) = self.notice {
+            self.announcement = Some(match self.announcement.take() {
+                Some(rest) => format!("{notice}\n{rest}"),
+                None => notice.to_string(),
+            });
+        }
     }
 
     /// Lowers or raises the instruction ceiling. A host has no need to; tests do.
@@ -393,6 +575,7 @@ impl Session {
             self.announce();
             return;
         }
+        self.notice = None;
         let text = self.advance();
         self.turns.push(Turn {
             number: self.turns.len(),
@@ -400,6 +583,11 @@ impl Session {
             source: Some(source),
             text,
         });
+        // A command that brought a fault is not kept: the game brought back
+        // is the one before it (specs/011-resume-game/research.md, R6).
+        if self.waiting != Waiting::Fault && self.answered + 2 == self.turns.len() {
+            self.answered += 1;
+        }
         self.announce();
     }
 
@@ -457,6 +645,10 @@ impl Session {
         self.status = None;
         self.was_dark = false;
         self.command_address = None;
+        self.chance = seed;
+        self.answered = 0;
+        self.notice = None;
+        self.keep_failed_told = false;
         match load(&self.story, seed) {
             Ok(machine) => {
                 self.machine = machine;

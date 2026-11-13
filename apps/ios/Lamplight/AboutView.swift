@@ -3,7 +3,10 @@ import SwiftUI
 /// The app's name, what it is, and the bundled story's source and license as
 /// the repository records them.
 struct AboutView: View {
+    /// The game, for starting over.
+    let game: Game
     @Environment(\.dismiss) private var dismiss
+    @State private var asking = false
 
     private var license: String {
         guard let url = Bundle.main.url(forResource: "story-license", withExtension: "txt"),
@@ -29,6 +32,13 @@ struct AboutView: View {
             .joined(separator: "\n\n")
     }
 
+    private func startOver() {
+        Task {
+            await game.newGame()
+            dismiss()
+        }
+    }
+
     var body: some View {
         NavigationStack {
             ScrollView {
@@ -37,6 +47,27 @@ struct AboutView: View {
                         .font(.largeTitle.bold())
                     Text("A demonstration: a classic text adventure with a compass that shows where you can go.")
                         .accessibilityIdentifier("about.demonstration")
+                    // Giving up a game in progress is asked about first, in
+                    // the layer's words. Where the layer has no question
+                    // there is nothing to give up.
+                    Button("Start over", role: .destructive) {
+                        if game.showing?.startOver == nil {
+                            startOver()
+                        } else {
+                            asking = true
+                        }
+                    }
+                    .disabled(game.showing == nil || game.busy)
+                    .accessibilityIdentifier("button.startOver")
+                    .confirmationDialog(
+                        Text(verbatim: game.showing?.startOver ?? ""),
+                        isPresented: $asking, titleVisibility: .visible
+                    ) {
+                        Button("Start over", role: .destructive) { startOver() }
+                            .accessibilityIdentifier("button.startOverConfirm")
+                        Button("Cancel", role: .cancel) {}
+                    }
+                    Divider()
                     Text("The bundled story")
                         .font(.headline)
                     Text(verbatim: license)

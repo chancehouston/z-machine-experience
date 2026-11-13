@@ -11,17 +11,37 @@ struct StartFailure: Error {
 actor Engine {
     private let session: OpaquePointer
 
+    /// Where the game is kept between launches, if the device gives a place.
+    private let keptFile: KeptFile?
+
     /// Loads the story and runs it to its first stop. With no seed, the game's
     /// randomness comes from the system's generator. `pack` is the text of the
     /// story's game pack, if it has one: the layer decides whether it applies.
-    init(story: Data, pack: String?, seed: UInt32?) throws(StartFailure) {
+    /// If `keptFile` holds a game, the layer brings it back, or says in its
+    /// first snapshot that it could not.
+    init(story: Data, pack: String?, seed: UInt32?, keptFile: KeptFile?) throws(StartFailure) {
         var generator = SystemRandomNumberGenerator()
         let entropy = UInt32.random(in: .min ... .max, using: &generator)
         var error: UnsafeMutablePointer<CChar>?
-        let made = story.withUnsafeBytes { bytes in
-            zmx_session_new_with_pack(
-                bytes.bindMemory(to: UInt8.self).baseAddress, bytes.count,
-                seed ?? 0, seed == nil ? 0 : 1, entropy, pack, &error)
+        let open = { (kept: UnsafePointer<UInt8>?, length: Int) in
+            story.withUnsafeBytes { bytes in
+                zmx_session_open(
+                    bytes.bindMemory(to: UInt8.self).baseAddress, bytes.count,
+                    seed ?? 0, seed == nil ? 0 : 1, entropy, pack, kept, length, nil, &error)
+            }
+        }
+        let made: OpaquePointer?
+        if let kept = keptFile?.read() {
+            // An empty file is still a kept game that cannot be brought back:
+            // the layer is given a place to read no bytes from.
+            made = kept.withUnsafeBytes { bytes in
+                var none: UInt8 = 0
+                return withUnsafePointer(to: &none) { nothing in
+                    open(bytes.bindMemory(to: UInt8.self).baseAddress ?? nothing, bytes.count)
+                }
+            }
+        } else {
+            made = open(nil, 0)
         }
         guard let made else {
             let message = error.map { String(cString: $0) } ?? ""
@@ -29,6 +49,25 @@ actor Engine {
             throw StartFailure(message: message)
         }
         session = made
+        self.keptFile = keptFile
+    }
+
+    /// Stores the game as it stands, so that it can be brought back. If it
+    /// cannot be stored the layer is told, and its next snapshot says so:
+    /// the answer is then false.
+    func keep() -> Bool {
+        guard let keptFile else { return true }
+        // No text: the session has stopped unexpectedly, and what was stored
+        // before is left as it is.
+        guard let text = zmx_session_kept(session) else { return true }
+        defer { zmx_string_free(text) }
+        do {
+            try keptFile.write(Data(bytes: text, count: strlen(text)))
+            return true
+        } catch {
+            zmx_session_keep_failed(session)
+            return false
+        }
     }
 
     isolated deinit {
