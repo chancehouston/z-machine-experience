@@ -236,7 +236,6 @@ impl Pack {
 /// Whether a pack's identity is that of the story file as shipped: its SHA-256,
 /// its release and its serial, all three (specification section 12.2).
 pub(crate) fn matches(pack: &Pack, view: &View<'_>) -> bool {
-    use sha2::{Digest, Sha256};
     let serial: Option<Vec<u8>> = (0x12..0x18).map(|at| view.shipped_byte(at)).collect();
     if view.shipped_word(2) != Some(pack.release) || serial.as_deref() != Some(&pack.serial[..]) {
         return false;
@@ -244,9 +243,16 @@ pub(crate) fn matches(pack: &Pack, view: &View<'_>) -> bool {
     let shipped: Vec<u8> = (0..view.len())
         .filter_map(|at| view.shipped_byte(at))
         .collect();
-    let digest: String = Sha256::digest(&shipped)
+    shipped.len() == view.len() && sha256_hex(&shipped) == pack.sha256
+}
+
+/// The SHA-256 of `bytes` as 64 lower-case hex digits: the form in which a
+/// pack names its story file (specification section 12.2). The layer above
+/// names a story the same way, with this, and has no digest of its own.
+pub fn sha256_hex(bytes: &[u8]) -> String {
+    use sha2::{Digest, Sha256};
+    Sha256::digest(bytes)
         .iter()
         .map(|byte| format!("{byte:02x}"))
-        .collect();
-    shipped.len() == view.len() && digest == pack.sha256
+        .collect()
 }

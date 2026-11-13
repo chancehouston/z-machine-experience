@@ -75,11 +75,22 @@ What the first demo does today:
   spoken. The words are made by the experience layer; the app posts them and composes
   none. Heard on an iPhone on 2026-11-13; the tests check only what the app asks the
   system to speak.
+- **Brings the game back where it was left.** The app keeps the game in progress and,
+  when it is opened again, carries straight on: the whole transcript, the ways out and
+  what is carried, with no question asked. What it keeps is small: which story it is,
+  the chance the game was started with, and every command given. The experience layer
+  brings the game back by starting the story with that chance and giving it those
+  commands again, then checks a digest of the transcript; a game that cannot be brought
+  back (the file is damaged, or is another story's) gives a new game and one plain
+  message. Zork I's walkthrough, brought back after every one of its commands, is the
+  same game each time. "Start over", in the About sheet, asks before a game in progress
+  is given up. In the simulator so far; not yet tried on a phone.
 - **The app holds no rule of any game.** It draws what the experience layer reports and
   sends back taps and typed lines; tests read its source to hold it to that.
 
-What the demo does not do: remember a game between launches (the game's own `save` is
-declined politely), show the inventory or objects, or run on Android or a real device.
+What the demo does not do: answer the game's own `save` and `restore` (they are
+declined politely; the app keeps the game by itself), keep more than one game of a
+story, or run on Android.
 The compass goes dark whenever the game asks a question, and at one ordinary prompt of
 Zork I (the Loud Room, where the game reads its command from a different place in its
 code).

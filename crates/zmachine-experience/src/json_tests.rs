@@ -214,7 +214,11 @@ fn the_snapshot_has_every_field_in_order() {
             // Feature 008: whether the player is in the dark.
             "light",
             // Feature 010: what a screen reader is to speak for the newest turn.
-            "announcement"
+            "announcement",
+            // Feature 011: words to show once, and the question to ask
+            // before a game in progress is given up.
+            "notice",
+            "start_over"
         ]
     );
     assert_eq!(

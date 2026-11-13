@@ -15,11 +15,18 @@ struct Snapshot: Decodable, Sendable, Equatable {
     /// What a screen reader is to speak for the newest turn: the layer's
     /// text, whole. Nil where there is nothing to say.
     let announcement: String?
+    /// The layer's words to show once: that an earlier game could not be
+    /// brought back, or that this one is not being kept.
+    let notice: String?
+    /// The layer's question before this game is given up for a new one; nil
+    /// where nothing would be given up.
+    let startOver: String?
 
     enum CodingKeys: String, CodingKey {
         case generation, waiting, message, status, turns, compass, inventory, light
-        case announcement
+        case announcement, notice
         case turnCount = "turn_count"
+        case startOver = "start_over"
     }
 }
 

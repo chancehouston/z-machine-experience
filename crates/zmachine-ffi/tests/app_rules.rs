@@ -258,9 +258,10 @@ fn the_app_carries_its_storys_pack_and_reads_none_of_it() {
         "the pack is found by the story's resource name"
     );
     let engine = source("Lamplight/Engine.swift");
-    assert!(engine.contains("zmx_session_new_with_pack("));
+    // Since feature 011 the one way is the one that takes a kept game too.
+    assert!(engine.contains("zmx_session_open("));
     assert!(
-        !engine.contains("zmx_session_new("),
+        !engine.contains("zmx_session_new(") && !engine.contains("zmx_session_new_with_pack("),
         "one way of starting a session"
     );
     // No source of the app reads a pack's contents: no key of the format is

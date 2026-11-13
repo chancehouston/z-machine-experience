@@ -49,9 +49,22 @@ final class Game {
             // text is handed over as it is; the app reads none of it.
             let pack = Bundle.main.url(forResource: name, withExtension: "pack")
                 .flatMap { try? String(contentsOf: $0, encoding: .utf8) }
-            let engine = try Engine(story: story, pack: pack, seed: seed)
+            // The game in progress, kept from the last launch. `-fresh` gives
+            // it up first, so that a test starts from a new game.
+            let keptFile = KeptFile(story: name)
+            let arguments = ProcessInfo.processInfo.arguments
+            if arguments.contains("-fresh") {
+                keptFile?.remove()
+            }
+            #if DEBUG
+                // For a test of a kept game that cannot be brought back.
+                if arguments.contains("-damageKept") {
+                    try? keptFile?.write(Data("damaged".utf8))
+                }
+            #endif
+            let engine = try Engine(story: story, pack: pack, seed: seed, keptFile: keptFile)
             self.engine = engine
-            show(await engine.snapshot(since: 0))
+            show(await kept(engine, await engine.snapshot(since: 0), since: 0))
         } catch {
             startFailure = error.message
         }
@@ -76,8 +89,21 @@ final class Game {
     private func command(_ act: (Engine, Snapshot) async -> Snapshot?) async {
         guard !busy, let engine, let showing else { return }
         busy = true
-        show(await act(engine, showing))
+        let snapshot = await act(engine, showing)
+        // A new game's snapshot holds all its turns; a command's, the new ones.
+        let since = snapshot?.generation == showing.generation ? showing.turnCount : 0
+        show(await kept(engine, snapshot, since: since))
         busy = false
+    }
+
+    /// Has the game stored before its snapshot is shown, so that nothing the
+    /// player has seen answered can be lost, and no other command is taken
+    /// meanwhile. If it could not be stored, the snapshot shown is the one
+    /// in which the layer says so: asked for again, with the turns from
+    /// `since` as the first had them.
+    private func kept(_ engine: Engine, _ snapshot: Snapshot?, since: Int) async -> Snapshot? {
+        guard let snapshot, await !engine.keep() else { return snapshot }
+        return await engine.snapshot(since: since) ?? snapshot
     }
 
     private func show(_ snapshot: Snapshot?) {

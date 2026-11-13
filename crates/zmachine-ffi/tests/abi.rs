@@ -348,9 +348,12 @@ fn the_header_and_the_library_agree() {
         declared,
         [
             "zmx_session_free",
+            "zmx_session_keep_failed",
+            "zmx_session_kept",
             "zmx_session_new",
             "zmx_session_new_game",
             "zmx_session_new_with_pack",
+            "zmx_session_open",
             "zmx_session_send_line",
             "zmx_session_snapshot",
             "zmx_session_tap",
@@ -535,4 +538,83 @@ fn a_session_may_be_given_a_game_pack() {
     );
     assert!(none.is_null() && !error.is_null());
     zmx_string_free(error);
+}
+
+// specs/011-resume-game/contracts/kept-game.md, L§13 to L§15: a kept game is
+// given as text, taken back as bytes, and its outcome is reported.
+#[test]
+fn a_kept_game_crosses_the_boundary_and_comes_back() {
+    let story = story();
+    let open_with = |kept: Option<&[u8]>| {
+        let mut outcome = -1;
+        let session = zmx_session_open(
+            story.as_ptr(),
+            story.len(),
+            11,
+            1,
+            0,
+            std::ptr::null(),
+            kept.map_or(std::ptr::null(), <[u8]>::as_ptr),
+            kept.map_or(0, <[u8]>::len),
+            &mut outcome,
+            std::ptr::null_mut(),
+        );
+        assert!(!session.is_null());
+        (session, outcome)
+    };
+    let kept_of = |session: *mut zmx_session| {
+        let pointer = zmx_session_kept(session);
+        assert!(!pointer.is_null());
+        // SAFETY: the interface returned a NUL-terminated string that it owns
+        // until zmx_string_free.
+        let text = unsafe { CStr::from_ptr(pointer) }.to_bytes().to_vec();
+        zmx_string_free(pointer);
+        text
+    };
+
+    let (first, outcome) = open_with(None);
+    assert_eq!(outcome, 0);
+    for (turns, line) in [(1, "open mailbox"), (2, "north")] {
+        assert_eq!(zmx_session_send_line(first, 1, turns, c(line).as_ptr()), 1);
+    }
+    let kept = kept_of(first);
+    let left = snapshot(first, 0);
+
+    let (second, outcome) = open_with(Some(&kept));
+    assert_eq!(outcome, 1);
+    assert_eq!(snapshot(second, 0), left);
+    assert_eq!(kept_of(second), kept);
+
+    let (third, outcome) = open_with(Some(b"\0not a kept game\xff"));
+    assert_eq!(outcome, 2);
+    let new = snapshot(third, 0);
+    assert!(new.contains(r#""turn_count":1,"#), "{new}");
+    assert!(
+        new.contains(r#","notice":"Your earlier game could not be brought back."#),
+        "{new}"
+    );
+
+    // That it could not be stored is said in the next snapshot.
+    zmx_session_keep_failed(second);
+    assert!(snapshot(second, 3).contains(r#","notice":"Your place is not being kept.","#));
+
+    // Null is allowed everywhere, and a null outcome is not written to.
+    assert!(zmx_session_kept(std::ptr::null_mut()).is_null());
+    zmx_session_keep_failed(std::ptr::null_mut());
+    let quiet = zmx_session_open(
+        story.as_ptr(),
+        story.len(),
+        11,
+        1,
+        0,
+        std::ptr::null(),
+        kept.as_ptr(),
+        kept.len(),
+        std::ptr::null_mut(),
+        std::ptr::null_mut(),
+    );
+    assert!(!quiet.is_null());
+    for session in [first, second, third, quiet] {
+        zmx_session_free(session);
+    }
 }

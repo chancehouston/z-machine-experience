@@ -14,7 +14,7 @@
 
 use std::ffi::{CStr, CString, c_char, c_int};
 use std::panic::{AssertUnwindSafe, catch_unwind};
-use zmachine_experience::{Place, Seed, Session, Stamp};
+use zmachine_experience::{Outcome, Place, Seed, Session, Stamp};
 
 /// What the session reports after a call into it did not return.
 const STOPPED: &str = "The game stopped unexpectedly.";
@@ -120,6 +120,40 @@ pub extern "C" fn zmx_session_new_with_pack(
     pack: *const c_char,
     error: *mut *mut c_char,
 ) -> *mut zmx_session {
+    zmx_session_open(
+        story,
+        length,
+        seed,
+        has_seed,
+        entropy,
+        pack,
+        std::ptr::null(),
+        0,
+        std::ptr::null_mut(),
+        error,
+    )
+}
+
+/// As `zmx_session_new_with_pack`, with the bytes of a kept game
+/// (specs/011-resume-game/contracts/kept-game.md): `kept_length` bytes at
+/// `kept`, or null for none. With a kept game that can be brought back the
+/// session is that game, and the seed and entropy are not used. `outcome`,
+/// if not null, is written with 0 for a new game with nothing kept, 1 for a
+/// game brought back, and 2 for a new game because the kept one could not be
+/// brought back; the session then has a notice saying so.
+#[unsafe(no_mangle)]
+pub extern "C" fn zmx_session_open(
+    story: *const u8,
+    length: usize,
+    seed: u32,
+    has_seed: c_int,
+    entropy: u32,
+    pack: *const c_char,
+    kept: *const u8,
+    kept_length: usize,
+    outcome: *mut c_int,
+    error: *mut *mut c_char,
+) -> *mut zmx_session {
     let result = catch_unwind(|| {
         if story.is_null() {
             return Err("No story file was given.".to_string());
@@ -133,12 +167,27 @@ pub extern "C" fn zmx_session_new_with_pack(
         } else {
             Seed::Fresh(entropy)
         };
+        // SAFETY: `kept` is checked for null, and the caller passes
+        // `kept_length` readable bytes that stay valid for the length of the
+        // call. They are read, and nothing of them is held, before it returns.
+        let kept =
+            (!kept.is_null()).then(|| unsafe { std::slice::from_raw_parts(kept, kept_length) });
         // Null, or bytes that are not UTF-8, are no pack. The text is copied
         // into the interface before the call returns.
-        Session::with_pack(bytes, seed, text(pack)).map_err(|e| e.message)
+        Session::open_kept(bytes, text(pack), seed, kept).map_err(|e| e.message)
     });
     let message = match result {
-        Ok(Ok(session)) => {
+        Ok(Ok((session, came))) => {
+            if !outcome.is_null() {
+                let code = match came {
+                    Outcome::New => 0,
+                    Outcome::BroughtBack => 1,
+                    Outcome::CouldNot => 2,
+                };
+                // SAFETY: `outcome` is not null, and the caller passes a
+                // pointer to an `int` it may write to.
+                unsafe { *outcome = code };
+            }
             return Box::into_raw(Box::new(zmx_session {
                 session,
                 failed: false,
@@ -154,6 +203,35 @@ pub extern "C" fn zmx_session_new_with_pack(
         unsafe { *error = give_string(message) };
     }
     std::ptr::null_mut()
+}
+
+/// The kept game for the session as it stands: text for the caller to store
+/// as it is and hand back to `zmx_session_open`, freed with
+/// `zmx_string_free`. Null for a null session or one that has stopped
+/// unexpectedly; what was stored before is then left as it is.
+#[unsafe(no_mangle)]
+pub extern "C" fn zmx_session_kept(session: *mut zmx_session) -> *mut c_char {
+    let Some(wrapper) = borrow(session) else {
+        return std::ptr::null_mut();
+    };
+    if wrapper.failed {
+        return std::ptr::null_mut();
+    }
+    let kept = catch_unwind(AssertUnwindSafe(|| wrapper.session.kept()));
+    match kept.map(String::from_utf8) {
+        Ok(Ok(kept)) => give_string(kept),
+        _ => std::ptr::null_mut(),
+    }
+}
+
+/// The caller could not store the kept game. The session's next snapshot
+/// says so, the first time in a game.
+#[unsafe(no_mangle)]
+pub extern "C" fn zmx_session_keep_failed(session: *mut zmx_session) {
+    let Some(wrapper) = borrow(session) else {
+        return;
+    };
+    let _ = catch_unwind(AssertUnwindSafe(|| wrapper.session.keep_failed()));
 }
 
 #[unsafe(no_mangle)]
