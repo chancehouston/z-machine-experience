@@ -139,7 +139,7 @@ rule disagree with the attribute on purpose.
 - [x] T037 [US4] The snapshot's light in `crates/zmachine-experience/src/light.rs`; `dark_ahead` on a place and an extra in `compass.rs`; `lib.rs` and `json.rs`; T032 and T033 pass; earlier tests that fix a whole place or snapshot gain the keys and are listed
 - [x] T038 [US4] `Snapshot.swift` decodes them; the hand-made snapshots in the UI tests gain them and are listed
 - [x] T039 [US4] The note above the compass in `GameView.swift`; the badge in `CompassView.swift`; T034 passes
-- [ ] T040 [US4] Take simulator screenshots: a lit room beside a dark one, with the marked way; the dark room, with the note; the same way with the lamp on. Send them to the owner and **stop** for their eye. Record what was chosen
+- [x] T040 [US4] Take simulator screenshots: a lit room beside a dark one, with the marked way; the dark room, with the note; the same way with the lamp on. Send them to the owner and **stop** for their eye. Record what was chosen
 - [ ] T041 [US4] T035 and T036 pass on iOS 26 and 27
 
 ---
@@ -247,4 +247,8 @@ layer's note above the compass and a badge on a way into darkness.
 **Timings** (the owner's Mac, quiet): slowest of 20 starts 1.06 ms; 331 commands, mean
 69 µs, slowest 190 µs; the whole transcript 77 µs.
 
-**Not done**: T040, the owner's eye on the pictures; T045, play by hand with VoiceOver.
+**The owner's eye** (T040): shown the kitchen with the marked way, the dark attic with
+the note, and the kitchen with the lamp on, the owner kept the note and the badge as
+built.
+
+**Not done**: T045, play by hand with VoiceOver.

@@ -26,13 +26,14 @@ each case again for the room a way leads to.
 cargo run -q --release -p zmachine-corpus -- run zork1
 ```
 
-Expected: every entry `proven`, among them `lit-attribute 19`, then `zork1 ok`.
+Expected: every entry `proven`, among them `lit-attribute 19` and
+`invisible-attribute 7`, then `zork1 ok`.
 
 ```bash
 grep -c "in the dark" stories/corpus/ledger.txt
 ```
 
-Expected: 48, where it was 87: Zork I's 39 are gone.
+Expected: 36, where it was 87: Zork I's 39 and Mini-Zork's 12 are gone.
 
 ## 4. A wrong fact fails
 
@@ -40,7 +41,8 @@ Expected: 48, where it was 87: Zork I's 39 are gone.
 cargo test -p zmachine-corpus --test light
 ```
 
-Expected: pass. Each of the other 31 attributes fails on Zork I.
+Expected: pass. Each of the other 31 attributes fails as lit on Zork I; as hidden, 7
+passes and 30 with it (research R13).
 
 ## 5. Nothing changed without a pack
 
