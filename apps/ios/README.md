@@ -52,4 +52,19 @@ model: model names differ from one version to the next.
 | `Lamplight/CompassLayout.swift` | Where each of the twelve places goes, and its symbol |
 | `Lamplight/CompassView.swift` | How each state is drawn |
 | `Lamplight/AboutView.swift` | The About sheet |
+| `Lamplight/Announcer.swift` | Posts the layer's announcement for a turn to the system's screen reader |
 | `LamplightUITests/` | Tests of the screen, by accessibility identifier |
+
+## For a screen reader
+
+When a turn arrives and VoiceOver is running, the app posts the snapshot's
+`announcement` to the system, marked to cut off speech in progress
+(`specs/010-screen-reader-announcements/`). It posts nothing otherwise.
+
+A simulator cannot be listened to. Launched with `-speakAlways`, the app behaves as if
+a screen reader were running and adds an element, `announcement.last`, whose label is
+the text it last posted and whose value is how many times it has posted. The UI tests
+read it. Without the argument the element does not exist.
+
+VoiceOver changes what a touch does: one tap moves to an item and speaks it, and a
+double-tap acts on it.

@@ -272,7 +272,9 @@ fn a_game_that_quits_has_ended() {
     say(&mut s, "anything");
     assert_eq!(s.waiting(), Waiting::Ended);
     assert_eq!(s.turns()[1].text, "Bye.\n");
-    assert_eq!(s.message(), None);
+    // The layer's words for an ended game, for a host to show and to speak
+    // (feature 010).
+    assert_eq!(s.message(), Some("The game has ended."));
     assert_eq!(s.send_line(s.stamp(), "more"), Err(Refused::NotWaiting));
     assert_eq!(
         s.tap(s.stamp(), zmachine_experience::Place::North),
@@ -848,7 +850,7 @@ fn the_snapshot_holds_the_strip() {
     let mut s = with_pack(Some(&pack));
     let json = s.snapshot_json(0);
     assert!(
-        json.ends_with(r#""extras":[]},"inventory":{"known":true,"note":"Carrying nothing","spoken":"Carrying nothing","items":[]},"light":{"dark":false,"note":null}}"#),
+        json.contains(r#""extras":[]},"inventory":{"known":true,"note":"Carrying nothing","spoken":"Carrying nothing","items":[]},"light":{"dark":false,"note":null},"announcement":"#),
         "{}",
         &json[json.len().saturating_sub(160)..]
     );
@@ -857,8 +859,8 @@ fn the_snapshot_holds_the_strip() {
     }
     let json = s.snapshot_json(0);
     assert!(
-        json.ends_with(
-            r#""inventory":{"known":true,"note":null,"spoken":"Carrying: glass bottle, closed, holding quantity of water","items":[{"name":"glass bottle","state":"closed","contents":[{"name":"quantity of water","state":"plain","contents":[]}]}]},"light":{"dark":false,"note":null}}"#
+        json.contains(
+            r#""inventory":{"known":true,"note":null,"spoken":"Carrying: glass bottle, closed, holding quantity of water","items":[{"name":"glass bottle","state":"closed","contents":[{"name":"quantity of water","state":"plain","contents":[]}]}]},"light":{"dark":false,"note":null},"announcement":"#
         ),
         "{}",
         &json[json.len().saturating_sub(300)..]
@@ -968,7 +970,7 @@ fn without_a_pack_no_darkness_is_claimed() {
     assert_eq!((s.light().dark, s.light().note), (None, None));
     assert!(
         s.snapshot_json(0)
-            .ends_with(r#","light":{"dark":null,"note":null}}"#)
+            .contains(r#","light":{"dark":null,"note":null},"announcement":"#)
     );
 }
 
@@ -980,7 +982,7 @@ fn the_snapshot_holds_the_light() {
     let mut s = with_pack(Some(&pack));
     assert!(
         s.snapshot_json(0)
-            .ends_with(r#","light":{"dark":false,"note":null}}"#)
+            .contains(r#","light":{"dark":false,"note":null},"announcement":"#)
     );
     for line in ["north", "east", "open window", "west"] {
         say(&mut s, line);
@@ -995,7 +997,7 @@ fn the_snapshot_holds_the_light() {
     say(&mut s, "up");
     assert!(
         s.snapshot_json(0)
-            .ends_with(r#","light":{"dark":true,"note":"It is dark"}}"#)
+            .contains(r#","light":{"dark":true,"note":"It is dark"},"announcement":"#)
     );
 }
 
@@ -1170,4 +1172,137 @@ fn the_trap_door_comes_and_goes() {
     assert_eq!(down.state, PlaceState::Open);
     assert_eq!(down.leads_to.as_deref(), Some("Cellar"));
     assert!(!down.dark_ahead);
+}
+
+// ---------------------------------------------------------------------------
+// Announcements (feature 010; specs/010-screen-reader-announcements/contracts/
+// announcements.md, cited N§)
+// ---------------------------------------------------------------------------
+
+/// A turn's text as it is to be spoken, worked out apart from the layer.
+fn spoken(text: &str) -> &str {
+    let text = text.trim_end();
+    text.strip_suffix('>').unwrap_or(text).trim()
+}
+
+// N§2, 9 to 11; FR-001 to FR-003, FR-007: the opening and each reply are given
+// to be spoken, without the prompt and without the player's command.
+#[test]
+fn each_reply_is_given_to_be_spoken() {
+    let mut s = game(11);
+    let opening = s.announcement().expect("the opening is spoken").to_string();
+    assert_eq!(opening, spoken(&s.turns()[0].text));
+    assert!(opening.starts_with("ZORK I") && !opening.ends_with('>'));
+    say(&mut s, "north");
+    let reply = s.announcement().unwrap().to_string();
+    assert_eq!(reply, spoken(&s.turns()[1].text));
+    assert!(reply.starts_with("North of House"), "{reply}");
+    assert!(!reply.contains("north\n"), "the command is not spoken");
+    // A command made against an earlier turn is refused, and nothing changes.
+    let stale = zmachine_experience::Stamp {
+        generation: s.stamp().generation,
+        turn_count: 0,
+    };
+    assert_eq!(s.send_line(stale, "south"), Err(Refused::Stale));
+    assert_eq!(s.announcement(), Some(reply.as_str()));
+    // A new game's opening is spoken as the first was.
+    s.new_game(Seed::Fixed(11));
+    assert_eq!(s.announcement(), Some(opening.as_str()));
+}
+
+// N§12: the snapshot ends with the announcement, as text or as null.
+#[test]
+fn the_snapshot_ends_with_the_announcement() {
+    let s = session(asker());
+    assert!(
+        s.snapshot_json(0).ends_with(r#","announcement":"Ready."}"#),
+        "{}",
+        s.snapshot_json(0)
+    );
+    // A turn that is only a prompt has nothing to say.
+    let s = session(looper());
+    assert_eq!(s.announcement(), None);
+    assert!(s.snapshot_json(0).ends_with(r#","announcement":null}"#));
+}
+
+// N§3 to 5; FR-004: the note of darkness is said on the turn the dark falls,
+// and not while it lasts, nor when it ends, nor where light is unknown.
+#[test]
+fn darkness_is_said_when_it_falls() {
+    let pack = read_text("packs/zork1.pack");
+    let mut s = with_pack(Some(&pack));
+    for line in ["north", "east", "open window", "west"] {
+        say(&mut s, line);
+        assert!(!s.announcement().unwrap().contains("It is dark"), "{line}");
+    }
+    say(&mut s, "up");
+    let fell = s.announcement().unwrap().to_string();
+    let reply = spoken(&s.turns().last().unwrap().text);
+    assert_eq!(fell, format!("{reply}\nIt is dark"));
+    say(&mut s, "look");
+    assert_eq!(s.light().dark, Some(true));
+    assert_eq!(
+        s.announcement().unwrap(),
+        spoken(&s.turns().last().unwrap().text)
+    );
+    say(&mut s, "down");
+    assert_eq!(s.light().dark, Some(false));
+    assert_eq!(
+        s.announcement().unwrap(),
+        spoken(&s.turns().last().unwrap().text)
+    );
+    // Up again: the dark falls again, and is said again.
+    say(&mut s, "up");
+    assert!(s.announcement().unwrap().ends_with("\nIt is dark"));
+    // A new game forgets the dark.
+    s.new_game(Seed::Fixed(11));
+    assert!(!s.announcement().unwrap().contains("It is dark"));
+
+    // Without the pack light is unknown, and nothing is said of it.
+    let mut plain = game(11);
+    for line in ["north", "east", "open window", "west", "up"] {
+        say(&mut plain, line);
+    }
+    assert_eq!(
+        plain.announcement().unwrap(),
+        spoken(&plain.turns().last().unwrap().text)
+    );
+}
+
+// N§1, 6, 7, 13; FR-005: a question, a key request, an ending and a fault.
+#[test]
+fn a_question_an_ending_and_a_fault_are_given_to_be_spoken() {
+    // A question: its own prompt is not spoken.
+    let mut s = session(asker());
+    say(&mut s, "go");
+    assert_eq!(s.waiting(), Waiting::Answer);
+    assert_eq!(s.announcement(), Some("Sure?"));
+    // A key request: the text as it is.
+    let mut s = session(key_asker());
+    say(&mut s, "go");
+    assert_eq!(s.announcement(), Some("Press a key."));
+    // An ending: the reply, then the layer's words, which are also the message.
+    let mut s = session(quitter());
+    assert_eq!(s.message(), None);
+    say(&mut s, "anything");
+    assert_eq!(s.announcement(), Some("Bye.\nThe game has ended."));
+    assert_eq!(s.message(), Some(zmachine_experience::NOTE_ENDED));
+    assert!(
+        s.snapshot_json(0)
+            .contains(r#""message":"The game has ended.""#)
+    );
+    // A fault: its message, and nothing else.
+    let mut s = session(faulter());
+    say(&mut s, "anything");
+    assert_eq!(s.waiting(), Waiting::Fault);
+    assert_eq!(s.announcement(), s.message());
+    assert!(
+        s.announcement()
+            .unwrap()
+            .starts_with("The story file stopped")
+    );
+    // A session marked as failed says why.
+    let mut s = session(asker());
+    s.mark_failed("It broke.");
+    assert_eq!(s.announcement(), Some("It broke."));
 }

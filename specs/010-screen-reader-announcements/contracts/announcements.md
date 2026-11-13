@@ -61,3 +61,15 @@ Each numbered statement becomes a test that cites it, as "N§".
     heard once, after the attic's reply; a command sent during a reply cuts it off and
     its own reply is heard; the screen reader's place and the command field are where
     they were. The owner records what was heard.
+
+## As built
+
+- **Statement 20.** The element's label and value are kept by `Game`, which posts
+  through `Announcer`; `GameView` shows the element only with the argument.
+- **Statement 16.** "A new turn or a new game" is told by the count of turns the app
+  holds growing, or the snapshot's generation changing.
+- **Statement 19** has no test of its own for the screen reader's place, which a test
+  cannot read; the test shows that typing still reaches the command field after a
+  post. The owner's ear confirmed the rest.
+- **Statement 22** was checked by the owner on an iPhone 15 Pro, iOS 27.2.1, on
+  2026-11-13; what they said is in `tasks.md`.

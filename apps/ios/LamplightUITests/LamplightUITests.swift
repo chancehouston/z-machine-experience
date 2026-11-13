@@ -242,6 +242,112 @@ final class LamplightUITests: XCTestCase {
         XCTAssertFalse(note.exists)
     }
 
+    // -----------------------------------------------------------------
+    // Feature 010: what the app asks a screen reader to speak
+    // (specs/010-screen-reader-announcements/contracts/announcements.md,
+    // cited N§). A test cannot hear. With `-speakAlways` the app behaves as
+    // if a screen reader were running and shows what it last asked for, and
+    // how many times it has asked, in an element these tests read.
+    // -----------------------------------------------------------------
+
+    /// A turn's text as it is to be spoken: without the white space at its end
+    /// and the prompt the game ends it with.
+    private func spoken(_ text: String) -> String {
+        var said = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        if said.hasSuffix(">") { said.removeLast() }
+        return said.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    /// Waits until the app has asked `times` times, and returns what it asked
+    /// for last.
+    @MainActor
+    private func asked(_ app: XCUIApplication, times: Int) -> String {
+        let last = element(app, "announcement.last")
+        XCTAssertTrue(last.waitForExistence(timeout: patience))
+        expectation(for: NSPredicate(format: "value == %@", String(times)), evaluatedWith: last)
+        waitForExpectations(timeout: patience)
+        return last.label
+    }
+
+    // N§16 to 20; FR-001, FR-002, FR-007, FR-009; SC-004: the opening and each
+    // reply are asked for, whole and without the prompt or the command, and
+    // asking moves nothing.
+    @MainActor
+    func testEachReplyIsAskedToBeSpoken() {
+        let app = launch(["-seed", "11", "-speakAlways"])
+        let opening = turn(app, 0)
+        XCTAssertEqual(asked(app, times: 1), spoken(opening))
+        XCTAssertFalse(asked(app, times: 1).hasSuffix(">"))
+
+        // A way that is touched.
+        element(app, "compass.north").tap()
+        let north = turn(app, 1)
+        XCTAssertEqual(asked(app, times: 2), spoken(north))
+        XCTAssertTrue(asked(app, times: 2).hasPrefix("North of House"))
+
+        // A command that is typed: the field keeps the keyboard afterwards.
+        type(app, "look")
+        let look = turn(app, 2)
+        XCTAssertEqual(asked(app, times: 3), spoken(look))
+        XCTAssertFalse(asked(app, times: 3).contains("look"), "the command is not spoken")
+        app.typeText("inventory\n")
+        let listing = turn(app, 3)
+        XCTAssertEqual(asked(app, times: 4), spoken(listing))
+    }
+
+    // N§18, 20; FR-010; SC-005: with no screen reader running and no argument,
+    // nothing is asked for, and the element the argument adds is not there.
+    @MainActor
+    func testNothingIsAskedWithNoScreenReader() {
+        let app = launch()
+        _ = turn(app, 0)
+        element(app, "compass.north").tap()
+        _ = turn(app, 1)
+        XCTAssertFalse(element(app, "announcement.last").exists)
+    }
+
+    // N§3, 4, 16; FR-004; SC-002: the note of darkness is asked for after the
+    // reply on the turn the dark falls, and not on the turn that leaves it.
+    @MainActor
+    func testDarknessIsAskedToBeSpoken() {
+        let app = launch(["-seed", "11", "-speakAlways"])
+        _ = turn(app, 0)
+        element(app, "compass.north").tap()
+        waitForPlace(app, "North of House")
+        element(app, "compass.east").tap()
+        waitForPlace(app, "Behind House")
+        type(app, "open window")
+        _ = turn(app, 3)
+        element(app, "button.compass").tap()
+        element(app, "compass.west").tap()
+        waitForPlace(app, "Kitchen")
+        XCTAssertFalse(asked(app, times: 5).contains("It is dark"))
+        element(app, "compass.up").tap()
+        waitForPlace(app, "Attic")
+        let attic = turn(app, 5)
+        XCTAssertEqual(asked(app, times: 6), spoken(attic) + "\nIt is dark")
+        element(app, "compass.down").tap()
+        waitForPlace(app, "Kitchen")
+        let kitchen = turn(app, 6)
+        XCTAssertEqual(asked(app, times: 7), spoken(kitchen))
+    }
+
+    // N§16; FR-008; SC-003: three lines typed straight through Return are
+    // asked for one after another, and the last asked for is the third. That
+    // each request is marked to cut off the one before is in the app's source;
+    // no test can see it.
+    @MainActor
+    func testTheNewestReplyIsTheOneAskedFor() {
+        let app = launch(["-seed", "11", "-speakAlways"])
+        _ = turn(app, 0)
+        let field = element(app, "field.command")
+        field.tap()
+        field.typeText("open mailbox\nread leaflet\nnorth\n")
+        let third = turn(app, 3)
+        XCTAssertEqual(asked(app, times: 4), spoken(third))
+        XCTAssertTrue(asked(app, times: 4).hasPrefix("North of House"))
+    }
+
     // Feature 009 (SC-001, SC-006, SC-007; contracts/lookahead.md statement
     // 24): the way down from the living room is no way until the trap door is
     // open; then it is an open way, said to lead to the cellar and into

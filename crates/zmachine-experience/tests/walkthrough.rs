@@ -408,3 +408,34 @@ fn the_compass_agrees_with_the_hand_made_exit_lists() {
     assert!(checked >= 55, "{checked}");
     assert!(at_questions.len() <= 1, "{at_questions:?}");
 }
+
+// Feature 010, SC-006, FR-014 (specs/010-screen-reader-announcements): over the
+// whole walkthrough, what is given to be spoken for a turn is that turn's text
+// with the white space at its end and its prompt removed, and nothing else
+// changed. No pack is given, so nothing is said of light.
+#[test]
+fn every_turns_announcement_is_its_text_without_the_prompt() {
+    let commands = commands();
+    let mut session = game(SEED);
+    let mut compared = 0;
+    for command in &commands {
+        tap_or_type(&mut session, command);
+        let text = &session.turns().last().unwrap().text;
+        if !matches!(session.waiting(), Waiting::Command | Waiting::Answer) {
+            continue;
+        }
+        let trimmed = text.trim_end();
+        let want = trimmed.strip_suffix('>').unwrap_or(trimmed).trim();
+        assert!(
+            trimmed.ends_with('>'),
+            "a turn that waits for a line ends with the prompt"
+        );
+        match session.announcement() {
+            Some(said) => assert_eq!(said, want),
+            None => assert!(want.is_empty()),
+        }
+        assert!(text.contains(want));
+        compared += 1;
+    }
+    assert!(compared >= 330, "{compared}");
+}

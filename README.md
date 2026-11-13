@@ -69,6 +69,12 @@ What the first demo does today:
   shows it in the text, exactly as if it had been typed. The whole Zork I walkthrough,
   with 186 of its commands sent as taps, gives the same text as Frotz, byte for byte.
 - **Typing always works**, and the compass steps aside for the keyboard.
+- **Speaks each reply to a screen reader.** With VoiceOver on, the game's reply is
+  spoken as it arrives, without the listener leaving the control they used: the reply,
+  then "It is dark" on the turn the dark falls. A new reply cuts off one still being
+  spoken. The words are made by the experience layer; the app posts them and composes
+  none. Heard on an iPhone on 2026-11-13; the tests check only what the app asks the
+  system to speak.
 - **The app holds no rule of any game.** It draws what the experience layer reports and
   sends back taps and typed lines; tests read its source to hold it to that.
 
@@ -261,6 +267,7 @@ reported as ignored, not passed.
 | `specs/007-inventory-panel/` | The same for the inventory strip. |
 | `specs/008-darkness/` | The same for darkness: lit or dark, and dark ahead. |
 | `specs/009-compass-lookahead/` | The same for look-ahead: an uncertain way tried on copies of the game. |
+| `specs/010-screen-reader-announcements/` | The same for what a screen reader speaks when a turn arrives. |
 
 ## How it fits together
 
