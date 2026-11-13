@@ -128,17 +128,17 @@ rule disagree with the attribute on purpose.
 
 ### Tests
 
-- [ ] T032 [P] [US4] Failing tests in `crates/zmachine-experience/src/light_tests.rs` and `compass_tests.rs` (FR-018, FR-021; R10; D§), from hand-made answers: `lit` `no` gives `dark` true and the note "It is dark"; `yes` gives false and no note; `unknown` gives none and no note; an exit with `dark_ahead` `yes` gives a place with `dark_ahead` true whose `spoken` ends ", into darkness" and whose state, command and `leads_to` are what they would be without it; `no` and `unknown` give false; the same for an extra; in the dark the compass's places are those of the same exits in the light (FR-019)
-- [ ] T033 [P] [US4] Failing tests in `crates/zmachine-experience/tests/session.rs` and `src/json_tests.rs` (K§ "The experience layer"): the snapshot has `light` after `inventory`; a place has `dark_ahead` after `leads_to`; on Zork I with its pack, in the kitchen with no lamp the way up is dark ahead and nothing else is; after going up `light.dark` is true; with the lamp fetched and switched on, no way is dark ahead and the attic is not dark; without the pack `light.dark` is null and no way is marked; the walkthrough's text is unchanged
-- [ ] T034 [P] [US4] Failing test in `crates/zmachine-ffi/tests/app_rules.rs` (FR-022): the app's sources hold no string for the note or the mark but identifiers; the note's text is the snapshot's
-- [ ] T035 [US4] Failing UI test `testDarknessIsWarnedOf` in `apps/ios/LamplightUITests/LamplightUITests.swift` (US4 scenarios 1 to 4; FR-020; SC-007): in the kitchen the way up's label ends ", into darkness"; after going up the element `light.note` reads "It is dark" and the compass's places are enabled as the room's are; back down and west, with the lamp taken and switched on by typed commands, no place's label ends ", into darkness"; up again, `light.note` does not exist
-- [ ] T036 [P] [US4] Failing UI test drawn from hand-made snapshots (US4 scenario 5; FR-021): with `light.dark` null there is no note and no mark
+- [x] T032 [P] [US4] Failing tests in `crates/zmachine-experience/src/light_tests.rs` and `compass_tests.rs` (FR-018, FR-021; R10; D§), from hand-made answers: `lit` `no` gives `dark` true and the note "It is dark"; `yes` gives false and no note; `unknown` gives none and no note; an exit with `dark_ahead` `yes` gives a place with `dark_ahead` true whose `spoken` ends ", into darkness" and whose state, command and `leads_to` are what they would be without it; `no` and `unknown` give false; the same for an extra; in the dark the compass's places are those of the same exits in the light (FR-019)
+- [x] T033 [P] [US4] Failing tests in `crates/zmachine-experience/tests/session.rs` and `src/json_tests.rs` (K§ "The experience layer"): the snapshot has `light` after `inventory`; a place has `dark_ahead` after `leads_to`; on Zork I with its pack, in the kitchen with no lamp the way up is dark ahead and nothing else is; after going up `light.dark` is true; with the lamp fetched and switched on, no way is dark ahead and the attic is not dark; without the pack `light.dark` is null and no way is marked; the walkthrough's text is unchanged
+- [x] T034 [P] [US4] Failing test in `crates/zmachine-ffi/tests/app_rules.rs` (FR-022): the app's sources hold no string for the note or the mark but identifiers; the note's text is the snapshot's
+- [x] T035 [US4] Failing UI test `testDarknessIsWarnedOf` in `apps/ios/LamplightUITests/LamplightUITests.swift` (US4 scenarios 1 to 4; FR-020; SC-007): in the kitchen the way up's label ends ", into darkness"; after going up the element `light.note` reads "It is dark" and the compass's places are enabled as the room's are; back down and west, with the lamp taken and switched on by typed commands, no place's label ends ", into darkness"; up again, `light.note` does not exist
+- [x] T036 [P] [US4] Failing UI test drawn from hand-made snapshots (US4 scenario 5; FR-021): with `light.dark` null there is no note and no mark
 
 ### Implementation
 
-- [ ] T037 [US4] The snapshot's light in `crates/zmachine-experience/src/light.rs`; `dark_ahead` on a place and an extra in `compass.rs`; `lib.rs` and `json.rs`; T032 and T033 pass; earlier tests that fix a whole place or snapshot gain the keys and are listed
-- [ ] T038 [US4] `Snapshot.swift` decodes them; the hand-made snapshots in the UI tests gain them and are listed
-- [ ] T039 [US4] The note above the compass in `GameView.swift`; the badge in `CompassView.swift`; T034 passes
+- [x] T037 [US4] The snapshot's light in `crates/zmachine-experience/src/light.rs`; `dark_ahead` on a place and an extra in `compass.rs`; `lib.rs` and `json.rs`; T032 and T033 pass; earlier tests that fix a whole place or snapshot gain the keys and are listed
+- [x] T038 [US4] `Snapshot.swift` decodes them; the hand-made snapshots in the UI tests gain them and are listed
+- [x] T039 [US4] The note above the compass in `GameView.swift`; the badge in `CompassView.swift`; T034 passes
 - [ ] T040 [US4] Take simulator screenshots: a lit room beside a dark one, with the marked way; the dark room, with the note; the same way with the lamp on. Send them to the owner and **stop** for their eye. Record what was chosen
 - [ ] T041 [US4] T035 and T036 pass on iOS 26 and 27
 
@@ -146,12 +146,12 @@ rule disagree with the attribute on purpose.
 
 ## Phase 7: Polish
 
-- [ ] T042 [P] The timing tests of features 003 and 004 run with Zork I's version 3 pack and hold (FR-024)
-- [ ] T043 [P] `README.md`, `stories/corpus/README.md`, `packs/README.md`: light, dark ahead, the proof and its figures, the ledger's new count
-- [ ] T044 [P] Correct this feature's contracts to what was built
+- [x] T042 [P] The timing tests of features 003 and 004 run with Zork I's version 3 pack and hold (FR-024)
+- [x] T043 [P] `README.md`, `stories/corpus/README.md`, `packs/README.md`: light, dark ahead, the proof and its figures, the ledger's new count
+- [x] T044 [P] Correct this feature's contracts to what was built
 - [ ] T045 Play by hand in the simulator: into the attic and the cellar without the lamp and with it; then VoiceOver over the note and a marked way: everything a sighted player learns is said (SC-008). Record what was seen
 - [ ] T046 Run `scripts/test-ios.sh 26` and `27` in full and the timing tests on a quiet machine; **stop** if a limit is exceeded
-- [ ] T047 Write the list this file ends with (FR-025; SC-010); confirm `git diff main --stat -- crates/zmachine-core` is empty
+- [x] T047 Write the list this file ends with (FR-025; SC-010); confirm `git diff main --stat -- crates/zmachine-core` is empty
 - [ ] T048 Run every step of `quickstart.md`; clippy and `cargo fmt --check` pass; write "What was done, and what was done differently from the plan"
 
 ---
@@ -194,8 +194,57 @@ One pull request.
 
 ## Tests of earlier features edited because a form changed
 
-To be filled as tasks edit them, and completed by T047.
+Each fixes a written form that this feature changed. None fixed a value that changed.
+
+| Test file | What changed in it |
+| --- | --- |
+| `crates/zmachine-introspect/src/json_tests.rs` | `location` and `scope` gain `source`; an exit gains `dark_ahead` |
+| `crates/zmachine-introspect/src/pack_tests.rs` | three tests that said `pack: 3` is refused now say `pack: 4` |
+| `crates/zmachine-introspect/tests/spec_agreement.rs` | section 12 has ten cited parts, not seven |
+| `crates/zmachine-cli/tests/inspect.rs` | the new keys in a line of `--inspect`; the interface's version |
+| `crates/zmachine-corpus/tests/check.rs` | its example of a key the format lacks was `lit-attribute`; now `wet-attribute` |
+| `crates/zmachine-corpus/tests/crawl.rs`, `run.rs`, `common/mod.rs` | hand-built stories gain `look: None`; the toy game gains a lamp and lit rooms |
+| `crates/zmachine-corpus/tests/formats.rs` | the manifest's and the ledger's key counts |
+| `crates/zmachine-corpus/tests/no_text.rs` | eight more words of the report format; two more keys in its pack reader |
+| `crates/zmachine-experience/src/json_tests.rs` | the snapshot ends with `light`; a place has `dark_ahead` after `leads_to` |
+| `crates/zmachine-experience/tests/session.rs` | two tests that fix a snapshot's exact text gain the keys |
+| `crates/zmachine-ffi/tests/abi.rs` | one place's exact text gains `dark_ahead` |
+| `crates/zmachine-ffi/tests/app_rules.rs` | the list of pack keys the app must not hold gains three |
+| `apps/ios/LamplightUITests/LamplightUITests.swift` | hand-made snapshots gain `light` and `dark_ahead` |
+
+`git diff main --stat -- crates/zmachine-core` is empty.
 
 ## What was done, and what was done differently from the plan
 
-To be written by T048.
+**Done**: the interface says lit, dark or unknown for the player's room, and dark ahead
+for each exit (specification 0.4.0, sections 12.9 to 12.11); the corpus proves it by
+asking the game to describe the room; Zork I's and Mini-Zork's packs name attribute 19
+as lit, and on each no other attribute passes; 51 ledger entries left (Zork I 39,
+Mini-Zork 12); the layer's snapshot has `light` and `dark_ahead`; the app shows the
+layer's note above the compass and a badge on a way into darkness.
+
+**Differently from the plan**:
+
+- **A second key, `invisible-attribute`** (research R13). The plan had one. With one,
+  Zork I's entry was contradicted where a character holds the player's light, hidden.
+  The owner chose the second fact at the stop point of T027. The player's own object
+  carries the attribute, so the player is looked through regardless.
+- **That key is not singled out.** On Zork I 7 passes and so does 30; a test fixes that
+  exactly those two do. `packs/README.md` says why 7 is named.
+- **Six ledger entries were added**, for ways where the light is taken during the move.
+  I§12.10 now says `dark_ahead` is about the moment of the query.
+- **Zork I's aside grew**, into the attic without the lamp and with it, so that a room
+  is seen both dark and lit. The walkthrough alone has no such room.
+- **A closed door is not marked dark ahead**, though the interface says what is behind
+  it: the layer does not tell a player what they have not seen. An open way is.
+- **Light is said only while the game waits for a command.** At any other stop the
+  snapshot's `light.dark` is null.
+- **Mini-Zork gained the entry** (T031): one attribute was left standing.
+- **Without a pack, Zork I's kept report shows 44 wrong trials with no cause**, where it
+  showed 5: the darkness entries are gone, and without the pack nothing tells the
+  interface it is dark.
+
+**Timings** (the owner's Mac, quiet): slowest of 20 starts 1.06 ms; 331 commands, mean
+69 µs, slowest 190 µs; the whole transcript 77 µs.
+
+**Not done**: T040, the owner's eye on the pictures; T045, play by hand with VoiceOver.

@@ -11,9 +11,10 @@ struct Snapshot: Decodable, Sendable, Equatable {
     let turns: [Turn]
     let compass: Compass
     let inventory: Strip
+    let light: Light
 
     enum CodingKeys: String, CodingKey {
-        case generation, waiting, message, status, turns, compass, inventory
+        case generation, waiting, message, status, turns, compass, inventory, light
         case turnCount = "turn_count"
     }
 }
@@ -37,6 +38,13 @@ struct Turn: Decodable, Sendable, Equatable, Identifiable {
     let text: String
 
     var id: Int { number }
+}
+
+/// Whether the player is in the dark, and the layer's words for it. `dark` is
+/// nil where the layer does not know.
+struct Light: Decodable, Sendable, Equatable {
+    let dark: Bool?
+    let note: String?
 }
 
 /// What to show of what the player carries: the layer's words throughout.
@@ -78,11 +86,14 @@ struct CompassPlace: Decodable, Sendable, Equatable {
     let state: PlaceState
     let command: String?
     let leadsTo: String?
+    /// Whether the way leads into darkness, as far as the layer knows.
+    let darkAhead: Bool
     let spoken: String
 
     enum CodingKeys: String, CodingKey {
         case place, label, state, command, spoken
         case leadsTo = "leads_to"
+        case darkAhead = "dark_ahead"
     }
 }
 
@@ -91,10 +102,12 @@ struct CompassExtra: Decodable, Sendable, Equatable {
     let state: PlaceState
     let command: String?
     let leadsTo: String?
+    let darkAhead: Bool
     let spoken: String
 
     enum CodingKeys: String, CodingKey {
         case label, state, command, spoken
         case leadsTo = "leads_to"
+        case darkAhead = "dark_ahead"
     }
 }

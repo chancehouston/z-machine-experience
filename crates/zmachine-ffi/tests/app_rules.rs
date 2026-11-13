@@ -266,7 +266,14 @@ fn the_app_carries_its_storys_pack_and_reads_none_of_it() {
     // No source of the app reads a pack's contents: no key of the format is
     // written anywhere in it.
     for (name, text) in &sources {
-        for key in ["sha256", "open-attribute", "untrusted-variable"] {
+        for key in [
+            "sha256",
+            "open-attribute",
+            "untrusted-variable",
+            "transparent-attribute",
+            "lit-attribute",
+            "invisible-attribute",
+        ] {
             assert!(!text.contains(key), "apps/ios/{name} holds {key:?}");
         }
     }
@@ -308,4 +315,46 @@ fn the_strip_shows_the_layers_words_and_sends_nothing() {
     // Its only string literals are identifiers for tests.
     let literals: Vec<&str> = strip.lines().flat_map(literals).collect();
     assert_eq!(literals, ["inventory.note", "inventory.strip"]);
+}
+
+// Feature 008, FR-022: what is said of darkness is the layer's. The app holds
+// no words of its own for the note or the mark: the note's text is the
+// snapshot's, and a way into darkness is told to a screen reader by the place's
+// own spoken words.
+#[test]
+fn the_app_says_nothing_of_its_own_about_darkness() {
+    let sources = app_swift();
+    for (name, text) in &sources {
+        for (number, line) in text.lines().enumerate() {
+            for literal in literals(line) {
+                // A field of the snapshot, and an identifier for tests.
+                if literal == "dark_ahead" || literal == "light.note" {
+                    continue;
+                }
+                assert!(
+                    !literal.to_ascii_lowercase().contains("dark"),
+                    "apps/ios/{name}:{}: the literal {literal:?}",
+                    number + 1
+                );
+            }
+        }
+    }
+    let source = |name: &str| &sources.iter().find(|(n, _)| n == name).unwrap().1;
+    let snapshot = source("Lamplight/Snapshot.swift");
+    assert!(snapshot.contains(r#"case darkAhead = "dark_ahead""#));
+    assert!(snapshot.contains("let light: Light"));
+    // The note is drawn from the snapshot's words, in the game's view.
+    let view = source("Lamplight/GameView.swift");
+    let at = view
+        .find(r#".accessibilityIdentifier("light.note")"#)
+        .expect("the note is drawn");
+    let before = &view[..at];
+    let drawn = before
+        .rfind("Text(verbatim: note)")
+        .expect("the layer's words");
+    assert!(at - drawn < 400, "the identifier is the note's own");
+    assert!(before[..drawn].contains("showing.light.note"));
+    // The mark is drawn where the layer says, and nowhere else.
+    let compass = source("Lamplight/CompassView.swift");
+    assert!(compass.contains("place.darkAhead"));
 }

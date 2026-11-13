@@ -20,6 +20,10 @@ place and extra gains `"dark_ahead":true|false` after `leads_to`, and its `spoke
 ", into darkness" when true. Nothing else of the compass changes. The C interface is
 unchanged.
 
+As built: `dark_ahead` is true only on a place or extra whose state is `open`; a closed
+door is not marked, whatever is behind it. `light.dark` is `null` at any stop where the
+game is not waiting for a command.
+
 ## The app
 
 When `light.note` is there, it is shown on a line of its own above the compass, with
@@ -47,6 +51,9 @@ DIRECTION dark|lit described|undescribed COUNT`, after the inventory's.
 **Commands**: `corpus run` prints `ID light wrong ROOM lit|dark described|undescribed`
 and `ID ahead wrong ROOM DIRECTION dark|lit described|undescribed` for unexplained
 differences and fails; `lit-attribute` is proven or not as research R9 says.
+
+As built: `invisible-attribute` is proven by the run with every entry but it (research
+R13), and `corpus run` prints its line as it does for the others.
 
 ## Tests that change because a form changes (SC-010)
 

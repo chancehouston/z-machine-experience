@@ -186,6 +186,82 @@ final class LamplightUITests: XCTestCase {
             "Carrying: brown sack, open, holding clove of garlic and lunch; leaflet")
     }
 
+    // Feature 008, User Story 4 (FR-018 to FR-020; SC-007): a way into darkness
+    // is told before it is walked; in the dark the layer's note stands above
+    // the compass, which is the room's own; with a light, neither is shown.
+    @MainActor
+    func testDarknessIsWarnedOf() {
+        let app = launch()
+        _ = turn(app, 0)
+        XCTAssertFalse(element(app, "light.note").exists)
+        element(app, "compass.north").tap()
+        waitForPlace(app, "North of House")
+        element(app, "compass.east").tap()
+        waitForPlace(app, "Behind House")
+        type(app, "open window")
+        _ = turn(app, 3)
+        element(app, "button.compass").tap()
+        element(app, "compass.west").tap()
+        waitForPlace(app, "Kitchen")
+        let up = element(app, "compass.up")
+        XCTAssertTrue(up.label.hasSuffix(", into darkness"), up.label)
+        XCTAssertFalse(element(app, "compass.west").label.contains("darkness"))
+        XCTAssertFalse(element(app, "light.note").exists)
+
+        up.tap()
+        waitForPlace(app, "Attic")
+        let note = element(app, "light.note")
+        XCTAssertTrue(note.waitForExistence(timeout: patience))
+        XCTAssertEqual(note.label, "It is dark")
+        // The compass is the room's own: the way back is offered.
+        XCTAssertEqual(value(app, "compass.down"), "open")
+        XCTAssertTrue(element(app, "compass.down").isEnabled)
+
+        element(app, "compass.down").tap()
+        waitForPlace(app, "Kitchen")
+        XCTAssertFalse(note.exists)
+        element(app, "compass.west").tap()
+        waitForPlace(app, "Living Room")
+        type(app, "take lamp")
+        _ = turn(app, 8)
+        app.typeText("turn on lamp")
+        element(app, "button.send").tap()
+        _ = turn(app, 9)
+        element(app, "button.compass").tap()
+        // The compass comes back as the keyboard goes: wait until it can be
+        // touched.
+        let east = element(app, "compass.east")
+        expectation(for: NSPredicate(format: "isHittable == true"), evaluatedWith: east)
+        waitForExpectations(timeout: patience)
+        east.tap()
+        waitForPlace(app, "Kitchen")
+        XCTAssertFalse(up.label.contains("darkness"), up.label)
+        up.tap()
+        waitForPlace(app, "Attic")
+        XCTAssertEqual(value(app, "compass.down"), "open")
+        XCTAssertFalse(note.exists)
+    }
+
+    // Feature 008, FR-021; US4 scenario 5: where the layer does not know of
+    // light, nothing is shown; and where it says dark, its words are shown as
+    // they are. Drawn from hand-made snapshots.
+    @MainActor
+    func testWhereLightIsNotKnownNothingIsShown() {
+        var app = launch(drawing: handMade(
+            state: "open", spokenTail: "to A Place", known: true, note: nil))
+        _ = turn(app, 0)
+        XCTAssertFalse(element(app, "light.note").exists)
+        XCTAssertEqual(element(app, "compass.north").label, "North, to A Place")
+        app.terminate()
+
+        app = launch(drawing: handMade(
+            state: "open", spokenTail: "to A Place", known: true, note: nil,
+            light: #"{"dark":true,"note":"The layer's own words"}"#, darkAhead: ["north"]))
+        _ = turn(app, 0)
+        XCTAssertEqual(element(app, "light.note").label, "The layer's own words")
+        app.terminate()
+    }
+
     // Feature 007, User Story 4 (FR-022, FR-025): where what is carried is not
     // known the strip says so and shows no item; and it is drawn, and read, at
     // times the game is not waiting for a command. Drawn from hand-made
@@ -473,7 +549,8 @@ final class LamplightUITests: XCTestCase {
     private func handMade(
         state: String, spokenTail: String, offered: Bool = true, known: Bool,
         note: String?, extras: String = "", waiting: String = "command",
-        inventory: String = #"{"known":true,"note":"Carrying nothing","spoken":"Carrying nothing","items":[]}"#
+        inventory: String = #"{"known":true,"note":"Carrying nothing","spoken":"Carrying nothing","items":[]}"#,
+        light: String = #"{"dark":null,"note":null}"#, darkAhead: [String] = []
     ) -> String {
         let labels = [
             "North", "Northeast", "East", "Southeast", "South", "Southwest", "West", "Northwest",
@@ -482,7 +559,7 @@ final class LamplightUITests: XCTestCase {
         let drawn = zip(places, labels).map { place, label in
             """
             {"place":"\(place)","label":"\(label)","state":"\(state)","command":null,\
-            "leads_to":null,"spoken":"\(label), \(spokenTail)"}
+            "leads_to":null,"dark_ahead":\(darkAhead.contains(place)),"spoken":"\(label), \(spokenTail)"}
             """
         }.joined(separator: ",")
         let noteJSON = note.map { "\"\($0)\"" } ?? "null"
@@ -491,7 +568,7 @@ final class LamplightUITests: XCTestCase {
             "status":{"place":"A Place","score":null,"moves":null,"hours":9,"minutes":5},\
             "turns":[{"number":0,"command":null,"source":null,"text":"Ready.\\n\\n>"}],\
             "compass":{"offered":\(offered),"known":\(known),"note":\(noteJSON),\
-            "places":[\(drawn)],"extras":[\(extras)]},"inventory":\(inventory)}
+            "places":[\(drawn)],"extras":[\(extras)]},"inventory":\(inventory),"light":\(light)}
             """
     }
 
@@ -536,11 +613,11 @@ final class LamplightUITests: XCTestCase {
     @MainActor
     func testExtraWaysOutAreARowOfButtons() {
         let extras = """
-            {"label":"Land","state":"open","command":"land","leads_to":"Sandy Beach",\
+            {"label":"Land","state":"open","command":"land","leads_to":"Sandy Beach","dark_ahead":false,\
             "spoken":"Land, to Sandy Beach"},\
-            {"label":"Cross","state":"maybe","command":"cross","leads_to":null,\
+            {"label":"Cross","state":"maybe","command":"cross","leads_to":null,"dark_ahead":false,\
             "spoken":"Cross, may be blocked"},\
-            {"label":"Launch","state":"closed","command":null,"leads_to":null,\
+            {"label":"Launch","state":"closed","command":null,"leads_to":null,"dark_ahead":false,\
             "spoken":"Launch, no exit"}
             """
         let app = launch(drawing: handMade(
@@ -708,5 +785,44 @@ final class LamplightUITests: XCTestCase {
             note: "Exits unknown: type a direction"))
         _ = turn(unknown, 0)
         try save("unknown-exits")
+        unknown.terminate()
+
+        // Feature 008: a way into darkness, the dark place, and both with a
+        // light.
+        let dark = launch()
+        _ = turn(dark, 0)
+        element(dark, "compass.north").tap()
+        waitForPlace(dark, "North of House")
+        element(dark, "compass.east").tap()
+        waitForPlace(dark, "Behind House")
+        type(dark, "open window")
+        _ = turn(dark, 3)
+        element(dark, "button.compass").tap()
+        element(dark, "compass.west").tap()
+        waitForPlace(dark, "Kitchen")
+        try save("dark-ahead")
+        element(dark, "compass.up").tap()
+        waitForPlace(dark, "Attic")
+        XCTAssertTrue(element(dark, "light.note").waitForExistence(timeout: patience))
+        try save("in-the-dark")
+        element(dark, "compass.down").tap()
+        waitForPlace(dark, "Kitchen")
+        element(dark, "compass.west").tap()
+        waitForPlace(dark, "Living Room")
+        type(dark, "take lamp")
+        _ = turn(dark, 8)
+        dark.typeText("turn on lamp")
+        element(dark, "button.send").tap()
+        _ = turn(dark, 9)
+        element(dark, "button.compass").tap()
+        let east = element(dark, "compass.east")
+        expectation(for: NSPredicate(format: "isHittable == true"), evaluatedWith: east)
+        waitForExpectations(timeout: patience)
+        east.tap()
+        waitForPlace(dark, "Kitchen")
+        try save("lamp-on-ahead")
+        element(dark, "compass.up").tap()
+        waitForPlace(dark, "Attic")
+        try save("lamp-on-there")
     }
 }

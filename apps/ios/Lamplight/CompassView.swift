@@ -75,7 +75,8 @@ struct CompassView: View {
 }
 
 /// One of the twelve controls, drawn from its state:
-/// open, a filled disc with the arrow; maybe, an outlined disc with the arrow
+/// open, a filled disc with the arrow, and a small black badge at its corner
+/// where the way leads into darkness; maybe, an outlined disc with the arrow
 /// and a question mark; door (a closed door), an outlined upright panel with
 /// the arrow; closed and idle, a faint dot; unknown, a dashed ring.
 struct CompassControl: View {
@@ -120,6 +121,19 @@ struct CompassControl: View {
                         .font(.system(size: 16, weight: .bold))
                         .rotationEffect(.degrees(symbol.turned))
                         .foregroundStyle(.white)
+                }
+                // A way into darkness: a small badge at the corner where a
+                // way that may be blocked has its question mark.
+                .overlay(alignment: .topTrailing) {
+                    if place.darkAhead {
+                        Image(systemName: "moon.fill")
+                            .font(.system(size: 8, weight: .heavy))
+                            .foregroundStyle(.white)
+                            .frame(width: 15, height: 15)
+                            .background(Circle().fill(.black))
+                            .overlay(Circle().strokeBorder(.white, lineWidth: 1))
+                            .offset(x: 4, y: -4)
+                    }
                 }
         case .maybe:
             Circle().strokeBorder(.tint, lineWidth: 2)
