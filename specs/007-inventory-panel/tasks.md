@@ -152,7 +152,7 @@ seen, and whether the answer rests on a pack
 - [x] T038 [US3] The session asks at each stop and keeps the strip; `Session::inventory`; the snapshot's `inventory` in `crates/zmachine-experience/src/json.rs`; T032 and T033 pass; earlier tests that fix a whole snapshot's text gain the key and are listed
 - [x] T039 [US3] `Snapshot.swift` decodes the strip; the hand-made snapshots in the UI tests gain an `inventory` and are listed
 - [x] T040 [US3] `apps/ios/Lamplight/InventoryStrip.swift` and its place in `GameView.swift`, above the compass and under the same condition (R11); T034 passes
-- [ ] T041 [US3] Take simulator screenshots of the strip: nothing carried; three plain items; a closed container; the same opened with its contents; more than fits. Send them to the owner and **stop** for their eye before settling the drawing. Record what was chosen
+- [x] T041 [US3] Take simulator screenshots of the strip: nothing carried; three plain items; a closed container; the same opened with its contents; more than fits. Send them to the owner and **stop** for their eye before settling the drawing. Record what was chosen
 - [ ] T042 [US3] T035 and T036 pass on iOS 26 and 27
 
 **Checkpoint**: The player sees what they carry without asking
@@ -170,11 +170,11 @@ seen, and whether the answer rests on a pack
 ## Phase 7: Polish & Cross-Cutting Concerns
 
 - [ ] T046 [P] Extend `crates/zmachine-experience/tests/speed.rs` and `crates/zmachine-introspect/tests/speed.rs` (FR-029; SC-010): the limits hold with the strip built at every stop and Zork I's version 2 pack in force
-- [ ] T047 [P] `README.md`, `stories/corpus/README.md` and `packs/README.md`: the strip, the new entry, the comparison and its figures, the aside, and that the listing is read and never kept
-- [ ] T048 [P] `specs/006-game-packs/` is not edited; `contracts/commands.md` of this feature is corrected to what was built
+- [x] T047 [P] `README.md`, `stories/corpus/README.md` and `packs/README.md`: the strip, the new entry, the comparison and its figures, the aside, and that the listing is read and never kept
+- [x] T048 [P] `specs/006-game-packs/` is not edited; `contracts/commands.md` of this feature is corrected to what was built
 - [ ] T049 Run `scripts/test-ios.sh 26` and `27` in full; run the timing tests; **stop** if launch or a command exceeds its limit on the owner's Mac
 - [ ] T050 Play by hand in the simulator: take things, open and close the sack, carry the bottle, drop everything; then VoiceOver over the strip: everything a sighted player learns from it is said (SC-008). Record what was seen, and anything that surprised
-- [ ] T051 Write the list this file ends with, of every earlier test edited and why (FR-030); confirm `git diff main --stat -- crates/zmachine-core` is empty
+- [x] T051 Write the list this file ends with, of every earlier test edited and why (FR-030); confirm `git diff main --stat -- crates/zmachine-core` is empty
 - [ ] T052 Run every step of `quickstart.md`; `cargo clippy --workspace --all-targets` and `cargo fmt --check` pass; write "What was done, and what was done differently from the plan"
 
 ---
@@ -223,8 +223,99 @@ One pull request, unless the owner wants the app's row apart.
 
 ## Tests of earlier features edited because a form changed
 
-To be filled by T003, T011, T012, T015, T038, T039 and T051.
+Each adds what the new form has and changes no value that was there.
+
+| File | What changed | Why |
+| --- | --- | --- |
+| `crates/zmachine-cli/tests/inspect.rs` | The line starts `"spec":"0.3.0"` | The interface's version |
+| `crates/zmachine-introspect/src/json_tests.rs` | An inventory entry's keys gain `state`, `seen`, `source` | I§2.3 |
+| `crates/zmachine-introspect/src/pack_tests.rs` | The version a reader refuses is 3, where it was 2 | The format has a version 2 |
+| `crates/zmachine-introspect/tests/packs.rs` | "A pack leaves the inventory alone" becomes "a pack leaves every earlier field of it alone, and marks the rest" | I§12.6: a pack may change the inventory's marks |
+| `crates/zmachine-introspect/tests/spec_agreement.rs` | Section 12 has seven parts to cite, where it had six | I§12.8 |
+| `crates/zmachine-experience/src/json_tests.rs` | The snapshot's fields end with `inventory` | The strip |
+| `crates/zmachine-corpus/tests/formats.rs`, `crawl.rs`, `run.rs` | Hand-built reports and stories gain the new fields, empty | The report and manifest have more fields |
+| `crates/zmachine-corpus/tests/no_text.rs` | The reports' word list gains thirteen words; the pack reader of the test knows the new key | The report's new line; the pack's new key |
+| `apps/ios/LamplightUITests/LamplightUITests.swift` | The hand-made snapshots gain an `inventory` | The snapshot has one more field |
+
+No test of the core changed, and no transcript. `git diff main --stat --
+crates/zmachine-core` is empty. Of the kept reports only Zork I's two changed.
 
 ## What was done, and what was done differently from the plan
 
-To be written by T052.
+### The figures
+
+| Criterion | Result |
+| --- | --- |
+| SC-001 | Zork I with its pack: 1,523 carried objects compared with the game's own listing over the walkthrough, the crawl and the aside; all agree; the ledger holds no entry on the inventory |
+| SC-002 | Follows from SC-001 and the strip's unit tests: the strip's items are exactly the entries marked as seen. It was not checked a second time in the layer (see below) |
+| SC-003 | Attribute 12 is proven; each of the other 31 is contradicted |
+| SC-004 | On all three walkthroughs, with no pack, every earlier field of the inventory answer equals what it was, and the new fields are the family's |
+| SC-005 | All three walkthroughs give their reference transcripts with the inventory asked at every stop |
+| SC-006 | The UI test `testTheInventoryStrip`: nothing; a leaflet; a closed sack with nothing shown; the sack opened with its two things |
+| SC-007 | Over the whole game in the layer the strip is not known at 6 prompts |
+| SC-008 | Not checked by ear. The row is one accessibility element whose label is the layer's sentence; the UI tests read that label |
+| SC-009 | The no-text tests pass with the new words; nothing of a game's listing is written anywhere |
+| SC-010 | See "Timings" below |
+| SC-011 | The table above |
+
+### Stop points
+
+- **T041, the drawing.** Three pictures from the simulator were sent to the owner
+  (nothing carried; a closed bottle with its water, a closed sack, a leaflet running
+  off the edge; the sack opened, scrolled). The owner said to keep it, on 2026-11-12.
+- **T024, T027, T028** were not met: no difference anywhere on Zork I, and attribute 12
+  is the only one left standing.
+
+### Done differently from the plan
+
+- **Mini-Zork gets nothing (T030).** The same five commands carry a bottle with water
+  there, but four of that bottle's attributes (8, 13, 17, 18) fit the game's listing
+  equally, and nothing else it carries tells them apart. A proof by one object cannot
+  single out a fact. Its pack and manifest entry are as they were, and its strip will
+  keep back what is in a closed container. This is also a limit of the proof as
+  specified: "proven" does not ask that the attribute be the only one that fits. On
+  Zork I it is the only one, because the walkthrough carries other containers that
+  rule the rest out; the test of all 32 attributes is what shows it.
+- **The report's line has two more figures than the contract gave**: `unjudged`
+  (objects the interface could not call seen or kept) and `through-closed` (the
+  evidence a see-through entry needs).
+- **No-listing places do not arise in the corpus on Zork I.** Research R4 found two
+  prompts where the reply is not a listing; neither is a command prompt by the
+  corpus's rule, so the report counts none. The rule is still there, and tested on a
+  toy.
+- **`corpus explain ID inventory ROOM` was not built.** Nothing differed, so nothing
+  needed explaining.
+- **T033's second check was left out.** The strip is built from the answer the corpus
+  already compares with the game's listing, and unit tests fix what the strip makes of
+  each mark. The layer's test over the whole game checks the 6 unknown prompts and that
+  the game's text is unchanged.
+- **T036, a test of scrolling, was not written.** The row is one accessibility element,
+  so a test cannot reach a chip. The picture of the row scrolled is the evidence.
+- **T003's second citation test was not written**; the test that every part of section
+  12 is cited was extended to 12.8 and passes.
+- **T029's extension of the no-pack test was not written.** Zork I's kept report with
+  packs set aside shows it directly: 58 objects unjudged, none differing, and its exit
+  lines unchanged.
+
+### Where a test did not fail first
+
+- The tests of the corpus's files, run and proof (T017, T019) were written before
+  their code and could not compile until it existed. Three figures I had expected in
+  them were wrong; each was corrected after reading what the code rightly gives (the
+  line a refusal names, twice, and how many places carry nothing).
+- The app's UI tests and its rule test (T034, T035, T044) were written with the view.
+  The rule test failed once, on a word in a comment, and was made to look at code only.
+- The marks on built stories (T005 to T008), the comparison (T018) and the strip
+  (T031, T032) failed first against stubs.
+
+### Timings
+
+To be filled in once the machine is quiet (T046, T049).
+
+### Not done, and limits
+
+- **T050, play by hand with VoiceOver.** Played by hand in the simulator for the
+  pictures; VoiceOver was not listened to.
+- **T042 on iOS 26.** The strip's UI tests were run on the iOS 27 simulator only.
+- **The proof reads names.** A kept-back thing whose name occurs inside a listed
+  thing's name would be read as listed. Not met on Zork I.
