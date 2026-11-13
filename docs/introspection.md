@@ -1,6 +1,6 @@
 # Z-Machine Introspection Interface
 
-**Version**: 0.3.0 | **Status**: draft
+**Version**: 0.4.0 | **Status**: draft
 
 A specification for reading the state of a running Z-machine game without changing it:
 where the player is, which ways lead out, what is here and what is carried. It is
@@ -110,8 +110,10 @@ record descriptions in sections 4 to 9 give the fields and their order.
 - In `scope`, the field `player` is the string `"known"` or an unknown.
 - In a conditional exit, `destination` and `destination_name` are `null`.
 - An exit's keys are, in order: `direction`, `words`, `kind`, `destination`,
-  `destination_name`, `door`, `state`, `source`. `door` and `state` are `null` unless
-  `kind` is `door` (section 12.5).
+  `destination_name`, `door`, `state`, `dark_ahead`, `source`. `door` and `state` are
+  `null` unless `kind` is `door` (section 12.5).
+- `location`'s keys are `room`, `name`, `holder`, `lit`, `source`; `scope`'s are `light`,
+  `source`, `player`, `objects`.
 - An inventory entry's keys are, in order: `object`, `name`, `worn`, `state`, `seen`,
   `source`, `contents`. `state` is `null` for an object that holds nothing.
 
@@ -155,8 +157,8 @@ short here with an ellipsis, which is not part of the rendering.
 `location`:
 
 ```text
-{"exactness":"exact","value":{"room":64,"name":"West of House","holder":null,"lit":"unknown"}}
-{"exactness":"exact","value":{"room":38,"name":"Inside Building","holder":null,"lit":"yes"}}
+{"exactness":"exact","value":{"room":64,"name":"West of House","holder":null,"lit":"unknown","source":"file"}}
+{"exactness":"exact","value":{"room":38,"name":"Inside Building","holder":null,"lit":"yes","source":"file"}}
 ```
 
 `inventory`:
@@ -171,15 +173,15 @@ version 3 a word is stored cut to six letters. Advent's building has a way west 
 way out, and stores a refusal for `in`, which is therefore absent:
 
 ```text
-{"exactness":"exact","value":{"exits":[{"direction":31,"words":["n","north"],"kind":"fixed","destination":137,"destination_name":"North of House","door":null,"state":null,"source":"file"},{"direction":29,"words":["w","west"],"kind":"fixed","destination":87,"destination_name":"Forest","door":null,"state":null,"source":"file"}, … ,{"direction":25,"words":["se","southe"],"kind":"fixed","destination":209,"destination_name":"South of House","door":null,"state":null,"source":"file"}],"unknown":[]}}
-{"exactness":"exact","value":{"exits":[{"direction":10,"words":["w","west"],"kind":"fixed","destination":30,"destination_name":"At End Of Road","door":null,"state":null,"source":"file"},{"direction":18,"words":["out"],"kind":"fixed","destination":30,"destination_name":"At End Of Road","door":null,"state":null,"source":"file"}],"unknown":[]}}
+{"exactness":"exact","value":{"exits":[{"direction":31,"words":["n","north"],"kind":"fixed","destination":137,"destination_name":"North of House","door":null,"state":null,"dark_ahead":"unknown","source":"file"},{"direction":29,"words":["w","west"],"kind":"fixed","destination":87,"destination_name":"Forest","door":null,"state":null,"dark_ahead":"unknown","source":"file"}, … ,{"direction":25,"words":["se","southe"],"kind":"fixed","destination":209,"destination_name":"South of House","door":null,"state":null,"dark_ahead":"unknown","source":"file"}],"unknown":[]}}
+{"exactness":"exact","value":{"exits":[{"direction":10,"words":["w","west"],"kind":"fixed","destination":30,"destination_name":"At End Of Road","door":null,"state":null,"dark_ahead":"unknown","source":"file"},{"direction":18,"words":["out"],"kind":"fixed","destination":30,"destination_name":"At End Of Road","door":null,"state":null,"dark_ahead":"unknown","source":"file"}],"unknown":[]}}
 ```
 
 `scope`. ZIL records neither light nor scenery; Inform 6 records both:
 
 ```text
-{"exactness":"approximate","value":{"light":"unknown","player":"known","objects":[{"object":230,"name":"small mailbox","reach":"in-room","within":null,"visibility":"visible","scenery":"unknown","concealed":"unknown"}, … ,{"object":76,"name":"leaflet","reach":"carried","within":null,"visibility":"visible","scenery":"unknown","concealed":"unknown"}]}}
-{"exactness":"approximate","value":{"light":"lit","player":"known","objects":[{"object":32,"name":"stream","reach":"in-room","within":null,"visibility":"visible","scenery":"yes","concealed":"no"}, … ,{"object":42,"name":"tasty food","reach":"in-room","within":null,"visibility":"visible","scenery":"no","concealed":"no"}, … ,{"object":43,"name":"brass lantern","reach":"carried","within":null,"visibility":"visible","scenery":"no","concealed":"no"}]}}
+{"exactness":"approximate","value":{"light":"unknown","source":"file","player":"known","objects":[{"object":230,"name":"small mailbox","reach":"in-room","within":null,"visibility":"visible","scenery":"unknown","concealed":"unknown"}, … ,{"object":76,"name":"leaflet","reach":"carried","within":null,"visibility":"visible","scenery":"unknown","concealed":"unknown"}]}}
+{"exactness":"approximate","value":{"light":"lit","source":"file","player":"known","objects":[{"object":32,"name":"stream","reach":"in-room","within":null,"visibility":"visible","scenery":"yes","concealed":"no"}, … ,{"object":42,"name":"tasty food","reach":"in-room","within":null,"visibility":"visible","scenery":"no","concealed":"no"}, … ,{"object":43,"name":"brass lantern","reach":"carried","within":null,"visibility":"visible","scenery":"no","concealed":"no"}]}}
 ```
 
 `object_tree`, one object from each game. Advent's maze rooms print as "Maze" whatever
@@ -434,6 +436,7 @@ The room the player is in. **Exact** for a recognised family.
 | `name` | The room's printed name (section 3); a part that may be unknown |
 | `holder` | The object the player is in or on within the room (a vehicle, a cage); none when the player is directly in the room; a part that may be unknown |
 | `lit` | `yes`, `no` or `unknown` |
+| `source` | `file` or `pack` (section 12.9) |
 
 ### 6.1 Inform 6
 
@@ -460,7 +463,8 @@ The room the player is in. **Exact** for a recognised family.
   parent when that is not the room, and is unknown for the reason the player is.
   The room is exact either way.
 - **`lit`** is `unknown`. ZIL's compiler numbers attributes game by game, and nothing in
-  a story file says which attribute or variable means light.
+  a story file says which attribute or variable means light. A game pack that says
+  which attribute means lit changes this (section 12.9).
 
 ### 6.3 How the answer relates to what the game prints
 
@@ -571,6 +575,7 @@ The answer has two lists.
 | `destination_name` | For a `fixed` or a `door` exit, that room's printed name; a part that may be unknown |
 | `door` | For a `door` exit, the object number of the door; otherwise none |
 | `state` | For a `door` exit, `open` or `closed`; otherwise none |
+| `dark_ahead` | `yes`, `no` or `unknown`: whether the room the exit leads to would be dark for the player as they are (section 12.10) |
 | `source` | `file` or `pack` (section 12.5) |
 
 `unknown`, one entry for each direction that could not be determined, with three
@@ -672,6 +677,7 @@ is, for the same reason.
 | --- | --- |
 | `light` | `lit`, `dark` or `unknown` |
 | `player` | `known`, or unknown with the reason the player could not be found |
+| `source` | `file` or `pack` (section 12.9) |
 | `objects` | The entries, below |
 
 Each entry:
@@ -724,7 +730,8 @@ followed by its contents.
 ZIL's compiler numbers attributes game by game, so a story file does not say which
 attribute means open, lit, invisible or a surface.
 
-- **Light** is `unknown`. The room's contents are listed regardless.
+- **Light** is `unknown`, unless a game pack says which attribute means lit (section
+  12.9). The room's contents are listed regardless.
 - **Contents.** Every object under the room in the tree is listed. An object inside
   another is `inside`, with `visibility` `unknown`: it may be in a closed container.
   An object directly in the room, or carried directly, is `visible`. Nothing is `on` or
@@ -843,13 +850,14 @@ line missing or out of place. A pack is never applied in part.
 
 | Key | Value | Times |
 | --- | --- | --- |
-| `pack` | `1` or `2`, the version of this format | once |
+| `pack` | `1`, `2` or `3`, the version of this format | once |
 | `sha256` | 64 of the characters `0` to `9` and `a` to `f` | once |
 | `release` | a decimal number, 0 to 65535 | once |
 | `serial` | six characters, each a letter or a digit | once |
 | `open-attribute` | a decimal number, 0 to 31 | at most once |
 | `untrusted-variable` | a decimal number, 16 to 255 | any number of times; no value twice |
-| `transparent-attribute` | a decimal number, 0 to 31; only in a pack of version 2 | at most once |
+| `transparent-attribute` | a decimal number, 0 to 31; only in a pack of version 2 or later | at most once |
+| `lit-attribute` | a decimal number, 0 to 31; only in a pack of version 3 | at most once |
 
 A decimal number has no sign and no leading zero, other than `0` itself.
 
@@ -863,12 +871,13 @@ open-attribute: 7
 untrusted-variable: 40
 ```
 
-The format's version is 2. A reader of version 2 reads packs of versions 1 and 2. A pack
-that holds `transparent-attribute` states `pack: 2`; in a pack of version 1 that key is
-a fault.
+The format's version is 3. A reader of version 3 reads packs of versions 1, 2 and 3. A
+pack that holds `transparent-attribute` states `pack: 2` or `pack: 3`, and one that
+holds `lit-attribute` states `pack: 3`; in a pack of an earlier version the key is a
+fault.
 
-A reader refuses a pack of a version it does not know, so a reader of version 1 given a
-pack of version 2 behaves as it does with no pack.
+A reader refuses a pack of a version it does not know, so a reader of an earlier version
+given a later pack behaves as it does with no pack.
 
 A pack has nowhere to hold a condition, a script, or any text of a game.
 
@@ -949,12 +958,13 @@ The entries of the `unknown` list carry no mark.
 ```text
 {"direction":22,"words":["e","east"],"kind":"door","destination":85,"destination_name":"…","door":243,"state":"closed","source":"pack"}
 {"direction":20,"words":["n","north"],"kind":"conditional","destination":null,"destination_name":null,"door":null,"state":null,"source":"pack"}
-{"direction":29,"words":["s","south"],"kind":"fixed","destination":12,"destination_name":"…","door":null,"state":null,"source":"file"}
+{"direction":29,"words":["s","south"],"kind":"fixed","destination":12,"destination_name":"…","door":null,"state":null,"dark_ahead":"unknown","source":"file"}
 ```
 
 ### 12.6 What a pack may not do
 
-A pack changes the answers to `exits` and `inventory`, and to no other query.
+A pack may change the answers to `location`, `scope`, `exits` and `inventory`, and to no
+other query.
 
 An answer given with a pack in force is still a read of the story file's state at the
 moment of the query: sections 1.1, 1.2 and 1.7 hold unchanged, and nothing is run or
@@ -978,6 +988,13 @@ From version 0.2.0 to 0.3.0:
 - The pack format has a version 2, with one more key, `transparent-attribute`.
 - A pack may change the answer to `inventory` as well as to `exits`.
 
+From version 0.3.0 to 0.4.0:
+
+- `location` and `scope` have one more field, `source`; an exit has one more,
+  `dark_ahead`.
+- The pack format has a version 3, with one more key, `lit-attribute`.
+- A pack may change the answers to `location` and `scope`.
+
 ### 12.8 `transparent-attribute`
 
 `transparent-attribute: T` says that, in this story file, attribute T is set on a thing
@@ -986,3 +1003,46 @@ with attribute T holds can be seen (section 7.2), whatever the object's `state`.
 
 It changes nothing about exits, and nothing about an object that does not have the
 attribute.
+
+### 12.9 `lit-attribute`
+
+`lit-attribute: L` says that, in this story file, attribute L is set on a room that is
+lit of itself and on a thing that gives light.
+
+A **light** is an object with attribute L, under the player's room in the object tree,
+such that every object between it and the room is the player, is open, or can be seen
+through (section 7.2).
+
+With it in force, `location`'s `lit` is `yes` if the room has attribute L or a light is
+present, and `no` otherwise, with two exceptions.
+
+If the player cannot be told (section 7.2), the room has not attribute L, and no light
+is seen outside the objects that tied, `lit` is `unknown`: what the player carries is
+not known.
+
+If an object with attribute L is inside another, no `open-attribute` is in force, and
+nothing else makes the room lit, `lit` is `unknown`.
+
+`scope`'s `light` is `lit`, `dark` or `unknown` as `location`'s `lit` is `yes`, `no` or
+`unknown`. Its objects are listed as before.
+
+`location` and `scope` each have a field `source`: `pack` if the light would be different
+were no pack in force, and `file` otherwise.
+
+### 12.10 Dark ahead
+
+Every exit has a field `dark_ahead`: `yes`, `no` or `unknown`. It says whether the room
+the exit leads to would be dark for the player as they are at the moment of the query.
+
+For an exit with a `destination`, with `lit-attribute` in force, it is `no` if that room
+has attribute L, or a light lies in it (a light by section 12.9, taken from that room),
+or the player carries a light; `yes` if none of those; and `unknown` where an exception
+of section 12.9 would apply.
+
+For an exit with no `destination`, and wherever no `lit-attribute` is in force, it is
+`unknown`.
+
+An exit whose `dark_ahead` is `yes` or `no` has `source` `pack` (section 12.5).
+
+Nothing is tried to answer. The game has the last word (section 8.3): it may refuse the
+way, and what lights or darkens a room may change as the player moves.

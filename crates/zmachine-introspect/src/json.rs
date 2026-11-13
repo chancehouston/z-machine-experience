@@ -205,6 +205,7 @@ impl Json for Location {
                 ("name", &self.name),
                 ("holder", &self.holder),
                 ("lit", &self.lit),
+                ("source", &self.source),
             ],
         );
     }
@@ -239,6 +240,7 @@ impl Json for Exit {
                 ("destination_name", &self.destination_name),
                 ("door", &self.door),
                 ("state", &self.state),
+                ("dark_ahead", &self.dark_ahead),
                 ("source", &self.source),
             ],
         );
@@ -299,6 +301,7 @@ impl Json for Scope {
             out,
             &[
                 ("light", &self.light),
+                ("source", &self.source),
                 ("player", &Player(&self.player)),
                 ("objects", &self.objects),
             ],

@@ -249,7 +249,7 @@ fn every_part_of_section_12_is_cited() {
         .map(|(n, _)| n)
         .filter(|n| n.starts_with("12.") && n != "12.7")
         .collect();
-    assert_eq!(parts.len(), 7, "{parts:?}");
+    assert_eq!(parts.len(), 9, "{parts:?}");
     let uncited: Vec<&String> = parts
         .iter()
         .filter(|n| !text.contains(&format!("I\u{a7}{n}")))

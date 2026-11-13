@@ -358,7 +358,7 @@ fn a_well_formed_pack_for_a_story_of_the_manifest_passes() {
 #[test]
 fn a_malformed_pack_is_refused_with_its_file_and_line() {
     let scratch = good();
-    scratch.pack("toy", &toy(), "open-attribute: 9\nlit-attribute: 3\n");
+    scratch.pack("toy", &toy(), "open-attribute: 9\nwet-attribute: 3\n");
     pack_fails_with(
         &scratch,
         "packs/toy.pack:6: a key this format does not have",

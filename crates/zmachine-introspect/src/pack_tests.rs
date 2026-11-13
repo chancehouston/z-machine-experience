@@ -104,7 +104,7 @@ fn a_malformed_pack_is_refused_with_its_line() {
         (format!("open-attribute: 7\n{head}"), 1),
         (String::new(), 1),
         // A version of the format this reader does not know.
-        (head.replace("pack: 1", "pack: 3"), 1),
+        (head.replace("pack: 1", "pack: 4"), 1),
         (head.replace("pack: 1", "pack: 01"), 1),
         // Values out of range or of the wrong shape.
         (head.replace(&digest, &"0".repeat(63)), 2),
@@ -406,7 +406,7 @@ fn a_pack_not_in_force_changes_nothing() {
                 PackState::NotMatching,
             ),
             (format!("{right}open-attribute: 9\n"), PackState::Refused),
-            (right.replace("pack: 1", "pack: 3"), PackState::Refused),
+            (right.replace("pack: 1", "pack: 4"), PackState::Refused),
         ] {
             let i = Introspector::with_pack(&view, &text);
             assert_eq!(i.pack(), state);
@@ -603,7 +603,7 @@ fn the_formats_second_version_adds_one_key() {
     assert_eq!((plain.version, plain.transparent_attribute), (2, None));
     assert_eq!(Pack::parse(EXAMPLE).unwrap().version, 1);
     for (text, line) in [
-        (EXAMPLE.replace("pack: 1", "pack: 3"), 1),
+        (EXAMPLE.replace("pack: 1", "pack: 4"), 1),
         (EXAMPLE.replace("pack: 1", "pack: 0"), 1),
         (format!("{EXAMPLE}transparent-attribute: 12\n"), 7),
         (format!("{two}transparent-attribute: 32\n"), 7),
@@ -626,5 +626,272 @@ fn the_formats_second_version_adds_one_key() {
     assert_eq!(
         Introspector::with_pack(&machine.view(), &text).pack(),
         PackState::Refused
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Light (feature 008; specs/008-darkness/contracts/answers.md)
+// ---------------------------------------------------------------------------
+
+/// The attribute the fixture's pack calls "lit".
+const LIT: u8 = 5;
+
+/// The lit, open and see-through entries, as a pack of version 3 gives them.
+fn lit_entries() -> String {
+    format!("open-attribute: {OPEN}\ntransparent-attribute: {CLEAR}\nlit-attribute: {LIT}\n")
+}
+
+/// The interface for a built story with a version 3 pack of these entries.
+fn with_light(built: &(Vec<u8>, Machine), entries: &str) -> Introspector {
+    let pack = format!("{}{entries}", identity(&built.0)).replace("pack: 1\n", "pack: 3\n");
+    let i = Introspector::with_pack(&built.1.view(), &pack);
+    assert_eq!(i.pack(), PackState::InForce, "{pack}");
+    i
+}
+
+/// `lit` of the location and `light` of the scope, with their sources.
+fn light(built: &(Vec<u8>, Machine), entries: &str) -> (crate::Tri, Source, crate::Light, Source) {
+    let i = with_light(built, entries);
+    let view = built.1.view();
+    let location = i.location(&view).value.unwrap();
+    let scope = i.scope(&view).value.unwrap();
+    (location.lit, location.source, scope.light, scope.source)
+}
+
+// I§12.1 (A§1, 2): the format's version 3 adds `lit-attribute`.
+#[test]
+fn the_formats_third_version_adds_the_lit_attribute() {
+    let three = EXAMPLE.replace("pack: 1", "pack: 3");
+    let pack = Pack::parse(&format!(
+        "{three}lit-attribute: 19\ntransparent-attribute: 12\n"
+    ))
+    .unwrap();
+    assert_eq!(
+        (pack.version, pack.lit_attribute, pack.transparent_attribute),
+        (3, Some(19), Some(12))
+    );
+    assert!(
+        Pack::parse(&format!("{three}lit-attribute: 0\n"))
+            .unwrap()
+            .has_entries()
+    );
+    assert_eq!(Pack::parse(EXAMPLE).unwrap().lit_attribute, None);
+    let two = EXAMPLE.replace("pack: 1", "pack: 2");
+    for (text, line) in [
+        (EXAMPLE.replace("pack: 1", "pack: 4"), 1),
+        (format!("{two}lit-attribute: 19\n"), 7),
+        (format!("{EXAMPLE}lit-attribute: 19\n"), 7),
+        (format!("{three}lit-attribute: 32\n"), 7),
+        (format!("{three}lit-attribute: 19\nlit-attribute: 19\n"), 8),
+    ] {
+        match Pack::parse(&text) {
+            Ok(pack) => panic!("read as {pack:?}:\n{text}"),
+            Err(error) => assert_eq!(error.line, line, "{error}:\n{text}"),
+        }
+    }
+    let image = Inform::new().build();
+    let machine = crate::fixtures::run(image.clone());
+    let text = format!("{}lit-attribute: 3\n", identity(&image)).replace("pack: 1", "pack: 3");
+    assert_eq!(
+        Introspector::with_pack(&machine.view(), &text).pack(),
+        PackState::Refused
+    );
+}
+
+// I§12.9, I§6.2, I§9.2 (A§4, 5, 8, 9): with `lit-attribute` in force the room is
+// lit if it has the attribute or a light can be seen in it, and dark otherwise;
+// `scope` says the same; and both are marked.
+#[test]
+fn light_is_the_rooms_or_a_light_that_can_be_seen() {
+    use crate::Light::{Dark, Lit};
+    use crate::Tri::{No, Yes};
+    use crate::fixtures::insert;
+    let entries = lit_entries();
+    let pack = Source::Pack;
+    let lit = (Yes, pack, Lit, pack);
+    let dark = (No, pack, Dark, pack);
+    // The fixture's player is in the kitchen, carrying the lamp.
+    assert_eq!(
+        light(&fixture(vec![set_attr(zl::KITCHEN, LIT)]), &entries),
+        lit
+    );
+    assert_eq!(light(&fixture(vec![]), &entries), dark);
+    // A light carried; and lying in the room.
+    assert_eq!(
+        light(&fixture(vec![set_attr(zl::LAMP, LIT)]), &entries),
+        lit
+    );
+    assert_eq!(
+        light(
+            &fixture(vec![set_attr(zl::LAMP, LIT), insert(zl::LAMP, zl::KITCHEN)]),
+            &entries
+        ),
+        lit
+    );
+    // Shut in the closed sack; in the open sack; in a closed see-through sack.
+    let in_sack = |more: Vec<Vec<u8>>| {
+        let mut setup = vec![set_attr(zl::LAMP, LIT), insert(zl::LAMP, zl::SACK)];
+        setup.extend(more);
+        light(&fixture(setup), &entries)
+    };
+    assert_eq!(in_sack(vec![]), dark);
+    assert_eq!(in_sack(vec![set_attr(zl::SACK, OPEN)]), lit);
+    assert_eq!(in_sack(vec![set_attr(zl::SACK, CLEAR)]), lit);
+    // The sack carried, open, with the light in it.
+    assert_eq!(
+        in_sack(vec![set_attr(zl::SACK, OPEN), insert(zl::SACK, zl::PLAYER)]),
+        lit
+    );
+    assert_eq!(in_sack(vec![insert(zl::SACK, zl::PLAYER)]), dark);
+    // A light in another room lights nothing here; nor does another room's own.
+    assert_eq!(
+        light(
+            &fixture(vec![set_attr(zl::LAMP, LIT), insert(zl::LAMP, zl::HALL)]),
+            &entries
+        ),
+        dark
+    );
+    assert_eq!(
+        light(&fixture(vec![set_attr(zl::HALL, LIT)]), &entries),
+        dark
+    );
+    // I§9.2: the room's contents are listed in the dark as in the light.
+    let built = fixture(vec![]);
+    let view = built.1.view();
+    let in_the_dark = with_light(&built, &entries).scope(&view).value.unwrap();
+    let plain = Introspector::new(&view).scope(&view).value.unwrap();
+    let objects = |s: &crate::Scope| s.objects.iter().map(|e| e.object).collect::<Vec<_>>();
+    assert_eq!(objects(&in_the_dark), objects(&plain));
+}
+
+// I§12.9 (A§6, 7): where what the player carries is not known, or whether a
+// thing is shut in is not known, and nothing else settles it, light is unknown.
+#[test]
+fn light_unknown_where_a_fact_is_missing() {
+    use crate::Light;
+    use crate::Tri::{Unknown as NotKnown, Yes};
+    use crate::fixtures::insert;
+    let entries = lit_entries();
+    // Two objects tie for the player (as in zil_tests).
+    let tie = |more: Vec<Vec<u8>>| {
+        let mut setup = vec![
+            insert(zl::DIAMOND, zl::KITCHEN),
+            set_global(30, zl::DIAMOND),
+        ];
+        setup.extend(more);
+        light(&fixture(setup), &entries)
+    };
+    assert_eq!(
+        tie(vec![]),
+        (NotKnown, Source::File, Light::Unknown, Source::File)
+    );
+    // The lamp the true player carries is lit: it is under an object that tied.
+    assert_eq!(tie(vec![set_attr(zl::LAMP, LIT)]).0, NotKnown);
+    assert_eq!(tie(vec![set_attr(zl::KITCHEN, LIT)]).0, Yes);
+    assert_eq!(
+        tie(vec![set_attr(zl::BOAT, LIT), insert(zl::BOAT, zl::KITCHEN)]).0,
+        Yes
+    );
+    // No `open-attribute`: a light inside the sack may or may not be seen.
+    let alone = format!("lit-attribute: {LIT}\n");
+    let shut_in = fixture(vec![set_attr(zl::LAMP, LIT), insert(zl::LAMP, zl::SACK)]);
+    assert_eq!(light(&shut_in, &alone).0, NotKnown);
+    let loose = fixture(vec![set_attr(zl::LAMP, LIT), insert(zl::LAMP, zl::KITCHEN)]);
+    assert_eq!(light(&loose, &alone).0, Yes);
+    // Nothing with the attribute anywhere near: dark, without knowing "open".
+    assert_eq!(light(&fixture(vec![]), &alone).0, crate::Tri::No);
+}
+
+/// `dark_ahead` and `source` of the exit in a direction.
+fn ahead(built: &(Vec<u8>, Machine), entries: &str, direction: u8) -> (crate::Tri, Source) {
+    let view = built.1.view();
+    let exits = with_light(built, entries).exits(&view).value.unwrap();
+    let exit = toward(&exits, direction).expect("an exit");
+    (exit.dark_ahead, exit.source)
+}
+
+// I§12.10, I§8 (A§10 to 13, 15): whether the room a way leads to would be dark
+// for the player as they are, read from stored facts.
+#[test]
+fn dark_ahead_is_the_light_of_the_room_a_way_leads_to() {
+    use crate::Tri::{No, Unknown as NotKnown, Yes};
+    use crate::fixtures::insert;
+    let entries = lit_entries();
+    let pack = Source::Pack;
+    // North from the kitchen is a fixed exit to the hall.
+    assert_eq!(ahead(&fixture(vec![]), &entries, zl::NORTH), (Yes, pack));
+    assert_eq!(
+        ahead(&fixture(vec![set_attr(zl::HALL, LIT)]), &entries, zl::NORTH),
+        (No, pack)
+    );
+    // A light carried goes with the player; one lying in the hall is there.
+    assert_eq!(
+        ahead(&fixture(vec![set_attr(zl::LAMP, LIT)]), &entries, zl::NORTH),
+        (No, pack)
+    );
+    assert_eq!(
+        ahead(&fixture(vec![set_attr(zl::BOAT, LIT)]), &entries, zl::NORTH),
+        (No, pack),
+        "the boat lies in the hall"
+    );
+    // A light in the kitchen that is not carried stays behind.
+    assert_eq!(
+        ahead(
+            &fixture(vec![set_attr(zl::LAMP, LIT), insert(zl::LAMP, zl::KITCHEN)]),
+            &entries,
+            zl::NORTH
+        ),
+        (Yes, pack)
+    );
+    // A light carried shut in a closed sack does not count.
+    let carried_sack = vec![
+        set_attr(zl::LAMP, LIT),
+        insert(zl::LAMP, zl::SACK),
+        insert(zl::SACK, zl::PLAYER),
+    ];
+    assert_eq!(
+        ahead(&fixture(carried_sack), &entries, zl::NORTH),
+        (Yes, pack)
+    );
+    // The kitchen's own light is not the hall's.
+    assert_eq!(
+        ahead(
+            &fixture(vec![set_attr(zl::KITCHEN, LIT)]),
+            &entries,
+            zl::NORTH
+        ),
+        (Yes, pack)
+    );
+    // A door has a room behind it, open or closed; a way a routine decides has none.
+    assert_eq!(ahead(&fixture(vec![]), &entries, zl::WEST), (Yes, pack));
+    assert_eq!(
+        ahead(&fixture(vec![set_attr(zl::HALL, LIT)]), &entries, zl::WEST),
+        (No, pack)
+    );
+    assert_eq!(
+        ahead(&fixture(vec![]), &entries, zl::EAST),
+        (NotKnown, Source::File)
+    );
+    // The player cannot be told: what goes with them is not known.
+    let tie = vec![
+        insert(zl::DIAMOND, zl::KITCHEN),
+        set_global(30, zl::DIAMOND),
+    ];
+    assert_eq!(
+        ahead(&fixture(tie.clone()), &entries, zl::NORTH),
+        (NotKnown, Source::File)
+    );
+    let mut lit_hall = tie;
+    lit_hall.push(set_attr(zl::HALL, LIT));
+    assert_eq!(ahead(&fixture(lit_hall), &entries, zl::NORTH), (No, pack));
+    // With no `lit-attribute` nothing is said, and the sources are feature 006's.
+    let without = format!("open-attribute: {OPEN}\n");
+    assert_eq!(
+        ahead(&fixture(vec![]), &without, zl::NORTH),
+        (NotKnown, Source::File)
+    );
+    assert_eq!(
+        ahead(&fixture(vec![]), &without, zl::WEST),
+        (NotKnown, pack)
     );
 }

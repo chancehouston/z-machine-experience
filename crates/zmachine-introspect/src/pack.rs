@@ -19,6 +19,9 @@ pub struct Pack {
     /// The attribute set on a thing whose contents can be seen while it is
     /// closed (specification section 12.8).
     pub transparent_attribute: Option<u8>,
+    /// The attribute set on a room that is lit of itself and on a thing that
+    /// gives light (specification section 12.9).
+    pub lit_attribute: Option<u8>,
 }
 
 /// Why a pack was refused: the line, counted from 1, and the fault.
@@ -61,6 +64,7 @@ pub(crate) struct Entries {
     pub open_attribute: Option<u8>,
     pub untrusted_variables: Vec<u8>,
     pub transparent_attribute: Option<u8>,
+    pub lit_attribute: Option<u8>,
 }
 
 /// A decimal number as the format writes one: digits only, no sign, and no
@@ -87,6 +91,7 @@ impl Pack {
             untrusted_variables: Vec::new(),
             version: 1,
             transparent_attribute: None,
+            lit_attribute: None,
         };
         // How many lines that are not skipped have been read.
         let mut read = 0;
@@ -113,6 +118,7 @@ impl Pack {
                     pack.version = match value {
                         "1" => 1,
                         "2" => 2,
+                        "3" => 3,
                         _ => {
                             return Err(fault("a version of the format this reader does not know"));
                         }
@@ -170,6 +176,16 @@ impl Pack {
                 "transparent-attribute" => {
                     return Err(fault("transparent-attribute needs a pack of version 2"));
                 }
+                "lit-attribute" if pack.version >= 3 => {
+                    let attribute = decimal(value, 0, 31)
+                        .ok_or_else(|| fault("lit-attribute is a number from 0 to 31"))?;
+                    if pack.lit_attribute.replace(attribute as u8).is_some() {
+                        return Err(fault("lit-attribute may be given once"));
+                    }
+                }
+                "lit-attribute" => {
+                    return Err(fault("lit-attribute needs a pack of version 3"));
+                }
                 _ => return Err(fault("a key this format does not have")),
             }
         }
@@ -187,6 +203,7 @@ impl Pack {
         self.open_attribute.is_some()
             || !self.untrusted_variables.is_empty()
             || self.transparent_attribute.is_some()
+            || self.lit_attribute.is_some()
     }
 
     pub(crate) fn entries(&self) -> Entries {
@@ -194,6 +211,7 @@ impl Pack {
             open_attribute: self.open_attribute,
             untrusted_variables: self.untrusted_variables.clone(),
             transparent_attribute: self.transparent_attribute,
+            lit_attribute: self.lit_attribute,
         }
     }
 }

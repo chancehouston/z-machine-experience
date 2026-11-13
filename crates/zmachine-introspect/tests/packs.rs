@@ -242,3 +242,76 @@ fn the_tables_are_the_same_with_a_pack() {
     assert_eq!(with.dictionary(&view), plain.dictionary(&view));
     assert_eq!(with.family(), plain.family());
 }
+
+// Feature 008 (I§12.9, I§12.10; specs/008-darkness FR-002, FR-006, FR-007): on
+// Zork I's walkthrough, with the attribute that means lit, light is said at
+// every stop where the player can be told, the answers rest on the pack, and
+// nothing but light and dark ahead differs from the answers without it. The
+// transcript is the reference.
+#[test]
+fn zork1s_light_is_said_wherever_the_player_can_be_told() {
+    use zmachine_introspect::{Light, Tri};
+    let pack = pack_for(
+        ZORK1.story,
+        "open-attribute: 11\ntransparent-attribute: 12\nlit-attribute: 19\n",
+    )
+    .replace("pack: 1", "pack: 3");
+    let (mut said, mut unknown, mut ahead) = (0, 0, 0);
+    let replay = walk(ZORK1, |machine, stop| {
+        if !stop.command_prompt {
+            return;
+        }
+        let view = machine.view();
+        let (with, plain) = (
+            Introspector::with_pack(&view, &pack),
+            Introspector::new(&view),
+        );
+        assert_eq!(with.pack(), PackState::InForce);
+        let (here, was) = (
+            with.location(&view).value.unwrap(),
+            plain.location(&view).value.unwrap(),
+        );
+        assert_eq!(
+            (here.room, &here.name, &here.holder),
+            (was.room, &was.name, &was.holder)
+        );
+        assert_eq!((was.lit, was.source), (Tri::Unknown, Source::File));
+        let scope = with.scope(&view).value.unwrap();
+        let bare = plain.scope(&view).value.unwrap();
+        assert_eq!((bare.light, bare.source), (Light::Unknown, Source::File));
+        assert_eq!(scope.objects.len(), bare.objects.len());
+        match here.lit {
+            Tri::Unknown => {
+                unknown += 1;
+                assert!(
+                    with.inventory(&view).value.is_err(),
+                    "only where the player ties"
+                );
+                assert_eq!((here.source, scope.light), (Source::File, Light::Unknown));
+            }
+            lit => {
+                said += 1;
+                assert_eq!(here.source, Source::Pack);
+                let light = if lit == Tri::Yes {
+                    Light::Lit
+                } else {
+                    Light::Dark
+                };
+                assert_eq!((scope.light, scope.source), (light, Source::Pack));
+            }
+        }
+        for exit in with.exits(&view).value.unwrap().exits {
+            if exit.dark_ahead != Tri::Unknown {
+                ahead += 1;
+                assert!(exit.destination.is_some());
+                assert_eq!(exit.source, Source::Pack);
+            }
+        }
+        for exit in plain.exits(&view).value.unwrap().exits {
+            assert_eq!(exit.dark_ahead, Tri::Unknown);
+        }
+    });
+    assert_eq!(replay.transcript, read_text(ZORK1.reference));
+    assert!(said > 320 && unknown <= 6, "{said} said, {unknown} unknown");
+    assert!(ahead > 700, "{ahead}");
+}

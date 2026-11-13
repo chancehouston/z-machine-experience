@@ -47,7 +47,7 @@ rule disagree with the attribute on purpose.
 
 ## Phase 1: Setup
 
-- [ ] T001 Create `crates/zmachine-experience/src/light.rs` and `crates/zmachine-corpus/src/light.rs`, each holding a module comment that cites this feature, and declare them; `cargo test --workspace` passes
+- [x] T001 Create `crates/zmachine-experience/src/light.rs` and `crates/zmachine-corpus/src/light.rs`, each holding a module comment that cites this feature, and declare them; `cargo test --workspace` passes
 
 ---
 
@@ -55,8 +55,8 @@ rule disagree with the attribute on purpose.
 
 **⚠️ CRITICAL**: No user story starts until this phase is complete
 
-- [ ] T002 In `docs/introspection.md`: version line to `0.4.0`; I§6's table gains `source`, and I§6.2 gains A§5 to 7 by pointing to a new I§12.9; I§9's table gains `source` and I§9.2's "Light is `unknown`" becomes A§8; I§8's table gains `dark_ahead`, with A§10, 12 and 15; I§2.3 gains the key orders of A§14 and the worked examples of I§2.5 gain the new keys; I§12.1's table gains `lit-attribute` and `pack` reads "`1`, `2` or `3`", with A§2 in the paragraph on versions; I§12.6's first sentence becomes A§3; a new I§12.9, "`lit-attribute`", holds A§1 and 4 to 9; a new I§12.10, "Dark ahead", holds A§11 and 13; I§12.7 gains the list for 0.4.0. No text of a game (FR-008)
-- [ ] T003 Set `SPEC_VERSION` to `0.4.0`; edit and list the tests that fix the version string; extend `every_part_of_section_12_is_cited` to need I§12.9 and I§12.10 (it fails until Phase 3 and 4 cite them; mark it `#[ignore = "closed by T017"]` once the failure is recorded)
+- [x] T002 In `docs/introspection.md`: version line to `0.4.0`; I§6's table gains `source`, and I§6.2 gains A§5 to 7 by pointing to a new I§12.9; I§9's table gains `source` and I§9.2's "Light is `unknown`" becomes A§8; I§8's table gains `dark_ahead`, with A§10, 12 and 15; I§2.3 gains the key orders of A§14 and the worked examples of I§2.5 gain the new keys; I§12.1's table gains `lit-attribute` and `pack` reads "`1`, `2` or `3`", with A§2 in the paragraph on versions; I§12.6's first sentence becomes A§3; a new I§12.9, "`lit-attribute`", holds A§1 and 4 to 9; a new I§12.10, "Dark ahead", holds A§11 and 13; I§12.7 gains the list for 0.4.0. No text of a game (FR-008)
+- [x] T003 Set `SPEC_VERSION` to `0.4.0`; edit and list the tests that fix the version string; extend `every_part_of_section_12_is_cited` to need I§12.9 and I§12.10 (it fails until Phase 3 and 4 cite them; mark it `#[ignore = "closed by T017"]` once the failure is recorded)
 - [ ] T004 [P] Extend the corpus's toy in `crates/zmachine-corpus/tests/common/mod.rs`: `Toy::lit_rooms` gives chosen rooms a `LIT_ATTR`; a lamp object the player may `take`, with commands `on` and `off` that set and clear `LIT_ATTR` on it; a `look` command that prints the room's name when the toy's rule says lit (the room has the attribute, or the lamp has it and is carried or in the room) and something else when not; a field that makes `look` lie (always name the room, or never). A check in `tests/trial.rs` that the toy is still `zil`
 
 ---
@@ -65,17 +65,17 @@ rule disagree with the attribute on purpose.
 
 ### Tests
 
-- [ ] T005 [P] [US1] Failing tests in `crates/zmachine-introspect/src/pack_tests.rs` (A§1, 2; FR-001; R5; I§12.1, I§12.9): `Pack::parse` reads `pack: 3` with `lit-attribute: 19`; reads versions 1 and 2 as before; refuses `pack: 4`, `lit-attribute` in a pack of version 2, `lit-attribute: 32`, and the key twice, each with its line; the key on an Inform fixture is refused as an entry
-- [ ] T006 [P] [US1] Failing tests `light_*` in `crates/zmachine-introspect/src/pack_tests.rs` (A§4, 5, 8, 9; FR-002, FR-003, FR-005; R1; I§6.2, I§9.2, I§12.9), on the ZIL fixture with `lit-attribute` and `open-attribute` in force: a room with the attribute is `lit` `yes`; without it and with no light, `no`; with the lamp carried and having the attribute, `yes`; the lamp lying in the room, `yes`; the lamp in the closed sack, `no`; in the open sack, `yes`; in a closed sack that is see-through (with `transparent-attribute`), `yes`; the lamp having the attribute in another room, `no`; `scope`'s `light` is `lit` or `dark` to match, and its objects are as before; `location` and `scope` have `source` `pack` in every one of these cases
-- [ ] T007 [P] [US1] Failing tests `light_unknown_*` in `crates/zmachine-introspect/src/pack_tests.rs` (A§6, 7; R2): with the player ambiguous (two objects tie, as `zil_tests` already arranges) and the room without the attribute, `lit` is `unknown` and `source` `file`; the same with the room having the attribute is `yes`; the same with a lamp having the attribute lying loose in the room is `yes`; with `lit-attribute` and no `open-attribute`, a lit lamp inside the sack in a dark room is `unknown`, and loose in the room is `yes`
-- [ ] T008 [P] [US1] Failing tests in `crates/zmachine-introspect/src/json_tests.rs` (A§14; I§2.3): `location`'s keys end `lit`, `source`; `scope`'s begin `light`, `source`
-- [ ] T009 [P] [US1] Failing test in `crates/zmachine-introspect/tests/packs.rs` (FR-006, FR-007; SC-005, SC-006): on all three walkthroughs, with no pack, `location` and `scope` equal what they were in every earlier field and have `source` `file`; Advent's `lit` is never `unknown` and Zork I's always is; with a pack for Zork I written in the test (`lit-attribute: 19` with the open and see-through entries) `lit` is `yes` or `no` at every stop where the player can be told; `object_tree` and `dictionary` are untouched; each transcript is its reference
+- [x] T005 [P] [US1] Failing tests in `crates/zmachine-introspect/src/pack_tests.rs` (A§1, 2; FR-001; R5; I§12.1, I§12.9): `Pack::parse` reads `pack: 3` with `lit-attribute: 19`; reads versions 1 and 2 as before; refuses `pack: 4`, `lit-attribute` in a pack of version 2, `lit-attribute: 32`, and the key twice, each with its line; the key on an Inform fixture is refused as an entry
+- [x] T006 [P] [US1] Failing tests `light_*` in `crates/zmachine-introspect/src/pack_tests.rs` (A§4, 5, 8, 9; FR-002, FR-003, FR-005; R1; I§6.2, I§9.2, I§12.9), on the ZIL fixture with `lit-attribute` and `open-attribute` in force: a room with the attribute is `lit` `yes`; without it and with no light, `no`; with the lamp carried and having the attribute, `yes`; the lamp lying in the room, `yes`; the lamp in the closed sack, `no`; in the open sack, `yes`; in a closed sack that is see-through (with `transparent-attribute`), `yes`; the lamp having the attribute in another room, `no`; `scope`'s `light` is `lit` or `dark` to match, and its objects are as before; `location` and `scope` have `source` `pack` in every one of these cases
+- [x] T007 [P] [US1] Failing tests `light_unknown_*` in `crates/zmachine-introspect/src/pack_tests.rs` (A§6, 7; R2): with the player ambiguous (two objects tie, as `zil_tests` already arranges) and the room without the attribute, `lit` is `unknown` and `source` `file`; the same with the room having the attribute is `yes`; the same with a lamp having the attribute lying loose in the room is `yes`; with `lit-attribute` and no `open-attribute`, a lit lamp inside the sack in a dark room is `unknown`, and loose in the room is `yes`
+- [x] T008 [P] [US1] Failing tests in `crates/zmachine-introspect/src/json_tests.rs` (A§14; I§2.3): `location`'s keys end `lit`, `source`; `scope`'s begin `light`, `source`
+- [x] T009 [P] [US1] Failing test in `crates/zmachine-introspect/tests/packs.rs` (FR-006, FR-007; SC-005, SC-006): on all three walkthroughs, with no pack, `location` and `scope` equal what they were in every earlier field and have `source` `file`; Advent's `lit` is never `unknown` and Zork I's always is; with a pack for Zork I written in the test (`lit-attribute: 19` with the open and see-through entries) `lit` is `yes` or `no` at every stop where the player can be told; `object_tree` and `dictionary` are untouched; each transcript is its reference
 
 ### Implementation
 
-- [ ] T010 [US1] `version` 3 and `lit_attribute` in `crates/zmachine-introspect/src/pack.rs`; T005 passes; earlier tests that said version 3 is refused now say 4, and are listed
-- [ ] T011 [US1] `source` on `Location` and `Scope` in `crates/zmachine-introspect/src/lib.rs`, `file` everywhere; the light rule in `crates/zmachine-introspect/src/zil.rs`, used by `location` and `scope`; T006 and T007 pass
-- [ ] T012 [US1] The keys in `crates/zmachine-introspect/src/json.rs`; T008 passes; earlier tests that fix location or scope JSON gain the key and are listed; T009 passes
+- [x] T010 [US1] `version` 3 and `lit_attribute` in `crates/zmachine-introspect/src/pack.rs`; T005 passes; earlier tests that said version 3 is refused now say 4, and are listed
+- [x] T011 [US1] `source` on `Location` and `Scope` in `crates/zmachine-introspect/src/lib.rs`, `file` everywhere; the light rule in `crates/zmachine-introspect/src/zil.rs`, used by `location` and `scope`; T006 and T007 pass
+- [x] T012 [US1] The keys in `crates/zmachine-introspect/src/json.rs`; T008 passes; earlier tests that fix location or scope JSON gain the key and are listed; T009 passes
 
 **Checkpoint**: The interface says lit or dark
 
@@ -85,14 +85,14 @@ rule disagree with the attribute on purpose.
 
 ### Tests
 
-- [ ] T013 [P] [US3] Failing tests `dark_ahead_*` in `crates/zmachine-introspect/src/pack_tests.rs` (A§10 to 13, 15; FR-004; R3; I§8, I§12.10), on the ZIL fixture: a way to a room without the attribute, with no light there and none carried, is `yes`; with a lit lamp carried, `no`; with a lit lamp lying in that room, `no`; to a room with the attribute, `no`; a lit lamp carried inside a closed sack does not count; a way decided by a routine is `unknown`; a door, open or closed, is `yes` or `no` like a fixed exit; with the player ambiguous and the way's room dark of itself, `unknown`; every exit whose `dark_ahead` is `yes` or `no` has `source` `pack`, and a conditional exit keeps `file`; with no `lit-attribute` every `dark_ahead` is `unknown` and every source is what feature 006 gave
-- [ ] T014 [P] [US3] Failing test in `crates/zmachine-introspect/src/json_tests.rs` (A§14): an exit's nine keys in order
-- [ ] T015 [P] [US3] Failing test in `crates/zmachine-corpus/tests/verdict.rs` (R4): with a pack that has `lit-attribute`, a fixed exit whose source is `pack` is still reported `fixed R`; a conditional exit on an untrusted variable is still `distrusted`; a plain conditional exit is still `conditional`
+- [x] T013 [P] [US3] Failing tests `dark_ahead_*` in `crates/zmachine-introspect/src/pack_tests.rs` (A§10 to 13, 15; FR-004; R3; I§8, I§12.10), on the ZIL fixture: a way to a room without the attribute, with no light there and none carried, is `yes`; with a lit lamp carried, `no`; with a lit lamp lying in that room, `no`; to a room with the attribute, `no`; a lit lamp carried inside a closed sack does not count; a way decided by a routine is `unknown`; a door, open or closed, is `yes` or `no` like a fixed exit; with the player ambiguous and the way's room dark of itself, `unknown`; every exit whose `dark_ahead` is `yes` or `no` has `source` `pack`, and a conditional exit keeps `file`; with no `lit-attribute` every `dark_ahead` is `unknown` and every source is what feature 006 gave
+- [x] T014 [P] [US3] Failing test in `crates/zmachine-introspect/src/json_tests.rs` (A§14): an exit's nine keys in order
+- [x] T015 [P] [US3] Failing test in `crates/zmachine-corpus/tests/verdict.rs` (R4): with a pack that has `lit-attribute`, a fixed exit whose source is `pack` is still reported `fixed R`; a conditional exit on an untrusted variable is still `distrusted`; a plain conditional exit is still `conditional`
 
 ### Implementation
 
-- [ ] T016 [US3] `dark_ahead` on `Exit`; the rule for a way's room in `crates/zmachine-introspect/src/zil.rs` and `lib.rs`; the key in `json.rs`; T013, T014 and T015 pass; earlier tests that build or fix an exit gain the field and are listed
-- [ ] T017 [US3] Remove the `#[ignore]` of T003; `cargo test --workspace`; quickstart step 2
+- [x] T016 [US3] `dark_ahead` on `Exit`; the rule for a way's room in `crates/zmachine-introspect/src/zil.rs` and `lib.rs`; the key in `json.rs`; T013, T014 and T015 pass; earlier tests that build or fix an exit gain the field and are listed
+- [x] T017 [US3] Remove the `#[ignore]` of T003; `cargo test --workspace`; quickstart step 2
 
 **Checkpoint**: The interface forecasts darkness
 

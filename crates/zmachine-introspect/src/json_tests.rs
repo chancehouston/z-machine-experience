@@ -234,7 +234,7 @@ fn a_location() {
     assert_eq!(
         json,
         format!(
-            r#"{{"exactness":"exact","value":{{"room":{},"name":"Kitchen","holder":null,"lit":"yes"}}}}"#,
+            r#"{{"exactness":"exact","value":{{"room":{},"name":"Kitchen","holder":null,"lit":"yes","source":"file"}}}}"#,
             inf::KITCHEN
         )
     );
@@ -250,7 +250,7 @@ fn a_location() {
     let m = f.machine();
     let value = read(&to_json(&Introspector::new(&m.view()).location(&m.view())));
     let location = value.get("value");
-    assert_eq!(location.keys(), ["room", "name", "holder", "lit"]);
+    assert_eq!(location.keys(), ["room", "name", "holder", "lit", "source"]);
     assert_eq!(
         location.get("holder").get("unknown").text(),
         "ambiguous-player"
@@ -301,6 +301,7 @@ fn exits() {
             "destination_name",
             "door",
             "state",
+            "dark_ahead",
             "source"
         ]
     );
@@ -339,7 +340,7 @@ fn scope() {
     let value = read(&to_json(&i.scope(&m.view())));
     assert_eq!(value.get("exactness").text(), "approximate");
     let scope = value.get("value");
-    assert_eq!(scope.keys(), ["light", "player", "objects"]);
+    assert_eq!(scope.keys(), ["light", "source", "player", "objects"]);
     assert_eq!(scope.get("light").text(), "lit");
     assert_eq!(scope.get("player").text(), "known");
     let plate = scope
@@ -547,21 +548,21 @@ fn exits_with_a_pack() {
     let door = zl::DOOR;
     assert!(
         text.contains(&format!(
-            r#"{{"direction":{},"words":["west"],"kind":"door","destination":{hall},"destination_name":"Hall","door":{door},"state":"closed","source":"pack"}}"#,
+            r#"{{"direction":{},"words":["west"],"kind":"door","destination":{hall},"destination_name":"Hall","door":{door},"state":"closed","dark_ahead":"unknown","source":"pack"}}"#,
             zl::WEST
         )),
         "{text}"
     );
     assert!(
         text.contains(&format!(
-            r#"{{"direction":{},"words":["down"],"kind":"conditional","destination":null,"destination_name":null,"door":null,"state":null,"source":"pack"}}"#,
+            r#"{{"direction":{},"words":["down"],"kind":"conditional","destination":null,"destination_name":null,"door":null,"state":null,"dark_ahead":"unknown","source":"pack"}}"#,
             zl::DOWN
         )),
         "{text}"
     );
     assert!(
         text.contains(&format!(
-            r#"{{"direction":{},"words":["n","north"],"kind":"fixed","destination":{hall},"destination_name":"Hall","door":null,"state":null,"source":"file"}}"#,
+            r#"{{"direction":{},"words":["n","north"],"kind":"fixed","destination":{hall},"destination_name":"Hall","door":null,"state":null,"dark_ahead":"unknown","source":"file"}}"#,
             zl::NORTH
         )),
         "{text}"

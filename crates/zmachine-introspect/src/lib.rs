@@ -40,7 +40,7 @@ mod table_tests;
 mod zil_tests;
 
 /// The version of `docs/introspection.md` this crate implements.
-pub const SPEC_VERSION: &str = "0.3.0";
+pub const SPEC_VERSION: &str = "0.4.0";
 
 /// The queries, as the specification names them and in its order.
 pub const QUERIES: [&str; 6] = [
@@ -137,6 +137,8 @@ pub struct Location {
     /// What the player is in or on within the room, if anything.
     pub holder: Part<Option<u16>>,
     pub lit: Tri,
+    /// `Pack` when `lit` would be different with no game pack (section 12.9).
+    pub source: Source,
 }
 
 /// Something the player carries (specification section 7).
@@ -242,6 +244,9 @@ pub struct Exit {
     pub door: Option<u16>,
     /// Whether that door is open.
     pub state: Option<DoorState>,
+    /// Whether the room it leads to would be dark for the player as they are
+    /// (specification section 12.10).
+    pub dark_ahead: Tri,
     pub source: Source,
 }
 
@@ -334,6 +339,8 @@ pub struct ScopeEntry {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Scope {
     pub light: Light,
+    /// `Pack` when `light` would be different with no game pack (section 12.9).
+    pub source: Source,
     /// `Ok` when the player was found; otherwise nothing is marked carried.
     pub player: Part<()>,
     pub objects: Vec<ScopeEntry>,
@@ -425,9 +432,141 @@ impl Introspector {
     fn place(&self, b: Bytes) -> Part<Place> {
         match &self.adapter {
             Adapter::Inform(inform) => inform.place(&self.layout, b),
-            Adapter::Zil(zil) => zil.place(&self.layout, b),
+            Adapter::Zil(zil) => {
+                let mut place = zil.place(&self.layout, b)?;
+                // A game pack may say which attribute means lit (section 12.9).
+                if let Some(lit) = self.entries.lit_attribute {
+                    place.lit = self.lit(b, zil, &place, lit)?;
+                }
+                Ok(place)
+            }
             Adapter::None => Err(Unknown::UnrecognisedFamily),
         }
+    }
+
+    /// Whether the mark of a game pack belongs on an answer about light: a ZIL
+    /// story's light is unknown without one.
+    fn light_source(&self, lit: Tri) -> Source {
+        let from_pack = matches!(self.adapter, Adapter::Zil(_))
+            && self.entries.lit_attribute.is_some()
+            && lit != Tri::Unknown;
+        if from_pack {
+            Source::Pack
+        } else {
+            Source::File
+        }
+    }
+
+    fn has(&self, b: Bytes, object: u16, attribute: u8) -> bool {
+        self.layout.has_attribute(b, object, attribute) == Some(true)
+    }
+
+    /// Whether the player's room is lit (specification section 12.9): it has
+    /// the attribute, or a light can be seen in it.
+    fn lit(&self, b: Bytes, zil: &zil::Zil, place: &Place, lit: u8) -> Part<Tri> {
+        if self.has(b, place.room, lit) {
+            return Ok(Tri::Yes);
+        }
+        match &place.player {
+            Ok(player) => {
+                // What the player carries is seen, and so is what is beside the
+                // player in whatever the player is in.
+                let mut through = vec![*player];
+                if let Ok(Some(holder)) = place.holder {
+                    through.push(holder);
+                }
+                self.light_seen(b, place.room, lit, &through, &[])
+            }
+            // What the player carries is not known. A light seen outside the
+            // objects that tied still lights the room.
+            Err(reason) => {
+                let tied = if *reason == Unknown::AmbiguousPlayer {
+                    zil.contenders(&self.layout, b, place.room)?
+                } else {
+                    Vec::new()
+                };
+                match self.light_seen(b, place.room, lit, &[], &tied)? {
+                    Tri::Yes => Ok(Tri::Yes),
+                    _ => Ok(Tri::Unknown),
+                }
+            }
+        }
+    }
+
+    /// Whether the room an exit leads to would be dark for the player as they
+    /// are (specification section 12.10).
+    fn dark_ahead(&self, b: Bytes, place: &Place, destination: u16) -> Tri {
+        let Some(lit) = self.entries.lit_attribute else {
+            return Tri::Unknown;
+        };
+        if destination == place.room {
+            return match place.lit {
+                Tri::Yes => Tri::No,
+                Tri::No => Tri::Yes,
+                Tri::Unknown => Tri::Unknown,
+            };
+        }
+        if self.has(b, destination, lit) {
+            return Tri::No;
+        }
+        let there = self.light_seen(b, destination, lit, &[], &[]);
+        let carried = match &place.player {
+            Ok(player) => self.light_seen(b, *player, lit, &[], &[]),
+            Err(_) => Ok(Tri::Unknown),
+        };
+        match (there, carried) {
+            (Ok(Tri::Yes), _) | (_, Ok(Tri::Yes)) => Tri::No,
+            (Ok(Tri::No), Ok(Tri::No)) => Tri::Yes,
+            _ => Tri::Unknown,
+        }
+    }
+
+    /// Whether a light can be seen under `root`: an object with the attribute,
+    /// every object between it and `root` being one of `through`, or open, or
+    /// see-through. Objects in `skip` are passed over with all they hold.
+    /// Unknown where a thing with the attribute is inside something that may or
+    /// may not be open.
+    fn light_seen(&self, b: Bytes, root: u16, lit: u8, through: &[u16], skip: &[u16]) -> Part<Tri> {
+        let mut unknown = false;
+        let mut budget = self.layout.last_object as usize;
+        let mut stack = self.children(b, root)?;
+        while let Some(object) = stack.pop() {
+            budget = budget.checked_sub(1).ok_or(Unknown::Damaged)?;
+            if skip.contains(&object) {
+                continue;
+            }
+            if self.has(b, object, lit) {
+                return Ok(Tri::Yes);
+            }
+            let inside = self.children(b, object)?;
+            if inside.is_empty() {
+                continue;
+            }
+            if through.contains(&object) {
+                stack.extend(inside);
+                continue;
+            }
+            match self.container(b, object).1 {
+                Tri::Yes => stack.extend(inside),
+                Tri::No => {}
+                Tri::Unknown => unknown |= self.holds_lit(b, object, lit)?,
+            }
+        }
+        Ok(if unknown { Tri::Unknown } else { Tri::No })
+    }
+
+    /// Whether anything inside an object, at any depth, has the attribute.
+    fn holds_lit(&self, b: Bytes, object: u16, lit: u8) -> Part<bool> {
+        let mut budget = self.layout.last_object as usize;
+        let mut stack = self.children(b, object)?;
+        while let Some(inner) = stack.pop() {
+            budget = budget.checked_sub(1).ok_or(Unknown::Damaged)?;
+            if self.has(b, inner, lit) {
+                return Ok(true);
+            }
+            stack.extend(self.children(b, inner)?);
+        }
+        Ok(false)
     }
 
     /// The room the player is in (specification section 6).
@@ -442,6 +581,7 @@ impl Introspector {
                 name: self.printed_name(b, place.room),
                 holder: place.holder,
                 lit: place.lit,
+                source: self.light_source(place.lit),
             }),
             Err(reason) => Answer::unknown(reason, Exactness::Exact),
         }
@@ -566,9 +706,21 @@ impl Introspector {
             return Answer::unknown(reason, Exactness::Exact);
         }
         let b = Bytes::now(view);
-        let room = match self.place(b) {
-            Ok(place) => place.room,
+        let place = match self.place(b) {
+            Ok(place) => place,
             Err(reason) => return Answer::unknown(reason, Exactness::Exact),
+        };
+        let room = place.room;
+        // An exit with a known room says whether that room would be dark; what
+        // that says rests on a pack (specification section 12.10).
+        let ahead = |destination: u16, source: Source| {
+            let dark = self.dark_ahead(b, &place, destination);
+            let source = if dark == Tri::Unknown {
+                source
+            } else {
+                Source::Pack
+            };
+            (dark, source)
         };
         // Each direction of the family, with what the room's table says of it.
         let ways: Vec<(u8, &[String], Way)> = match &self.adapter {
@@ -601,16 +753,20 @@ impl Introspector {
             let words = words.to_vec();
             match way {
                 Way::None => {}
-                Way::Fixed(destination) => exits.exits.push(Exit {
-                    direction,
-                    words,
-                    kind: ExitKind::Fixed,
-                    destination: Some(destination),
-                    destination_name: Some(self.printed_name(b, destination)),
-                    door: None,
-                    state: None,
-                    source: Source::File,
-                }),
+                Way::Fixed(destination) => {
+                    let (dark_ahead, source) = ahead(destination, Source::File);
+                    exits.exits.push(Exit {
+                        direction,
+                        words,
+                        kind: ExitKind::Fixed,
+                        destination: Some(destination),
+                        destination_name: Some(self.printed_name(b, destination)),
+                        door: None,
+                        state: None,
+                        dark_ahead,
+                        source,
+                    })
+                }
                 Way::Conditional => exits.exits.push(Exit {
                     direction,
                     words,
@@ -619,6 +775,7 @@ impl Introspector {
                     destination_name: None,
                     door: None,
                     state: None,
+                    dark_ahead: Tri::Unknown,
                     source: Source::File,
                 }),
                 Way::Door { room, door, open } => exits.exits.push(Exit {
@@ -633,6 +790,7 @@ impl Introspector {
                     } else {
                         DoorState::Closed
                     }),
+                    dark_ahead: ahead(room, Source::Pack).0,
                     source: Source::Pack,
                 }),
                 Way::Distrusted => exits.exits.push(Exit {
@@ -643,6 +801,7 @@ impl Introspector {
                     destination_name: None,
                     door: None,
                     state: None,
+                    dark_ahead: Tri::Unknown,
                     source: Source::Pack,
                 }),
                 Way::Unknown(reason) => exits.unknown.push(UnknownDirection {
@@ -689,7 +848,9 @@ impl Introspector {
             // No tree holds more objects than exist; the budget stops a loop.
             budget: self.layout.last_object as usize,
         };
-        if light != Light::Dark {
+        // An Inform story's room is not listed in the dark; a ZIL story's is,
+        // whatever a pack says of its light (specification section 9.2).
+        if light != Light::Dark || matches!(self.adapter, Adapter::Zil(_)) {
             for object in self.children(b, place.room)? {
                 self.enter(
                     b,
@@ -733,6 +894,7 @@ impl Introspector {
         }
         Ok(Scope {
             light,
+            source: self.light_source(place.lit),
             player: place.player.map(|_| ()),
             objects: walk.entries,
         })

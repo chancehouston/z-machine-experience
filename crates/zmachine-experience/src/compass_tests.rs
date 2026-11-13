@@ -18,6 +18,7 @@ fn fixed(direction: u8, list: &[&str], to: &str) -> Exit {
         destination_name: Some(Ok(to.to_string())),
         door: None,
         state: None,
+        dark_ahead: zmachine_introspect::Tri::Unknown,
         source: zmachine_introspect::Source::File,
     }
 }
@@ -31,6 +32,7 @@ fn conditional(direction: u8, list: &[&str]) -> Exit {
         destination_name: None,
         door: None,
         state: None,
+        dark_ahead: zmachine_introspect::Tri::Unknown,
         source: zmachine_introspect::Source::File,
     }
 }

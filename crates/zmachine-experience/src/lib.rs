@@ -8,6 +8,7 @@
 
 mod compass;
 mod json;
+mod light;
 mod strip;
 mod transcript;
 
