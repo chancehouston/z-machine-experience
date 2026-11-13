@@ -19,6 +19,7 @@ harness = false
 [dependencies]
 zmachine-core = { path = "../zmachine-core" }
 zmachine-introspect = { path = "../zmachine-introspect" }
+zmachine-experience = { path = "../zmachine-experience" }
 sha2 = "0.10"
 
 [dev-dependencies]

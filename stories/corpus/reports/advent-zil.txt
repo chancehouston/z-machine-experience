@@ -10,6 +10,7 @@ none confirmed 51 wrong-known 0 wrong-unexplained 0 other 0
 conditional 14 moved 10 stayed 4 question 0 ended 0 fault 0
 unknown 0 moved 0 stayed 0 question 0 ended 0 fault 0
 no-verdict 0
+lookahead walked 6 refused 1 left 7 not-borne-out-known 3 not-borne-out-unexplained 0
 detail
 200 20 conditional stayed 1
 200 28 conditional moved 204 1
@@ -25,3 +26,6 @@ detail
 204 31 conditional stayed 1
 214 30 conditional moved 204 1
 219 31 conditional moved 204 1
+lookahead 201 28 walked 204 moved 203 1
+lookahead 201 29 walked 204 moved 203 1
+lookahead 214 30 walked 204 moved 203 1

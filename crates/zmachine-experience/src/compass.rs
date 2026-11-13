@@ -1,6 +1,7 @@
 //! The compass: which of twelve places lead somewhere, and what a tap on each
 //! sends (specs/004-first-demo/data-model.md "Compass"; research R5).
 
+use crate::lookahead::Finding;
 use zmachine_introspect::{Answer, DoorState, ExitKind, Exits, Tri};
 
 /// A place on the compass.
@@ -347,6 +348,57 @@ impl Compass {
             note,
             places,
             extras,
+        }
+    }
+
+    /// Settles the ways the interface could not, by what look-ahead finds for
+    /// each (specs/009-compass-lookahead/contracts/lookahead.md statements 10
+    /// to 16). `find` is asked once for each place, in the compass's order,
+    /// and then for each extra, that is `maybe` and has a command; it is
+    /// asked for nothing else.
+    ///
+    /// A way found walked becomes an open way to the room found; a place found
+    /// refused becomes one that leads nowhere, and an extra found refused is
+    /// dropped; a way with no finding is left as it was.
+    pub(crate) fn settle(&mut self, mut find: impl FnMut(&str) -> Finding) {
+        if !self.offered {
+            return;
+        }
+        for entry in &mut self.places {
+            let (PlaceState::Maybe, Some(command)) = (entry.state, &entry.command) else {
+                continue;
+            };
+            match find(command) {
+                Finding::Walked { name, dark, .. } => {
+                    *entry = place_in(entry.place, PlaceState::Open, name, dark);
+                }
+                Finding::Refused => {
+                    *entry = place_in(entry.place, PlaceState::Closed, None, false);
+                }
+                Finding::None => {}
+            }
+        }
+        let mut kept = Vec::with_capacity(self.extras.len());
+        for mut extra in std::mem::take(&mut self.extras) {
+            if extra.state == PlaceState::Maybe {
+                match find(&extra.command) {
+                    Finding::Walked { name, dark, .. } => {
+                        extra.state = PlaceState::Open;
+                        extra.spoken = spoken(&extra.label, extra.state, name.as_deref(), dark);
+                        extra.leads_to = name;
+                        extra.dark_ahead = dark;
+                    }
+                    Finding::Refused => continue,
+                    Finding::None => {}
+                }
+            }
+            kept.push(extra);
+        }
+        self.extras = kept;
+        // With every way known, the note says whether any is left.
+        if self.known {
+            let any = self.places.iter().any(|p| p.command.is_some()) || !self.extras.is_empty();
+            self.note = (!any).then_some(NOTE_NONE);
         }
     }
 

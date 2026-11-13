@@ -230,6 +230,36 @@ which under the archive's terms means personal use only. They are kept in
 is any of their text. Their tests are reported as "ignored, story absent" wherever the
 files are not present, as in CI. The project owner approved each download by name.
 
+## Look-ahead, set against a trial apart from it
+
+Feature 009 (`specs/009-compass-lookahead/`) added a fourth measure. The experience
+layer settles a way the interface reports as conditional, or cannot answer, by trying
+it on three throwaway copies of the game: one with the game's own draws of chance and
+two with others. All three walking to one room is a finding of *walked*; all three
+staying is *refused*; anything else leaves the way as it was. At every place the corpus
+asks the layer for each such way's finding, with the limits the app uses, and then
+makes a trial of its own on a copy given draws that none of the three had. A finding
+the trial does not repeat fails the run until the ledger says why.
+
+| | Ways asked | Found walked | Found refused | Left | Not borne out |
+| --- | --- | --- | --- | --- | --- |
+| ZIL family | 103 | 54 | 42 | 7 | 3 |
+| Inform family | 107 | 51 | 44 | 12 | 0 |
+| All | 210 | 105 | 86 | 19 | 3 |
+
+- **191 of 210 are settled (91%).** Of the 198 that were reported conditional, 191
+  (96%): the other 12 asked are the directions of one story the interface cannot
+  answer at its only place, and no copy settles them.
+- **7 are left because the game decides by chance**, all in the ZIL build of Advent,
+  whose forest sends a walk to one of two rooms by a draw.
+- **3 findings were not borne out**, in the same forest: three copies drew alike and
+  the fourth did not. Each is in the ledger. Three copies cannot rule this out; the
+  count is what the measure is for.
+- **No copy's game ended, asked a question or ran away** on any of these ways.
+- **Nothing else moved.** Every other line of every report is what it was.
+
+A refused way is drawn as no way at all, by the owner's choice: 86 of the 191.
+
 ## Running it
 
 From the repository's root:

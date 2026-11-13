@@ -13,6 +13,7 @@ no-verdict 20
 inventory compared 1550 agreed 1481 differed-known 0 differed-unexplained 0 unjudged 69 no-listing 0 empty 18 unknown 6 through-closed 0
 light compared 372 agreed 0 differed-known 0 differed-unexplained 0 unjudged 372 dark 0 rooms-both 0 in-the-dark 0
 ahead compared 801 agreed 0 differed-known 0 differed-unexplained 0 unjudged 801
+lookahead walked 89 refused 24 left 0 not-borne-out-known 0 not-borne-out-unexplained 0
 detail
 3 29 fixed 3 stayed 4
 15 30 fixed 205 question 2

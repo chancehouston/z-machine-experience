@@ -67,6 +67,8 @@ fn sample() -> Report {
         inventory_detail: vec![],
         light: None,
         light_detail: vec![],
+        lookahead: None,
+        lookahead_detail: vec![],
         detail: vec![
             (case(2, 28, Reported::None, Outcome::Moved(3)), 1),
             (case(2, 29, Reported::Fixed(3), Outcome::Moved(4)), 2),
@@ -420,6 +422,7 @@ fn a_storys_line_of_the_summary_is_its_reports_figures() {
             unknown: 3,
             wrong_known: 1,
             wrong_unexplained: 3,
+            looked: [0; 4],
         }
     );
 }
@@ -438,6 +441,7 @@ fn story_line(id: &str, family: &str, scale: usize) -> StoryLine {
             unknown: 3 * scale,
             wrong_known: scale,
             wrong_unexplained: 0,
+            looked: [0; 4],
         },
     }
 }
@@ -994,4 +998,167 @@ fn a_report_may_hold_the_light_comparison() {
     );
     let plain = sample().write() + "light 3 dark described 1\n";
     assert_eq!(Report::read(&plain).expect_err("refused").0, 19);
+}
+
+// ---------------------------------------------------------------------------
+// Look-ahead (feature 009; specs/009-compass-lookahead/contracts/corpus.md,
+// cited C§)
+// ---------------------------------------------------------------------------
+
+fn looked() -> Report {
+    let mut report = sample();
+    report.lookahead = Some(zmachine_corpus::report::Looked {
+        walked: 4,
+        refused: 6,
+        left: 2,
+        missed_known: 1,
+        missed_unexplained: 2,
+    });
+    // `fixed N` stands for "found walked to N", `none` for "found refused".
+    report.lookahead_detail = vec![
+        (case(3, 30, Reported::None, Outcome::Moved(4)), 2),
+        (case(2, 28, Reported::Fixed(3), Outcome::Stayed), 1),
+    ];
+    report
+}
+
+// C§5, 6: the line is the last before `detail`, its findings not borne out are
+// the last of the detail, and every other line is what it was.
+#[test]
+fn a_report_may_hold_look_aheads_figures() {
+    let (plain, text) = (sample().write(), looked().write());
+    let added: Vec<&str> = text
+        .lines()
+        .filter(|l| !plain.lines().any(|p| p == *l))
+        .collect();
+    assert_eq!(
+        added,
+        [
+            "lookahead walked 4 refused 6 left 2 not-borne-out-known 1 not-borne-out-unexplained 2",
+            "lookahead 2 28 walked 3 stayed 1",
+            "lookahead 3 30 refused moved 4 2",
+        ]
+    );
+    let before_detail = text.lines().position(|l| l == "detail").unwrap() - 1;
+    assert!(
+        text.lines()
+            .nth(before_detail)
+            .unwrap()
+            .starts_with("lookahead walked ")
+    );
+    assert!(text.ends_with("lookahead 3 30 refused moved 4 2\n"));
+    assert_eq!(text.lines().count(), plain.lines().count() + 3);
+    // It reads back as written; the detail comes back sorted.
+    let read = Report::read(&text).unwrap();
+    assert_eq!(read.lookahead, looked().lookahead);
+    assert_eq!(read.write(), text);
+    // A report with no such ways says nothing of look-ahead.
+    assert!(!plain.contains("lookahead"));
+    assert_eq!(sample().line().figures.looked, [0; 4]);
+    assert_eq!(looked().line().figures.looked, [4, 6, 2, 3]);
+}
+
+// C§5: a line that departs from the form is refused.
+#[test]
+fn a_report_whose_look_ahead_lines_depart_from_the_format_is_refused() {
+    let text = looked().write();
+    for (from, to) in [
+        // More findings not borne out than findings.
+        (
+            "walked 4 refused 6 left 2 not-borne-out-known 1",
+            "walked 1 refused 1 left 2 not-borne-out-known 1",
+        ),
+        ("lookahead walked 4", "lookahead strolled 4"),
+        // A pairing that is borne out is no detail.
+        (
+            "lookahead 2 28 walked 3 stayed 1",
+            "lookahead 2 28 walked 3 moved 3 1",
+        ),
+        (
+            "lookahead 3 30 refused moved 4 2",
+            "lookahead 3 30 refused stayed 2",
+        ),
+        (
+            "lookahead 3 30 refused moved 4 2",
+            "lookahead 3 30 refused moved 4",
+        ),
+        (
+            "lookahead 3 30 refused moved 4 2",
+            "lookahead 3 30 refused lost 2",
+        ),
+    ] {
+        assert!(text.contains(from), "{from}");
+        assert!(Report::read(&text.replace(from, to)).is_err(), "{to}");
+    }
+    // Detail of look-ahead with no line for it.
+    let orphan = sample().write() + "lookahead 3 30 refused moved 4 2\n";
+    assert!(Report::read(&orphan).is_err());
+    // Another kind of detail after look-ahead's.
+    assert!(Report::read(&(text + "2 28 none moved 3 1\n")).is_err());
+}
+
+// C§6 as built: a line of the summary ends with look-ahead's four numbers when
+// it has any, and is what it was when it has none.
+#[test]
+fn the_summary_totals_look_ahead() {
+    let mut summary = summary();
+    let before = summary.write();
+    assert!(!before.contains("lookahead"));
+    summary.stories[0].figures.looked = [4, 6, 2, 1];
+    summary.stories[1].figures.looked = [1, 0, 0, 0];
+    let text = summary.write();
+    assert_eq!(Summary::read(&text).unwrap(), summary);
+    let all = text.lines().find(|l| l.starts_with("all ")).unwrap();
+    assert!(
+        all.ends_with(" lookahead walked 5 refused 6 left 2 not-borne-out 1"),
+        "{all}"
+    );
+    let first = text.lines().next().unwrap();
+    assert!(
+        first.ends_with(" lookahead walked 4 refused 6 left 2 not-borne-out 1"),
+        "{first}"
+    );
+    // A line that says nothing of look-ahead may not say "none" at length.
+    let zero = first.replace(
+        "walked 4 refused 6 left 2 not-borne-out 1",
+        "walked 0 refused 0 left 0 not-borne-out 0",
+    );
+    assert!(Summary::read(&text.replace(first, &zero)).is_err());
+}
+
+// C§8: an entry for a finding not borne out.
+#[test]
+fn a_ledger_entry_may_be_on_a_finding_of_look_ahead() {
+    let entry = "story: toy\nroom: 204\ndirection: 28\nlookahead: refused\noutcome: moved 203\n\
+                 cause: The game decides by a draw.\n";
+    let ledger = zmachine_corpus::ledger::read(entry).unwrap();
+    assert_eq!(ledger.lookahead.len(), 1);
+    assert!(ledger.entries.is_empty());
+    assert!(ledger.knows_lookahead("toy", &case(204, 28, Reported::None, Outcome::Moved(203))));
+    let walked = entry
+        .replace("lookahead: refused", "lookahead: walked 7")
+        .replace("moved 203", "stayed");
+    let ledger = zmachine_corpus::ledger::read(&walked).unwrap();
+    assert!(ledger.knows_lookahead("toy", &case(204, 28, Reported::Fixed(7), Outcome::Stayed)));
+    for (from, to) in [
+        // Borne out: nothing to explain.
+        ("outcome: moved 203", "outcome: stayed"),
+        ("lookahead: refused", "lookahead: walked 203"),
+        ("lookahead: refused", "lookahead: perhaps"),
+        // It has `lookahead` or `reported`, not both.
+        (
+            "lookahead: refused\n",
+            "lookahead: refused\nreported: none\n",
+        ),
+        ("cause: The game decides by a draw.", "cause:"),
+        ("direction: 28\n", ""),
+    ] {
+        assert!(entry.contains(from));
+        assert!(
+            zmachine_corpus::ledger::read(&entry.replace(from, to)).is_err(),
+            "{to}"
+        );
+    }
+    // The same case twice.
+    assert!(zmachine_corpus::ledger::read(&format!("{entry}\n{entry}")).is_err());
 }

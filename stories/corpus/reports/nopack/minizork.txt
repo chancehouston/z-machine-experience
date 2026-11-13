@@ -12,6 +12,7 @@ unknown 0 moved 0 stayed 0 question 0 ended 0 fault 0
 no-verdict 0
 light compared 31 agreed 0 differed-known 0 differed-unexplained 0 unjudged 31 dark 0 rooms-both 0 in-the-dark 0
 ahead compared 50 agreed 0 differed-known 0 differed-unexplained 0 unjudged 50
+lookahead walked 4 refused 4 left 0 not-borne-out-known 0 not-borne-out-unexplained 0
 detail
 18 20 conditional moved 28 1
 18 30 conditional moved 28 1

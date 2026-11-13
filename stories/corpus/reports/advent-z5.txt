@@ -10,6 +10,7 @@ none confirmed 2018 wrong-known 22 wrong-unexplained 0 other 0
 conditional 37 moved 23 stayed 14 question 0 ended 0 fault 0
 unknown 0 moved 0 stayed 0 question 0 ended 0 fault 0
 no-verdict 8
+lookahead walked 23 refused 14 left 0 not-borne-out-known 0 not-borne-out-unexplained 0
 detail
 30 7 fixed 47 moved 48 1
 38 7 none moved 270 1

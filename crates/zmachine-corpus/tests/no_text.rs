@@ -11,7 +11,7 @@ use zmachine_introspect::Introspector;
 
 /// The words of the report format. A game's word that is one of these cannot be
 /// told from the format's own.
-const KEYWORDS: [&str; 60] = [
+const KEYWORDS: [&str; 65] = [
     "story",
     "sha256",
     "version",
@@ -76,6 +76,13 @@ const KEYWORDS: [&str; 60] = [
     "in-the-dark",
     "described",
     "undescribed",
+    // Feature 009: what look-ahead found, and what a trial apart did not bear
+    // out.
+    "lookahead",
+    "walked",
+    "left",
+    "not-borne-out-known",
+    "not-borne-out-unexplained",
 ];
 
 fn report_files() -> Vec<std::path::PathBuf> {

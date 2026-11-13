@@ -9,6 +9,7 @@
 mod compass;
 mod json;
 mod light;
+pub mod lookahead;
 mod strip;
 mod transcript;
 
@@ -18,6 +19,8 @@ mod compass_tests;
 mod json_tests;
 #[cfg(test)]
 mod light_tests;
+#[cfg(test)]
+mod lookahead_tests;
 #[cfg(test)]
 mod strip_tests;
 
@@ -128,6 +131,10 @@ pub struct Session {
     strip: Strip,
     light: Light,
     ceiling: u64,
+    /// How far look-ahead's copies may run at one prompt.
+    look_ahead: lookahead::Limits,
+    /// What look-ahead ran at the last stop: all copies, and the longest one.
+    looked: (u64, u64),
 }
 
 fn load(story: &[u8], seed: Seed) -> Result<Machine, StartError> {
@@ -187,6 +194,8 @@ impl Session {
             strip: Strip::default(),
             light: Light::default(),
             ceiling: INSTRUCTION_CEILING,
+            look_ahead: lookahead::LIMITS,
+            looked: (0, 0),
         };
         session.open();
         Ok(session)
@@ -195,6 +204,19 @@ impl Session {
     /// Lowers or raises the instruction ceiling. A host has no need to; tests do.
     pub fn set_instruction_ceiling(&mut self, instructions: u64) {
         self.ceiling = instructions;
+    }
+
+    /// Sets how far look-ahead's copies may run. A host has no need to; tests
+    /// do. It takes effect at the next stop.
+    pub fn set_look_ahead_limits(&mut self, limits: lookahead::Limits) {
+        self.look_ahead = limits;
+    }
+
+    /// How many instructions look-ahead's copies ran at the last stop, all
+    /// together, and the most any one of them ran; each counted in whole
+    /// steps of a thousand. For measuring the limits.
+    pub fn look_ahead_cost(&self) -> (u64, u64) {
+        self.looked
     }
 
     /// Runs a freshly loaded game to its first stop and records the opening.
@@ -271,13 +293,28 @@ impl Session {
             };
             run = 0;
         }
+        self.looked = (0, 0);
         self.compass = match self.waiting {
             Waiting::Command => {
                 let view = self.machine.view();
                 // A version 3 dictionary keeps six characters of a word; later
                 // versions nine (Standard §13.3, §13.4).
                 let word_len = if view.version() <= 3 { 6 } else { 9 };
-                Compass::of(&self.introspector.exits(&view), word_len)
+                let mut compass = Compass::of(&self.introspector.exits(&view), word_len);
+                // Each way the interface could not settle is tried on copies
+                // of the game, which is itself only read (feature 009).
+                if let Some(address) = self.command_address {
+                    let mut look = lookahead::LookAhead::new(
+                        &self.machine,
+                        &self.introspector,
+                        address,
+                        self.turns.len() as u64,
+                        self.look_ahead,
+                    );
+                    compass.settle(|command| look.finding(command));
+                    self.looked = (look.spent(), look.most());
+                }
+                compass
             }
             _ => Compass::idle(),
         };

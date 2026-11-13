@@ -143,3 +143,11 @@ carried, light) keeps a report of its own beside this one, `<id>.<kind>.txt`, wi
 own lines, and marks its ledger entries with a further key, `check: <kind>`; an entry
 without that key is about exits. No file written now needs rewriting when one is added
 (FR-029).
+
+## Look-ahead (feature 009)
+
+A report may have one more line, the last before `detail`, and its own detail lines
+after every other kind; the summary's lines may end with four more numbers; and the
+ledger has a further form of entry, with the key `lookahead`. Their forms are in
+`specs/009-compass-lookahead/contracts/corpus.md`. A report, a summary line or a ledger
+with none of them is what it was.

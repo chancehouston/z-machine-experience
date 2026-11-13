@@ -98,3 +98,51 @@ fn a_session_starts_quickly() {
         "{slowest:?}"
     );
 }
+
+// Feature 009, research R7 (tasks.md T018): what look-ahead's copies run, over
+// each walkthrough the project holds. The limits in `lookahead::LIMITS` are set
+// from these figures; this prints them so that they can be set again.
+#[test]
+#[ignore = "a measurement; run with --release -- --ignored --nocapture"]
+fn what_look_ahead_runs_over_the_walkthroughs() {
+    for (story, script, seed) in [
+        (
+            "stories/zork1/zork1.z3",
+            "stories/zork1/fidelity/walkthrough.txt",
+            11,
+        ),
+        (
+            "stories/advent/advent.z5",
+            "stories/advent/fidelity/walkthrough.txt",
+            1,
+        ),
+    ] {
+        let mut session = Session::new(read(story), Seed::Fixed(seed)).unwrap();
+        session.set_look_ahead_limits(zmachine_experience::lookahead::Limits {
+            copy: 50_000_000,
+            total: u64::MAX,
+        });
+        let (mut most_copy, mut most_prompt, mut prompts, mut tried) = (0, 0, 0, 0);
+        let mut slowest = Duration::ZERO;
+        for line in read_text(script).lines() {
+            if line.starts_with('#') {
+                continue;
+            }
+            let began = Instant::now();
+            if session.send_line(session.stamp(), line).is_err() {
+                break;
+            }
+            let _ = session.snapshot_json(session.turns().len() - 1);
+            slowest = slowest.max(began.elapsed());
+            let (all, one) = session.look_ahead_cost();
+            most_copy = most_copy.max(one);
+            most_prompt = most_prompt.max(all);
+            prompts += 1;
+            tried += (all > 0) as u32;
+        }
+        println!(
+            "{story}: {prompts} prompts, look-ahead at {tried}; most one copy ran {most_copy}; \
+             most all copies ran at one prompt {most_prompt}; slowest command and snapshot {slowest:?}"
+        );
+    }
+}

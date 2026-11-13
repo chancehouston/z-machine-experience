@@ -120,6 +120,77 @@ pub struct Report {
     /// command (specs/008-darkness/research.md R7).
     pub light: Option<Light>,
     pub light_detail: Vec<(LightDifference, usize)>,
+    /// What look-ahead found for the ways the interface could not settle, for
+    /// a story that has such ways at the places reached
+    /// (specs/009-compass-lookahead/contracts/corpus.md).
+    pub lookahead: Option<Looked>,
+    /// Each finding that a trial apart from it did not bear out, as a case:
+    /// `fixed N` stands for "found walked to N" and `none` for "found
+    /// refused"; the outcome is the trial's.
+    pub lookahead_detail: Vec<(Case, usize)>,
+}
+
+/// Look-ahead's figures: of the ways asked, how many were found walked, found
+/// refused, and left; and, among the first two, how many findings a trial
+/// apart did not bear out.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct Looked {
+    pub walked: usize,
+    pub refused: usize,
+    pub left: usize,
+    pub missed_known: usize,
+    pub missed_unexplained: usize,
+}
+
+impl Looked {
+    pub fn asked(&self) -> usize {
+        self.walked + self.refused + self.left
+    }
+}
+
+/// A finding not borne out, as a detail line and a failure name it, without a
+/// count: `lookahead ROOM DIRECTION walked N|refused OUTCOME`.
+pub fn missed_text(case: &Case) -> String {
+    let found = match case.reported {
+        Reported::Fixed(room) => format!("walked {room}"),
+        _ => "refused".to_string(),
+    };
+    format!(
+        "lookahead {} {} {found} {}",
+        case.room,
+        case.direction,
+        outcome_text(case.outcome)
+    )
+}
+
+/// Reads what [`missed_text`] writes, from the words of a line after its first;
+/// returns the case and the words left over. A pairing that is borne out, and
+/// a trial that was lost, are not of the form.
+pub fn missed_read<'a>(words: &[&'a str]) -> Option<(Case, Vec<&'a str>)> {
+    let mut as_case: Vec<&str> = Vec::new();
+    as_case.extend(words.get(..2)?);
+    let rest = match *words.get(2)? {
+        "walked" => {
+            as_case.push("fixed");
+            as_case.push(words.get(3)?);
+            &words[4..]
+        }
+        "refused" => {
+            as_case.push("none");
+            &words[3..]
+        }
+        _ => return None,
+    };
+    as_case.extend(rest);
+    let (case, left) = Case::read(&as_case)?;
+    if crate::verdict::judge(&case) == crate::verdict::Verdict::Confirmed
+        || case.outcome == Outcome::Lost
+    {
+        return None;
+    }
+    // What is left over is the end of the words given.
+    let over = left.len();
+    Some((case, words[words.len() - over..].to_vec()))
 }
 
 /// The light comparison's figures. The first group is of places; the second of
@@ -452,6 +523,14 @@ impl Report {
                 l.ahead_unjudged
             ));
         }
+        // Only a story with ways the interface could not settle has this line.
+        if let Some(l) = &self.lookahead {
+            line(format!(
+                "lookahead walked {} refused {} left {} not-borne-out-known {} \
+                 not-borne-out-unexplained {}",
+                l.walked, l.refused, l.left, l.missed_known, l.missed_unexplained
+            ));
+        }
         line("detail".to_string());
         // By room, then direction, then the rest as text.
         let mut detail: Vec<(u16, u8, String, usize)> = self
@@ -485,6 +564,11 @@ impl Report {
         lights.sort();
         for (d, count) in lights {
             line(format!("{} {count}", d.text()));
+        }
+        let mut missed = self.lookahead_detail.clone();
+        missed.sort();
+        for (case, count) in missed {
+            line(format!("{} {count}", missed_text(&case)));
         }
         out
     }
@@ -708,6 +792,27 @@ impl Report {
             });
             at += 2;
         }
+        if lines
+            .get(at - 1)
+            .is_some_and(|line| line.starts_with("lookahead "))
+        {
+            let n = get(
+                at,
+                "lookahead walked # refused # left # not-borne-out-known # \
+                 not-borne-out-unexplained #",
+            )?;
+            if n[3] + n[4] > n[0] + n[1] {
+                return refuse(at, "more findings not borne out than findings");
+            }
+            report.lookahead = Some(Looked {
+                walked: n[0],
+                refused: n[1],
+                left: n[2],
+                missed_known: n[3],
+                missed_unexplained: n[4],
+            });
+            at += 1;
+        }
         if report.verdicts() != report.trials {
             return refuse(7, "the verdicts do not add up to the trials");
         }
@@ -819,6 +924,28 @@ impl Report {
                 }
                 continue;
             }
+            // And last, look-ahead's findings that were not borne out.
+            if words.first() == Some(&"lookahead") {
+                let found = missed_read(&words[1..]).and_then(|(case, rest)| match rest[..] {
+                    [count] => numbers(count, "#").map(|n| (case, n[0])),
+                    _ => None,
+                });
+                match found {
+                    Some(found) if report.lookahead.is_some() => {
+                        report.lookahead_detail.push(found)
+                    }
+                    _ => {
+                        return refuse(
+                            i + 1,
+                            "expected `lookahead room direction walked N|refused outcome count`",
+                        );
+                    }
+                }
+                continue;
+            }
+            if !report.lookahead_detail.is_empty() {
+                return refuse(i + 1, "an earlier kind of detail after look-ahead's");
+            }
             if !report.light_detail.is_empty() {
                 return refuse(i + 1, "an earlier kind of detail after light's");
             }
@@ -865,6 +992,8 @@ pub struct Figures {
     pub unknown: usize,
     pub wrong_known: usize,
     pub wrong_unexplained: usize,
+    /// Look-ahead: found walked, found refused, left, and not borne out.
+    pub looked: [usize; 4],
 }
 
 /// One story's line of the summary.
@@ -925,6 +1054,14 @@ impl Report {
                     + self.none_wrong_unexplained
                     + m.open_wrong_unexplained
                     + m.closed_wrong_unexplained,
+                looked: self.lookahead.map_or([0; 4], |l| {
+                    [
+                        l.walked,
+                        l.refused,
+                        l.left,
+                        l.missed_known + l.missed_unexplained,
+                    ]
+                }),
             },
         }
     }
@@ -949,12 +1086,34 @@ impl Figures {
             self.unknown,
             self.wrong_known,
             self.wrong_unexplained
-        )
+        ) + &self.looked_text()
+    }
+
+    /// Look-ahead's figures, for a line that has any; nothing otherwise, so
+    /// that a line with none is what it was before there was look-ahead.
+    fn looked_text(&self) -> String {
+        if self.looked == [0; 4] {
+            return String::new();
+        }
+        let [walked, refused, left, missed] = self.looked;
+        format!(" lookahead walked {walked} refused {refused} left {left} not-borne-out {missed}")
     }
 
     /// Reads what [`Figures::text`] writes.
     fn read(text: &str) -> Option<Figures> {
         // `8/11` is two numbers: read the line with each stroke as a space.
+        let (text, looked) = match text.split_once(" lookahead ") {
+            Some((before, after)) => {
+                let n = numbers(after, "walked # refused # left # not-borne-out #")?;
+                let looked = [n[0], n[1], n[2], n[3]];
+                // A line with none says nothing of look-ahead.
+                if looked == [0; 4] {
+                    return None;
+                }
+                (before, looked)
+            }
+            None => (text, [0; 4]),
+        };
         let spaced = text.replace('/', " ");
         let form = FIGURES.replace('/', " ");
         if text.matches('/').count() != 3 {
@@ -971,6 +1130,7 @@ impl Figures {
             unknown: n[9],
             wrong_known: n[10],
             wrong_unexplained: n[11],
+            looked,
         })
     }
 
@@ -987,6 +1147,9 @@ impl Figures {
         self.unknown += other.unknown;
         self.wrong_known += other.wrong_known;
         self.wrong_unexplained += other.wrong_unexplained;
+        for (mine, theirs) in self.looked.iter_mut().zip(other.looked) {
+            *mine += theirs;
+        }
     }
 }
 

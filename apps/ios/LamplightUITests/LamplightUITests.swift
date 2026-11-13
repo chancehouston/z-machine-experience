@@ -242,6 +242,56 @@ final class LamplightUITests: XCTestCase {
         XCTAssertFalse(note.exists)
     }
 
+    // Feature 009 (SC-001, SC-006, SC-007; contracts/lookahead.md statement
+    // 24): the way down from the living room is no way until the trap door is
+    // open; then it is an open way, said to lead to the cellar and into
+    // darkness; and with the lamp lit, not into darkness. No code of the app
+    // was written for this: it draws what the layer reports.
+    @MainActor
+    func testTheTrapDoorComesAndGoes() {
+        let app = launch()
+        _ = turn(app, 0)
+        element(app, "compass.north").tap()
+        waitForPlace(app, "North of House")
+        element(app, "compass.east").tap()
+        waitForPlace(app, "Behind House")
+        type(app, "open window")
+        _ = turn(app, 3)
+        element(app, "button.compass").tap()
+        element(app, "compass.west").tap()
+        waitForPlace(app, "Kitchen")
+        element(app, "compass.west").tap()
+        waitForPlace(app, "Living Room")
+        let down = element(app, "compass.down")
+        XCTAssertEqual(value(app, "compass.down"), "closed")
+        XCTAssertFalse(down.isEnabled, "a way the game refuses cannot be touched")
+
+        type(app, "move rug")
+        _ = turn(app, 6)
+        app.typeText("open trap door")
+        element(app, "button.send").tap()
+        _ = turn(app, 7)
+        element(app, "button.compass").tap()
+        // The compass comes back as the keyboard goes: wait until it can be
+        // touched.
+        expectation(for: NSPredicate(format: "isHittable == true"), evaluatedWith: down)
+        waitForExpectations(timeout: patience)
+        XCTAssertEqual(value(app, "compass.down"), "open")
+        XCTAssertTrue(down.isEnabled)
+        XCTAssertEqual(down.label, "Down, to Cellar, into darkness")
+
+        type(app, "take lamp")
+        _ = turn(app, 8)
+        app.typeText("turn on lamp")
+        element(app, "button.send").tap()
+        _ = turn(app, 9)
+        element(app, "button.compass").tap()
+        expectation(for: NSPredicate(format: "isHittable == true"), evaluatedWith: down)
+        waitForExpectations(timeout: patience)
+        XCTAssertEqual(value(app, "compass.down"), "open")
+        XCTAssertEqual(down.label, "Down, to Cellar")
+    }
+
     // Feature 008, FR-021; US4 scenario 5: where the layer does not know of
     // light, nothing is shown; and where it says dark, its words are shown as
     // they are. Drawn from hand-made snapshots.
@@ -325,8 +375,10 @@ final class LamplightUITests: XCTestCase {
         // The next room has a way down that the game decides in its own code.
         element(app, "compass.west").tap()
         waitForPlace(app, "Living Room")
-        XCTAssertEqual(value(app, "compass.down"), "maybe")
-        XCTAssertEqual(element(app, "compass.down").label, "Down, may be blocked")
+        // Look-ahead finds the game refuses it while the trap door is hidden:
+        // it is no way at all (feature 009).
+        XCTAssertEqual(value(app, "compass.down"), "closed")
+        XCTAssertEqual(element(app, "compass.down").label, "Down, no exit")
     }
 
     // S§ "What the app sends", "Waiting states"; FR-010, FR-011, FR-016;

@@ -1393,3 +1393,31 @@ ahead: lit
 described: no
 cause: A character takes the player's light during this move. The way was lit when the
   interface was asked, and dark when the player arrived.
+
+# Look-ahead (feature 009): findings that a trial apart, with other draws of
+# chance, did not bear out. In the forest the game chooses by a draw which of
+# two rooms a walk reaches; three copies drew the same and the fourth did not.
+
+story: advent-zil
+room: 201
+direction: 28
+lookahead: walked 204
+outcome: moved 203
+cause: The game decides by a draw which room a walk in the forest reaches; three copies
+  agreed by chance. Feature 009, research R2.
+
+story: advent-zil
+room: 201
+direction: 29
+lookahead: walked 204
+outcome: moved 203
+cause: The game decides by a draw which room a walk in the forest reaches; three copies
+  agreed by chance. Feature 009, research R2.
+
+story: advent-zil
+room: 214
+direction: 30
+lookahead: walked 204
+outcome: moved 203
+cause: The game decides by a draw which room a walk in the forest reaches; three copies
+  agreed by chance. Feature 009, research R2.

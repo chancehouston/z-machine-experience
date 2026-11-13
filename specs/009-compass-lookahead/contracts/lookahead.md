@@ -80,3 +80,30 @@ A new section after 10.5, and a line in the list of changes:
     into darkness, after; with the lamp on, the same way is not marked dark.
 25. Each existing test that fixed `maybe` for a way look-ahead now settles is changed
     to the settled state, and is listed in the tasks' closing notes.
+
+## As built
+
+- **Statement 10.** Only a way whose state is `maybe` is tried. A place the layer
+  reports `unknown` has no command to send, so there is nothing to give a copy, and it
+  is left. Statement 14 follows: the note of unknown ways is never removed by
+  look-ahead. Where every way was known and look-ahead leaves none to take, the note
+  says there are no exits.
+- **Statement 5.** The count is the number of turns the session holds when the compass
+  is made. The two values come from a mixing of all its bits; a first, simpler mixing
+  left the two copies' draws related, and a way decided by an even draw was settled 83
+  times in 200 where 50 is expected. The test of statement 7 caught it.
+- **Statements 18 and 19.** One copy may run 540,000 instructions, and all copies at
+  one prompt 540,000 before a further way is begun. What a copy ran is counted in steps
+  of a thousand. Measured over the two walkthroughs the project holds: the longest
+  single copy ran 27,000 and the busiest prompt 207,000 in all, both in Advent; in
+  Zork I, 3,000 and 12,000.
+- **Statement 6.** The toy has no way that asks to save, restore or keep a transcript;
+  that a copy given none of them comes to nothing is in the code and has no test of
+  its own.
+- **Statement 21.** The new section is 10.8, after 10.7, so that no section's number
+  changed.
+- **The session** has two additions a host does not need: it can be given other
+  limits, and it says what look-ahead ran at the last stop. Tests and the corpus use
+  them. `lookahead::OFF` sets look-ahead aside.
+- **The toy game** of the corpus's tests moved to the testkit, so that the layer's
+  tests could use it; it gained a way decided by an even draw and one by a rare draw.

@@ -26,9 +26,12 @@ one place; a place met twice counts twice.
 | Adventureland | 2 | 2 | 0 | 0 |
 | All | 495 | 298 | 184 | 13 |
 
-Zork I's 405 are more than the 79 its report counts as conditional: the rest are ways
-on a variable its pack names as untrusted, which the report counts apart and the
-compass draws with the same question mark.
+**Corrected after the feature was built.** Zork I's 405 and Mini-Zork's 10 are each
+two runs added together: the corpus runs a story that has a pack once with it and once
+without, and the temporary code counted both. With its pack Zork I has 79 such ways and
+Mini-Zork 2. The kept figures, with the limits in force and each story counted once,
+are in `stories/corpus/README.md`: 210 ways asked, 191 settled, 19 left, 3 not borne
+out. The conclusions below stand; the totals in this table do not.
 
 Three things follow.
 

@@ -59,3 +59,21 @@ cause: The game decides by a draw; three copies stayed and the fourth did not.
     direction that has a finding prints the finding and the trial's outcome, and no
     text of the game.
 11. What is kept holds numbers and the fixed words above, and nothing of any game.
+
+## As built
+
+- **The line is the last before `detail`**, not after `unknown`, and is written only
+  for a story that has such ways at the places reached. The earlier lines are found by
+  their position, and a line that is always there would have changed every report and
+  every test that fixes one. A report without the line reads as a report with no such
+  way (statements 5 to 7).
+- **A finding not borne out has a detail line**, after every other kind:
+  `lookahead ROOM DIRECTION (walked N|refused) OUTCOME COUNT`.
+- **The summary's lines end with four numbers**, `lookahead walked N refused N left N
+  not-borne-out N`, and only where one is not zero.
+- **A failure is named** `ID lookahead wrong ROOM DIRECTION (walked N|refused)
+  OUTCOME`; an entry no finding needs is reported as matching no finding.
+- **The count that fixes the copies' draws** is the number of places the run has asked
+  so far, which stands for the session's count of turns.
+- **Statement 10 is not built.** `explain` prints what it printed before; it does not
+  print a finding. The run's own failure line names the case.

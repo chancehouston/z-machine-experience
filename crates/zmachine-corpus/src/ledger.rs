@@ -23,6 +23,11 @@ pub struct Ledger {
     /// Entries of the third and fourth forms: a difference about the light of a
     /// place, or about dark ahead (specs/008-darkness R7).
     pub light: Vec<LightEntry>,
+    /// Entries of the fifth form: a finding of look-ahead that a trial apart
+    /// from it did not bear out (specs/009-compass-lookahead/contracts/
+    /// corpus.md). The case's `reported` is `fixed N` for "found walked to N"
+    /// and `none` for "found refused".
+    pub lookahead: Vec<Entry>,
 }
 
 /// A known difference between what the interface says about light and whether
@@ -59,6 +64,12 @@ impl Ledger {
             .any(|e| e.story == story && e.difference == *difference)
     }
 
+    pub fn knows_lookahead(&self, story: &str, case: &Case) -> bool {
+        self.lookahead
+            .iter()
+            .any(|e| e.story == story && e.case == *case)
+    }
+
     pub fn knows(&self, story: &str, case: &Case) -> bool {
         self.entries
             .iter()
@@ -66,7 +77,8 @@ impl Ledger {
     }
 }
 
-const KEYS: [&str; 12] = [
+const KEYS: [&str; 13] = [
+    "lookahead",
     "story",
     "room",
     "direction",
@@ -93,7 +105,14 @@ pub fn read(text: &str) -> Result<Ledger, Refusal> {
             continue;
         }
         if line.trim().is_empty() {
-            if entry
+            if entry.iter().any(|(_, key, _)| *key == "lookahead") {
+                let made = make_lookahead(&entry)?;
+                if ledger.knows_lookahead(&made.story, &made.case) {
+                    return Err((made.line, "the same case is entered twice".to_string()));
+                }
+                ledger.lookahead.push(made);
+                entry.clear();
+            } else if entry
                 .iter()
                 .any(|(_, key, _)| ["light", "ahead"].contains(key))
             {
@@ -143,6 +162,62 @@ pub fn read(text: &str) -> Result<Ledger, Refusal> {
         entry.push((number, key, value.to_string()));
     }
     Ok(ledger)
+}
+
+/// An entry on a finding not borne out: `story`, `room`, `direction`,
+/// `lookahead` (`walked N` or `refused`), `outcome`, `cause`.
+fn make_lookahead(entry: &[(usize, &str, String)]) -> Result<Entry, Refusal> {
+    let first = entry[0].0;
+    if let Some((_, key, _)) = entry.iter().find(|(_, key, _)| {
+        [
+            "reported",
+            "object",
+            "seen",
+            "listed",
+            "light",
+            "ahead",
+            "described",
+        ]
+        .contains(key)
+    }) {
+        return Err((first, format!("an entry on look-ahead has no `{key}`")));
+    }
+    let get = |key: &str| -> Result<(usize, &str), Refusal> {
+        entry
+            .iter()
+            .find(|(_, k, _)| *k == key)
+            .map(|(line, _, value)| (*line, value.as_str()))
+            .ok_or((first, format!("the entry has no `{key}`")))
+    };
+    let (_, story) = get("story")?;
+    let (_, room) = get("room")?;
+    let (_, direction) = get("direction")?;
+    let (found_line, found) = get("lookahead")?;
+    let (_, outcome) = get("outcome")?;
+    let (cause_line, cause) = get("cause")?;
+    if cause.trim().is_empty() {
+        return Err((cause_line, "a cause must be written".to_string()));
+    }
+    if found != "refused" && !found.starts_with("walked ") {
+        return Err((
+            found_line,
+            "lookahead is `walked N` or `refused`".to_string(),
+        ));
+    }
+    let text = format!("{room} {direction} {found} {outcome}");
+    let words: Vec<&str> = text.split(' ').collect();
+    match crate::report::missed_read(&words) {
+        Some((case, rest)) if rest.is_empty() => Ok(Entry {
+            story: story.to_string(),
+            case,
+            cause: cause.to_string(),
+            line: first,
+        }),
+        _ => Err((
+            first,
+            "not a finding and an outcome that fail to bear it out".to_string(),
+        )),
+    }
 }
 
 /// An entry about light: `story`, `room`, `light` and `described`, `cause`; or

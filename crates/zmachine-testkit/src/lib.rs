@@ -20,6 +20,7 @@ pub mod op;
 pub mod programs;
 mod story;
 mod story5;
+pub mod toy;
 mod zenc;
 
 pub use story::{GLOBALS, Object, SCRATCH, SCRATCH_LEN, Story};
