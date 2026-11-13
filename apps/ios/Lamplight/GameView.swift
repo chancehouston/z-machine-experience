@@ -244,45 +244,53 @@ private struct TranscriptView: View {
     let turns: [Turn]
     let keyboardUp: Bool
 
-    private let end = "transcript.end"
+    /// Where the transcript is scrolled to: its end, until the player moves it.
+    @State private var position = ScrollPosition(edge: .bottom)
 
     var body: some View {
         GeometryReader { room in
-            ScrollViewReader { proxy in
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 0) {
-                        ForEach(turns) { turn in
-                            let next = turn.number + 1 < turns.count ? turns[turn.number + 1].command : nil
-                            Text(drawn(turn, then: next))
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .accessibilityLabel(Text(verbatim: turn.text))
-                                .accessibilityIdentifier("turn.\(turn.number).text")
-                                .overlay(alignment: .bottomTrailing) {
-                                    if let next {
-                                        Color.clear
-                                            .frame(width: 1, height: 1)
-                                            .accessibilityElement()
-                                            .accessibilityLabel(Text(verbatim: next))
-                                            .accessibilityIdentifier("turn.\(turn.number + 1).command")
-                                    }
+            ScrollView {
+                VStack(alignment: .leading, spacing: 0) {
+                    ForEach(turns) { turn in
+                        let next = turn.number + 1 < turns.count ? turns[turn.number + 1].command : nil
+                        Text(drawn(turn, then: next))
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .accessibilityLabel(Text(verbatim: turn.text))
+                            .accessibilityIdentifier("turn.\(turn.number).text")
+                            .overlay(alignment: .bottomTrailing) {
+                                if let next {
+                                    Color.clear
+                                        .frame(width: 1, height: 1)
+                                        .accessibilityElement()
+                                        .accessibilityLabel(Text(verbatim: next))
+                                        .accessibilityIdentifier("turn.\(turn.number + 1).command")
                                 }
-                        }
-                        Color.clear.frame(height: 1).id(end)
+                            }
                     }
-                    .padding(.horizontal)
-                    .padding(.vertical, 8)
-                    // A transcript shorter than its room sits at the bottom, next
-                    // to the compass and the field, whenever it is drawn.
-                    .frame(minHeight: room.size.height, alignment: .bottom)
                 }
-                .defaultScrollAnchor(.bottom)
-                .accessibilityIdentifier("transcript")
-                .onChange(of: turns.count) {
-                    withAnimation { proxy.scrollTo(end, anchor: .bottom) }
-                }
-                .onChange(of: keyboardUp) {
-                    proxy.scrollTo(end, anchor: .bottom)
-                }
+                .padding(.horizontal)
+                .padding(.vertical, 8)
+                // A transcript shorter than its room sits at the bottom, next
+                // to the compass and the field, whenever it is drawn.
+                .frame(minHeight: room.size.height, alignment: .bottom)
+            }
+            .defaultScrollAnchor(.bottom)
+            // It stays at its end as turns are added. Until iOS 27.2 a
+            // scroll to a marker after the last turn did this (a
+            // ScrollViewReader's). There, with the keyboard up and the
+            // transcript longer than its room, that scroll went to where
+            // the end would be without the keyboard, and left the newest
+            // turn behind it (testALongSession).
+            .defaultScrollAnchor(.bottom, for: .sizeChanges)
+            .scrollPosition($position)
+            // A new turn brings the newest text back into view, wherever
+            // the player had scrolled to.
+            .onChange(of: turns.count) {
+                withAnimation { position.scrollTo(edge: .bottom) }
+            }
+            .accessibilityIdentifier("transcript")
+            .onChange(of: keyboardUp) {
+                position.scrollTo(edge: .bottom)
             }
         }
     }
