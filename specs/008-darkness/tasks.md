@@ -254,4 +254,27 @@ built.
 **The UI suite** (T041, T046): 27 tests, none failed, one skipped (the pictures, which
 run only when asked), on iOS 27 (721 s) and on iOS 26 (693 s).
 
-**Not done**: T045, play by hand with VoiceOver.
+**Played by hand** (T045, 2026-11-13, iPhone 18 Pro simulator, iOS 27.2, light
+appearance, Zork I with its pack, a fresh build of `main` after the merge):
+
+- *Without the lamp.* In the kitchen the way up carries the badge and no other way
+  does. Up: the attic shows the note "It is dark" above the compass, and the way down
+  is offered. In the living room, before the rug is moved and after the trap door is
+  opened, the way down is drawn "maybe" with its question mark and **no badge**, though
+  the game has just printed "descending into darkness": the way is decided by the
+  game's code, its room is not known, and so nothing is said (FR-021). Down: the cellar
+  shows the note; north and south both carry the badge; up is drawn as a closed door.
+- *With the lamp on.* Kitchen: no badge on the way up. Attic: no note. Cellar: no note,
+  and no badge on north or south.
+- *Seen in passing.* A screenshot taken as the note appears catches the transcript one
+  line short of its end; it settles at the end a moment later. Nothing stays cut off.
+
+**VoiceOver** (T045): not listened to. The simulator has no VoiceOver, and this half
+needs a device and an ear. What it would say was read from the app instead:
+`testDarknessIsWarnedOf` passed alone on this build (35 s), and it holds that the
+marked way's label ends ", into darkness" and the note's label is "It is dark". The
+note stands between what is carried and the compass, so it is reached in that order.
+The app posts no announcement when the note appears or a turn's text arrives: a
+listener finds the note by moving to it, as a sighted player finds it by looking.
+
+**Not done**: the listening half of T045, on a device with VoiceOver.
