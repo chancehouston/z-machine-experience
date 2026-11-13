@@ -140,7 +140,7 @@ rule disagree with the attribute on purpose.
 - [x] T038 [US4] `Snapshot.swift` decodes them; the hand-made snapshots in the UI tests gain them and are listed
 - [x] T039 [US4] The note above the compass in `GameView.swift`; the badge in `CompassView.swift`; T034 passes
 - [x] T040 [US4] Take simulator screenshots: a lit room beside a dark one, with the marked way; the dark room, with the note; the same way with the lamp on. Send them to the owner and **stop** for their eye. Record what was chosen
-- [ ] T041 [US4] T035 and T036 pass on iOS 26 and 27
+- [x] T041 [US4] T035 and T036 pass on iOS 26 and 27
 
 ---
 
@@ -150,9 +150,9 @@ rule disagree with the attribute on purpose.
 - [x] T043 [P] `README.md`, `stories/corpus/README.md`, `packs/README.md`: light, dark ahead, the proof and its figures, the ledger's new count
 - [x] T044 [P] Correct this feature's contracts to what was built
 - [ ] T045 Play by hand in the simulator: into the attic and the cellar without the lamp and with it; then VoiceOver over the note and a marked way: everything a sighted player learns is said (SC-008). Record what was seen
-- [ ] T046 Run `scripts/test-ios.sh 26` and `27` in full and the timing tests on a quiet machine; **stop** if a limit is exceeded
+- [x] T046 Run `scripts/test-ios.sh 26` and `27` in full and the timing tests on a quiet machine; **stop** if a limit is exceeded
 - [x] T047 Write the list this file ends with (FR-025; SC-010); confirm `git diff main --stat -- crates/zmachine-core` is empty
-- [ ] T048 Run every step of `quickstart.md`; clippy and `cargo fmt --check` pass; write "What was done, and what was done differently from the plan"
+- [x] T048 Run every step of `quickstart.md`; clippy and `cargo fmt --check` pass; write "What was done, and what was done differently from the plan"
 
 ---
 
@@ -250,5 +250,8 @@ layer's note above the compass and a badge on a way into darkness.
 **The owner's eye** (T040): shown the kitchen with the marked way, the dark attic with
 the note, and the kitchen with the lamp on, the owner kept the note and the badge as
 built.
+
+**The UI suite** (T041, T046): 27 tests, none failed, one skipped (the pictures, which
+run only when asked), on iOS 27 (721 s) and on iOS 26 (693 s).
 
 **Not done**: T045, play by hand with VoiceOver.
