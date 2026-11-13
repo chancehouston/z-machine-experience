@@ -46,10 +46,17 @@ becomes a sentence there with a test that cites it.
     `player`, `objects`.
 15. `dark_ahead` says what the room would be for the player as they are at the moment
     of the query. The game has the last word (I§8.3).
+16. Added in implementation (research R13; I§12.11). `invisible-attribute: H`, a
+    decimal number 0 to 31, at most once, only in a pack of version 3, says that
+    attribute H is set on a thing the game hides. With it in force an object with
+    attribute H is not a light and nothing inside it is one, here or ahead. The player
+    and what the player is in are looked through whatever their attributes. Nothing
+    else of any answer changes.
 
 ## What changed from 0.3.0
 
 - `location` and `scope` have one more field, `source`; an exit has one more,
   `dark_ahead`.
-- The pack format has a version 3, with one more key.
+- The pack format has a version 3, with two more keys (the second added in
+  implementation, item 16).
 - A pack may change `location` and `scope`.

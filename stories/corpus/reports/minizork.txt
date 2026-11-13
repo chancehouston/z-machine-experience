@@ -6,26 +6,16 @@ rooms visited 15 named-not-reached 0
 budget rooms 400 trials 40000 reached no
 trials 208 wordless 0
 fixed confirmed 50 wrong-known 0 wrong-unexplained 0
-none confirmed 138 wrong-known 12 wrong-unexplained 0 other 0
+none confirmed 138 wrong-known 0 wrong-unexplained 0 other 0
 conditional 2 moved 0 stayed 2 question 0 ended 0 fault 0
 unknown 0 moved 0 stayed 0 question 0 ended 0 fault 0
 no-verdict 0
-pack in-force entries 1
+pack in-force entries 2
 open confirmed 4 wrong-known 0 wrong-unexplained 0
 closed confirmed 2 wrong-known 0 wrong-unexplained 0 other 0
 distrusted 0 moved 0 stayed 0 question 0 ended 0 fault 0
+light compared 31 agreed 31 differed-known 0 differed-unexplained 0 unjudged 0 dark 4 rooms-both 1 in-the-dark 12
+ahead compared 54 agreed 54 differed-known 0 differed-unexplained 0 unjudged 0
 detail
 53 22 conditional stayed 1
 119 22 conditional stayed 1
-125 19 none moved 114 1
-125 20 none moved 114 1
-125 21 none moved 114 1
-125 23 none moved 114 1
-125 24 none moved 114 1
-125 25 none moved 114 1
-125 26 none moved 114 1
-125 27 none moved 114 1
-125 28 none moved 114 1
-125 29 none moved 114 1
-125 30 none moved 114 1
-125 31 none moved 114 1

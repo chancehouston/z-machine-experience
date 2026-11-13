@@ -858,6 +858,7 @@ line missing or out of place. A pack is never applied in part.
 | `untrusted-variable` | a decimal number, 16 to 255 | any number of times; no value twice |
 | `transparent-attribute` | a decimal number, 0 to 31; only in a pack of version 2 or later | at most once |
 | `lit-attribute` | a decimal number, 0 to 31; only in a pack of version 3 | at most once |
+| `invisible-attribute` | a decimal number, 0 to 31; only in a pack of version 3 | at most once |
 
 A decimal number has no sign and no leading zero, other than `0` itself.
 
@@ -873,8 +874,8 @@ untrusted-variable: 40
 
 The format's version is 3. A reader of version 3 reads packs of versions 1, 2 and 3. A
 pack that holds `transparent-attribute` states `pack: 2` or `pack: 3`, and one that
-holds `lit-attribute` states `pack: 3`; in a pack of an earlier version the key is a
-fault.
+holds `lit-attribute` or `invisible-attribute` states `pack: 3`; in a pack of an earlier
+version the key is a fault.
 
 A reader refuses a pack of a version it does not know, so a reader of an earlier version
 given a later pack behaves as it does with no pack.
@@ -992,7 +993,8 @@ From version 0.3.0 to 0.4.0:
 
 - `location` and `scope` have one more field, `source`; an exit has one more,
   `dark_ahead`.
-- The pack format has a version 3, with one more key, `lit-attribute`.
+- The pack format has a version 3, with two more keys, `lit-attribute` and
+  `invisible-attribute`.
 - A pack may change the answers to `location` and `scope`.
 
 ### 12.8 `transparent-attribute`
@@ -1043,6 +1045,22 @@ For an exit with no `destination`, and wherever no `lit-attribute` is in force, 
 `unknown`.
 
 An exit whose `dark_ahead` is `yes` or `no` has `source` `pack` (section 12.5).
+
+`dark_ahead` is about the moment of the query. A game may change what gives light during
+the move itself; the answer does not foresee that.
+
+### 12.11 `invisible-attribute`
+
+`invisible-attribute: H` says that, in this story file, attribute H is set on a thing
+the game hides from the player.
+
+With it in force, an object with attribute H is not a light (section 12.9), and nothing
+inside it is one, whether it is open or not: for `location`, for `scope`'s `light` and
+for `dark_ahead`. The player, and an object the player is in, are looked through
+whatever their attributes.
+
+It changes nothing where no `lit-attribute` is in force, and nothing else about any
+answer: a hidden object is still listed by `inventory`, `scope` and `object_tree`.
 
 Nothing is tried to answer. The game has the last word (section 8.3): it may refuse the
 way, and what lights or darkens a room may change as the player moves.

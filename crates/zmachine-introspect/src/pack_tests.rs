@@ -895,3 +895,66 @@ fn dark_ahead_is_the_light_of_the_room_a_way_leads_to() {
         (NotKnown, pack)
     );
 }
+
+// I§12.11: `invisible-attribute` names the attribute set on a thing the game
+// hides. A hidden thing gives no light, and nothing inside it is seen, now or
+// ahead. (Found on Zork I: a character holding the player's lit light,
+// hidden, in a room the game calls dark.)
+#[test]
+fn light_from_a_hidden_thing_is_not_seen() {
+    use crate::Tri::{No, Yes};
+    use crate::fixtures::insert;
+    const HIDDEN: u8 = 6;
+    let entries = format!("{}invisible-attribute: {HIDDEN}\n", lit_entries());
+    let lit_lamp = || vec![set_attr(zl::LAMP, LIT)];
+    // Carried and lit: lit. Hidden as well: dark.
+    assert_eq!(light(&fixture(lit_lamp()), &entries).0, Yes);
+    let mut hidden = lit_lamp();
+    hidden.push(set_attr(zl::LAMP, HIDDEN));
+    assert_eq!(light(&fixture(hidden.clone()), &entries).0, No);
+    // Without the entry the same story is lit: the attribute means nothing.
+    assert_eq!(light(&fixture(hidden), &lit_entries()).0, Yes);
+    // A lit thing inside a hidden, open thing is not seen either.
+    let in_hidden_sack = vec![
+        set_attr(zl::LAMP, LIT),
+        insert(zl::LAMP, zl::SACK),
+        set_attr(zl::SACK, OPEN),
+        set_attr(zl::SACK, HIDDEN),
+    ];
+    assert_eq!(light(&fixture(in_hidden_sack), &entries).0, No);
+    // The player's own object may be hidden (it is on Zork I): what they
+    // carry still lights the room, here and ahead.
+    let hidden_player = vec![set_attr(zl::LAMP, LIT), set_attr(zl::PLAYER, HIDDEN)];
+    assert_eq!(light(&fixture(hidden_player.clone()), &entries).0, Yes);
+    assert_eq!(ahead(&fixture(hidden_player), &entries, zl::NORTH).0, No);
+    // Ahead: a hidden light lying in the hall does not light it; nor does one
+    // carried.
+    let boat = vec![set_attr(zl::BOAT, LIT), set_attr(zl::BOAT, HIDDEN)];
+    assert_eq!(ahead(&fixture(boat), &entries, zl::NORTH).0, Yes);
+    let carried = vec![set_attr(zl::LAMP, LIT), set_attr(zl::LAMP, HIDDEN)];
+    assert_eq!(ahead(&fixture(carried), &entries, zl::NORTH).0, Yes);
+    // The key is one of version 3's, 0 to 31, once.
+    let three = EXAMPLE.replace("pack: 1", "pack: 3");
+    assert_eq!(
+        Pack::parse(&format!("{three}invisible-attribute: 7\n"))
+            .unwrap()
+            .invisible_attribute,
+        Some(7)
+    );
+    for (text, line) in [
+        (
+            format!(
+                "{}invisible-attribute: 7\n",
+                EXAMPLE.replace("pack: 1", "pack: 2")
+            ),
+            7,
+        ),
+        (format!("{three}invisible-attribute: 32\n"), 7),
+        (
+            format!("{three}invisible-attribute: 7\ninvisible-attribute: 7\n"),
+            8,
+        ),
+    ] {
+        assert_eq!(Pack::parse(&text).unwrap_err().line, line, "{text}");
+    }
+}

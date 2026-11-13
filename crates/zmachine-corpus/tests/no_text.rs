@@ -11,7 +11,7 @@ use zmachine_introspect::Introspector;
 
 /// The words of the report format. A game's word that is one of these cannot be
 /// told from the format's own.
-const KEYWORDS: [&str; 52] = [
+const KEYWORDS: [&str; 60] = [
     "story",
     "sha256",
     "version",
@@ -66,6 +66,16 @@ const KEYWORDS: [&str; 52] = [
     "seen",
     "kept",
     "listed",
+    // Feature 008: the comparison of light with whether the game describes
+    // the room.
+    "light",
+    "ahead",
+    "dark",
+    "lit",
+    "rooms-both",
+    "in-the-dark",
+    "described",
+    "undescribed",
 ];
 
 fn report_files() -> Vec<std::path::PathBuf> {
@@ -226,7 +236,9 @@ fn pack_fault(text: &str, names: &[String]) -> Option<(usize, String)> {
             | "release"
             | "open-attribute"
             | "untrusted-variable"
-            | "transparent-attribute" => digits,
+            | "transparent-attribute"
+            | "lit-attribute"
+            | "invisible-attribute" => digits,
             "sha256" => {
                 value.len() == 64
                     && value

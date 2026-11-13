@@ -26,6 +26,7 @@ fn entry() -> Story {
         first: vec![],
         inventory: None,
         asides: vec![],
+        look: None,
         rooms: None,
         trials: None,
         line: 1,

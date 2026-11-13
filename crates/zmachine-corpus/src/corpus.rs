@@ -116,6 +116,17 @@ pub fn proofs(
             packs::prove_transparent(with),
         ));
     }
+    if let Some(attribute) = found.pack.lit_attribute {
+        out.push((format!("lit-attribute {attribute}"), packs::prove_lit(with)));
+    }
+    if let Some(attribute) = found.pack.invisible_attribute {
+        let rest = packs::text_without_invisible(&found.pack);
+        let proof = match report_with(root, story, ledger, Some(&rest)) {
+            Some(without) => packs::prove_invisible(with, &without),
+            None => Proof::NotProven,
+        };
+        out.push((format!("invisible-attribute {attribute}"), proof));
+    }
     for &variable in &found.pack.untrusted_variables {
         let rest = packs::text(&found.pack, Some(variable));
         let proof = match report_with(root, story, ledger, Some(&rest)) {
@@ -178,6 +189,7 @@ pub fn command(root: &Path, mode: Mode, ids: &[String]) -> (Vec<String>, i32) {
     // The ledger's entries that a trial of this run matched.
     let mut matched = vec![false; ledger.entries.len()];
     let mut matched_inventory = vec![false; ledger.inventory.len()];
+    let mut matched_light = vec![false; ledger.light.len()];
     let mut ran: Vec<&str> = Vec::new();
     // The summary kept, and the lines of this run's stories.
     let kept_read = std::fs::read_to_string(root.join(SUMMARY))
@@ -223,6 +235,29 @@ pub fn command(root: &Path, mode: Mode, ids: &[String]) -> (Vec<String>, i32) {
                     .inventory_detail
                     .iter()
                     .any(|(difference, _)| *difference == entry.difference);
+        }
+        for (entry, matched) in ledger.light.iter().zip(&mut matched_light) {
+            *matched |= entry.story == story.id
+                && fresh
+                    .light_detail
+                    .iter()
+                    .any(|(difference, _)| *difference == entry.difference);
+        }
+        // So does a difference about light, at a place or on a way walked.
+        let dimming: Vec<String> = fresh
+            .light_detail
+            .iter()
+            .filter(|(difference, _)| !ledger.knows_light(&story.id, difference))
+            .map(|(d, _)| {
+                let text = d.text();
+                let (kind, rest) = text.split_once(' ').unwrap_or((&text, ""));
+                format!("{} {kind} wrong {rest}", story.id)
+            })
+            .collect();
+        if mode == Mode::Run && !dimming.is_empty() {
+            lines.extend(dimming);
+            failed = true;
+            continue;
         }
         // A difference between what is seen of the inventory and what the game
         // lists, with no cause written, fails as a wrong exit does.
@@ -344,6 +379,15 @@ pub fn command(root: &Path, mode: Mode, ids: &[String]) -> (Vec<String>, i32) {
     }
     // An entry that no trial matched, for a story that ran, has outlived its case.
     if mode == Mode::Run {
+        for (entry, matched) in ledger.light.iter().zip(matched_light) {
+            if !matched && ran.contains(&entry.story.as_str()) {
+                lines.push(format!(
+                    "{LEDGER}:{}: the entry matches no comparison",
+                    entry.line
+                ));
+                failed = true;
+            }
+        }
         for (entry, matched) in ledger.inventory.iter().zip(matched_inventory) {
             if !matched && ran.contains(&entry.story.as_str()) {
                 lines.push(format!(

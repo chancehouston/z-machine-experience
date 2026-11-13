@@ -136,6 +136,37 @@ pub fn check(root: &Path, stories: &[Story], ledger: &Ledger) -> (Vec<String>, V
     (failures, notes)
 }
 
+/// A pack's text with its `invisible-attribute` left out.
+pub fn text_without_invisible(pack: &Pack) -> String {
+    let mut pack = pack.clone();
+    pack.invisible_attribute = None;
+    text(&pack, None)
+}
+
+/// Whether the `invisible-attribute` entry is proven
+/// (specs/008-darkness, found in implementation): `with` is the run with the
+/// whole pack and `without` the run with every entry but this one. It is
+/// contradicted by a difference about light with no cause; needed if, without
+/// it, the interface and the game differ about light somewhere they agree with
+/// it; and unneeded otherwise.
+pub fn prove_invisible(with: &Report, without: &Report) -> Proof {
+    let unexplained = with
+        .light
+        .is_some_and(|l| l.differed_unexplained + l.ahead_differed_unexplained > 0);
+    if unexplained {
+        return Proof::Contradicted;
+    }
+    let mended = without
+        .light_detail
+        .iter()
+        .any(|(difference, _)| !with.light_detail.iter().any(|(d, _)| d == difference));
+    if mended {
+        Proof::Proven
+    } else {
+        Proof::Unneeded
+    }
+}
+
 /// A pack's text, with one untrusted variable left out if asked.
 pub fn text(pack: &Pack, without: Option<u8>) -> String {
     let mut out = format!(
@@ -155,6 +186,12 @@ pub fn text(pack: &Pack, without: Option<u8>) -> String {
     }
     if let Some(attribute) = pack.transparent_attribute {
         out.push_str(&format!("transparent-attribute: {attribute}\n"));
+    }
+    if let Some(attribute) = pack.lit_attribute {
+        out.push_str(&format!("lit-attribute: {attribute}\n"));
+    }
+    if let Some(attribute) = pack.invisible_attribute {
+        out.push_str(&format!("invisible-attribute: {attribute}\n"));
     }
     out
 }
@@ -181,6 +218,20 @@ pub fn prove_transparent(with: &Report) -> Proof {
     match &with.inventory {
         Some(inventory) if inventory.differed_unexplained > 0 => Proof::Contradicted,
         Some(inventory) if inventory.through_closed > 0 => Proof::Proven,
+        _ => Proof::NotProven,
+    }
+}
+
+/// Whether the run with the pack proves its `lit-attribute` entry
+/// (specs/008-darkness/research.md R9): the game agrees about light wherever
+/// no cause is written, at a place and on a way walked; some place is dark; and
+/// some room is seen both dark and lit, so that a light made the difference.
+pub fn prove_lit(with: &Report) -> Proof {
+    match &with.light {
+        Some(light) if light.differed_unexplained + light.ahead_differed_unexplained > 0 => {
+            Proof::Contradicted
+        }
+        Some(light) if light.dark > 0 && light.rooms_both > 0 => Proof::Proven,
         _ => Proof::NotProven,
     }
 }

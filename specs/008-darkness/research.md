@@ -178,3 +178,35 @@ alone is left standing by the test of all 32; otherwise it is left as it is (FR-
 **Decision**: The rule walks the room's objects once for `location`, and once more for
 each exit with a known room. Rooms hold few objects. The timing tests of features 003
 and 004 run with Zork I's pack as it then is, and must hold (FR-024).
+
+## R13. The hidden thing (found in implementation)
+
+**Found**: With `lit-attribute: 19` alone, Zork I's run contradicted the entry. At two
+rooms the interface said lit and the game would not describe the room, and on six ways
+it said lit ahead and the player arrived in the dark. One cause: a character had taken
+the player's lit light. That character is an open holder, so by R1 the light was seen;
+the game hides both the character and the taken thing.
+
+**Decision** (the project owner's, asked at the stop point of T027): a second key of
+version 3, `invisible-attribute: H`. An object with attribute H is not a light and
+nothing in it is one. The player's own object carries the attribute on Zork I, so the
+player and what the player is in are looked through regardless.
+
+**Proof**: the run with every entry but this one. The entry is `contradicted` by a
+difference about light with no cause; `proven` if the run without it has a difference
+about light that the run with it has not; and `unneeded` otherwise.
+
+**What the proof does not show**: on Zork I attribute 7 passes, and so does 30, which
+is set on the character and never changes. No stop of the run has one without the
+other where it matters. The pack names 7, the one the game sets and clears on the taken
+thing; a test fixes that exactly 7 and 30 pass. `lit-attribute` is singled out: only 19
+passes of 32.
+
+**What is left in the ledger**: six ways at one stop of the walkthrough, where the
+character takes the light during the move itself. The way was lit when asked. I§12.10
+now says the answer is about the moment of the query.
+
+**Alternatives considered**: ledger entries for the two rooms as well (a known wrong
+answer shown to a player as "lit" where the game says dark); calling light `unknown`
+whenever a character holds a light (needs a second fact, which attribute means a
+character, and loses the answer in more places).

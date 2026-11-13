@@ -1,5 +1,5 @@
 # A game pack (docs/introspection.md, section 12).
-pack: 2
+pack: 3
 sha256: 37084966477dff679282de42974b2077156b1bd68fad92a65d4ea94d8eb64d79
 release: 119
 serial: 880429
@@ -7,3 +7,5 @@ open-attribute: 11
 untrusted-variable: 99
 untrusted-variable: 136
 transparent-attribute: 12
+lit-attribute: 19
+invisible-attribute: 7

@@ -8,6 +8,7 @@
 | --- | --- | --- |
 | `pack` | `1`, `2` or `3` | once |
 | `lit-attribute` | 0 to 31; only in a pack of version 3 | at most once |
+| `invisible-attribute` | 0 to 31; only in a pack of version 3 | at most once. Added in implementation (research R13) |
 
 ## Light
 

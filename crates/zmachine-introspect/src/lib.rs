@@ -457,6 +457,13 @@ impl Introspector {
         }
     }
 
+    /// Whether a game pack says the game hides this object.
+    fn hidden(&self, b: Bytes, object: u16) -> bool {
+        self.entries
+            .invisible_attribute
+            .is_some_and(|attribute| self.has(b, object, attribute))
+    }
+
     fn has(&self, b: Bytes, object: u16, attribute: u8) -> bool {
         self.layout.has_attribute(b, object, attribute) == Some(true)
     }
@@ -532,7 +539,11 @@ impl Introspector {
         let mut stack = self.children(b, root)?;
         while let Some(object) = stack.pop() {
             budget = budget.checked_sub(1).ok_or(Unknown::Damaged)?;
-            if skip.contains(&object) {
+            // A thing the game hides gives no light, and nothing in it is seen
+            // (specification section 12.11). The player, and what the player is
+            // in, are looked through whatever they are marked.
+            let hidden = !through.contains(&object) && self.hidden(b, object);
+            if skip.contains(&object) || hidden {
                 continue;
             }
             if self.has(b, object, lit) {
@@ -561,6 +572,9 @@ impl Introspector {
         let mut stack = self.children(b, object)?;
         while let Some(inner) = stack.pop() {
             budget = budget.checked_sub(1).ok_or(Unknown::Damaged)?;
+            if self.hidden(b, inner) {
+                continue;
+            }
             if self.has(b, inner, lit) {
                 return Ok(true);
             }
