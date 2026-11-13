@@ -153,7 +153,7 @@ the ledger names it.
 - [x] T029 Run `scripts/build-ios.sh`, then `scripts/test-ios.sh 27`, and list every UI test that fails because a way it expected as `maybe` is now settled (L§25); change each to the settled state and no further. A test that fails for any other reason is a **stop**
 - [x] T030 Failing test, then nothing, `testTheTrapDoorComesAndGoes` in `apps/ios/LamplightUITests/LamplightUITests.swift` (L§24; SC-001, SC-006, SC-007): in the living room `compass.down` has value `closed` and is not enabled; after `move rug` and `open trap door` it has value `open`, is enabled, and its label ends ", into darkness"; after fetching and lighting the lamp its label does not contain "darkness". Since no app code changes, the notes say how the test was shown able to fail
 - [x] T031 Take simulator screenshots of two places in Zork I where a way the game refuses has left the compass (the living room before the rug is moved, and one place where the game's text speaks of a way that is guarded or shut), each beside the same place as drawn on `main`. Send them to the owner and **stop** for their eye. Record what was chosen
-- [ ] T032 T029 and T030 pass on iOS 26 and 27; confirm `git diff main --stat -- apps/ios/Lamplight` is empty
+- [x] T032 T029 and T030 pass on iOS 26 and 27; confirm `git diff main --stat -- apps/ios/Lamplight` is empty
 
 ---
 
@@ -341,5 +341,15 @@ timber room, where the game refuses a way for what the player carries and the wa
 looks like a wall, and of the closed window that a pack still draws as a door, the
 owner kept a refused way as no way at all (2026-11-13).
 
-**Not done**: T032 (above), the rest of T038 and its listening half, and whatever the
+**T032, closed afterwards** (2026-11-13, branch `fix-newest-turn-in-view`): the cause
+was in the app and not in the test. On the iOS 27.2 simulator as updated, with the
+keyboard up and the transcript longer than its room, the scroll to a marker after the
+last turn went to where the end would be without the keyboard, and left the newest turn
+behind it: a probe of the test's thirty turns found the first three in view and nearly
+every later one hidden. The transcript is now anchored to its end as it grows and is
+brought back to its end at each new turn through the scroll view's own position, with
+no marker. With that the suite passes on both: 28 tests, none failed, one skipped, on
+iOS 27.2 (752 s) and on iOS 26 (738 s). What changed inside the system is not known.
+
+**Not done**: the rest of T038 and its listening half, and whatever the
 list above says is not tested.
