@@ -115,6 +115,63 @@ pub struct Report {
     pub inventory: Option<Inventory>,
     /// Each difference, with how many times it was met.
     pub inventory_detail: Vec<(Difference, usize)>,
+    /// The comparison of what the interface says about light with whether the
+    /// game describes the room, for a story whose manifest gives its look
+    /// command (specs/008-darkness/research.md R7).
+    pub light: Option<Light>,
+    pub light_detail: Vec<(LightDifference, usize)>,
+}
+
+/// The light comparison's figures. The first group is of places; the second of
+/// trials that walked a way to the room it named.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct Light {
+    pub compared: usize,
+    pub agreed: usize,
+    pub differed_known: usize,
+    pub differed_unexplained: usize,
+    pub unjudged: usize,
+    /// Places where the interface said dark and the game agreed.
+    pub dark: usize,
+    /// Rooms seen dark at one place and lit at another: a light, and not the
+    /// room, made the difference.
+    pub rooms_both: usize,
+    /// Trials at a place reported dark whose verdict would have been wrong.
+    pub in_the_dark: usize,
+    pub ahead_compared: usize,
+    pub ahead_agreed: usize,
+    pub ahead_differed_known: usize,
+    pub ahead_differed_unexplained: usize,
+    pub ahead_unjudged: usize,
+}
+
+/// A place, or a way walked, where the interface and the game disagree about
+/// light. `direction` is `None` for the light of a place, and the way's
+/// direction for dark ahead.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct LightDifference {
+    pub room: u16,
+    pub direction: Option<u8>,
+    /// What the interface said: dark, or lit.
+    pub dark: bool,
+    /// Whether the game described the room.
+    pub described: bool,
+}
+
+impl LightDifference {
+    /// The difference as a detail line and a failure name it, without a count.
+    pub fn text(&self) -> String {
+        let said = if self.dark { "dark" } else { "lit" };
+        let game = if self.described {
+            "described"
+        } else {
+            "undescribed"
+        };
+        match self.direction {
+            None => format!("light {} {said} {game}", self.room),
+            Some(direction) => format!("ahead {} {direction} {said} {game}", self.room),
+        }
+    }
 }
 
 /// The inventory comparison's figures (specs/007-inventory-panel/research.md
@@ -276,6 +333,7 @@ impl Report {
             + self.unknown.total()
             + self.no_verdict
             + self.marked.total()
+            + self.light.map_or(0, |light| light.in_the_dark)
     }
 
     pub fn write(&self) -> String {
@@ -371,6 +429,29 @@ impl Report {
                 i.through_closed
             ));
         }
+        // Only a story whose manifest gives its look command has these lines.
+        if let Some(l) = &self.light {
+            line(format!(
+                "light compared {} agreed {} differed-known {} differed-unexplained {} \
+                 unjudged {} dark {} rooms-both {} in-the-dark {}",
+                l.compared,
+                l.agreed,
+                l.differed_known,
+                l.differed_unexplained,
+                l.unjudged,
+                l.dark,
+                l.rooms_both,
+                l.in_the_dark
+            ));
+            line(format!(
+                "ahead compared {} agreed {} differed-known {} differed-unexplained {} unjudged {}",
+                l.ahead_compared,
+                l.ahead_agreed,
+                l.ahead_differed_known,
+                l.ahead_differed_unexplained,
+                l.ahead_unjudged
+            ));
+        }
         line("detail".to_string());
         // By room, then direction, then the rest as text.
         let mut detail: Vec<(u16, u8, String, usize)> = self
@@ -399,6 +480,11 @@ impl Report {
                 if d.seen { "seen" } else { "kept" },
                 if d.listed { "listed" } else { "unlisted" }
             ));
+        }
+        let mut lights = self.light_detail.clone();
+        lights.sort();
+        for (d, count) in lights {
+            line(format!("{} {count}", d.text()));
         }
         out
     }
@@ -586,6 +672,42 @@ impl Report {
             report.inventory = Some(inventory);
             at += 1;
         }
+        if lines
+            .get(at - 1)
+            .is_some_and(|line| line.starts_with("light "))
+        {
+            let n = get(
+                at,
+                "light compared # agreed # differed-known # differed-unexplained # unjudged # \
+                 dark # rooms-both # in-the-dark #",
+            )?;
+            let m = get(
+                at + 1,
+                "ahead compared # agreed # differed-known # differed-unexplained # unjudged #",
+            )?;
+            if n[0] != n[1] + n[2] + n[3] + n[4] {
+                return refuse(at, "the places compared do not add up");
+            }
+            if m[0] != m[1] + m[2] + m[3] + m[4] {
+                return refuse(at + 1, "the ways compared do not add up");
+            }
+            report.light = Some(Light {
+                compared: n[0],
+                agreed: n[1],
+                differed_known: n[2],
+                differed_unexplained: n[3],
+                unjudged: n[4],
+                dark: n[5],
+                rooms_both: n[6],
+                in_the_dark: n[7],
+                ahead_compared: m[0],
+                ahead_agreed: m[1],
+                ahead_differed_known: m[2],
+                ahead_differed_unexplained: m[3],
+                ahead_unjudged: m[4],
+            });
+            at += 2;
+        }
         if report.verdicts() != report.trials {
             return refuse(7, "the verdicts do not add up to the trials");
         }
@@ -634,6 +756,71 @@ impl Report {
                     }
                 }
                 continue;
+            }
+            // And after the inventory's, the differences about light.
+            if matches!(words.first(), Some(&"light") | Some(&"ahead")) {
+                let number = |word: &str| numbers(word, "#").and_then(|n| u16::try_from(n[0]).ok());
+                let found = match words.as_slice() {
+                    [
+                        "light",
+                        room,
+                        said @ ("lit" | "dark"),
+                        game @ ("described" | "undescribed"),
+                        count,
+                    ] if report.light.is_some() => {
+                        number(room).zip(numbers(count, "#")).map(|(room, count)| {
+                            (
+                                LightDifference {
+                                    room,
+                                    direction: None,
+                                    dark: *said == "dark",
+                                    described: *game == "described",
+                                },
+                                count[0],
+                            )
+                        })
+                    }
+                    [
+                        "ahead",
+                        room,
+                        direction,
+                        said @ ("lit" | "dark"),
+                        game @ ("described" | "undescribed"),
+                        count,
+                    ] if report.light.is_some() => {
+                        match (
+                            number(room),
+                            number(direction).and_then(|d| u8::try_from(d).ok()),
+                            numbers(count, "#"),
+                        ) {
+                            (Some(room), Some(direction), Some(count)) => Some((
+                                LightDifference {
+                                    room,
+                                    direction: Some(direction),
+                                    dark: *said == "dark",
+                                    described: *game == "described",
+                                },
+                                count[0],
+                            )),
+                            _ => None,
+                        }
+                    }
+                    _ => None,
+                };
+                match found {
+                    // Lit and described, or dark and not, is no difference.
+                    Some((d, _)) if d.dark != d.described => {
+                        return refuse(i + 1, "what was said and what the game did do not differ");
+                    }
+                    Some(found) => report.light_detail.push(found),
+                    None => {
+                        return refuse(i + 1, "not a line about light of the report's form");
+                    }
+                }
+                continue;
+            }
+            if !report.light_detail.is_empty() {
+                return refuse(i + 1, "an earlier kind of detail after light's");
             }
             if !report.inventory_detail.is_empty() {
                 return refuse(i + 1, "an exit's detail after the inventory's");

@@ -203,6 +203,13 @@ That is proven too. At every place the corpus asks a throwaway copy of the game 
 inventory and sets what it lists against what the interface says is seen; the reply is
 read for the names of the things carried and then dropped, and nothing of it is kept.
 
+And a pack says which attribute means lit. With it the interface says whether the
+player's room is dark, and for each way out whether the room it leads to would be dark
+for the player as they are. The app shows the layer's words, "It is dark", above the
+compass, which stays the room's own; a way into darkness carries a small badge and is
+spoken as such. Without a pack nothing is claimed. The corpus proves it by asking a
+throwaway copy of the game to describe the room, at every place and after every walk.
+
 ```text
 cargo run -q --release -p zmachine-corpus -- check
 cargo run -q --release -p zmachine-corpus -- run
@@ -241,6 +248,7 @@ reported as ignored, not passed.
 | `specs/005-corpus-testing/` | The same for corpus testing, with the formats of its files and its commands. |
 | `specs/006-game-packs/` | The same for game packs. |
 | `specs/007-inventory-panel/` | The same for the inventory strip. |
+| `specs/008-darkness/` | The same for darkness: lit or dark, and dark ahead. |
 
 ## How it fits together
 

@@ -12,7 +12,8 @@ path: stories/zork1/zork1.z3
 seed: 11
 walkthrough: stories/zork1/fidelity/walkthrough.txt
 inventory: inventory
-aside: north / east / open window / west / take bottle
+look: look
+aside: north / east / open window / west / take bottle / up / down / west / take lamp / east / up / turn on lamp / turn off lamp / turn on lamp / down
 
 id: advent-z5
 sha256: 9df430b9454ebee51de43d10af6c5616ad56b8f4f59389130c132449d99e9b05
@@ -73,6 +74,8 @@ seed: 1
 first: north
 first: east
 first: open window
+look: look
+aside: north / east / open window / west / up / down / west / take lamp / east / up / turn on lamp / turn off lamp / turn on lamp / down
 
 id: sampler1
 sha256: 7a2e5b7698f42a83e73dab5d9c5fbead294cf7b407f6daa8fe57caa429bd35bf

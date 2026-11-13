@@ -68,7 +68,7 @@ reports as open.
 unknown in a story it recognised. But three of the fourteen stories it did not recognise
 at all, and on those every direction is unanswered: no trial was run on them.
 
-**Every wrong report is explained.** There are 234 wrong trials, all in the ledger. Not
+**Every wrong report is explained.** There are 183 wrong trials, all in the ledger. Not
 one is a misreading of a room's exit table. Each is the game's code doing something the
 table does not say:
 
@@ -96,6 +96,9 @@ A game pack states facts about one story file that no rule of its family can rea
 | `zork1` | variables 99 and 136 are untrusted | each has a report that is wrong without it |
 | `zork1` | attribute 12 means see-through | the game's own inventory listing, below |
 | `minizork` | attribute 10 means open | 6 trials of doors: 4 open and 2 closed, all confirmed |
+| `zork1` | attribute 19 means lit | the game describing the room or not, below; no other attribute passes |
+| `zork1` | attribute 7 means hidden | without it the game and the interface differ about light; attribute 30 passes as well (`packs/README.md`) |
+| `minizork` | attribute 19 means lit | the same; no other attribute passes |
 
 `corpus run` proves every entry, and fails on one that is contradicted, not proven or
 unneeded. An "open" entry is proven only when a door has been seen both open and closed
@@ -109,12 +112,43 @@ What Zork I's pack changed, over the same 4,628 trials:
 | Reported conditional | 113 | 55 |
 | Doors reported open or closed | 0 | 58, all confirmed |
 | On an untrusted variable (conditional) | 0 | 24 |
-| Wrong, with a cause in the ledger | 101 | 96 |
+| Wrong | 101 | 57, each with a cause in the ledger |
+| Wrong only because the player is in the dark | counted in the 101 | 39, told apart and needing no entry |
 
 The 24 are a cost as well as a gain: 5 of those trials were wrong before, and 19 were
 right, 6 of them in a third room that the same variable guards and that was never
 wrong. The project owner chose to keep both entries: the stored value cannot be relied
 on, wherever it is read.
+
+## Light, set against whether the game describes the room
+
+Feature 008 (`specs/008-darkness/`) added a third measure. Where the manifest gives a
+story's look command, a throwaway copy of the game is asked to describe the room at
+every place, and on the copy of every trial that arrived where its exit said. The room
+counts as described if its own printed name is in the reply; the reply is then dropped.
+That is set against what the interface says: lit or dark here, and dark ahead or not on
+the way just walked. A difference with no cause in the ledger fails the run.
+
+| | Zork I | Mini-Zork |
+| --- | --- | --- |
+| Places compared | 372 | 31 |
+| Agreed | 370 | 31 |
+| Not judged (the interface could not tell the player) | 2 | 0 |
+| Places the game left dark | 6 | 4 |
+| Ways walked and compared | 847 | 54 |
+| Agreed | 836 | 54 |
+| Differed, with a cause in the ledger | 6 | 0 |
+| Not judged | 5 | 0 |
+
+The six are one moment of Zork I's walkthrough: a character takes the player's light
+during the move itself, so the way was lit when asked and dark on arrival.
+
+A game in the dark does not follow its exit tables: a walk in any direction may end the
+game. Those trials used to need a ledger entry each. With light known, a trial that
+would be wrong at a place the interface reports dark is counted as `in-the-dark`
+instead, and 51 entries have left the ledger (Zork I 39, Mini-Zork 12). The ledger now
+holds 172 entries. Zork II, Zork III and the sampler have no pack entry for light, and
+their darkness entries remain.
 
 ## The inventory, set against the game's own listing
 

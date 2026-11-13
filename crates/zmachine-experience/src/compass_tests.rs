@@ -18,6 +18,7 @@ fn fixed(direction: u8, list: &[&str], to: &str) -> Exit {
         destination_name: Some(Ok(to.to_string())),
         door: None,
         state: None,
+        dark_ahead: zmachine_introspect::Tri::Unknown,
         source: zmachine_introspect::Source::File,
     }
 }
@@ -31,6 +32,7 @@ fn conditional(direction: u8, list: &[&str]) -> Exit {
         destination_name: None,
         door: None,
         state: None,
+        dark_ahead: zmachine_introspect::Tri::Unknown,
         source: zmachine_introspect::Source::File,
     }
 }
@@ -504,4 +506,96 @@ fn a_closed_door_may_be_an_extra() {
         (PlaceState::Door, "land", "Land, closed door")
     );
     assert_eq!(extra.leads_to, None);
+}
+
+// ---------------------------------------------------------------------------
+// Darkness ahead (feature 008; specs/008-darkness/research.md R10; FR-018,
+// FR-019, FR-021)
+// ---------------------------------------------------------------------------
+
+fn ahead(mut exit: Exit, dark: zmachine_introspect::Tri) -> Exit {
+    exit.dark_ahead = dark;
+    exit.source = zmachine_introspect::Source::Pack;
+    exit
+}
+
+// A way that leads into darkness is marked, and spoken as such; everything else
+// of the place is what it would be without the mark.
+#[test]
+fn a_way_into_darkness_is_marked_and_nothing_else_changes() {
+    use zmachine_introspect::Tri;
+    let exits = |dark: Tri| {
+        vec![
+            ahead(fixed(31, &["north"], "Attic"), dark),
+            ahead(fixed(9, &["land"], "Shore"), dark),
+        ]
+    };
+    let (marked, plain) = (compass(exits(Tri::Yes), 6), compass(exits(Tri::Unknown), 6));
+    let (north, was) = (
+        marked.place(Place::North).unwrap(),
+        plain.place(Place::North).unwrap(),
+    );
+    assert!(north.dark_ahead && !was.dark_ahead);
+    assert_eq!(north.spoken, "North, to Attic, into darkness");
+    assert_eq!(was.spoken, "North, to Attic");
+    assert_eq!(
+        (north.state, &north.command, &north.leads_to),
+        (was.state, &was.command, &was.leads_to)
+    );
+    // The same for a way the compass has no place for.
+    assert!(marked.extras[0].dark_ahead && !plain.extras[0].dark_ahead);
+    assert_eq!(marked.extras[0].spoken, "Land, to Shore, into darkness");
+    assert_eq!(
+        (marked.extras[0].state, &marked.extras[0].command),
+        (plain.extras[0].state, &plain.extras[0].command)
+    );
+    // Lit ahead is not marked, and is the place it was.
+    let lit = compass(exits(Tri::No), 6);
+    assert_eq!(lit.places, plain.places);
+    assert_eq!(lit.extras, plain.extras);
+    // No other place is marked, and the note is untouched.
+    assert_eq!(marked.places.iter().filter(|p| p.dark_ahead).count(), 1);
+    assert_eq!(marked.note, plain.note);
+}
+
+// A closed door is not seen through: what is behind it is not told, dark or
+// not. A way that may be blocked has no room to speak of.
+#[test]
+fn a_closed_door_and_a_way_that_may_be_blocked_are_not_marked() {
+    use zmachine_introspect::{DoorState, Tri};
+    let mut door = ahead(fixed(31, &["north"], "Cellar"), Tri::Yes);
+    door.kind = ExitKind::Door;
+    door.door = Some(40);
+    door.state = Some(DoorState::Closed);
+    let c = compass(
+        vec![door.clone(), ahead(conditional(30, &["south"]), Tri::Yes)],
+        6,
+    );
+    let north = c.place(Place::North).unwrap();
+    assert_eq!((north.state, north.dark_ahead), (PlaceState::Door, false));
+    assert_eq!(north.spoken, "North, closed door");
+    let south = c.place(Place::South).unwrap();
+    assert_eq!((south.state, south.dark_ahead), (PlaceState::Maybe, false));
+    // Opened, it is a way like any other, and is marked.
+    door.state = Some(DoorState::Open);
+    let c = compass(vec![door], 6);
+    assert!(c.place(Place::North).unwrap().dark_ahead);
+}
+
+// Two exits for one place leave it unknown, and unmarked.
+#[test]
+fn a_place_that_is_not_known_is_not_marked() {
+    use zmachine_introspect::Tri;
+    let c = compass(
+        vec![
+            ahead(fixed(31, &["north"], "Attic"), Tri::Yes),
+            ahead(fixed(30, &["north"], "Loft"), Tri::Yes),
+        ],
+        6,
+    );
+    let north = c.place(Place::North).unwrap();
+    assert_eq!(
+        (north.state, north.dark_ahead),
+        (PlaceState::Unknown, false)
+    );
 }

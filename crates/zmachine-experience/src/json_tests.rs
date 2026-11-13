@@ -210,13 +210,16 @@ fn the_snapshot_has_every_field_in_order() {
             "turns",
             "compass",
             // Feature 007: what the player carries.
-            "inventory"
+            "inventory",
+            // Feature 008: whether the player is in the dark.
+            "light"
         ]
     );
     assert_eq!(
         snapshot.get("inventory").keys(),
         ["known", "note", "spoken", "items"]
     );
+    assert_eq!(snapshot.get("light").keys(), ["dark", "note"]);
     assert_eq!(snapshot.get("generation").number(), 1.0);
     assert_eq!(snapshot.get("turn_count").number(), 1.0);
     assert_eq!(snapshot.get("waiting").text(), "command");
@@ -297,7 +300,15 @@ fn the_compass_in_a_snapshot() {
     for place in places {
         assert_eq!(
             place.keys(),
-            ["place", "label", "state", "command", "leads_to", "spoken"]
+            [
+                "place",
+                "label",
+                "state",
+                "command",
+                "leads_to",
+                "dark_ahead",
+                "spoken"
+            ]
         );
     }
     let north = &places[0];

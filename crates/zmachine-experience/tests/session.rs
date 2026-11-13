@@ -675,7 +675,7 @@ fn a_closed_door_is_shown_tried_and_then_open() {
     }
     let json = s.snapshot_json(0);
     assert!(
-        json.contains(r#"{"place":"west","label":"West","state":"door","command":"west","leads_to":null,"spoken":"West, closed door"}"#),
+        json.contains(r#"{"place":"west","label":"West","state":"door","command":"west","leads_to":null,"dark_ahead":false,"spoken":"West, closed door"}"#),
         "{json}"
     );
 
@@ -846,7 +846,7 @@ fn the_snapshot_holds_the_strip() {
     let mut s = with_pack(Some(&pack));
     let json = s.snapshot_json(0);
     assert!(
-        json.ends_with(r#""extras":[]},"inventory":{"known":true,"note":"Carrying nothing","spoken":"Carrying nothing","items":[]}}"#),
+        json.ends_with(r#""extras":[]},"inventory":{"known":true,"note":"Carrying nothing","spoken":"Carrying nothing","items":[]},"light":{"dark":false,"note":null}}"#),
         "{}",
         &json[json.len().saturating_sub(160)..]
     );
@@ -856,7 +856,7 @@ fn the_snapshot_holds_the_strip() {
     let json = s.snapshot_json(0);
     assert!(
         json.ends_with(
-            r#""inventory":{"known":true,"note":null,"spoken":"Carrying: glass bottle, closed, holding quantity of water","items":[{"name":"glass bottle","state":"closed","contents":[{"name":"quantity of water","state":"plain","contents":[]}]}]}}"#
+            r#""inventory":{"known":true,"note":null,"spoken":"Carrying: glass bottle, closed, holding quantity of water","items":[{"name":"glass bottle","state":"closed","contents":[{"name":"quantity of water","state":"plain","contents":[]}]}]},"light":{"dark":false,"note":null}}"#
         ),
         "{}",
         &json[json.len().saturating_sub(300)..]
@@ -885,4 +885,114 @@ fn over_a_whole_game_the_strip_is_known_but_for_six_prompts() {
     assert_eq!(not_known, 6);
     let text = |s: &Session| -> Vec<String> { s.turns().iter().map(|t| t.text.clone()).collect() };
     assert_eq!(text(&s), text(&plain));
+}
+
+// ---------------------------------------------------------------------------
+// Darkness (feature 008, User Story 4; specs/008-darkness/research.md R10;
+// contracts/commands.md, "The experience layer")
+// ---------------------------------------------------------------------------
+
+/// The places whose way leads into darkness.
+fn dark_ways(s: &Session) -> Vec<&'static str> {
+    s.compass()
+        .places
+        .iter()
+        .filter(|p| p.dark_ahead)
+        .map(|p| p.place.id())
+        .collect()
+}
+
+// FR-018 to FR-020; US4 scenarios 1 to 4: on Zork I with its pack, the way up
+// from the kitchen is marked while the player has no light; up there it is dark
+// and the layer says so; with the lamp on, nothing is marked and it is not dark.
+// In the dark the compass is the room's own.
+#[test]
+fn darkness_is_warned_of_here_and_ahead() {
+    use zmachine_experience::Place;
+    let pack = read_text("packs/zork1.pack");
+    let mut s = with_pack(Some(&pack));
+    assert_eq!((s.light().dark, s.light().note), (Some(false), None));
+    for line in ["north", "east", "open window", "west"] {
+        assert!(dark_ways(&s).is_empty(), "before {line:?}");
+        say(&mut s, line);
+    }
+    assert_eq!(dark_ways(&s), ["up"]);
+    let up = place(&s, Place::Up);
+    assert!(up.spoken.ends_with(", into darkness"), "{}", up.spoken);
+    assert_eq!(up.command.as_deref(), Some("up"));
+
+    say(&mut s, "up");
+    assert_eq!(
+        (s.light().dark, s.light().note),
+        (Some(true), Some("It is dark"))
+    );
+    let in_the_dark: Vec<_> = s
+        .compass()
+        .places
+        .iter()
+        .map(|p| (p.place, p.state, p.command.clone()))
+        .collect();
+    assert!(
+        in_the_dark.iter().any(|p| p.2.is_some()),
+        "ways are offered"
+    );
+
+    for line in ["down", "west", "take lamp", "turn on lamp", "east"] {
+        say(&mut s, line);
+    }
+    assert!(dark_ways(&s).is_empty());
+    assert!(!place(&s, Place::Up).spoken.contains("darkness"));
+    say(&mut s, "up");
+    assert_eq!((s.light().dark, s.light().note), (Some(false), None));
+    let in_the_light: Vec<_> = s
+        .compass()
+        .places
+        .iter()
+        .map(|p| (p.place, p.state, p.command.clone()))
+        .collect();
+    assert_eq!(in_the_dark, in_the_light);
+}
+
+// FR-021; US4 scenario 5: without the pack nothing is known of light, and
+// nothing is said or marked.
+#[test]
+fn without_a_pack_no_darkness_is_claimed() {
+    let mut s = game(11);
+    for line in ["north", "east", "open window", "west", "up"] {
+        assert_eq!((s.light().dark, s.light().note), (None, None));
+        assert!(dark_ways(&s).is_empty());
+        say(&mut s, line);
+    }
+    assert_eq!((s.light().dark, s.light().note), (None, None));
+    assert!(
+        s.snapshot_json(0)
+            .ends_with(r#","light":{"dark":null,"note":null}}"#)
+    );
+}
+
+// K§ "The experience layer": the snapshot has `light` after `inventory`, and a
+// place has `dark_ahead` after `leads_to`.
+#[test]
+fn the_snapshot_holds_the_light() {
+    let pack = read_text("packs/zork1.pack");
+    let mut s = with_pack(Some(&pack));
+    assert!(
+        s.snapshot_json(0)
+            .ends_with(r#","light":{"dark":false,"note":null}}"#)
+    );
+    for line in ["north", "east", "open window", "west"] {
+        say(&mut s, line);
+    }
+    let json = s.snapshot_json(0);
+    assert!(
+        json.contains(r#"{"place":"up","label":"Up","state":"open","command":"up","leads_to":"Attic","dark_ahead":true,"spoken":"Up, to Attic, into darkness"}"#),
+        "{json}"
+    );
+    assert_eq!(json.matches(r#""dark_ahead":true"#).count(), 1);
+    assert_eq!(json.matches(r#""dark_ahead":false"#).count(), 11);
+    say(&mut s, "up");
+    assert!(
+        s.snapshot_json(0)
+            .ends_with(r#","light":{"dark":true,"note":"It is dark"}}"#)
+    );
 }

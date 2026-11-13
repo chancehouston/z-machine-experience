@@ -1,7 +1,7 @@
 //! The compass: which of twelve places lead somewhere, and what a tap on each
 //! sends (specs/004-first-demo/data-model.md "Compass"; research R5).
 
-use zmachine_introspect::{Answer, DoorState, ExitKind, Exits};
+use zmachine_introspect::{Answer, DoorState, ExitKind, Exits, Tri};
 
 /// A place on the compass.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -119,6 +119,8 @@ pub struct CompassPlace {
     pub command: Option<String>,
     /// The destination's name, for an open place where it is known.
     pub leads_to: Option<String>,
+    /// Whether the way leads into darkness, as far as is known (feature 008).
+    pub dark_ahead: bool,
     /// What a screen reader says for it.
     pub spoken: String,
 }
@@ -130,6 +132,8 @@ pub struct Extra {
     pub state: PlaceState,
     pub command: String,
     pub leads_to: Option<String>,
+    /// Whether the way leads into darkness, as far as is known (feature 008).
+    pub dark_ahead: bool,
     pub spoken: String,
 }
 
@@ -153,7 +157,19 @@ pub const NOTE_UNKNOWN: &str = "Exits unknown: type a direction";
 pub const NOTE_NONE: &str = "No exits here";
 
 /// What a screen reader says for a place or an extra.
-fn spoken(label: &str, state: PlaceState, leads_to: Option<&str>) -> String {
+fn spoken(label: &str, state: PlaceState, leads_to: Option<&str>, dark_ahead: bool) -> String {
+    let said = spoken_of(label, state, leads_to);
+    if dark_ahead {
+        format!("{said}{SPOKEN_DARK}")
+    } else {
+        said
+    }
+}
+
+/// What is added to what a screen reader says for a way into darkness.
+pub const SPOKEN_DARK: &str = ", into darkness";
+
+fn spoken_of(label: &str, state: PlaceState, leads_to: Option<&str>) -> String {
     match (state, leads_to) {
         (PlaceState::Open, Some(to)) => format!("{label}, to {to}"),
         (PlaceState::Open, None) => label.to_string(),
@@ -165,7 +181,12 @@ fn spoken(label: &str, state: PlaceState, leads_to: Option<&str>) -> String {
     }
 }
 
-fn place_in(place: Place, state: PlaceState, leads_to: Option<String>) -> CompassPlace {
+fn place_in(
+    place: Place,
+    state: PlaceState,
+    leads_to: Option<String>,
+    dark_ahead: bool,
+) -> CompassPlace {
     let offered = matches!(
         state,
         PlaceState::Open | PlaceState::Maybe | PlaceState::Door
@@ -175,8 +196,9 @@ fn place_in(place: Place, state: PlaceState, leads_to: Option<String>) -> Compas
         label: place.label(),
         state,
         command: offered.then(|| place.id().to_string()),
-        spoken: spoken(place.label(), state, leads_to.as_deref()),
+        spoken: spoken(place.label(), state, leads_to.as_deref(), dark_ahead),
         leads_to,
+        dark_ahead,
     }
 }
 
@@ -184,7 +206,7 @@ fn place_in(place: Place, state: PlaceState, leads_to: Option<String>) -> Compas
 fn all(state: PlaceState) -> Vec<CompassPlace> {
     Place::ALL
         .into_iter()
-        .map(|place| place_in(place, state, None))
+        .map(|place| place_in(place, state, None, false))
         .collect()
 }
 
@@ -233,19 +255,22 @@ impl Compass {
         };
 
         let mut known = true;
-        let mut found: Vec<(Place, PlaceState, Option<String>)> = Vec::new();
+        let mut found: Vec<(Place, PlaceState, Option<String>, bool)> = Vec::new();
         let mut extras = Vec::new();
-        let mut put =
-            |place: Place, state: PlaceState, leads_to: Option<String>, known: &mut bool| {
-                match found.iter_mut().find(|(p, _, _)| *p == place) {
-                    // A second exit for the same place: neither is preferred.
-                    Some(entry) => {
-                        *entry = (place, PlaceState::Unknown, None);
-                        *known = false;
-                    }
-                    None => found.push((place, state, leads_to)),
+        let mut put = |place: Place,
+                       state: PlaceState,
+                       leads_to: Option<String>,
+                       dark: bool,
+                       known: &mut bool| {
+            match found.iter_mut().find(|(p, ..)| *p == place) {
+                // A second exit for the same place: neither is preferred.
+                Some(entry) => {
+                    *entry = (place, PlaceState::Unknown, None, false);
+                    *known = false;
                 }
-            };
+                None => found.push((place, state, leads_to, dark)),
+            }
+        };
         for exit in &exits.exits {
             let (state, leads_to) = match exit.kind {
                 ExitKind::Fixed => (
@@ -266,8 +291,11 @@ impl Compass {
                     None => (PlaceState::Maybe, None),
                 },
             };
+            // A way into darkness is marked only where it is an open way: what
+            // is behind a closed door is not told (feature 008).
+            let dark = state == PlaceState::Open && exit.dark_ahead == Tri::Yes;
             match place_of(&exit.words) {
-                Some(place) => put(place, state, leads_to, &mut known),
+                Some(place) => put(place, state, leads_to, dark, &mut known),
                 None => match exit
                     .words
                     .iter()
@@ -276,11 +304,12 @@ impl Compass {
                     Some(word) => {
                         let label = capitalised(word);
                         extras.push(Extra {
-                            spoken: spoken(&label, state, leads_to.as_deref()),
+                            spoken: spoken(&label, state, leads_to.as_deref(), dark),
                             label,
                             state,
                             command: word.clone(),
                             leads_to,
+                            dark_ahead: dark,
                         });
                     }
                     // No word names it: it cannot be shown or sent.
@@ -291,17 +320,19 @@ impl Compass {
         for direction in &exits.unknown {
             known = false;
             if let Some(place) = place_of(&direction.words) {
-                match found.iter_mut().find(|(p, _, _)| *p == place) {
-                    Some(entry) => *entry = (place, PlaceState::Unknown, None),
-                    None => found.push((place, PlaceState::Unknown, None)),
+                match found.iter_mut().find(|(p, ..)| *p == place) {
+                    Some(entry) => *entry = (place, PlaceState::Unknown, None, false),
+                    None => found.push((place, PlaceState::Unknown, None, false)),
                 }
             }
         }
         let places: Vec<CompassPlace> = Place::ALL
             .into_iter()
-            .map(|place| match found.iter().find(|(p, _, _)| *p == place) {
-                Some((_, state, leads_to)) => place_in(place, *state, leads_to.clone()),
-                None => place_in(place, PlaceState::Closed, None),
+            .map(|place| match found.iter().find(|(p, ..)| *p == place) {
+                Some((_, state, leads_to, dark)) => {
+                    place_in(place, *state, leads_to.clone(), *dark)
+                }
+                None => place_in(place, PlaceState::Closed, None, false),
             })
             .collect();
         let any = places.iter().any(|p| p.command.is_some()) || !extras.is_empty();

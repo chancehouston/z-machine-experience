@@ -356,318 +356,6 @@ outcome: moved 53
 cause: A timed event moves the player's vehicle on at the end of this turn, whatever the
   command was. The direction itself does nothing.
 
-story: zork1
-room: 51
-direction: 19
-reported: none
-outcome: moved 38
-cause: The player is in the dark, where the game kills the player on a walk in any direction,
-  exit or not; the game's routine for death then moves the player.
-
-story: zork1
-room: 51
-direction: 20
-reported: none
-outcome: moved 38
-cause: The player is in the dark, where the game kills the player on a walk in any direction,
-  exit or not; the game's routine for death then moves the player.
-
-story: zork1
-room: 51
-direction: 21
-reported: none
-outcome: moved 38
-cause: The player is in the dark, where the game kills the player on a walk in any direction,
-  exit or not; the game's routine for death then moves the player.
-
-story: zork1
-room: 51
-direction: 22
-reported: none
-outcome: moved 38
-cause: The player is in the dark, where the game kills the player on a walk in any direction,
-  exit or not; the game's routine for death then moves the player.
-
-story: zork1
-room: 51
-direction: 23
-reported: none
-outcome: moved 38
-cause: The player is in the dark, where the game kills the player on a walk in any direction,
-  exit or not; the game's routine for death then moves the player.
-
-story: zork1
-room: 51
-direction: 24
-reported: none
-outcome: moved 38
-cause: The player is in the dark, where the game kills the player on a walk in any direction,
-  exit or not; the game's routine for death then moves the player.
-
-story: zork1
-room: 51
-direction: 25
-reported: none
-outcome: moved 38
-cause: The player is in the dark, where the game kills the player on a walk in any direction,
-  exit or not; the game's routine for death then moves the player.
-
-story: zork1
-room: 51
-direction: 26
-reported: fixed 51
-outcome: moved 38
-cause: The player is in the dark, where the game kills the player on a walk in any direction,
-  exit or not; the game's routine for death then moves the player.
-
-story: zork1
-room: 51
-direction: 27
-reported: fixed 158
-outcome: moved 38
-cause: The player is in the dark, where the game kills the player on a walk in any direction,
-  exit or not; the game's routine for death then moves the player.
-
-story: zork1
-room: 51
-direction: 28
-reported: fixed 158
-outcome: moved 38
-cause: The player is in the dark, where the game kills the player on a walk in any direction,
-  exit or not; the game's routine for death then moves the player.
-
-story: zork1
-room: 51
-direction: 29
-reported: fixed 170
-outcome: moved 38
-cause: The player is in the dark, where the game kills the player on a walk in any direction,
-  exit or not; the game's routine for death then moves the player.
-
-story: zork1
-room: 51
-direction: 30
-reported: none
-outcome: moved 38
-cause: The player is in the dark, where the game kills the player on a walk in any direction,
-  exit or not; the game's routine for death then moves the player.
-
-story: zork1
-room: 51
-direction: 31
-reported: none
-outcome: moved 38
-cause: The player is in the dark, where the game kills the player on a walk in any direction,
-  exit or not; the game's routine for death then moves the player.
-
-story: zork1
-room: 153
-direction: 19
-reported: none
-outcome: moved 38
-cause: The player is in the dark, where the game kills the player on a walk in any direction,
-  exit or not; the game's routine for death then moves the player.
-
-story: zork1
-room: 153
-direction: 20
-reported: none
-outcome: moved 38
-cause: The player is in the dark, where the game kills the player on a walk in any direction,
-  exit or not; the game's routine for death then moves the player.
-
-story: zork1
-room: 153
-direction: 21
-reported: none
-outcome: moved 38
-cause: The player is in the dark, where the game kills the player on a walk in any direction,
-  exit or not; the game's routine for death then moves the player.
-
-story: zork1
-room: 153
-direction: 22
-reported: none
-outcome: moved 38
-cause: The player is in the dark, where the game kills the player on a walk in any direction,
-  exit or not; the game's routine for death then moves the player.
-
-story: zork1
-room: 153
-direction: 23
-reported: none
-outcome: moved 38
-cause: The player is in the dark, where the game kills the player on a walk in any direction,
-  exit or not; the game's routine for death then moves the player.
-
-story: zork1
-room: 153
-direction: 24
-reported: none
-outcome: moved 38
-cause: The player is in the dark, where the game kills the player on a walk in any direction,
-  exit or not; the game's routine for death then moves the player.
-
-story: zork1
-room: 153
-direction: 25
-reported: none
-outcome: moved 38
-cause: The player is in the dark, where the game kills the player on a walk in any direction,
-  exit or not; the game's routine for death then moves the player.
-
-story: zork1
-room: 153
-direction: 26
-reported: none
-outcome: moved 38
-cause: The player is in the dark, where the game kills the player on a walk in any direction,
-  exit or not; the game's routine for death then moves the player.
-
-story: zork1
-room: 153
-direction: 27
-reported: none
-outcome: moved 38
-cause: The player is in the dark, where the game kills the player on a walk in any direction,
-  exit or not; the game's routine for death then moves the player.
-
-story: zork1
-room: 153
-direction: 28
-reported: fixed 42
-outcome: moved 38
-cause: The player is in the dark, where the game kills the player on a walk in any direction,
-  exit or not; the game's routine for death then moves the player.
-
-story: zork1
-room: 153
-direction: 29
-reported: none
-outcome: moved 38
-cause: The player is in the dark, where the game kills the player on a walk in any direction,
-  exit or not; the game's routine for death then moves the player.
-
-story: zork1
-room: 153
-direction: 30
-reported: none
-outcome: moved 38
-cause: The player is in the dark, where the game kills the player on a walk in any direction,
-  exit or not; the game's routine for death then moves the player.
-
-story: zork1
-room: 153
-direction: 31
-reported: none
-outcome: moved 38
-cause: The player is in the dark, where the game kills the player on a walk in any direction,
-  exit or not; the game's routine for death then moves the player.
-
-story: zork1
-room: 161
-direction: 19
-reported: none
-outcome: moved 38
-cause: The player is in the dark, where the game kills the player on a walk in any direction,
-  exit or not; the game's routine for death then moves the player.
-
-story: zork1
-room: 161
-direction: 20
-reported: none
-outcome: moved 38
-cause: The player is in the dark, where the game kills the player on a walk in any direction,
-  exit or not; the game's routine for death then moves the player.
-
-story: zork1
-room: 161
-direction: 21
-reported: none
-outcome: moved 38
-cause: The player is in the dark, where the game kills the player on a walk in any direction,
-  exit or not; the game's routine for death then moves the player.
-
-story: zork1
-room: 161
-direction: 22
-reported: fixed 42
-outcome: moved 38
-cause: The player is in the dark, where the game kills the player on a walk in any direction,
-  exit or not; the game's routine for death then moves the player.
-
-story: zork1
-room: 161
-direction: 23
-reported: none
-outcome: moved 38
-cause: The player is in the dark, where the game kills the player on a walk in any direction,
-  exit or not; the game's routine for death then moves the player.
-
-story: zork1
-room: 161
-direction: 24
-reported: none
-outcome: moved 38
-cause: The player is in the dark, where the game kills the player on a walk in any direction,
-  exit or not; the game's routine for death then moves the player.
-
-story: zork1
-room: 161
-direction: 25
-reported: none
-outcome: moved 38
-cause: The player is in the dark, where the game kills the player on a walk in any direction,
-  exit or not; the game's routine for death then moves the player.
-
-story: zork1
-room: 161
-direction: 26
-reported: none
-outcome: moved 38
-cause: The player is in the dark, where the game kills the player on a walk in any direction,
-  exit or not; the game's routine for death then moves the player.
-
-story: zork1
-room: 161
-direction: 27
-reported: none
-outcome: moved 38
-cause: The player is in the dark, where the game kills the player on a walk in any direction,
-  exit or not; the game's routine for death then moves the player.
-
-story: zork1
-room: 161
-direction: 28
-reported: fixed 34
-outcome: moved 38
-cause: The player is in the dark, where the game kills the player on a walk in any direction,
-  exit or not; the game's routine for death then moves the player.
-
-story: zork1
-room: 161
-direction: 29
-reported: fixed 152
-outcome: moved 38
-cause: The player is in the dark, where the game kills the player on a walk in any direction,
-  exit or not; the game's routine for death then moves the player.
-
-story: zork1
-room: 161
-direction: 30
-reported: fixed 81
-outcome: moved 38
-cause: The player is in the dark, where the game kills the player on a walk in any direction,
-  exit or not; the game's routine for death then moves the player.
-
-story: zork1
-room: 161
-direction: 31
-reported: none
-outcome: moved 38
-cause: The player is in the dark, where the game kills the player on a walk in any direction,
-  exit or not; the game's routine for death then moves the player.
-
 # Advent, version 5. Each cause was found by `corpus explain` (T030).
 
 story: advent-z5
@@ -1655,98 +1343,53 @@ outcome: stayed
 cause: A routine that runs before the walk decides it: the room's table is not what the
   game goes by here.
 
-story: minizork
-room: 125
-direction: 19
-reported: none
-outcome: moved 114
-cause: The player is in the dark, where the game kills the player on a walk in any direction,
-  exit or not; the game's routine for death then moves the player.
+# Zork I, dark ahead (feature 008). At one stop of the walkthrough a character takes the
+# player's light during the move itself: the way was lit when asked and dark on arrival.
 
-story: minizork
-room: 125
-direction: 20
-reported: none
-outcome: moved 114
-cause: The player is in the dark, where the game kills the player on a walk in any direction,
-  exit or not; the game's routine for death then moves the player.
-
-story: minizork
-room: 125
-direction: 21
-reported: none
-outcome: moved 114
-cause: The player is in the dark, where the game kills the player on a walk in any direction,
-  exit or not; the game's routine for death then moves the player.
-
-story: minizork
-room: 125
-direction: 23
-reported: none
-outcome: moved 114
-cause: The player is in the dark, where the game kills the player on a walk in any direction,
-  exit or not; the game's routine for death then moves the player.
-
-story: minizork
-room: 125
-direction: 24
-reported: none
-outcome: moved 114
-cause: The player is in the dark, where the game kills the player on a walk in any direction,
-  exit or not; the game's routine for death then moves the player.
-
-story: minizork
-room: 125
-direction: 25
-reported: none
-outcome: moved 114
-cause: The player is in the dark, where the game kills the player on a walk in any direction,
-  exit or not; the game's routine for death then moves the player.
-
-story: minizork
-room: 125
-direction: 26
-reported: none
-outcome: moved 114
-cause: The player is in the dark, where the game kills the player on a walk in any direction,
-  exit or not; the game's routine for death then moves the player.
-
-story: minizork
-room: 125
-direction: 27
-reported: none
-outcome: moved 114
-cause: The player is in the dark, where the game kills the player on a walk in any direction,
-  exit or not; the game's routine for death then moves the player.
-
-story: minizork
-room: 125
-direction: 28
-reported: none
-outcome: moved 114
-cause: The player is in the dark, where the game kills the player on a walk in any direction,
-  exit or not; the game's routine for death then moves the player.
-
-story: minizork
-room: 125
+story: zork1
+room: 34
 direction: 29
-reported: none
-outcome: moved 114
-cause: The player is in the dark, where the game kills the player on a walk in any direction,
-  exit or not; the game's routine for death then moves the player.
+ahead: lit
+described: no
+cause: A character takes the player's light during this move. The way was lit when the
+  interface was asked, and dark when the player arrived.
 
-story: minizork
-room: 125
+story: zork1
+room: 42
 direction: 30
-reported: none
-outcome: moved 114
-cause: The player is in the dark, where the game kills the player on a walk in any direction,
-  exit or not; the game's routine for death then moves the player.
+ahead: lit
+described: no
+cause: A character takes the player's light during this move. The way was lit when the
+  interface was asked, and dark when the player arrived.
 
-story: minizork
-room: 125
+story: zork1
+room: 42
 direction: 31
-reported: none
-outcome: moved 114
-cause: The player is in the dark, where the game kills the player on a walk in any direction,
-  exit or not; the game's routine for death then moves the player.
+ahead: lit
+described: no
+cause: A character takes the player's light during this move. The way was lit when the
+  interface was asked, and dark when the player arrived.
+
+story: zork1
+room: 81
+direction: 28
+ahead: lit
+described: no
+cause: A character takes the player's light during this move. The way was lit when the
+  interface was asked, and dark when the player arrived.
+
+story: zork1
+room: 152
+direction: 26
+ahead: lit
+described: no
+cause: A character takes the player's light during this move. The way was lit when the
+  interface was asked, and dark when the player arrived.
+
+story: zork1
+room: 158
+direction: 23
+ahead: lit
+described: no
+cause: A character takes the player's light during this move. The way was lit when the
+  interface was asked, and dark when the player arrived.

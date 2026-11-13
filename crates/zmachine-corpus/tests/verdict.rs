@@ -15,6 +15,7 @@ fn exit(direction: u8, kind: ExitKind, destination: Option<u16>) -> Exit {
         destination_name: None,
         door: None,
         state: None,
+        dark_ahead: zmachine_introspect::Tri::Unknown,
         source: zmachine_introspect::Source::File,
     }
 }
@@ -187,4 +188,42 @@ fn the_verdict_on_a_marked_answer() {
     for said in [Reported::Open(9), Reported::Closed(9), Reported::Distrusted] {
         assert_eq!(verdict(said, Lost), Verdict::NoVerdict);
     }
+}
+
+// Feature 008, research R4: with a `lit-attribute` in force a fixed exit rests on
+// the pack too (its `dark_ahead` does), and is still read as what it is; only a
+// conditional exit that rests on a pack is distrusted.
+#[test]
+fn an_exit_that_rests_on_a_pack_for_its_light_is_read_as_before() {
+    use zmachine_introspect::{Source, Tri};
+    let marked = |kind: ExitKind, destination: Option<u16>, dark: Tri| Exit {
+        dark_ahead: dark,
+        source: Source::Pack,
+        ..exit(31, kind, destination)
+    };
+    let one = |e: Exit| {
+        reported(
+            &Ok(Exits {
+                exits: vec![e],
+                unknown: vec![],
+            }),
+            31,
+        )
+    };
+    assert_eq!(
+        one(marked(ExitKind::Fixed, Some(7), Tri::Yes)),
+        Reported::Fixed(7)
+    );
+    assert_eq!(
+        one(marked(ExitKind::Fixed, Some(7), Tri::No)),
+        Reported::Fixed(7)
+    );
+    assert_eq!(
+        one(marked(ExitKind::Conditional, None, Tri::Unknown)),
+        Reported::Distrusted
+    );
+    assert_eq!(
+        one(exit(31, ExitKind::Conditional, None)),
+        Reported::Conditional
+    );
 }

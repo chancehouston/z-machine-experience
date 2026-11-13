@@ -65,6 +65,8 @@ fn sample() -> Report {
         marked: Marked::default(),
         inventory: None,
         inventory_detail: vec![],
+        light: None,
+        light_detail: vec![],
         detail: vec![
             (case(2, 28, Reported::None, Outcome::Moved(3)), 1),
             (case(2, 29, Reported::Fixed(3), Outcome::Moved(4)), 2),
@@ -823,5 +825,173 @@ fn a_report_may_hold_the_inventory_comparison() {
     assert_eq!(Report::read(&late).expect_err("refused").0, 22);
     // A detail line in a report with no comparison.
     let plain = sample().write() + "inventory 3 8 seen unlisted 1\n";
+    assert_eq!(Report::read(&plain).expect_err("refused").0, 19);
+}
+
+// ---------------------------------------------------------------------------
+// Light (specs/008-darkness/contracts/commands.md, "The corpus")
+// ---------------------------------------------------------------------------
+
+// FR-010: the command that asks a game to describe the room is data about the
+// story. An aside may now compare light alone.
+#[test]
+fn a_manifest_may_give_a_look_command() {
+    let with = ENTRY.replace(
+        "opening: yes\n",
+        "opening: yes\nlook: l\naside: north / up\n",
+    );
+    let stories = manifest::read(&with).expect("the manifest reads");
+    assert_eq!(stories[1].look.as_deref(), Some("l"));
+    assert_eq!(stories[1].asides.len(), 1);
+    assert_eq!(stories[0].look, None);
+    let twice = ENTRY.replace("opening: yes\n", "opening: yes\nlook: l\nlook: look\n");
+    assert_eq!(manifest::read(&twice).unwrap_err().0, 27);
+}
+
+// R7: ledger entries about the light of a place, and about dark ahead.
+#[test]
+fn a_ledger_entry_may_be_about_light() {
+    use zmachine_corpus::report::LightDifference;
+    let place = |light: &str, described: &str| {
+        format!(
+            "story: toy\nroom: 4\nlight: {light}\ndescribed: {described}\ncause: The room is lit by the game's own code.\n"
+        )
+    };
+    let read = ledger::read(&place("dark", "yes")).unwrap();
+    assert_eq!(
+        read.light[0].difference,
+        LightDifference {
+            room: 4,
+            direction: None,
+            dark: true,
+            described: true
+        }
+    );
+    assert!(ledger::read(&place("lit", "no")).is_ok());
+    assert_eq!(ledger::read(&place("dark", "no")).unwrap_err().0, 1);
+    assert_eq!(ledger::read(&place("lit", "yes")).unwrap_err().0, 1);
+    assert_eq!(ledger::read(&place("dim", "yes")).unwrap_err().0, 3);
+    assert_eq!(ledger::read(&place("dark", "maybe")).unwrap_err().0, 4);
+    let ahead = "story: toy\nroom: 4\ndirection: 31\nahead: lit\ndescribed: no\ncause: Someone takes the light on the way.\n";
+    let read = ledger::read(ahead).unwrap();
+    assert_eq!(
+        read.light[0].difference,
+        LightDifference {
+            room: 4,
+            direction: Some(31),
+            dark: false,
+            described: false
+        }
+    );
+    // The forms do not mix, and a cause must be written.
+    assert_eq!(
+        ledger::read(&ahead.replace("direction: 31\n", ""))
+            .unwrap_err()
+            .0,
+        1
+    );
+    assert_eq!(
+        ledger::read(&place("dark", "yes").replace("room: 4\n", "room: 4\ndirection: 31\n"))
+            .unwrap_err()
+            .0,
+        1
+    );
+    assert_eq!(
+        ledger::read(&ahead.replace("cause: Someone takes the light on the way.", "cause:"))
+            .unwrap_err()
+            .0,
+        6
+    );
+}
+
+// R7: a report of a story with a look command has two more lines and their
+// detail; the trials counted in the dark are part of what adds up to the trials.
+#[test]
+fn a_report_may_hold_the_light_comparison() {
+    use zmachine_corpus::report::{Light, LightDifference};
+    let mut report = sample();
+    report.light = Some(Light {
+        compared: 12,
+        agreed: 8,
+        differed_known: 1,
+        differed_unexplained: 1,
+        unjudged: 2,
+        dark: 3,
+        rooms_both: 1,
+        in_the_dark: 4,
+        ahead_compared: 9,
+        ahead_agreed: 6,
+        ahead_differed_known: 1,
+        ahead_differed_unexplained: 0,
+        ahead_unjudged: 2,
+    });
+    report.trials += 4;
+    report.light_detail = vec![
+        (
+            LightDifference {
+                room: 3,
+                direction: None,
+                dark: true,
+                described: true,
+            },
+            1,
+        ),
+        (
+            LightDifference {
+                room: 3,
+                direction: None,
+                dark: false,
+                described: false,
+            },
+            1,
+        ),
+        (
+            LightDifference {
+                room: 5,
+                direction: Some(31),
+                dark: false,
+                described: false,
+            },
+            1,
+        ),
+    ];
+    let written = report.write();
+    assert!(
+        written.contains(
+            "no-verdict 1\nlight compared 12 agreed 8 differed-known 1 differed-unexplained 1 unjudged 2 dark 3 rooms-both 1 in-the-dark 4\nahead compared 9 agreed 6 differed-known 1 differed-unexplained 0 unjudged 2\ndetail\n"
+        ),
+        "{written}"
+    );
+    assert!(
+        written.ends_with(
+            "light 3 lit undescribed 1\nlight 3 dark described 1\nahead 5 31 lit undescribed 1\n"
+        ),
+        "{written}"
+    );
+    report.light_detail.sort();
+    assert_eq!(Report::read(&written), Ok(report));
+    assert!(!sample().write().contains("light"));
+    let with = |from: &str, to: &str| {
+        assert!(written.contains(from), "{from}");
+        Report::read(&written.replace(from, to))
+            .expect_err("refused")
+            .0
+    };
+    assert_eq!(with("light compared 12", "light compared 13"), 13);
+    assert_eq!(with("ahead compared 9", "ahead compared 8"), 14);
+    // One trial in the dark more than the trials account for.
+    assert_eq!(with("in-the-dark 4", "in-the-dark 5"), 7);
+    assert_eq!(
+        with("light 3 dark described 1", "light 3 dark undescribed 1"),
+        22
+    );
+    assert_eq!(
+        with(
+            "ahead 5 31 lit undescribed 1",
+            "ahead 5 north lit undescribed 1"
+        ),
+        23
+    );
+    let plain = sample().write() + "light 3 dark described 1\n";
     assert_eq!(Report::read(&plain).expect_err("refused").0, 19);
 }

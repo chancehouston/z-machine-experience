@@ -36,6 +36,9 @@ pub struct Story {
     /// Short walks from the start, at whose prompts the inventory is compared
     /// and no exit is tried (research R2).
     pub asides: Vec<Vec<String>>,
+    /// The command that asks the game to describe where the player is
+    /// (specs/008-darkness/research.md R6).
+    pub look: Option<String>,
     /// The crawl's budget for this story, when not the default.
     pub rooms: Option<usize>,
     pub trials: Option<usize>,
@@ -43,7 +46,7 @@ pub struct Story {
     pub line: usize,
 }
 
-const KEYS: [&str; 17] = [
+const KEYS: [&str; 18] = [
     "id",
     "sha256",
     "size",
@@ -59,6 +62,7 @@ const KEYS: [&str; 17] = [
     "first",
     "inventory",
     "aside",
+    "look",
     "rooms",
     "trials",
 ];
@@ -126,6 +130,7 @@ fn story(entry: &[(usize, &str, &str)]) -> Result<Story, Refusal> {
         first: Vec::new(),
         inventory: None,
         asides: Vec::new(),
+        look: None,
         rooms: None,
         trials: None,
         line: first,
@@ -174,6 +179,7 @@ fn story(entry: &[(usize, &str, &str)]) -> Result<Story, Refusal> {
             }),
             "first" => story.first.push(value.to_string()),
             "inventory" => story.inventory = Some(value.to_string()),
+            "look" => story.look = Some(value.to_string()),
             "aside" => story
                 .asides
                 .push(value.split(" / ").map(str::to_string).collect()),
@@ -214,10 +220,11 @@ fn story(entry: &[(usize, &str, &str)]) -> Result<Story, Refusal> {
         }
         _ => {}
     }
-    if story.inventory.is_none() && !story.asides.is_empty() {
+    if story.inventory.is_none() && story.look.is_none() && !story.asides.is_empty() {
         return Err((
             line_of("aside"),
-            "an aside compares the inventory, and needs `inventory`".to_string(),
+            "an aside compares the inventory or the light, and needs `inventory` or `look`"
+                .to_string(),
         ));
     }
     if story.walkthrough.is_some() && !story.first.is_empty() {

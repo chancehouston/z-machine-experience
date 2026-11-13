@@ -30,6 +30,7 @@ pub fn entry(id: &str) -> Story {
         first: vec![],
         inventory: None,
         asides: vec![],
+        look: None,
         rooms: None,
         trials: None,
         line: 1,

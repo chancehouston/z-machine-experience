@@ -8,6 +8,7 @@
 
 mod compass;
 mod json;
+mod light;
 mod strip;
 mod transcript;
 
@@ -16,9 +17,12 @@ mod compass_tests;
 #[cfg(test)]
 mod json_tests;
 #[cfg(test)]
+mod light_tests;
+#[cfg(test)]
 mod strip_tests;
 
 pub use compass::{Compass, CompassPlace, Extra, NOTE_NONE, NOTE_UNKNOWN, Place, PlaceState};
+pub use light::{Light, NOTE_DARK};
 pub use strip::{ItemState, NOTE_NOT_KNOWN, NOTE_NOTHING, Strip, StripItem};
 pub use transcript::{Source, Turn};
 
@@ -122,6 +126,7 @@ pub struct Session {
     status: Option<Status>,
     compass: Compass,
     strip: Strip,
+    light: Light,
     ceiling: u64,
 }
 
@@ -180,6 +185,7 @@ impl Session {
             status: None,
             compass: Compass::idle(),
             strip: Strip::default(),
+            light: Light::default(),
             ceiling: INSTRUCTION_CEILING,
         };
         session.open();
@@ -278,6 +284,12 @@ impl Session {
         // What is carried is asked for at every stop, whatever the game is
         // waiting for; a host shows it as not current when it is not a command.
         self.strip = Strip::of(&self.introspector.inventory(&self.machine.view()));
+        // Light is said only while the game waits for a command: at any other
+        // stop nothing is claimed.
+        self.light = match self.waiting {
+            Waiting::Command => Light::of(&self.introspector.location(&self.machine.view())),
+            _ => Light::default(),
+        };
         text
     }
 
@@ -413,6 +425,11 @@ impl Session {
 
     pub fn compass(&self) -> &Compass {
         &self.compass
+    }
+
+    /// Whether the player is in the dark (specs/008-darkness).
+    pub fn light(&self) -> Light {
+        self.light
     }
 
     /// What to show of the inventory (specs/007-inventory-panel).

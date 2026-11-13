@@ -96,6 +96,8 @@ fn place(out: &mut String, place: &CompassPlace) {
     optional_text(out, place.command.as_deref());
     key(out, "leads_to");
     optional_text(out, place.leads_to.as_deref());
+    key(out, "dark_ahead");
+    out.push_str(if place.dark_ahead { "true" } else { "false" });
     key(out, "spoken");
     text(out, &place.spoken);
     out.push('}');
@@ -111,6 +113,8 @@ fn extra(out: &mut String, extra: &Extra) {
     text(out, &extra.command);
     key(out, "leads_to");
     optional_text(out, extra.leads_to.as_deref());
+    key(out, "dark_ahead");
+    out.push_str(if extra.dark_ahead { "true" } else { "false" });
     key(out, "spoken");
     text(out, &extra.spoken);
     out.push('}');
@@ -160,6 +164,18 @@ pub(crate) fn snapshot(session: &Session, since: usize) -> String {
     text(&mut out, &strip.spoken);
     key(&mut out, "items");
     list(&mut out, &strip.items, item);
+    out.push('}');
+    let light = session.light();
+    key(&mut out, "light");
+    out.push('{');
+    key(&mut out, "dark");
+    out.push_str(match light.dark {
+        Some(true) => "true",
+        Some(false) => "false",
+        None => "null",
+    });
+    key(&mut out, "note");
+    optional_text(&mut out, light.note);
     out.push_str("}}");
     out
 }

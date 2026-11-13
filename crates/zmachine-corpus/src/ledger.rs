@@ -1,7 +1,7 @@
 //! The ledger: wrong reports that are known, each with its cause
 //! (specs/005-corpus-testing/contracts/formats.md, "The ledger").
 
-use crate::report::{Case, Difference, Refusal};
+use crate::report::{Case, Difference, LightDifference, Refusal};
 use crate::verdict::{Verdict, judge};
 
 /// One known wrong report.
@@ -20,6 +20,19 @@ pub struct Ledger {
     /// Entries of the second form: a difference between what is seen of the
     /// inventory and what the game lists (specs/007-inventory-panel R9).
     pub inventory: Vec<InventoryEntry>,
+    /// Entries of the third and fourth forms: a difference about the light of a
+    /// place, or about dark ahead (specs/008-darkness R7).
+    pub light: Vec<LightEntry>,
+}
+
+/// A known difference between what the interface says about light and whether
+/// the game describes the room, with its cause.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct LightEntry {
+    pub story: String,
+    pub difference: LightDifference,
+    pub cause: String,
+    pub line: usize,
 }
 
 /// A known difference between what the interface says is seen of the inventory
@@ -34,6 +47,12 @@ pub struct InventoryEntry {
 
 impl Ledger {
     /// Whether the ledger holds this case of this story.
+    pub fn knows_light(&self, story: &str, difference: &LightDifference) -> bool {
+        self.light
+            .iter()
+            .any(|e| e.story == story && e.difference == *difference)
+    }
+
     pub fn knows_inventory(&self, story: &str, difference: &Difference) -> bool {
         self.inventory
             .iter()
@@ -47,7 +66,7 @@ impl Ledger {
     }
 }
 
-const KEYS: [&str; 9] = [
+const KEYS: [&str; 12] = [
     "story",
     "room",
     "direction",
@@ -57,6 +76,9 @@ const KEYS: [&str; 9] = [
     "object",
     "seen",
     "listed",
+    "light",
+    "ahead",
+    "described",
 ];
 
 /// Reads a ledger, refusing the first line that departs from the format. Lines
@@ -71,7 +93,17 @@ pub fn read(text: &str) -> Result<Ledger, Refusal> {
             continue;
         }
         if line.trim().is_empty() {
-            if entry.iter().any(|(_, key, _)| *key == "object") {
+            if entry
+                .iter()
+                .any(|(_, key, _)| ["light", "ahead"].contains(key))
+            {
+                let made = make_light(&entry)?;
+                if ledger.knows_light(&made.story, &made.difference) {
+                    return Err((made.line, "the same case is entered twice".to_string()));
+                }
+                ledger.light.push(made);
+                entry.clear();
+            } else if entry.iter().any(|(_, key, _)| *key == "object") {
                 let made = make_inventory(&entry)?;
                 if ledger.knows_inventory(&made.story, &made.difference) {
                     return Err((made.line, "the same case is entered twice".to_string()));
@@ -111,6 +143,86 @@ pub fn read(text: &str) -> Result<Ledger, Refusal> {
         entry.push((number, key, value.to_string()));
     }
     Ok(ledger)
+}
+
+/// An entry about light: `story`, `room`, `light` and `described`, `cause`; or
+/// `story`, `room`, `direction`, `ahead` and `described`, `cause`.
+fn make_light(entry: &[(usize, &str, String)]) -> Result<LightEntry, Refusal> {
+    let first = entry[0].0;
+    let has = |key: &str| entry.iter().any(|(_, k, _)| *k == key);
+    let ahead = has("ahead");
+    let foreign: &[&str] = if ahead {
+        &["light", "reported", "outcome", "object", "seen", "listed"]
+    } else {
+        &[
+            "direction",
+            "reported",
+            "outcome",
+            "object",
+            "seen",
+            "listed",
+        ]
+    };
+    if let Some((_, key, _)) = entry.iter().find(|(_, key, _)| foreign.contains(key)) {
+        return Err((first, format!("an entry on light has no `{key}`")));
+    }
+    let get = |key: &str| -> Result<(usize, &str), Refusal> {
+        entry
+            .iter()
+            .find(|(_, k, _)| *k == key)
+            .map(|(line, _, value)| (*line, value.as_str()))
+            .ok_or((first, format!("the entry has no `{key}`")))
+    };
+    let number = |(line, text): (usize, &str)| -> Result<u16, Refusal> {
+        (!text.is_empty() && text.bytes().all(|b| b.is_ascii_digit()))
+            .then(|| text.parse().ok())
+            .flatten()
+            .ok_or((line, "not a number".to_string()))
+    };
+    let (_, story) = get("story")?;
+    let room = number(get("room")?)?;
+    let direction = if ahead {
+        let (line, text) = get("direction")?;
+        Some(
+            u8::try_from(number((line, text))?)
+                .map_err(|_| (line, "not a direction".to_string()))?,
+        )
+    } else {
+        None
+    };
+    let (said_line, said) = get(if ahead { "ahead" } else { "light" })?;
+    let dark = match said {
+        "dark" => true,
+        "lit" => false,
+        _ => return Err((said_line, "it is `lit` or `dark`".to_string())),
+    };
+    let (described_line, described) = get("described")?;
+    let described = match described {
+        "yes" => true,
+        "no" => false,
+        _ => return Err((described_line, "described is `yes` or `no`".to_string())),
+    };
+    if dark != described {
+        return Err((
+            first,
+            "what was said and what the game did do not differ".to_string(),
+        ));
+    }
+    let (cause_line, cause) = get("cause")?;
+    if cause.trim().is_empty() {
+        return Err((cause_line, "a cause must be written".to_string()));
+    }
+    Ok(LightEntry {
+        story: story.to_string(),
+        difference: LightDifference {
+            room,
+            direction,
+            dark,
+            described,
+        },
+        cause: cause.to_string(),
+        line: first,
+    })
 }
 
 /// An entry of the second form: `story`, `room`, `object`, `seen`, `listed`,

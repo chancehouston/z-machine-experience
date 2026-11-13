@@ -4,13 +4,15 @@
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
 use zmachine_core::{Event, Key, LoadError, LoadOptions, Machine, Settings};
-use zmachine_introspect::{Family, Introspector};
+use zmachine_introspect::{Family, Introspector, Tri};
 
 use crate::directions::{Direction, directions};
 use crate::inventory::Asked;
 use crate::ledger::Ledger;
 use crate::manifest::Story;
-use crate::report::{Case, Difference, Inventory, Outcomes, Reached, Report};
+use crate::report::{
+    Case, Difference, Inventory, Light, LightDifference, Outcomes, Reached, Report,
+};
 use crate::trial::{LIMIT, Outcome, room, trial};
 use crate::verdict::{Reported, Verdict, judge, reported};
 
@@ -189,6 +191,13 @@ struct Tally {
     /// The inventory comparison: its figures, and each difference.
     inventory: Inventory,
     differences: BTreeMap<Difference, usize>,
+    /// The light comparison: its figures, each difference, the rooms agreed
+    /// dark and agreed lit, and the trials at dark places that would be wrong.
+    light: Light,
+    light_differences: BTreeMap<LightDifference, usize>,
+    dark_rooms: BTreeSet<u16>,
+    lit_rooms: BTreeSet<u16>,
+    dark_cases: BTreeMap<Case, usize>,
 }
 
 /// One trial as a person would have seen it: for `corpus explain`.
@@ -209,6 +218,8 @@ struct Tools {
     directions: Vec<Direction>,
     /// The story's inventory command, if the manifest gives one.
     inventory: Option<String>,
+    /// The story's look command, if the manifest gives one.
+    look: Option<String>,
 }
 
 impl Tally {
@@ -216,6 +227,7 @@ impl Tally {
     /// the game's own listing, asked of a copy
     /// (specs/007-inventory-panel/research.md R3, R4).
     fn compare(&mut self, tools: &Tools, machine: &Machine) {
+        self.compare_light(tools, machine);
         let Some(command) = &tools.inventory else {
             return;
         };
@@ -248,6 +260,49 @@ impl Tally {
         }
     }
 
+    /// Sets what the interface says about light at a place against whether the
+    /// game describes the room to a copy (specs/008-darkness/research.md R6,
+    /// R7). Returns whether the interface says the place is dark.
+    fn compare_light(&mut self, tools: &Tools, machine: &Machine) -> bool {
+        let Some(command) = &tools.look else {
+            return false;
+        };
+        let Ok(location) = tools.introspector.location(&machine.view()).value else {
+            return false;
+        };
+        let dark = match location.lit {
+            Tri::Yes => false,
+            Tri::No => true,
+            Tri::Unknown => {
+                self.light.compared += 1;
+                self.light.unjudged += 1;
+                return false;
+            }
+        };
+        let Some(described) = crate::light::described(machine, &tools.introspector, command) else {
+            return dark;
+        };
+        self.light.compared += 1;
+        if dark != described {
+            self.light.agreed += 1;
+            if dark {
+                self.light.dark += 1;
+                self.dark_rooms.insert(location.room);
+            } else {
+                self.lit_rooms.insert(location.room);
+            }
+        } else {
+            let difference = LightDifference {
+                room: location.room,
+                direction: None,
+                dark,
+                described,
+            };
+            *self.light_differences.entry(difference).or_default() += 1;
+        }
+        dark
+    }
+
     /// Runs a trial of every direction at a place, `most` trials at the most.
     /// Returns the copies that moved, each with the room it reached, in the
     /// order tried.
@@ -272,6 +327,14 @@ impl Tally {
             self.visited.insert(room);
         }
         self.compare(tools, machine);
+        // Whether the interface says this place is dark: a report made here that
+        // a trial does not bear out is counted as made in the dark.
+        let dark_here = tools.look.is_some()
+            && tools
+                .introspector
+                .location(&view)
+                .value
+                .is_ok_and(|l| l.lit == Tri::No);
         let mut moved = Vec::new();
         for direction in &tools.directions {
             if self.trials == stop_at {
@@ -308,6 +371,43 @@ impl Tally {
                 });
             }
             *self.cases.entry(case).or_default() += 1;
+            if dark_here && judge(&case) == Verdict::Wrong {
+                *self.dark_cases.entry(case).or_default() += 1;
+            }
+            // Dark ahead: a trial that arrived in the room its exit named is
+            // asked to describe it.
+            if let (Some(command), Outcome::Moved(arrived), Ok(answer)) =
+                (&tools.look, outcome, &exits)
+            {
+                let exit = answer
+                    .exits
+                    .iter()
+                    .find(|e| e.direction == direction.number);
+                if let Some(exit) = exit.filter(|e| e.destination == Some(arrived)) {
+                    self.light.ahead_compared += 1;
+                    let marked = match exit.dark_ahead {
+                        Tri::Yes => Some(true),
+                        Tri::No => Some(false),
+                        Tri::Unknown => None,
+                    };
+                    let described = crate::light::described(&copy, &tools.introspector, command);
+                    match (marked, described) {
+                        (Some(dark), Some(described)) if dark != described => {
+                            self.light.ahead_agreed += 1
+                        }
+                        (Some(dark), Some(described)) => {
+                            let difference = LightDifference {
+                                room: case.room,
+                                direction: Some(direction.number),
+                                dark,
+                                described,
+                            };
+                            *self.light_differences.entry(difference).or_default() += 1;
+                        }
+                        _ => self.light.ahead_unjudged += 1,
+                    }
+                }
+            }
             if let Outcome::Moved(room) = outcome {
                 moved.push((room, copy));
             }
@@ -343,6 +443,7 @@ fn tools(machine: &Machine, pack: Option<&str>, story: &Story) -> Tools {
         introspector,
         directions,
         inventory: story.inventory.clone(),
+        look: story.look.clone(),
     }
 }
 
@@ -407,6 +508,8 @@ pub fn run_story_with(
                     p.open_attribute.is_some() as usize
                         + p.untrusted_variables.len()
                         + p.transparent_attribute.is_some() as usize
+                        + p.lit_attribute.is_some() as usize
+                        + p.invisible_attribute.is_some() as usize
                 });
         }
     }
@@ -530,6 +633,10 @@ pub fn run_story_with(
     if story.inventory.is_some() {
         report.inventory = Some(tally.inventory);
     }
+    if story.look.is_some() {
+        tally.light.rooms_both = tally.dark_rooms.intersection(&tally.lit_rooms).count();
+        report.light = Some(tally.light);
+    }
     let shown = std::mem::take(&mut tally.shown);
     (tally.into_report(report, ledger), order, shown)
 }
@@ -551,7 +658,29 @@ impl Tally {
                 report.inventory_detail.push((*difference, *count));
             }
         }
+        if let Some(light) = &mut report.light {
+            for (difference, count) in &self.light_differences {
+                let known = ledger.knows_light(&report.id, difference);
+                match (difference.direction.is_some(), known) {
+                    (false, true) => light.differed_known += count,
+                    (false, false) => light.differed_unexplained += count,
+                    (true, true) => light.ahead_differed_known += count,
+                    (true, false) => light.ahead_differed_unexplained += count,
+                }
+                report.light_detail.push((*difference, *count));
+            }
+        }
         for (case, count) in self.cases {
+            // Of a case's trials, those made at a place reported dark that
+            // would be wrong are counted in the dark, and not as wrong.
+            let in_the_dark = self.dark_cases.get(&case).copied().unwrap_or(0);
+            if let Some(light) = &mut report.light {
+                light.in_the_dark += in_the_dark;
+            }
+            let count = count - in_the_dark;
+            if count == 0 {
+                continue;
+            }
             let outcomes = |o: &mut Outcomes| match case.outcome {
                 Outcome::Moved(_) => o.moved += count,
                 Outcome::Stayed => o.stayed += count,

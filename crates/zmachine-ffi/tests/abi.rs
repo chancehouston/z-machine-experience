@@ -95,7 +95,7 @@ fn a_session_gives_a_snapshot_of_the_opening() {
     assert!(first.contains(
         r#""number":0,"command":null,"source":null,"text":"ZORK I: The Great Underground Empire\n"#
     ));
-    assert!(first.contains(r#"{"place":"north","label":"North","state":"open","command":"north","leads_to":"North of House","spoken":"North, to North of House"}"#));
+    assert!(first.contains(r#"{"place":"north","label":"North","state":"open","command":"north","leads_to":"North of House","dark_ahead":false,"spoken":"North, to North of House"}"#));
     zmx_session_free(session);
 }
 

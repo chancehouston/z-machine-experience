@@ -43,6 +43,20 @@ struct GameView: View {
                         InventoryStrip(
                             strip: showing.inventory, current: showing.waiting == .command)
                         Divider()
+                        // Where the layer says the player is in the dark, its
+                        // words stand above the compass. The compass itself
+                        // is the room's own.
+                        if let note = showing.light.note {
+                            Label {
+                                Text(verbatim: note)
+                            } icon: {
+                                Image(systemName: "moon.fill")
+                            }
+                            .font(.footnote.weight(.semibold))
+                            .padding(.top, 8)
+                            .accessibilityElement(children: .combine)
+                            .accessibilityIdentifier("light.note")
+                        }
                         CompassView(
                             compass: showing.compass, ready: !game.busy,
                             tapPlace: { place in Task { await game.tap(place: place) } },

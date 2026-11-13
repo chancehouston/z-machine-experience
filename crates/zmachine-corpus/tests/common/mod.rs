@@ -74,6 +74,22 @@ pub const OPEN_ATTR: u8 = 9;
 /// The attribute a toy's bag has when it is see-through.
 pub const CLEAR_ATTR: u8 = 8;
 
+/// The attribute a toy's lit rooms have, and its lamp while it is on.
+pub const LIT_ATTR: u8 = 7;
+
+/// What a toy's `look` command does, in a toy with a lamp. The toy's own rule
+/// for light: the room has `LIT_ATTR`, or the lamp has it and is carried or in
+/// the room.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Looking {
+    /// Names the room when the toy's rule says it is lit, and not otherwise.
+    Honest,
+    /// Names the room whatever the light.
+    AlwaysNames,
+    /// Never names the room.
+    NeverNames,
+}
+
 /// What a toy's `inventory` command prints of the gem in its bag, once the bag
 /// and the key are taken. It always names the bag and the key.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -122,6 +138,11 @@ pub struct Toy {
     pub carrying: Option<Listing>,
     /// With `true` the bag has `CLEAR_ATTR` from the start.
     pub clear_bag: bool,
+    /// A lamp in the first room, and a `look` command. `take` takes the lamp;
+    /// `on` and `off` set and clear `LIT_ATTR` on it.
+    pub lamp: Option<Looking>,
+    /// Rooms, counted from 0, that have `LIT_ATTR`.
+    pub lit_rooms: Vec<usize>,
 }
 
 impl Toy {
@@ -137,7 +158,14 @@ impl Toy {
             set: Vec::new(),
             carrying: None,
             clear_bag: false,
+            lamp: None,
+            lit_rooms: Vec::new(),
         }
+    }
+
+    /// The lamp's object number, in a toy that has one.
+    pub fn lamp_object(&self) -> u16 {
+        self.door_object()
     }
 
     /// The bag's, the gem's and the key's object numbers, in a toy that has
@@ -211,7 +239,17 @@ impl Toy {
         if self.odd_north_word {
             story.word_data("sunward", [flags, NORTH, column(NORTH) as u8 + 1]);
         }
-        story.word_data("look", [0x41, 0xF0, 0]);
+        let look = if self.lamp.is_some() { 13 } else { 0 };
+        story.word_data("look", [0x41, 0xF0, look]);
+        assert!(
+            self.lamp.is_none() || (self.door.is_none() && self.carrying.is_none()),
+            "a toy with a lamp has no door and nothing else to carry"
+        );
+        if self.lamp.is_some() {
+            story.word_data("take", [0x41, 0xF3, 9]);
+            story.word_data("on", [0x41, 0xF5, 11]);
+            story.word_data("off", [0x41, 0xF6, 12]);
+        }
         assert!(
             self.door.is_none() || self.carrying.is_none(),
             "a toy has a door or things to carry, not both"
@@ -254,14 +292,22 @@ impl Toy {
                 0
             };
             room.props = table.clone();
-            if i == 0 && self.carrying.is_some() {
+            if i == 0 && (self.carrying.is_some() || self.lamp.is_some()) {
                 room.child = door;
+            }
+            if self.lit_rooms.contains(&i) {
+                room.attributes |= 0x8000_0000 >> LIT_ATTR;
             }
             story.object(room);
         }
         story.object(Object::new("you"));
         if self.door.is_some() {
             story.object(Object::new("door"));
+        }
+        if self.lamp.is_some() {
+            let mut thing = Object::new("lamp");
+            thing.parent = FIRST;
+            story.object(thing);
         }
         // The bag takes the door's number: `open` and `close` act on it.
         let (bag, gem, key) = (door, door + 1, door + 2);
@@ -325,6 +371,12 @@ impl Toy {
             a.branch(op::op2(op::JE, V(COLUMN), S(9)), true, "take");
             a.branch(op::op2(op::JE, V(COLUMN), S(10)), true, "inventory");
         }
+        if self.lamp.is_some() {
+            a.branch(op::op2(op::JE, V(COLUMN), S(9)), true, "take-lamp");
+            a.branch(op::op2(op::JE, V(COLUMN), S(11)), true, "on");
+            a.branch(op::op2(op::JE, V(COLUMN), S(12)), true, "off");
+            a.branch(op::op2(op::JE, V(COLUMN), S(13)), true, "look");
+        }
         a.code([op::op2(op::SUB, V(ROOM), S(FIRST)), op::store(ACTION)].concat());
         a.code([op::op2(op::MUL, V(ACTION), S(6)), op::store(ACTION)].concat());
         a.code([op::op2(op::ADD, V(ACTION), V(COLUMN)), op::store(ACTION)].concat());
@@ -341,6 +393,40 @@ impl Toy {
         a.code(op::op2(op::STORE, S(ROOM), V(ACTION)));
         a.code(op::op2(op::INSERT_OBJ, S(player), V(ACTION)));
         a.jump("loop");
+        if let Some(looking) = self.lamp {
+            let lamp = door;
+            a.label("take-lamp");
+            a.code(op::op2(op::INSERT_OBJ, S(lamp), S(player)));
+            a.jump("loop");
+            a.label("on");
+            a.code(op::op2(op::SET_ATTR, S(lamp), S(LIT_ATTR)));
+            a.jump("loop");
+            a.label("off");
+            a.code(op::op2(op::CLEAR_ATTR, S(lamp), S(LIT_ATTR)));
+            a.jump("loop");
+            a.label("look");
+            match looking {
+                Looking::AlwaysNames => a.jump("named"),
+                Looking::NeverNames => a.jump("unnamed"),
+                Looking::Honest => {
+                    a.branch(op::op2(op::TEST_ATTR, V(ROOM), S(LIT_ATTR)), true, "named");
+                    a.branch(
+                        op::op2(op::TEST_ATTR, S(lamp), S(LIT_ATTR)),
+                        false,
+                        "unnamed",
+                    );
+                    a.branch(op::op2(op::JIN, S(lamp), S(player)), true, "named");
+                    a.branch(op::op2(op::JIN, S(lamp), V(ROOM)), true, "named");
+                    a.jump("unnamed");
+                }
+            }
+            a.label("named");
+            a.code(op::op1(op::PRINT_OBJ, V(ROOM)));
+            a.jump("loop");
+            a.label("unnamed");
+            a.code(print("pitch "));
+            a.jump("loop");
+        }
         if let Some(listing) = self.carrying {
             a.label("take");
             a.code(op::op2(op::INSERT_OBJ, S(key), S(player)));
