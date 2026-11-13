@@ -58,8 +58,13 @@ What the first demo does today:
 - **Plays a whole game on an iPhone, in the simulator.** The opening text appears at
   launch with the place, score and moves above it.
 - **Shows the ways out as a compass.** Twelve places: the eight points, up, down, in and
-  out. A way that is open is a filled disc; one the game may refuse is an outlined disc
-  with a question mark; where it leads is given when the game's tables say.
+  out. A way that is open is a filled disc, and says where it leads when that is known.
+- **Tries the uncertain ways first.** Where a game's own code decides whether a way may
+  be taken, the layer gives three throwaway copies of the game the direction and sees
+  what they do. If all three walk to the same room, the way is drawn open. If all three
+  stay put, it is drawn as no way at all. If they differ (the game decided by chance), or
+  a copy's game ends or asks a question, the way keeps an outlined disc and a question
+  mark. The game being played is never touched.
 - **A tap is a typed command.** Tapping north sends the word `north` to the game and
   shows it in the text, exactly as if it had been typed. The whole Zork I walkthrough,
   with 186 of its commands sent as taps, gives the same text as Frotz, byte for byte.
@@ -210,6 +215,12 @@ compass, which stays the room's own; a way into darkness carries a small badge a
 spoken as such. Without a pack nothing is claimed. The corpus proves it by asking a
 throwaway copy of the game to describe the room, at every place and after every walk.
 
+Look-ahead (feature 009) is measured the same way. At every place, what the three
+copies found for each uncertain way is set against a fourth trial with other draws of
+chance. Of 210 such ways across the corpus, 191 are settled (105 found open, 86 found
+shut) and 19 keep their question mark. Three findings, all in one game's random forest,
+were not borne out, and each has its cause in the ledger.
+
 ```text
 cargo run -q --release -p zmachine-corpus -- check
 cargo run -q --release -p zmachine-corpus -- run
@@ -249,6 +260,7 @@ reported as ignored, not passed.
 | `specs/006-game-packs/` | The same for game packs. |
 | `specs/007-inventory-panel/` | The same for the inventory strip. |
 | `specs/008-darkness/` | The same for darkness: lit or dark, and dark ahead. |
+| `specs/009-compass-lookahead/` | The same for look-ahead: an uncertain way tried on copies of the game. |
 
 ## How it fits together
 

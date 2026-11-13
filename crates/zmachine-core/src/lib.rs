@@ -456,6 +456,19 @@ impl Machine {
         Ok(())
     }
 
+    /// Gives the machine a new value for its source of chance, as a host gives
+    /// one at loading: the generator then draws as a machine loaded with this
+    /// value as its seed would, from the start of that sequence. A game that
+    /// has put the generator in its predictable mode (§15 random) stays in it.
+    ///
+    /// A host that tries a command on a copy of a game calls this on the copy,
+    /// so that the copy does not share the game's own draws
+    /// (specs/009-compass-lookahead/research.md R3). Nothing calls it on a game
+    /// being played.
+    pub fn supply_chance(&mut self, value: u32) {
+        self.random.supply(value);
+    }
+
     /// Screen text printed since the last call, unwrapped. It does not include
     /// what the player typed.
     pub fn take_output(&mut self) -> String {

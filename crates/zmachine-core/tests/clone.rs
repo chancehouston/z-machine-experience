@@ -268,3 +268,68 @@ fn a_clone_waits_for_the_same_answer() {
     assert_eq!(copy.run(BIG), faulted.run(BIG));
     assert_eq!(copy.run(BIG), Err(zmachine_core::HostError::Stopped));
 }
+
+/// Twelve results of `random 1000`, printed after a key; `first` runs before
+/// the key is asked for.
+fn twelve_draws(first: Vec<u8>) -> Vec<u8> {
+    let mut story = Story5::new(5);
+    let mut code = vec![first, read_char(g(0))];
+    for _ in 0..12 {
+        code.push(to(op::var(op::RANDOM, &[L(1000)]), g(1)));
+        code.push(show(1));
+    }
+    code.push(quit());
+    story.main(&cat(&code));
+    story.build()
+}
+
+fn draws_after(mut machine: Machine, chance: Option<u32>) -> String {
+    assert_eq!(run_until_event(&mut machine, BIG), Event::KeyWanted);
+    if let Some(value) = chance {
+        machine.supply_chance(value);
+    }
+    machine.provide_key(Key::Return).unwrap();
+    assert_eq!(run_until_event(&mut machine, BIG), Event::Finished);
+    machine.take_output()
+}
+
+fn seeded(image: Vec<u8>, seed: u32) -> Machine {
+    Machine::load(
+        image,
+        LoadOptions {
+            seed: Some(seed),
+            entropy: 0,
+        },
+    )
+    .unwrap()
+}
+
+// specs/009-compass-lookahead/contracts/lookahead.md statement 1: a machine
+// given a new value for chance draws what a machine loaded with that value as
+// its seed draws, from the start of the sequence.
+#[test]
+fn a_machine_given_chance_draws_as_one_loaded_with_it() {
+    let image = twelve_draws(Vec::new());
+    let loaded = draws_after(seeded(image.clone(), 70_000), None);
+    let other = draws_after(seeded(image.clone(), 1_234), None);
+    assert_ne!(loaded, other, "the two seeds give different draws");
+    let given = draws_after(seeded(image, 1_234), Some(70_000));
+    assert_eq!(given, loaded);
+}
+
+// Statement 2: a game that has put the generator in its predictable mode stays
+// in it, and its draws are what they would have been.
+#[test]
+fn a_machine_in_predictable_mode_is_left_in_it() {
+    let predictable = cat(&[to(op::var(op::RANDOM, &[L(-5i16 as u16)]), g(2))]);
+    let image = twelve_draws(predictable);
+    let left = draws_after(seeded(image.clone(), 1_234), None);
+    let given = draws_after(seeded(image, 1_234), Some(70_000));
+    assert_eq!(given, left);
+    assert!(
+        left.split_whitespace()
+            .take(5)
+            .eq(["1", "2", "3", "4", "5"]),
+        "{left}"
+    );
+}

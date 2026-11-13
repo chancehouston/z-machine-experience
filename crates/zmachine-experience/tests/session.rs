@@ -663,10 +663,12 @@ fn a_closed_door_is_shown_tried_and_then_open() {
         say(&mut s, line);
         say(&mut plain, line);
     }
-    // Behind the house: the window, to the west and in. Without a pack both
-    // "may be blocked".
+    // Behind the house: the window, to the west and in. Without a pack the
+    // interface says both "may be blocked", and look-ahead finds the game
+    // refuses them: they are no way at all (feature 009).
     for way in [Place::West, Place::In] {
-        assert_eq!(place(&plain, way).state, PlaceState::Maybe);
+        assert_eq!(place(&plain, way).state, PlaceState::Closed);
+        assert_eq!(place(&plain, way).command, None);
         let shut = place(&s, way);
         assert_eq!(shut.state, PlaceState::Door, "{way:?}");
         assert_eq!(shut.command.as_deref(), Some(way.id()));
@@ -684,9 +686,9 @@ fn a_closed_door_is_shown_tried_and_then_open() {
     let before = s.turns().len();
     s.tap(s.stamp(), Place::West)
         .expect("a closed door is offered");
-    plain
-        .tap(plain.stamp(), Place::West)
-        .expect("so is a way that may be blocked");
+    // Without the pack the place sends nothing; the direction is typed.
+    assert!(plain.tap(plain.stamp(), Place::West).is_err());
+    say(&mut plain, "west");
     assert_eq!(s.turns().len(), before + 1);
     let turn = s.turns().last().unwrap();
     assert_eq!(turn.command.as_deref(), Some("west"));
@@ -995,4 +997,177 @@ fn the_snapshot_holds_the_light() {
         s.snapshot_json(0)
             .ends_with(r#","light":{"dark":true,"note":"It is dark"}}"#)
     );
+}
+
+// ---------------------------------------------------------------------------
+// Look-ahead (feature 009; specs/009-compass-lookahead/contracts/lookahead.md,
+// cited L§)
+// ---------------------------------------------------------------------------
+
+/// A toy whose first room has six ways the table calls conditional: north is
+/// allowed, south refused, east decided by an even draw, west ends the game,
+/// up asks a question and down never stops.
+fn uncertain_toy() -> Vec<u8> {
+    use zmachine_testkit::toy::*;
+    let mut toy = Toy::new(3);
+    let there = Toy::room(1) as u8;
+    toy.uncertain(0, NORTH, there)
+        .uncertain(0, SOUTH, STAY)
+        .uncertain(0, EAST, COIN)
+        .uncertain(0, WEST, QUIT)
+        .uncertain(0, UP, ASK)
+        .uncertain(0, DOWN, SPIN);
+    toy.way(1, SOUTH, 0);
+    toy.build()
+}
+
+/// Limits small enough that the toy's endless way is given up quickly.
+const QUICK: zmachine_experience::lookahead::Limits = zmachine_experience::lookahead::Limits {
+    copy: 20_000,
+    total: 2_000_000,
+};
+
+fn toy_session(limits: zmachine_experience::lookahead::Limits) -> Session {
+    let mut s = Session::new(uncertain_toy(), Seed::Fixed(1)).expect("the toy starts");
+    s.set_look_ahead_limits(limits);
+    // The limits take effect at the next stop: a command the toy ignores.
+    say(&mut s, "look");
+    s
+}
+
+// L§10 to 13; FR-001, FR-004, FR-010, FR-011, FR-013: at a command prompt, with
+// no pack, a way the game allows is open and says where it leads; one it
+// refuses is no way; one that would end the game, ask a question or never
+// stop is as it was.
+#[test]
+fn a_session_settles_the_ways_the_interface_could_not() {
+    use zmachine_experience::{Place, PlaceState};
+    let s = toy_session(QUICK);
+    assert_eq!(s.waiting(), Waiting::Command);
+    let north = place(&s, Place::North);
+    assert_eq!(north.state, PlaceState::Open);
+    assert_eq!(north.leads_to.as_deref(), Some("Room 1"));
+    assert_eq!(north.spoken, "North, to Room 1");
+    let south = place(&s, Place::South);
+    assert_eq!((south.state, south.command), (PlaceState::Closed, None));
+    for harm in [Place::West, Place::Up, Place::Down] {
+        let way = place(&s, harm);
+        assert_eq!(way.state, PlaceState::Maybe, "{harm:?}");
+        assert!(way.spoken.ends_with(", may be blocked"));
+    }
+    assert!(s.compass().known);
+}
+
+// L§13, 17: with look-ahead set aside, every one of those ways is as the
+// interface reported it.
+#[test]
+fn with_look_ahead_set_aside_the_compass_is_the_interfaces() {
+    use zmachine_experience::{Place, PlaceState};
+    let s = toy_session(zmachine_experience::lookahead::OFF);
+    for way in [
+        Place::North,
+        Place::South,
+        Place::East,
+        Place::West,
+        Place::Up,
+        Place::Down,
+    ] {
+        assert_eq!(place(&s, way).state, PlaceState::Maybe, "{way:?}");
+    }
+}
+
+// L§8, 9; FR-006, FR-009: the game goes on as if nothing had been tried. Two
+// sessions, one with look-ahead and one without, show the same turns, and the
+// player can still walk into each way that came to harm on a copy.
+#[test]
+fn the_players_game_is_untouched_by_look_ahead() {
+    use zmachine_experience::Place;
+    let (mut with, mut without) = (
+        toy_session(QUICK),
+        toy_session(zmachine_experience::lookahead::OFF),
+    );
+    for line in ["south", "north", "south", "up"] {
+        say(&mut with, line);
+        say(&mut without, line);
+        assert_eq!(with.turns(), without.turns(), "{line}");
+        assert_eq!(with.waiting(), without.waiting(), "{line}");
+    }
+    // The question the toy asks on the way up is the player's to answer.
+    assert_eq!(with.waiting(), Waiting::Answer);
+    say(&mut with, "yes");
+    assert_eq!(with.waiting(), Waiting::Command);
+    // And the way that ends the game ends it only when the player takes it.
+    with.tap(with.stamp(), Place::West).expect("still offered");
+    assert_eq!(with.waiting(), Waiting::Ended);
+}
+
+// L§19: the ways are tried in the compass's order, and those not begun when
+// the total is spent are left as they were.
+#[test]
+fn the_total_limit_leaves_the_later_ways() {
+    use zmachine_experience::{Place, PlaceState};
+    let s = toy_session(zmachine_experience::lookahead::Limits {
+        copy: 20_000,
+        total: 1_000,
+    });
+    // North is first in the compass's order.
+    assert_eq!(place(&s, Place::North).state, PlaceState::Open);
+    assert_eq!(place(&s, Place::South).state, PlaceState::Maybe);
+}
+
+// L§10: nothing is tried at a stop that is not a command prompt.
+#[test]
+fn nothing_is_tried_while_the_game_asks_a_question() {
+    let mut s = toy_session(QUICK);
+    say(&mut s, "up");
+    assert_eq!(s.waiting(), Waiting::Answer);
+    assert!(!s.compass().offered);
+}
+
+// SC-001, SC-006; L§11: in the game the demo carries, with its pack, the way
+// down from the living room is no way until the trap door is open; then it is
+// an open way to the cellar, into darkness; and with the lamp lit, not into
+// darkness.
+#[test]
+fn the_trap_door_comes_and_goes() {
+    use zmachine_experience::{Place, PlaceState};
+    let pack = read_text("packs/zork1.pack");
+    let mut s = with_pack(Some(&pack));
+    for line in ["north", "east", "open window", "west", "west"] {
+        say(&mut s, line);
+    }
+    assert_eq!(s.status().unwrap().place, "Living Room");
+    let down = place(&s, Place::Down);
+    assert_eq!((down.state, down.command), (PlaceState::Closed, None));
+    say(&mut s, "move rug");
+    assert_eq!(place(&s, Place::Down).state, PlaceState::Closed);
+    say(&mut s, "open trap door");
+    let down = place(&s, Place::Down);
+    assert_eq!(down.state, PlaceState::Open);
+    assert_eq!(down.leads_to.as_deref(), Some("Cellar"));
+    assert!(down.dark_ahead);
+    assert_eq!(down.spoken, "Down, to Cellar, into darkness");
+    say(&mut s, "take lamp");
+    say(&mut s, "turn on lamp");
+    let down = place(&s, Place::Down);
+    assert_eq!(down.state, PlaceState::Open);
+    assert!(!down.dark_ahead);
+    assert_eq!(down.spoken, "Down, to Cellar");
+    // Without the pack the way is found the same, and nothing is said of light.
+    let mut plain = game(11);
+    for line in [
+        "north",
+        "east",
+        "open window",
+        "west",
+        "west",
+        "move rug",
+        "open trap door",
+    ] {
+        say(&mut plain, line);
+    }
+    let down = place(&plain, Place::Down);
+    assert_eq!(down.state, PlaceState::Open);
+    assert_eq!(down.leads_to.as_deref(), Some("Cellar"));
+    assert!(!down.dark_ahead);
 }

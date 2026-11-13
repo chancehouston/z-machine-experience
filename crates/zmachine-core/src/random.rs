@@ -31,6 +31,16 @@ impl Random {
         self.seed(0);
     }
 
+    /// Takes a new host value, as `new` takes one. In predictable mode the
+    /// mode is kept: the value is used when the game next asks for the host's
+    /// seed (`random 0`).
+    pub fn supply(&mut self, host: u32) {
+        self.host = host;
+        if self.interval == 0 {
+            self.state = host;
+        }
+    }
+
     fn seed(&mut self, value: u32) {
         match value {
             0 => {

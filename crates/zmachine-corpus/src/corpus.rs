@@ -190,6 +190,7 @@ pub fn command(root: &Path, mode: Mode, ids: &[String]) -> (Vec<String>, i32) {
     let mut matched = vec![false; ledger.entries.len()];
     let mut matched_inventory = vec![false; ledger.inventory.len()];
     let mut matched_light = vec![false; ledger.light.len()];
+    let mut matched_lookahead = vec![false; ledger.lookahead.len()];
     let mut ran: Vec<&str> = Vec::new();
     // The summary kept, and the lines of this run's stories.
     let kept_read = std::fs::read_to_string(root.join(SUMMARY))
@@ -242,6 +243,30 @@ pub fn command(root: &Path, mode: Mode, ids: &[String]) -> (Vec<String>, i32) {
                     .light_detail
                     .iter()
                     .any(|(difference, _)| *difference == entry.difference);
+        }
+        for (entry, matched) in ledger.lookahead.iter().zip(&mut matched_lookahead) {
+            *matched |= entry.story == story.id
+                && fresh
+                    .lookahead_detail
+                    .iter()
+                    .any(|(case, _)| *case == entry.case);
+        }
+        // A finding of look-ahead that a trial apart did not bear out, with no
+        // cause written, fails the run.
+        let missed: Vec<String> = fresh
+            .lookahead_detail
+            .iter()
+            .filter(|(case, _)| !ledger.knows_lookahead(&story.id, case))
+            .map(|(case, _)| {
+                let text = crate::report::missed_text(case);
+                let rest = text.strip_prefix("lookahead ").unwrap_or(&text);
+                format!("{} lookahead wrong {rest}", story.id)
+            })
+            .collect();
+        if mode == Mode::Run && !missed.is_empty() {
+            lines.extend(missed);
+            failed = true;
+            continue;
         }
         // So does a difference about light, at a place or on a way walked.
         let dimming: Vec<String> = fresh
@@ -379,6 +404,15 @@ pub fn command(root: &Path, mode: Mode, ids: &[String]) -> (Vec<String>, i32) {
     }
     // An entry that no trial matched, for a story that ran, has outlived its case.
     if mode == Mode::Run {
+        for (entry, matched) in ledger.lookahead.iter().zip(matched_lookahead) {
+            if !matched && ran.contains(&entry.story.as_str()) {
+                lines.push(format!(
+                    "{LEDGER}:{}: the entry matches no finding",
+                    entry.line
+                ));
+                failed = true;
+            }
+        }
         for (entry, matched) in ledger.light.iter().zip(matched_light) {
             if !matched && ran.contains(&entry.story.as_str()) {
                 lines.push(format!(

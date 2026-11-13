@@ -16,6 +16,7 @@ closed confirmed 2 wrong-known 0 wrong-unexplained 0 other 0
 distrusted 0 moved 0 stayed 0 question 0 ended 0 fault 0
 light compared 31 agreed 31 differed-known 0 differed-unexplained 0 unjudged 0 dark 4 rooms-both 1 in-the-dark 12
 ahead compared 54 agreed 54 differed-known 0 differed-unexplained 0 unjudged 0
+lookahead walked 0 refused 2 left 0 not-borne-out-known 0 not-borne-out-unexplained 0
 detail
 53 22 conditional stayed 1
 119 22 conditional stayed 1

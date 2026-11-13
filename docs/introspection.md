@@ -1,6 +1,6 @@
 # Z-Machine Introspection Interface
 
-**Version**: 0.4.0 | **Status**: draft
+**Version**: 0.5.0 | **Status**: draft
 
 A specification for reading the state of a running Z-machine game without changing it:
 where the player is, which ways lead out, what is here and what is carried. It is
@@ -807,6 +807,23 @@ Section 9.3.
 
 Section 5: only the dictionary the header names is read.
 
+### 10.8 Settling an exit by trial
+
+An answer of `conditional` or `unknown` for an exit says what the room's table says and
+no more (sections 8.3 and 10.5). A host may settle it by a trial: it gives a copy of
+the machine the direction's word, as a player would type it, and sees whether the
+copy's `location` changes, and to what.
+
+Such a trial must leave the machine being played unchanged in every way the game or
+this interface can observe, including the random numbers it will next draw. A host that
+reports what a trial found must not report it as an answer of this interface: the
+interface's own answer for that exit is still `conditional` or `unknown`.
+
+A copy shares the game's next random numbers unless the host gives it others, so one
+trial says what the game would do now and not what it must do. A host that wishes to
+tell a way that is open from one that chance happened to open makes more than one
+trial, with different random numbers.
+
 ## 11. Versioning
 
 The version has three parts, major, minor and patch.
@@ -996,6 +1013,12 @@ From version 0.3.0 to 0.4.0:
 - The pack format has a version 3, with two more keys, `lit-attribute` and
   `invisible-attribute`.
 - A pack may change the answers to `location` and `scope`.
+
+From version 0.4.0 to 0.5.0:
+
+- Section 10.8 says how a host may settle a `conditional` or `unknown` exit by a trial
+  on a copy, and what such a trial must leave untouched. No query, field or rule of the
+  interface changes.
 
 ### 12.8 `transparent-attribute`
 

@@ -10,6 +10,7 @@ none confirmed 0 wrong-known 0 wrong-unexplained 0 other 0
 conditional 0 moved 0 stayed 0 question 0 ended 0 fault 0
 unknown 0 moved 0 stayed 0 question 0 ended 0 fault 0
 no-verdict 12
+lookahead walked 0 refused 0 left 12 not-borne-out-known 0 not-borne-out-unexplained 0
 detail
 0 7 unknown lost 1
 0 8 unknown lost 1

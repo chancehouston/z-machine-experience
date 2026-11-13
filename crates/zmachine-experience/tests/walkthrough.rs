@@ -295,6 +295,11 @@ fn the_walkthrough_by_taps_gives_the_reference_text() {
 fn the_compass_agrees_with_an_identical_game_at_every_prompt() {
     let commands = commands();
     let mut session = game(SEED);
+    // This sets the compass against the interface's own answers, so look-ahead
+    // is set aside: with it, a way the interface calls conditional is shown
+    // as what the game would do (feature 009). The opening room has no such
+    // way, so the first compass is the same either way.
+    session.set_look_ahead_limits(zmachine_experience::lookahead::OFF);
     let mut shadow = Shadow::new();
     let mut compared = 0;
     let mut not_command = Vec::new();
@@ -370,6 +375,11 @@ fn the_compass_agrees_with_the_hand_made_exit_lists() {
     assert!(entries.len() >= 50);
     let commands = commands();
     let mut session = game(SEED);
+    // This sets the compass against the interface's own answers, so look-ahead
+    // is set aside: with it, a way the interface calls conditional is shown
+    // as what the game would do (feature 009). The opening room has no such
+    // way, so the first compass is the same either way.
+    session.set_look_ahead_limits(zmachine_experience::lookahead::OFF);
     let mut checked = 0;
     let mut at_questions = Vec::new();
     for (n, command) in commands.iter().enumerate() {

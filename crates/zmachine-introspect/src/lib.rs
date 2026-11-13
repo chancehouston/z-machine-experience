@@ -40,7 +40,7 @@ mod table_tests;
 mod zil_tests;
 
 /// The version of `docs/introspection.md` this crate implements.
-pub const SPEC_VERSION: &str = "0.4.0";
+pub const SPEC_VERSION: &str = "0.5.0";
 
 /// The queries, as the specification names them and in its order.
 pub const QUERIES: [&str; 6] = [

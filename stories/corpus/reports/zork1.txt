@@ -17,6 +17,7 @@ distrusted 24 moved 9 stayed 15 question 0 ended 0 fault 0
 inventory compared 1550 agreed 1550 differed-known 0 differed-unexplained 0 unjudged 0 no-listing 0 empty 18 unknown 6 through-closed 11
 light compared 372 agreed 370 differed-known 0 differed-unexplained 0 unjudged 2 dark 6 rooms-both 1 in-the-dark 39
 ahead compared 847 agreed 836 differed-known 6 differed-unexplained 0 unjudged 5
+lookahead walked 46 refused 33 left 0 not-borne-out-known 0 not-borne-out-unexplained 0
 detail
 3 29 fixed 3 stayed 4
 8 29 distrusted moved 249 2

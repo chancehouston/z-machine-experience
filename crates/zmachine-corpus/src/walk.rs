@@ -198,6 +198,11 @@ struct Tally {
     dark_rooms: BTreeSet<u16>,
     lit_rooms: BTreeSet<u16>,
     dark_cases: BTreeMap<Case, usize>,
+    /// Look-ahead: its figures, each finding a trial apart did not bear out,
+    /// and how many places have been asked (feature 009).
+    looked: crate::report::Looked,
+    missed: BTreeMap<Case, usize>,
+    asked_places: u64,
 }
 
 /// One trial as a person would have seen it: for `corpus explain`.
@@ -335,6 +340,17 @@ impl Tally {
                 .location(&view)
                 .value
                 .is_ok_and(|l| l.lit == Tri::No);
+        // Look-ahead as the experience layer makes it, with the limits a
+        // session uses, shared by the ways of this place.
+        let sent = self.asked_places;
+        self.asked_places += 1;
+        let mut look = zmachine_experience::lookahead::LookAhead::new(
+            machine,
+            &tools.introspector,
+            address,
+            sent,
+            zmachine_experience::lookahead::LIMITS,
+        );
         let mut moved = Vec::new();
         for direction in &tools.directions {
             if self.trials == stop_at {
@@ -350,6 +366,44 @@ impl Tally {
             }
             let (outcome, copy) = trial(machine, &tools.introspector, address, word, LIMIT);
             self.trials += 1;
+            // A way the interface could not settle: what look-ahead finds for
+            // it, set against a trial apart from it, on a copy given a value
+            // for chance that none of look-ahead's copies had
+            // (specs/009-compass-lookahead/contracts/corpus.md statements 1 to 3).
+            if matches!(
+                said,
+                Reported::Conditional | Reported::Distrusted | Reported::Unknown
+            ) {
+                use zmachine_experience::lookahead::{COPIES, Finding, chance};
+                let found = match look.finding(word) {
+                    Finding::Walked { room, .. } => {
+                        self.looked.walked += 1;
+                        Some(Reported::Fixed(room))
+                    }
+                    Finding::Refused => {
+                        self.looked.refused += 1;
+                        Some(Reported::None)
+                    }
+                    Finding::None => {
+                        self.looked.left += 1;
+                        None
+                    }
+                };
+                if let Some(found) = found {
+                    let mut apart = machine.clone();
+                    apart.supply_chance(chance(sent, COPIES));
+                    let (outcome, _) = trial(&apart, &tools.introspector, address, word, LIMIT);
+                    let finding = Case {
+                        room: here.unwrap_or(0),
+                        direction: direction.number,
+                        reported: found,
+                        outcome,
+                    };
+                    if judge(&finding) != Verdict::Confirmed {
+                        *self.missed.entry(finding).or_default() += 1;
+                    }
+                }
+            }
             let case = Case {
                 room: here.unwrap_or(0),
                 direction: direction.number,
@@ -669,6 +723,18 @@ impl Tally {
                 }
                 report.light_detail.push((*difference, *count));
             }
+        }
+        if self.looked.asked() > 0 {
+            let mut looked = self.looked;
+            for (case, count) in &self.missed {
+                if ledger.knows_lookahead(&report.id, case) {
+                    looked.missed_known += count;
+                } else {
+                    looked.missed_unexplained += count;
+                }
+                report.lookahead_detail.push((*case, *count));
+            }
+            report.lookahead = Some(looked);
         }
         for (case, count) in self.cases {
             // Of a case's trials, those made at a place reported dark that

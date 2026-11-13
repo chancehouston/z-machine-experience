@@ -599,3 +599,178 @@ fn a_place_that_is_not_known_is_not_marked() {
         (PlaceState::Unknown, false)
     );
 }
+
+// ---------------------------------------------------------------------------
+// Feature 009: a compass settled by look-ahead
+// (specs/009-compass-lookahead/contracts/lookahead.md, cited L§).
+// ---------------------------------------------------------------------------
+
+use crate::lookahead::Finding;
+
+fn walked(name: &str, dark: bool) -> Finding {
+    Finding::Walked {
+        room: 7,
+        name: Some(name.to_string()),
+        dark,
+    }
+}
+
+/// North and up are open, south and west conditional, and so are two ways the
+/// compass has no place for.
+fn unsettled() -> Compass {
+    compass(
+        vec![
+            fixed(31, &["north"], "Attic"),
+            conditional(30, &["south"]),
+            conditional(28, &["west"]),
+            conditional(9, &["land"]),
+            conditional(8, &["cross"]),
+            fixed(23, &["up"], "Loft"),
+        ],
+        6,
+    )
+}
+
+// L§10: only a way that is `maybe` is tried, each once, the places in the
+// compass's order and then the extras in theirs.
+#[test]
+fn settled_asks_only_for_ways_that_may_be_blocked() {
+    let mut c = unsettled();
+    let mut asked = Vec::new();
+    c.settle(|command| {
+        asked.push(command.to_string());
+        Finding::None
+    });
+    assert_eq!(asked, ["south", "west", "land", "cross"]);
+}
+
+// L§13, 16: with no finding the compass is what it was.
+#[test]
+fn settled_by_no_finding_is_unchanged() {
+    let mut c = unsettled();
+    c.settle(|_| Finding::None);
+    assert_eq!(c, unsettled());
+}
+
+// L§11, 15: a way found walked is an open way to the room found, shown and
+// spoken as any open way is.
+#[test]
+fn settled_a_way_found_walked_is_open() {
+    let mut c = unsettled();
+    c.settle(|command| match command {
+        "south" => walked("Cellar", false),
+        "land" => walked("Shore", false),
+        _ => Finding::None,
+    });
+    let south = c.place(Place::South).unwrap();
+    assert_eq!(south.state, PlaceState::Open);
+    assert_eq!(south.command.as_deref(), Some("south"));
+    assert_eq!(south.leads_to.as_deref(), Some("Cellar"));
+    assert!(!south.dark_ahead);
+    assert_eq!(south.spoken, "South, to Cellar");
+    assert_eq!(state(&c, Place::West), PlaceState::Maybe);
+    let land = &c.extras[0];
+    assert_eq!(
+        (land.label.as_str(), land.state),
+        ("Land", PlaceState::Open)
+    );
+    assert_eq!(land.leads_to.as_deref(), Some("Shore"));
+    assert_eq!(land.spoken, "Land, to Shore");
+    assert_eq!(c.extras[1].state, PlaceState::Maybe);
+}
+
+// L§12: a place found refused leads nowhere and sends nothing; an extra found
+// refused is not listed.
+#[test]
+fn settled_a_way_found_refused_is_no_way() {
+    let mut c = unsettled();
+    c.settle(|command| match command {
+        "south" | "land" => Finding::Refused,
+        _ => Finding::None,
+    });
+    let south = c.place(Place::South).unwrap();
+    assert_eq!(south.state, PlaceState::Closed);
+    assert_eq!(south.command, None);
+    assert_eq!(south.spoken, "South, no exit");
+    // It is told apart from no direction with no way at all by nothing.
+    assert_eq!(
+        (
+            south.state,
+            &south.command,
+            south.dark_ahead,
+            &south.leads_to
+        ),
+        {
+            let east = c.place(Place::East).unwrap();
+            (east.state, &east.command, east.dark_ahead, &east.leads_to)
+        }
+    );
+    assert_eq!(c.extras.len(), 1);
+    assert_eq!(c.extras[0].label, "Cross");
+}
+
+// L§11; FR-012: a way found walked into a dark room is marked and spoken as
+// feature 008 marks a way into darkness; a way found refused never is.
+#[test]
+fn dark_ahead_is_what_the_copy_found() {
+    let mut c = unsettled();
+    c.settle(|command| match command {
+        "south" => walked("Cellar", true),
+        "land" => walked("Cave", true),
+        _ => Finding::Refused,
+    });
+    let south = c.place(Place::South).unwrap();
+    assert!(south.dark_ahead);
+    assert_eq!(south.spoken, "South, to Cellar, into darkness");
+    assert!(c.extras[0].dark_ahead);
+    assert_eq!(c.extras[0].spoken, "Land, to Cave, into darkness");
+    assert!(!c.place(Place::West).unwrap().dark_ahead);
+}
+
+// L§10: a way that is open, a closed door, a place two exits claim and a
+// direction the interface could not answer are not tried.
+#[test]
+fn settled_leaves_what_is_already_settled() {
+    let mut c = Compass::of(
+        &Answer::exact(Exits {
+            exits: vec![
+                fixed(31, &["north"], "Attic"),
+                conditional(30, &["south"]),
+                conditional(29, &["south"]),
+            ],
+            unknown: vec![UnknownDirection {
+                direction: 28,
+                words: words(&["west"]),
+                reason: Unknown::Damaged,
+            }],
+        }),
+        6,
+    );
+    let before = c.clone();
+    let mut asked = 0;
+    c.settle(|_| {
+        asked += 1;
+        Finding::Refused
+    });
+    assert_eq!(asked, 0);
+    assert_eq!(c, before);
+    assert_eq!(c.note, Some(NOTE_UNKNOWN));
+}
+
+// L§14 as built: where every way was known and look-ahead leaves none, the
+// note says there are no exits.
+#[test]
+fn settled_to_nothing_says_there_are_no_exits() {
+    let mut c = compass(vec![conditional(30, &["south"])], 6);
+    assert_eq!(c.note, None);
+    c.settle(|_| Finding::Refused);
+    assert_eq!(c.note, Some(NOTE_NONE));
+}
+
+// L§10: a compass that offers nothing is not tried.
+#[test]
+fn settled_never_when_nothing_is_offered() {
+    let mut c = Compass::idle();
+    c.settle(|_| panic!("nothing is tried"));
+    assert_eq!(c, Compass::idle());
+}
