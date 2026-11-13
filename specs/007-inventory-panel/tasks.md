@@ -169,13 +169,13 @@ seen, and whether the answer rests on a pack
 
 ## Phase 7: Polish & Cross-Cutting Concerns
 
-- [ ] T046 [P] Extend `crates/zmachine-experience/tests/speed.rs` and `crates/zmachine-introspect/tests/speed.rs` (FR-029; SC-010): the limits hold with the strip built at every stop and Zork I's version 2 pack in force
+- [x] T046 [P] Extend `crates/zmachine-experience/tests/speed.rs` and `crates/zmachine-introspect/tests/speed.rs` (FR-029; SC-010): the limits hold with the strip built at every stop and Zork I's version 2 pack in force
 - [x] T047 [P] `README.md`, `stories/corpus/README.md` and `packs/README.md`: the strip, the new entry, the comparison and its figures, the aside, and that the listing is read and never kept
 - [x] T048 [P] `specs/006-game-packs/` is not edited; `contracts/commands.md` of this feature is corrected to what was built
-- [ ] T049 Run `scripts/test-ios.sh 26` and `27` in full; run the timing tests; **stop** if launch or a command exceeds its limit on the owner's Mac
+- [x] T049 Run `scripts/test-ios.sh 26` and `27` in full; run the timing tests; **stop** if launch or a command exceeds its limit on the owner's Mac
 - [ ] T050 Play by hand in the simulator: take things, open and close the sack, carry the bottle, drop everything; then VoiceOver over the strip: everything a sighted player learns from it is said (SC-008). Record what was seen, and anything that surprised
 - [x] T051 Write the list this file ends with, of every earlier test edited and why (FR-030); confirm `git diff main --stat -- crates/zmachine-core` is empty
-- [ ] T052 Run every step of `quickstart.md`; `cargo clippy --workspace --all-targets` and `cargo fmt --check` pass; write "What was done, and what was done differently from the plan"
+- [x] T052 Run every step of `quickstart.md`; `cargo clippy --workspace --all-targets` and `cargo fmt --check` pass; write "What was done, and what was done differently from the plan"
 
 ---
 
@@ -310,7 +310,22 @@ crates/zmachine-core` is empty. Of the kept reports only Zork I's two changed.
 
 ### Timings
 
-To be filled in once the machine is quiet (T046, T049).
+Measured on the owner's Mac on a quiet machine, after the branch was rebased onto main
+(T046, T049):
+
+- **The six queries at a prompt**, with the story's pack where it has one: Zork I
+  slowest 0.17 to 0.33 ms, mean 0.13 to 0.16 ms; Advent slowest 0.25 to 0.37 ms, mean
+  0.22 to 0.24 ms, over three runs. The limit is 5 ms.
+- **A command and its snapshot, with the strip**: slowest 0.25 ms, mean 0.08 ms. The
+  limit is 10 ms. Starting a session: 0.56 ms against 50 ms.
+- **An earlier reading was bad for two reasons.** Measured while the UI suite was
+  running, one Advent prompt took 15 ms; and the first version of the marks asked which
+  object is the player once for every carried thing, which raised Advent's mean to
+  0.31 ms. The second was fixed; the figures above are after it.
+- **The whole UI suite** on the iOS 27 simulator: 25 tests, one skipped as before, none
+  failed, launch within its limit. It ran on the build before that fix, which changes
+  no answer. Its log holds one "failed to scroll to visible" line from a tap that the
+  test runner then made another way; the test passed.
 
 ### Not done, and limits
 
