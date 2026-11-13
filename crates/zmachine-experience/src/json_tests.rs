@@ -212,7 +212,9 @@ fn the_snapshot_has_every_field_in_order() {
             // Feature 007: what the player carries.
             "inventory",
             // Feature 008: whether the player is in the dark.
-            "light"
+            "light",
+            // Feature 010: what a screen reader is to speak for the newest turn.
+            "announcement"
         ]
     );
     assert_eq!(

@@ -33,6 +33,16 @@ struct GameView: View {
                             .font(.caption.monospacedDigit())
                             .accessibilityIdentifier("debug.launchMillis")
                     }
+                    // For tests of what is asked to be spoken: there is nothing
+                    // to hear in a simulator.
+                    if Announcer.always {
+                        Color.clear
+                            .frame(width: 1, height: 1)
+                            .accessibilityElement()
+                            .accessibilityLabel(Text(verbatim: game.lastSpoken ?? ""))
+                            .accessibilityValue(Text(verbatim: String(game.timesSpoken)))
+                            .accessibilityIdentifier("announcement.last")
+                    }
                     Divider()
                     TranscriptView(turns: game.turns, keyboardUp: typing)
                     Divider()
@@ -116,11 +126,8 @@ struct GameView: View {
             .padding(.vertical, 8)
         case .ended, .fault:
             VStack(spacing: 8) {
-                if showing.waiting == .ended {
-                    Text("The game has ended.")
-                } else {
-                    Text(verbatim: showing.message ?? "")
-                }
+                // The layer's words: for a game that has ended, or a fault.
+                Text(verbatim: showing.message ?? "")
                 Button("New game") {
                     Task { await game.newGame() }
                 }

@@ -6,6 +6,7 @@
 //! The contract is `specs/004-first-demo/contracts/experience-api.md`.
 #![forbid(unsafe_code)]
 
+mod announce;
 mod compass;
 mod json;
 mod light;
@@ -13,6 +14,8 @@ pub mod lookahead;
 mod strip;
 mod transcript;
 
+#[cfg(test)]
+mod announce_tests;
 #[cfg(test)]
 mod compass_tests;
 #[cfg(test)]
@@ -24,6 +27,7 @@ mod lookahead_tests;
 #[cfg(test)]
 mod strip_tests;
 
+pub use announce::NOTE_ENDED;
 pub use compass::{Compass, CompassPlace, Extra, NOTE_NONE, NOTE_UNKNOWN, Place, PlaceState};
 pub use light::{Light, NOTE_DARK};
 pub use strip::{ItemState, NOTE_NOT_KNOWN, NOTE_NOTHING, Strip, StripItem};
@@ -135,6 +139,10 @@ pub struct Session {
     look_ahead: lookahead::Limits,
     /// What look-ahead ran at the last stop: all copies, and the longest one.
     looked: (u64, u64),
+    /// Whether the light said dark at the stop before this one.
+    was_dark: bool,
+    /// What a screen reader is to speak for the newest turn.
+    announcement: Option<String>,
 }
 
 fn load(story: &[u8], seed: Seed) -> Result<Machine, StartError> {
@@ -196,6 +204,8 @@ impl Session {
             ceiling: INSTRUCTION_CEILING,
             look_ahead: lookahead::LIMITS,
             looked: (0, 0),
+            was_dark: false,
+            announcement: None,
         };
         session.open();
         Ok(session)
@@ -210,6 +220,12 @@ impl Session {
     /// do. It takes effect at the next stop.
     pub fn set_look_ahead_limits(&mut self, limits: lookahead::Limits) {
         self.look_ahead = limits;
+    }
+
+    /// What a screen reader is to speak for the newest turn: the game's reply
+    /// and the layer's own words, whole. None where there is nothing to say.
+    pub fn announcement(&self) -> Option<&str> {
+        self.announcement.as_deref()
     }
 
     /// How many instructions look-ahead's copies ran at the last stop, all
@@ -228,6 +244,29 @@ impl Session {
             source: None,
             text,
         }];
+        self.announce();
+    }
+
+    /// Makes the announcement for the turn just recorded
+    /// (specs/010-screen-reader-announcements/contracts/announcements.md).
+    fn announce(&mut self) {
+        // A stop that is not a command prompt counts as not dark: nothing is
+        // said of light there, and the note is said again after it.
+        let dark = self.waiting == Waiting::Command && self.light.dark == Some(true);
+        let fell_dark = (dark && !self.was_dark).then_some(light::NOTE_DARK);
+        self.was_dark = dark;
+        if self.waiting == Waiting::Fault {
+            self.announcement = self.message.clone();
+            return;
+        }
+        let waits_for_line =
+            matches!(self.waiting, Waiting::Command | Waiting::Answer) && !self.wants_key;
+        let text = self.turns.last().map_or("", |turn| turn.text.as_str());
+        self.announcement = announce::announcement(
+            announce::reply(text, waits_for_line),
+            fell_dark,
+            self.waiting == Waiting::Ended,
+        );
     }
 
     /// Runs the game until it wants input, ends or fails, and returns what it
@@ -284,6 +323,8 @@ impl Session {
                 }
                 Event::Finished => {
                     self.waiting = Waiting::Ended;
+                    // The layer's words for it, for a host to show and speak.
+                    self.message = Some(announce::NOTE_ENDED.to_string());
                     break;
                 }
                 Event::Fault(fault) => {
@@ -349,6 +390,7 @@ impl Session {
         };
         if given.is_err() {
             self.fail("The game cannot continue.".to_string());
+            self.announce();
             return;
         }
         let text = self.advance();
@@ -358,6 +400,7 @@ impl Session {
             source: Some(source),
             text,
         });
+        self.announce();
     }
 
     /// Checks that a command was made against the current turn of a game that is
@@ -412,6 +455,7 @@ impl Session {
         self.generation += 1;
         self.message = None;
         self.status = None;
+        self.was_dark = false;
         self.command_address = None;
         match load(&self.story, seed) {
             Ok(machine) => {
@@ -428,6 +472,7 @@ impl Session {
                 }];
                 self.compass = Compass::idle();
                 self.fail(error.message);
+                self.announce();
             }
         }
     }
@@ -438,6 +483,7 @@ impl Session {
     pub fn mark_failed(&mut self, message: &str) {
         self.compass = Compass::idle();
         self.fail(message.to_string());
+        self.announce();
     }
 
     pub fn stamp(&self) -> Stamp {

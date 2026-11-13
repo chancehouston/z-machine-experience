@@ -176,7 +176,11 @@ pub(crate) fn snapshot(session: &Session, since: usize) -> String {
     });
     key(&mut out, "note");
     optional_text(&mut out, light.note);
-    out.push_str("}}");
+    out.push('}');
+    // What a screen reader is to speak for the newest turn (feature 010).
+    key(&mut out, "announcement");
+    optional_text(&mut out, session.announcement());
+    out.push('}');
     out
 }
 

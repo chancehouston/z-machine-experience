@@ -12,9 +12,13 @@ struct Snapshot: Decodable, Sendable, Equatable {
     let compass: Compass
     let inventory: Strip
     let light: Light
+    /// What a screen reader is to speak for the newest turn: the layer's
+    /// text, whole. Nil where there is nothing to say.
+    let announcement: String?
 
     enum CodingKeys: String, CodingKey {
         case generation, waiting, message, status, turns, compass, inventory, light
+        case announcement
         case turnCount = "turn_count"
     }
 }

@@ -17,6 +17,10 @@ final class Game {
     /// Milliseconds from the start of the process to the first snapshot's
     /// being handed to the screen.
     private(set) var launchMillis: Int?
+    /// What was last asked to be spoken, and how many times anything was:
+    /// shown to tests only (`-speakAlways`).
+    private(set) var lastSpoken: String?
+    private(set) var timesSpoken = 0
 
     private var engine: Engine?
 
@@ -78,12 +82,20 @@ final class Game {
 
     private func show(_ snapshot: Snapshot?) {
         guard let snapshot else { return }
-        if snapshot.generation != showing?.generation {
+        let before = turns.count
+        let newGame = snapshot.generation != showing?.generation
+        if newGame {
             turns = snapshot.turns
         } else {
             turns.append(contentsOf: snapshot.turns.filter { $0.number >= turns.count })
         }
         showing = snapshot
+        // A new turn, or a new game, is spoken: the layer's text, as it is.
+        if newGame || turns.count > before, let text = snapshot.announcement, Announcer.speaking {
+            Announcer.post(text)
+            lastSpoken = text
+            timesSpoken += 1
+        }
         if launchMillis == nil {
             launchMillis = LaunchClock.millisSinceProcessStart()
         }
