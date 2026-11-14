@@ -360,6 +360,9 @@ pub struct Zil {
     pub words: Vec<(&'static str, [u8; 3])>,
     pub globals: Vec<(usize, u16)>,
     pub setup: Vec<u8>,
+    /// Properties that hold the dictionary addresses of these words: object,
+    /// property, words.
+    pub nouns: Vec<(u16, u8, Vec<&'static str>)>,
 }
 
 fn object3(name: &str, parent: u8, props: Vec<(u8, Vec<u8>)>) -> Object {
@@ -428,6 +431,34 @@ impl Zil {
             ],
             globals: vec![],
             setup,
+            nouns: vec![],
+        }
+    }
+
+    /// A file whose lamp, sack, garlic, diamond, boat and door each have
+    /// property `property` holding the word that names it.
+    pub fn named(property: u8) -> Zil {
+        let mut f = Zil::new();
+        f.name_things(property);
+        f
+    }
+
+    pub fn name_things(&mut self, property: u8) {
+        use zl::*;
+        for word in ["sack", "garlic", "gem", "boat", "door"] {
+            if !self.words.iter().any(|(w, _)| *w == word) {
+                self.words.push((word, [0x80, 1, 0]));
+            }
+        }
+        for (object, word) in [
+            (LAMP, "lamp"),
+            (SACK, "sack"),
+            (GARLIC, "garlic"),
+            (DIAMOND, "gem"),
+            (BOAT, "boat"),
+            (DOOR, "door"),
+        ] {
+            self.nouns.push((object, property, vec![word]));
         }
     }
 
@@ -443,6 +474,29 @@ impl Zil {
     }
 
     pub fn build(&self) -> Vec<u8> {
+        // A word's address is known only once the story is laid out: it is
+        // laid out once with nothing in the words' places, to learn them.
+        let blank: Vec<Vec<u8>> = self
+            .nouns
+            .iter()
+            .map(|(_, _, words)| vec![0; 2 * words.len()])
+            .collect();
+        let (_, mut laid) = self.lay_out(&blank);
+        let found: Vec<Vec<u8>> = self
+            .nouns
+            .iter()
+            .map(|(_, _, words)| {
+                words
+                    .iter()
+                    .flat_map(|w| laid.word_address(w).to_be_bytes())
+                    .collect()
+            })
+            .collect();
+        self.lay_out(&found).0
+    }
+
+    /// The image with `nouns`' data as given, and the story it was built from.
+    fn lay_out(&self, nouns: &[Vec<u8>]) -> (Vec<u8>, Story) {
         let mut story = Story::new();
         for (i, byte) in self.version_stamp.iter().enumerate() {
             story.header_byte(0x3C + i, *byte);
@@ -454,6 +508,11 @@ impl Zil {
             story.word_data(word, *data);
         }
         let mut objects = self.objects.clone();
+        for ((object, property, _), data) in self.nouns.iter().zip(nouns) {
+            let props = &mut objects[*object as usize - 1].props;
+            props.retain(|(p, _)| p != property);
+            props.push((*property, data.clone()));
+        }
         for i in 0..objects.len() {
             let parent = objects[i].parent;
             if parent == 0 {
@@ -476,7 +535,7 @@ impl Zil {
         let mut code = self.setup.clone();
         code.extend(op::op0(op::QUIT));
         story.main(&code);
-        story.build()
+        (story.build(), story)
     }
 
     pub fn machine(&self) -> Machine {

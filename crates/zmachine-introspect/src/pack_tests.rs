@@ -104,7 +104,7 @@ fn a_malformed_pack_is_refused_with_its_line() {
         (format!("open-attribute: 7\n{head}"), 1),
         (String::new(), 1),
         // A version of the format this reader does not know.
-        (head.replace("pack: 1", "pack: 4"), 1),
+        (head.replace("pack: 1", "pack: 5"), 1),
         (head.replace("pack: 1", "pack: 01"), 1),
         // Values out of range or of the wrong shape.
         (head.replace(&digest, &"0".repeat(63)), 2),
@@ -406,7 +406,7 @@ fn a_pack_not_in_force_changes_nothing() {
                 PackState::NotMatching,
             ),
             (format!("{right}open-attribute: 9\n"), PackState::Refused),
-            (right.replace("pack: 1", "pack: 4"), PackState::Refused),
+            (right.replace("pack: 1", "pack: 5"), PackState::Refused),
         ] {
             let i = Introspector::with_pack(&view, &text);
             assert_eq!(i.pack(), state);
@@ -603,7 +603,7 @@ fn the_formats_second_version_adds_one_key() {
     assert_eq!((plain.version, plain.transparent_attribute), (2, None));
     assert_eq!(Pack::parse(EXAMPLE).unwrap().version, 1);
     for (text, line) in [
-        (EXAMPLE.replace("pack: 1", "pack: 4"), 1),
+        (EXAMPLE.replace("pack: 1", "pack: 5"), 1),
         (EXAMPLE.replace("pack: 1", "pack: 0"), 1),
         (format!("{EXAMPLE}transparent-attribute: 12\n"), 7),
         (format!("{two}transparent-attribute: 32\n"), 7),
@@ -678,7 +678,7 @@ fn the_formats_third_version_adds_the_lit_attribute() {
     assert_eq!(Pack::parse(EXAMPLE).unwrap().lit_attribute, None);
     let two = EXAMPLE.replace("pack: 1", "pack: 2");
     for (text, line) in [
-        (EXAMPLE.replace("pack: 1", "pack: 4"), 1),
+        (EXAMPLE.replace("pack: 1", "pack: 5"), 1),
         (format!("{two}lit-attribute: 19\n"), 7),
         (format!("{EXAMPLE}lit-attribute: 19\n"), 7),
         (format!("{three}lit-attribute: 32\n"), 7),
@@ -957,4 +957,41 @@ fn light_from_a_hidden_thing_is_not_seen() {
     ] {
         assert_eq!(Pack::parse(&text).unwrap_err().line, line, "{text}");
     }
+}
+
+// I§12.12 (specs/014-inventory-card/contracts/card.md, I§2): the format's version 4 adds
+// `noun-property`, which names the property that holds the words naming an
+// object and is used in place of the search for it.
+#[test]
+fn the_formats_fourth_version_adds_the_noun_property() {
+    let four = EXAMPLE.replace("pack: 1", "pack: 4");
+    let pack = Pack::parse(&format!("{four}noun-property: 17\n")).unwrap();
+    assert_eq!((pack.version, pack.noun_property), (4, Some(17)));
+    assert!(pack.has_entries());
+    let three = EXAMPLE.replace("pack: 1", "pack: 3");
+    for (text, line) in [
+        (format!("{three}noun-property: 17\n"), 7),
+        (format!("{four}noun-property: 0\n"), 7),
+        (format!("{four}noun-property: 32\n"), 7),
+        (format!("{four}noun-property: 17\nnoun-property: 17\n"), 8),
+    ] {
+        match Pack::parse(&text) {
+            Ok(pack) => panic!("read as {pack:?}:\n{text}"),
+            Err(error) => assert_eq!(error.line, line, "{error}:\n{text}"),
+        }
+    }
+    // A story with two properties of the shape: the pack says which.
+    let mut two = Zil::named(18);
+    two.name_things(17);
+    two.nouns[0].2 = vec!["lamp", "brass"];
+    let image = two.build();
+    let machine = crate::fixtures::run(image.clone());
+    let text = format!("{}noun-property: 18\n", identity(&image)).replace("pack: 1", "pack: 4");
+    let i = Introspector::with_pack(&machine.view(), &text);
+    assert_eq!(i.pack(), PackState::InForce);
+    let carried = i.inventory(&machine.view()).value.unwrap();
+    assert_eq!(
+        carried[0].words,
+        Ok(vec!["lamp".to_string(), "brass".to_string()])
+    );
 }

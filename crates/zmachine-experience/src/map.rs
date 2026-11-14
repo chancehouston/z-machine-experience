@@ -961,7 +961,7 @@ impl Map {
                 .filter(|_| self.at_command && self.here.is_some())
                 .map(|word| LookView {
                     command: word.clone(),
-                    spoken: crate::look::SPOKEN_LOOK.to_string(),
+                    spoken: crate::verbs::SPOKEN_LOOK.to_string(),
                 }),
         })
     }

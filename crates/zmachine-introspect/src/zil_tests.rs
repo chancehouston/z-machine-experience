@@ -431,3 +431,56 @@ fn inventory_marks_without_a_pack() {
         "contents lists everything, whatever its marks"
     );
 }
+
+// I§7.3 (specs/014-inventory-card/contracts/card.md, I§1 to I§3): the words that name
+// a carried thing are those of the story's naming property, which is found by
+// its shape: the one property whose holders hold lists of dictionary entries.
+#[test]
+fn a_carried_things_words_are_found_by_the_shape_of_their_property() {
+    use crate::fixtures::zl::{LAMP, PLAYER, SACK};
+    let mut f = Zil::named(18);
+    f.nouns[0].2 = vec!["lamp", "brass"];
+    f.setup.extend(insert(SACK, PLAYER));
+    let m = f.machine();
+    let carried = introspect(&m).inventory(&m.view()).value.unwrap();
+    assert_eq!((carried[0].object, carried[1].object), (SACK, LAMP));
+    assert_eq!(carried[0].words, Ok(vec!["sack".to_string()]));
+    assert_eq!(
+        carried[1].words,
+        Ok(vec!["lamp".to_string(), "brass".to_string()])
+    );
+    // What a carried thing holds has its words too.
+    assert_eq!(carried[0].contents[0].words, Ok(vec!["garlic".to_string()]));
+}
+
+// I§3: with no such property, or two, the words are not known; a thing that
+// does not provide the property has none.
+#[test]
+fn where_the_naming_property_is_not_plain_the_words_are_unknown() {
+    let m = Zil::new().machine();
+    let carried = introspect(&m).inventory(&m.view()).value.unwrap();
+    assert_eq!(carried[0].words, Err(Unknown::NotDeterminable));
+
+    let mut two = Zil::named(18);
+    two.name_things(17);
+    let m = two.machine();
+    let carried = introspect(&m).inventory(&m.view()).value.unwrap();
+    assert_eq!(carried[0].words, Err(Unknown::NotDeterminable));
+
+    // Fewer than five holders is not enough to tell a property by.
+    let mut few = Zil::named(18);
+    few.nouns.truncate(4);
+    let m = few.machine();
+    let carried = introspect(&m).inventory(&m.view()).value.unwrap();
+    assert_eq!(carried[0].words, Err(Unknown::NotDeterminable));
+
+    // The player carries the lamp, which here has no such property.
+    let mut bare = Zil::named(18);
+    bare.nouns.remove(0);
+    bare.words.push(("you", [0x80, 1, 0]));
+    bare.nouns
+        .push((crate::fixtures::zl::PLAYER, 18, vec!["you"]));
+    let m = bare.machine();
+    let carried = introspect(&m).inventory(&m.view()).value.unwrap();
+    assert_eq!(carried[0].words, Ok(vec![]));
+}

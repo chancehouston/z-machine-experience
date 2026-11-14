@@ -78,6 +78,13 @@ int zmx_session_tap_way(zmx_session *session, uint64_t generation, size_t turn_c
                         size_t index);
 /* A touch on the place the player is in: sends the snapshot's map.look. */
 int zmx_session_tap_place(zmx_session *session, uint64_t generation, size_t turn_count);
+/* The card for a carried item, by its index in the snapshot's inventory.items:
+ * JSON, freed with zmx_string_free; NULL if refused. Sends the game nothing. */
+char *zmx_session_card(zmx_session *session, uint64_t generation, size_t turn_count,
+                       size_t index);
+/* An action on an item's card: index into that card's actions. */
+int zmx_session_tap_action(zmx_session *session, uint64_t generation, size_t turn_count,
+                           size_t index, size_t action);
 
 /* Abandons the game and starts a new one, with a fresh number from the caller. */
 void zmx_session_new_game(zmx_session *session, uint32_t entropy);

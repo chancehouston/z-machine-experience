@@ -100,6 +100,11 @@ What the first demo does today:
   each place the same each time; and the player's place carries a lamp that is out
   in the dark. A touch on the player's own place sends the story's word for
   looking, for the full description (`specs/013-room-look/`).
+- **A carried item can be tapped for its card** (`specs/014-inventory-card/`): the
+  game's own description of it, read from a copy of the game so that no move is
+  spent, and a button to drop it. The words that name each item are read from the
+  story file; on a wander through the corpus every item that could be tapped gave a
+  description.
 - **The keyboard stays up.** It is there whenever the game waits for a line, and goes
   down only when the player scrolls back through the transcript.
 - **The app holds no rule of any game.** It draws what the experience layer reports and

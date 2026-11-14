@@ -51,6 +51,7 @@ model: model names differ from one version to the next.
 | `Lamplight/GameView.swift` | The screen: status, the map's band, what is carried, transcript, field, end states |
 | `Lamplight/MapBand.swift` | The map as a band above the reply and opened out to the sheet: the control for each way out, the drag, opening and closing |
 | `Lamplight/MapDrawing.swift` | How places, lines, stubs, the lamp and each way's state are drawn, and the pencil's hand |
+| `Lamplight/ItemCard.swift` | The card for a carried item, and its token |
 | `Lamplight/MapLayout.swift` | How far apart positions are, where a way's control sits, and its symbol; the only file with direction words |
 | `Lamplight/AboutView.swift` | The About sheet |
 | `Lamplight/KeptFile.swift` | Where the game in progress is kept on the device; it holds the layer's bytes and does not read them |
@@ -87,6 +88,21 @@ states and spoken labels the compass had.
   tapped command with the game's full description. It costs whatever the game
   charges for a look. Other places do nothing when touched. A drag that begins on
   the place still moves the sheet.
+- **A touch on a carried item opens its card** over the map
+  (`specs/014-inventory-card/`): the game's name for it, what the game says when
+  it is examined, and a Drop button.
+  The description comes from a copy of the game: the layer runs the story's own
+  word for examining there, and the game itself is not touched, so no move is
+  spent and nothing is added to the transcript. Drop is sent as a tapped command.
+  The card has a drawn edge and sits in from the band's sides. Closing is the
+  easy thing: any touch that is not on an action closes it (its control, the card
+  itself, the band beside it, the item again), and it goes at the next turn. An
+  action is small and has to be aimed at. The close control is at the card's
+  bottom left with the actions to its right. A long description scrolls, with a
+  mark (`card.more`) while there is more below. The app holds no command
+  word; `zmx_session_card` and `zmx_session_tap_action` are the two entries.
+  Identifiers for tests: `item.<index>`, `card`, `card.name`, `card.text`,
+  `card.action.<n>`, `card.close`.
 - **The marker is a lamp** at the corner of the player's place: lit, out where the
   layer reports the place dark, or plain where the layer cannot say.
 - **The keyboard is up** whenever the game waits for a line. It goes down only when

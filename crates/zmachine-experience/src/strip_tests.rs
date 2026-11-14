@@ -7,6 +7,7 @@ use zmachine_introspect::{Answer, Carried, ContainerState, Exactness, Source, Tr
 
 fn item(name: &str, seen: Tri, state: Option<ContainerState>, contents: Vec<Carried>) -> Carried {
     Carried {
+        words: Ok(vec![name.to_string()]),
         object: 1,
         name: Ok(name.to_string()),
         worn: Tri::Unknown,
@@ -180,4 +181,57 @@ fn an_unknown_inventory_is_said_to_be_unknown() {
         assert_eq!(s.note, Some(NOTE_NOT_KNOWN));
         assert_eq!(s.spoken, "Not known: type to ask");
     }
+}
+
+// specs/014-inventory-card/contracts/card.md, L§2, S§1: each shown item has
+// its place among the shown items, contents after their holder; and can be
+// tapped only where the strip is offering cards and the item has a word.
+#[test]
+fn shown_items_are_numbered_and_marked() {
+    let mut bag = item(
+        "bag",
+        Tri::Yes,
+        Some(ContainerState::Open),
+        vec![plain("gem")],
+    );
+    bag.contents[0].seen = Tri::Yes;
+    let mut nameless = plain("thing");
+    nameless.words = Ok(vec![]);
+    let mut unknown = plain("blur");
+    unknown.words = Err(Unknown::NotDeterminable);
+    let carried = vec![bag, plain("key"), nameless, unknown];
+    let offered = Strip::with(&Answer::exact(carried.clone()), 6).offering(true);
+    let flat: Vec<(usize, &str, bool)> = offered
+        .items
+        .iter()
+        .flat_map(|i| std::iter::once(i).chain(i.contents.iter()))
+        .map(|i| (i.index, i.name.as_str(), i.card))
+        .collect();
+    assert_eq!(
+        flat,
+        [
+            (0, "bag", true),
+            (1, "gem", true),
+            (2, "key", true),
+            (3, "thing", false),
+            (4, "blur", false)
+        ]
+    );
+    // Not offering: nothing can be tapped.
+    let held = Strip::with(&Answer::exact(carried), 6);
+    assert!(held.items.iter().all(|i| !i.card));
+}
+
+// Research R2: the word sent for an item is the word of its printed name that
+// the game knows it by, in full; or, where no word of its name is one of its
+// words, the first of its words as the dictionary keeps it.
+#[test]
+fn an_items_word_is_one_of_its_names_where_it_can_be() {
+    let mut leaflet = plain("leaflet");
+    leaflet.words = Ok(vec!["advert".to_string(), "leafle".to_string()]);
+    let mut lantern = plain("brass lantern");
+    lantern.words = Ok(vec!["lamp".to_string(), "light".to_string()]);
+    let strip = Strip::with(&Answer::exact(vec![leaflet, lantern]), 6).offering(true);
+    let words: Vec<Option<&str>> = strip.items.iter().map(|i| i.word()).collect();
+    assert_eq!(words, [Some("leaflet"), Some("lamp")]);
 }

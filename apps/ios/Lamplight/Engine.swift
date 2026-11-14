@@ -101,6 +101,23 @@ actor Engine {
         return snapshot(since: showing.turnCount)
     }
 
+    /// The card for a carried item, by its place among the shown items.
+    /// Nothing is sent to the game.
+    func card(index: Int, showing: Snapshot) -> Card? {
+        guard let json = zmx_session_card(session, showing.generation, showing.turnCount, index)
+        else { return nil }
+        defer { zmx_string_free(json) }
+        let data = Data(bytes: json, count: strlen(json))
+        return try? JSONDecoder().decode(Card.self, from: data)
+    }
+
+    /// Sends an action chosen on an item's card.
+    func tap(action: Int, item index: Int, showing: Snapshot) -> Snapshot? {
+        _ = zmx_session_tap_action(
+            session, showing.generation, showing.turnCount, index, action)
+        return snapshot(since: showing.turnCount)
+    }
+
     /// Abandons the game and starts another.
     func newGame() -> Snapshot? {
         var generator = SystemRandomNumberGenerator()

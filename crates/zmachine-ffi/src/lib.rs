@@ -318,6 +318,59 @@ pub extern "C" fn zmx_session_tap_place(
     })
 }
 
+/// The card for a carried item: one of the snapshot's `inventory.items`, at
+/// any depth, by its `index`. JSON, which the caller frees with
+/// `zmx_string_free`; NULL if it was refused. Nothing is sent to the game.
+#[unsafe(no_mangle)]
+pub extern "C" fn zmx_session_card(
+    session: *mut zmx_session,
+    generation: u64,
+    turn_count: usize,
+    index: usize,
+) -> *mut c_char {
+    let Some(wrapper) = borrow(session) else {
+        return std::ptr::null_mut();
+    };
+    if wrapper.failed {
+        return std::ptr::null_mut();
+    }
+    let at = Stamp {
+        generation,
+        turn_count,
+    };
+    let json = catch_unwind(AssertUnwindSafe(|| {
+        wrapper
+            .session
+            .card(at, index)
+            .ok()
+            .map(|card| zmachine_experience::card_json(&card))
+    }));
+    match json {
+        Ok(Some(json)) => give_string(json),
+        Ok(None) => std::ptr::null_mut(),
+        Err(_) => {
+            wrapper.failed = true;
+            std::ptr::null_mut()
+        }
+    }
+}
+
+/// The player chose an action on an item's card: the item's `index` and the
+/// action's place in the card's `actions`. Returns 1 if the game received its
+/// command and 0 if it was refused.
+#[unsafe(no_mangle)]
+pub extern "C" fn zmx_session_tap_action(
+    session: *mut zmx_session,
+    generation: u64,
+    turn_count: usize,
+    index: usize,
+    action: usize,
+) -> c_int {
+    command(session, generation, turn_count, |session, at| {
+        session.tap_action(at, index, action).is_ok()
+    })
+}
+
 #[unsafe(no_mangle)]
 pub extern "C" fn zmx_session_new_game(session: *mut zmx_session, entropy: u32) {
     let Some(wrapper) = borrow(session) else {

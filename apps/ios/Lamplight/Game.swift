@@ -22,6 +22,10 @@ final class Game {
     private(set) var lastSpoken: String?
     private(set) var timesSpoken = 0
 
+    /// The card that is open, with the item it is for. It belongs to the
+    /// turn it was made at and is dropped at any other.
+    private(set) var card: (index: Int, card: Card)?
+
     private var engine: Engine?
 
     /// Reads the story from the bundle and starts a game. `-seed N` fixes the
@@ -82,6 +86,39 @@ final class Game {
         await command { engine, showing in await engine.tapPlace(showing: showing) }
     }
 
+    /// Asks the layer for a carried item's card and shows it. The game is
+    /// sent nothing. Its words are spoken once, as a reply is.
+    func openCard(item index: Int) async {
+        // A touch on the item whose card is open closes it.
+        if card?.index == index {
+            card = nil
+            return
+        }
+        guard !busy, let engine, let showing else { return }
+        busy = true
+        let made = await engine.card(index: index, showing: showing)
+        busy = false
+        guard let made else { return }
+        card = (index, made)
+        if Announcer.speaking {
+            Announcer.post(made.spoken)
+            lastSpoken = made.spoken
+            timesSpoken += 1
+        }
+    }
+
+    func closeCard() {
+        card = nil
+    }
+
+    /// Sends an action of the open card.
+    func tap(action: Int) async {
+        guard let index = card?.index else { return }
+        await command { engine, showing in
+            await engine.tap(action: action, item: index, showing: showing)
+        }
+    }
+
     func newGame() async {
         await command { engine, _ in await engine.newGame() }
     }
@@ -110,6 +147,8 @@ final class Game {
         guard let snapshot else { return }
         let before = turns.count
         let newGame = snapshot.generation != showing?.generation
+        // A card is for the turn it was made at.
+        card = nil
         if newGame {
             turns = snapshot.turns
         } else {

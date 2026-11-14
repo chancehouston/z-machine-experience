@@ -347,6 +347,7 @@ fn the_header_and_the_library_agree() {
     assert_eq!(
         declared,
         [
+            "zmx_session_card",
             "zmx_session_free",
             "zmx_session_keep_failed",
             "zmx_session_kept",
@@ -357,6 +358,7 @@ fn the_header_and_the_library_agree() {
             "zmx_session_send_line",
             "zmx_session_snapshot",
             "zmx_session_tap",
+            "zmx_session_tap_action",
             "zmx_session_tap_extra",
             "zmx_session_tap_place",
             "zmx_session_tap_way",
@@ -619,6 +621,53 @@ fn a_kept_game_crosses_the_boundary_and_comes_back() {
     for session in [first, second, third, quiet] {
         zmx_session_free(session);
     }
+}
+
+// specs/014-inventory-card/contracts/card.md, S§2, L§3, L§8: an item's card
+// is asked for and returned as JSON, with nothing sent to the game; its
+// action is sent as a tap.
+#[test]
+fn an_items_card_crosses_the_boundary() {
+    let session = open();
+    assert_eq!(
+        zmx_session_send_line(session, 1, 1, c("open mailbox").as_ptr()),
+        1
+    );
+    assert_eq!(
+        zmx_session_send_line(session, 1, 2, c("take leaflet").as_ptr()),
+        1
+    );
+    let before = snapshot(session, 0);
+    assert!(
+        before.contains(r#""items":[{"name":"leaflet","state":"plain","index":0,"card":true,"#),
+        "{before}"
+    );
+    let pointer = zmx_session_card(session, 1, 3, 0);
+    assert!(!pointer.is_null());
+    // SAFETY: a NUL-terminated string the interface owns until it is freed.
+    let card = unsafe { CStr::from_ptr(pointer) }
+        .to_str()
+        .expect("UTF-8")
+        .to_string();
+    zmx_string_free(pointer);
+    assert!(card.starts_with(r#"{"name":"leaflet","#), "{card}");
+    assert!(card.contains(r#""command":"drop leaflet""#), "{card}");
+    assert_eq!(snapshot(session, 0), before, "the game has not moved");
+    // A stale stamp, an item that is not there and a null session: no card.
+    assert!(zmx_session_card(session, 1, 2, 0).is_null());
+    assert!(zmx_session_card(session, 1, 3, 9).is_null());
+    assert!(zmx_session_card(std::ptr::null_mut(), 1, 3, 0).is_null());
+    // The action.
+    assert_eq!(zmx_session_tap_action(session, 1, 3, 0, 4), 0);
+    assert_eq!(zmx_session_tap_action(session, 1, 3, 0, 0), 1);
+    let after = snapshot(session, 3);
+    assert!(
+        after.contains(r#""command":"drop leaflet","source":"tap""#),
+        "{after}"
+    );
+    assert_eq!(zmx_session_tap_action(session, 1, 3, 0, 0), 0);
+    assert_eq!(zmx_session_tap_action(std::ptr::null_mut(), 1, 4, 0, 0), 0);
+    zmx_session_free(session);
 }
 
 // specs/013-room-look/contracts/look.md, A§1: a touch on the player's place
