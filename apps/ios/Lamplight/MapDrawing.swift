@@ -131,6 +131,9 @@ struct MapDrawing: View {
     let ready: Bool
     /// A touch on the place the player is in.
     let tapPlace: () -> Void
+    /// Where the map is opened out: turns to the sheet a way leads to, with
+    /// the place it leads to. Nil in the band, where such a way is drawing.
+    var turnSheet: ((Int, Int?) -> Void)?
 
     /// The pencil's colour.
     private let pencil = Color.primary.opacity(0.82)
@@ -148,7 +151,7 @@ struct MapDrawing: View {
                 stub(map.stubs[index])
             }
             ForEach(map.leads.indices, id: \.self) { index in
-                lead(map.leads[index])
+                lead(map.leads[index], number: index)
             }
             ForEach(map.places) { place in
                 box(place)
@@ -319,21 +322,35 @@ struct MapDrawing: View {
     }
 
     /// A walked way that leaves the sheet: a short line, and the layer's
-    /// words for the way and for where it leads.
-    private func lead(_ lead: MapLead) -> some View {
+    /// words for the way and for where it leads. Where the map is opened
+    /// out it is a button that turns to that sheet (contract A§3).
+    private func lead(_ lead: MapLead, number: Int) -> some View {
         Group {
             if let place = place(lead.from) {
                 let (start, end) = edge(of: place, toward: lead.way, reach: 12)
+                let words = [lead.label, lead.to].compactMap { $0 }.joined(separator: " \u{2192} ")
                 Path { path in
                     path.move(to: start)
                     path.addLine(to: end)
                 }
                 .stroke(Color.accentColor, lineWidth: 1.4)
-                Text(verbatim: [lead.label, lead.to].compactMap { $0 }.joined(separator: " → "))
+                Text(verbatim: words)
                     .font(.system(size: 9))
                     .foregroundStyle(.tint)
                     .fixedSize()
                     .position(x: end.x, y: end.y + (end.y >= start.y ? 8 : -8))
+                if let turnSheet {
+                    Button {
+                        turnSheet(lead.sheet, lead.place)
+                    } label: {
+                        Color.clear
+                            .frame(width: MapLayout.control, height: MapLayout.control)
+                            .contentShape(Rectangle())
+                    }
+                    .accessibilityLabel(Text(verbatim: words))
+                    .accessibilityIdentifier("map.lead.\(number)")
+                    .position(x: end.x, y: end.y + (end.y >= start.y ? 8 : -8))
+                }
             }
         }
     }

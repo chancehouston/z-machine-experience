@@ -223,6 +223,8 @@ pub struct LeadView {
     /// The far place's name, if it has one.
     pub to: Option<String>,
     pub sheet: usize,
+    /// The far place, to centre its sheet on.
+    pub place: u16,
 }
 
 /// A way seen and not walked, of a place other than the one the player is in.
@@ -278,6 +280,27 @@ pub struct MapView {
     pub ways: Vec<WayView>,
     /// Present when the player's place can be touched to look.
     pub look: Option<LookView>,
+    /// Whether this is the sheet the player is on
+    /// (specs/015-map-sheets/contracts/sheets.md).
+    pub own: bool,
+    /// What the sheet is called.
+    pub label: String,
+    /// The first place found on it.
+    pub first: Option<u16>,
+    /// The sheets before and after it in the order they were found, going
+    /// round; none where there is one sheet.
+    pub before: Option<SheetRef>,
+    pub after: Option<SheetRef>,
+    /// The player's sheet, where this is not it.
+    pub back: Option<SheetRef>,
+}
+
+/// Another sheet of the map, to turn to.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct SheetRef {
+    /// From 1.
+    pub number: usize,
+    pub label: String,
 }
 
 /// The map of one game.
@@ -854,11 +877,61 @@ impl Map {
         if !self.recognised || self.sheets.is_empty() {
             return None;
         }
-        let on = |id: u16| self.places[&id].sheet == self.shown;
+        self.view_of(self.shown)
+    }
+
+    /// The sheet of this number, from 1 in the order the sheets were found
+    /// (specs/015-map-sheets/contracts/sheets.md, L§1); none for a number
+    /// with no sheet.
+    pub fn sheet(&self, number: usize) -> Option<MapView> {
+        if !self.recognised || number == 0 {
+            return None;
+        }
+        let index = (0..self.sheets.len()).find(|&index| {
+            !self.sheets[index].cells.is_empty() && self.sheet_number(index) == number
+        })?;
+        self.view_of(index)
+    }
+
+    /// What a sheet is called: its number, how many there are, and the first
+    /// place found on it that has a name (L§4). The parts are given apart
+    /// for the spoken form.
+    fn sheet_label(&self, index: usize) -> (String, String) {
+        let numbers = format!(
+            "Sheet {} of {}",
+            self.sheet_number(index),
+            self.sheet_count()
+        );
+        let named = self
+            .order
+            .iter()
+            .filter(|id| self.places[id].sheet == index)
+            .find_map(|id| self.name(*id));
+        match named {
+            Some(name) => (
+                format!("{numbers} \u{b7} {name}"),
+                format!("{numbers}, {name}"),
+            ),
+            None => (numbers.clone(), numbers),
+        }
+    }
+
+    fn sheet_ref(&self, index: usize) -> SheetRef {
+        SheetRef {
+            number: self.sheet_number(index),
+            label: self.sheet_label(index).0,
+        }
+    }
+
+    /// The sheet at `index`, as a snapshot gives it. The player's own has
+    /// their place, its ways and its lamp; another has none of them (L§3).
+    fn view_of(&self, index: usize) -> Option<MapView> {
+        let own = index == self.shown;
+        let on = |id: u16| self.places[&id].sheet == index;
         let places = self
             .places
             .iter()
-            .filter(|(_, spot)| spot.sheet == self.shown)
+            .filter(|(_, spot)| spot.sheet == index)
             .map(|(id, spot)| PlaceView {
                 id: *id,
                 x: spot.cell.0,
@@ -910,11 +983,13 @@ impl Map {
                 },
                 to: self.name(to),
                 sheet: self.sheet_number(self.places[&to].sheet),
+                place: to,
             });
         }
         let mut stubs = Vec::new();
         for (id, spot) in &self.places {
-            if spot.sheet != self.shown || Some(*id) == self.here {
+            // The player's own place has controls in the stubs' stead.
+            if spot.sheet != index || (own && Some(*id) == self.here) {
                 continue;
             }
             for way in spot.ways.iter().flatten() {
@@ -929,21 +1004,31 @@ impl Map {
             }
         }
         let here_name = self.here.and_then(|id| self.name(id));
-        let (note, spoken) = match (self.here, here_name) {
-            (None, _) => (
+        let (label, said) = self.sheet_label(index);
+        let (note, spoken) = match (own, self.here, here_name) {
+            (false, ..) => (None, format!("Map. {said}. You are not on this sheet.")),
+            (true, None, _) => (
                 Some(NOTE_PLACE_UNKNOWN),
                 format!("Map. {NOTE_PLACE_UNKNOWN}"),
             ),
-            (Some(_), Some(name)) => (self.ways_note, format!("Map. You are in {name}.")),
-            (Some(_), None) => (self.ways_note, "Map. You are somewhere dark.".to_string()),
+            (true, Some(_), Some(name)) => (self.ways_note, format!("Map. You are in {name}.")),
+            (true, Some(_), None) => (self.ways_note, "Map. You are somewhere dark.".to_string()),
         };
+        let here = self.here.filter(|_| own);
+        // The sheets that hold a place, in the order they were found.
+        let held: Vec<usize> = (0..self.sheets.len())
+            .filter(|&other| !self.sheets[other].cells.is_empty())
+            .collect();
+        let at = held.iter().position(|&other| other == index).unwrap_or(0);
+        let beside =
+            |step: usize| (held.len() > 1).then(|| self.sheet_ref(held[(at + step) % held.len()]));
         Some(MapView {
             note,
             spoken,
-            sheet: self.sheet_number(self.shown),
+            sheet: self.sheet_number(index),
             sheets: self.sheet_count(),
-            here: self.here,
-            lamp: match (self.here, self.dark) {
+            here,
+            lamp: match (here, self.dark) {
                 (None, _) | (_, None) => Lamp::Unknown,
                 (_, Some(true)) => Lamp::Out,
                 (_, Some(false)) => Lamp::Lit,
@@ -952,17 +1037,27 @@ impl Map {
             lines,
             leads,
             stubs,
-            ways: self.here.map(|id| self.ways(id)).unwrap_or_default(),
+            ways: here.map(|id| self.ways(id)).unwrap_or_default(),
             // The place can be touched while the game waits for a command
             // and the layer knows where the player is.
             look: self
                 .look
                 .as_ref()
-                .filter(|_| self.at_command && self.here.is_some())
+                .filter(|_| self.at_command && here.is_some())
                 .map(|word| LookView {
                     command: word.clone(),
                     spoken: crate::verbs::SPOKEN_LOOK.to_string(),
                 }),
+            own,
+            label,
+            first: self
+                .order
+                .iter()
+                .copied()
+                .find(|id| self.places[id].sheet == index),
+            before: beside(held.len().saturating_sub(1)),
+            after: beside(1),
+            back: (!own).then(|| self.sheet_ref(self.shown)),
         })
     }
 

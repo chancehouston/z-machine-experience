@@ -1484,6 +1484,137 @@ final class LamplightUITests: XCTestCase {
     }
 
     // -----------------------------------------------------------------
+    // Feature 015: the other sheets of the map
+    // (specs/015-map-sheets/contracts/sheets.md, cited A§).
+    // -----------------------------------------------------------------
+
+    /// Whether an element's middle is at the middle of the map's frame.
+    @MainActor
+    private func isCentred(_ app: XCUIApplication, _ identifier: String) -> Bool {
+        let frame = element(app, "map.frame").frame
+        let place = element(app, identifier).frame
+        return abs(place.midX - frame.midX) < 6 && abs(place.midY - frame.midY) < 6
+    }
+
+    // A§2: with one sheet the opened map says which it is and has no
+    // arrows and nothing to return to.
+    @MainActor
+    func testOneSheetHasNoArrows() {
+        let app = launch()
+        _ = turn(app, 0)
+        XCTAssertFalse(element(app, "map.sheet.label").exists, "the band has no label")
+        element(app, "button.openMap").tap()
+        let label = element(app, "map.sheet.label")
+        XCTAssertTrue(label.waitForExistence(timeout: patience))
+        XCTAssertEqual(label.label, "Sheet 1 of 1 \u{b7} West of House")
+        for absent in ["button.sheet.before", "button.sheet.after", "button.sheet.return"] {
+            XCTAssertFalse(element(app, absent).exists, absent)
+        }
+    }
+
+    // A§1 to A§6: below the house the map has a second sheet. The arrows turn
+    // to the first, which is not the player's: no lamp, no way to walk, and a
+    // way back. The way that leads down turns to the sheet it leads to, with
+    // the place it leads to in the middle. Nothing of this adds a turn, and
+    // the band shows the player's own sheet throughout.
+    @MainActor
+    func testTheOtherSheets() {
+        let app = launch()
+        _ = turn(app, 0)
+        let walk = [
+            "n", "e", "open window", "w", "w", "take lamp", "move rug", "open trap door",
+            "turn on lamp", "d", "s", "e", "n",
+        ]
+        for (index, line) in walk.enumerated() {
+            type(app, line)
+            _ = turn(app, index + 1)
+        }
+        waitForPlace(app, "Studio")
+        element(app, "button.openMap").tap()
+        let label = element(app, "map.sheet.label")
+        XCTAssertTrue(label.waitForExistence(timeout: patience))
+        XCTAssertEqual(label.label, "Sheet 2 of 2 \u{b7} Cellar")
+        XCTAssertTrue(element(app, "map.lamp").exists)
+        XCTAssertFalse(element(app, "button.sheet.return").exists, "this is the player's sheet")
+        let before = element(app, "button.sheet.before")
+        XCTAssertEqual(before.label, "Sheet 1 of 2 \u{b7} West of House")
+        XCTAssertGreaterThanOrEqual(before.frame.width, 43.99)
+
+        // The sheet before: the house, where the player is not.
+        before.tap()
+        expectation(
+            for: NSPredicate(format: "label == %@", "Sheet 1 of 2 \u{b7} West of House"),
+            evaluatedWith: label)
+        waitForExpectations(timeout: patience)
+        XCTAssertFalse(element(app, "map.lamp").exists)
+        XCTAssertFalse(element(app, "map.here").exists)
+        let ways = app.descendants(matching: .any)
+            .matching(NSPredicate(format: "identifier BEGINSWITH %@", "compass."))
+        XCTAssertEqual(ways.count, 0, "no way can be walked from another sheet")
+        XCTAssertEqual(element(app, "map").label, "Map. Sheet 1 of 2, West of House. You are not on this sheet.")
+        XCTAssertTrue(noTurn(app, walk.count + 1))
+
+        // The way that leads down, to the Cellar's sheet, which is the
+        // player's: the Cellar is in the middle.
+        let lead = element(app, "map.lead.0")
+        XCTAssertTrue(lead.waitForExistence(timeout: patience))
+        XCTAssertGreaterThanOrEqual(lead.frame.width, 43.99)
+        XCTAssertGreaterThanOrEqual(lead.frame.height, 43.99)
+        // The sheet is shown from its first place; the way is off to one
+        // side, and the sheet is dragged to bring it in, as a player would.
+        let sheet = element(app, "map.frame")
+        for _ in 0..<5 where !sheet.frame.insetBy(dx: 30, dy: 60).contains(
+            CGPoint(x: lead.frame.midX, y: lead.frame.midY))
+        {
+            let dx: CGFloat = lead.frame.midX < sheet.frame.midX ? 0.85 : 0.15
+            let dy: CGFloat = lead.frame.midY < sheet.frame.midY ? 0.8 : 0.4
+            sheet.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.6))
+                .press(
+                    forDuration: 0.1,
+                    thenDragTo: sheet.coordinate(withNormalizedOffset: CGVector(dx: dx, dy: dy)))
+        }
+        XCTAssertTrue(noTurn(app, walk.count + 1), "dragging sent nothing")
+        lead.tap()
+        expectation(
+            for: NSPredicate(format: "label == %@", "Sheet 2 of 2 \u{b7} Cellar"),
+            evaluatedWith: label)
+        waitForExpectations(timeout: patience)
+        XCTAssertTrue(element(app, "map.lamp").exists, "the player's sheet has their lamp")
+        let cellar = app.descendants(matching: .any)
+            .matching(NSPredicate(format: "identifier BEGINSWITH %@ AND label == %@", "map.place.", "Cellar"))
+            .firstMatch
+        let frame = element(app, "map.frame").frame
+        XCTAssertEqual(cellar.frame.midX, frame.midX, accuracy: 6)
+        XCTAssertEqual(cellar.frame.midY, frame.midY, accuracy: 6)
+
+        // Round again by the other arrow, and back by the return control.
+        element(app, "button.sheet.after").tap()
+        let back = element(app, "button.sheet.return")
+        XCTAssertTrue(back.waitForExistence(timeout: patience))
+        XCTAssertEqual(back.label, "Sheet 2 of 2 \u{b7} Cellar")
+        back.tap()
+        XCTAssertTrue(element(app, "map.here").waitForExistence(timeout: patience))
+        XCTAssertFalse(back.exists)
+        XCTAssertTrue(isCentred(app, "map.here"))
+
+        // Another sheet, and the map closed: the band is the player's own.
+        before.tap()
+        XCTAssertTrue(back.waitForExistence(timeout: patience))
+        element(app, "button.closeMap").tap()
+        XCTAssertTrue(element(app, "button.openMap").waitForExistence(timeout: patience))
+        XCTAssertTrue(element(app, "map.here").waitForExistence(timeout: patience))
+        XCTAssertEqual(element(app, "map.here").label, "Studio")
+        XCTAssertEqual(element(app, "map").label, "Map. You are in Studio.")
+        XCTAssertFalse(label.exists)
+        XCTAssertFalse(element(app, "map.lead.0").exists, "in the band a way off the sheet is not a button")
+        // Opened again, it is their own sheet.
+        element(app, "button.openMap").tap()
+        XCTAssertTrue(label.waitForExistence(timeout: patience))
+        XCTAssertEqual(label.label, "Sheet 2 of 2 \u{b7} Cellar")
+        XCTAssertTrue(noTurn(app, walk.count + 1))
+    }
+
+    // -----------------------------------------------------------------
     // Feature 014: the inventory card
     // (specs/014-inventory-card/contracts/card.md, cited A§).
     // -----------------------------------------------------------------

@@ -356,6 +356,7 @@ fn the_header_and_the_library_agree() {
             "zmx_session_new_with_pack",
             "zmx_session_open",
             "zmx_session_send_line",
+            "zmx_session_sheet",
             "zmx_session_snapshot",
             "zmx_session_tap",
             "zmx_session_tap_action",
@@ -621,6 +622,44 @@ fn a_kept_game_crosses_the_boundary_and_comes_back() {
     for session in [first, second, third, quiet] {
         zmx_session_free(session);
     }
+}
+
+// specs/015-map-sheets/contracts/sheets.md, L§7, S§1: a sheet of the map is
+// asked for by its number and returned in the form of the snapshot's `map`,
+// with nothing sent to the game.
+#[test]
+fn a_sheet_of_the_map_crosses_the_boundary() {
+    let session = open();
+    let before = snapshot(session, 0);
+    let pointer = zmx_session_sheet(session, 1, 1, 1);
+    assert!(!pointer.is_null());
+    // SAFETY: a NUL-terminated string the interface owns until it is freed.
+    let sheet = unsafe { CStr::from_ptr(pointer) }
+        .to_str()
+        .expect("UTF-8")
+        .to_string();
+    zmx_string_free(pointer);
+    assert!(
+        sheet.starts_with(
+            r#"{"note":null,"spoken":"Map. You are in West of House.","sheet":1,"sheets":1,"#
+        ),
+        "{sheet}"
+    );
+    assert!(
+        sheet.contains(r#""own":true,"label":"Sheet 1 of 1"#),
+        "{sheet}"
+    );
+    assert!(
+        before.contains(&format!(r#""map":{sheet}"#)),
+        "it is the snapshot's own map"
+    );
+    assert_eq!(snapshot(session, 0), before, "the game has not moved");
+    // A stale stamp, a number with no sheet and a null session: nothing.
+    assert!(zmx_session_sheet(session, 1, 0, 1).is_null());
+    assert!(zmx_session_sheet(session, 1, 1, 2).is_null());
+    assert!(zmx_session_sheet(session, 1, 1, 0).is_null());
+    assert!(zmx_session_sheet(std::ptr::null_mut(), 1, 1, 1).is_null());
+    zmx_session_free(session);
 }
 
 // specs/014-inventory-card/contracts/card.md, S§2, L§3, L§8: an item's card

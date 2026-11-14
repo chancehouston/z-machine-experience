@@ -78,6 +78,17 @@ states and spoken labels the compass had.
   sheet has the transcript's room as well, the keyboard goes down, and the sheet can
   be dragged as far as its outermost places. A way can be walked from there. The
   button, or a touch on the command field, brings the band and the keyboard back.
+- **The other sheets** (`specs/015-map-sheets/`). Opened out, the map says which
+  sheet is shown ("Sheet 2 of 11 · Cellar", the layer's words) and can be turned
+  to any other: by a touch on a way that leaves the sheet, which turns to the
+  sheet it leads to with the place it leads to in the middle; or by the two
+  arrows, which go round the sheets in the order they were found. A sheet the
+  player is not on has no lamp and no way to walk, and a control that returns to
+  where they are. Turning a sheet sends the game nothing (`zmx_session_sheet`
+  only reads). The band always shows the player's own sheet, and closing the map
+  or any new turn returns to it. Identifiers: `map.sheet.label`,
+  `button.sheet.before`, `button.sheet.after`, `button.sheet.return`,
+  `map.lead.<n>`.
 - **Drawn as by hand.** A place's outline is a little uneven, worked out from the
   place's id so that it is the same each time; lines bow slightly. A new place and
   its line are drawn in over a quarter of a second and the view glides to the

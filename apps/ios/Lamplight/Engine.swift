@@ -101,6 +101,15 @@ actor Engine {
         return snapshot(since: showing.turnCount)
     }
 
+    /// A sheet of the map by its number. Nothing is sent to the game.
+    func sheet(number: Int, showing: Snapshot) -> MapSheet? {
+        guard let json = zmx_session_sheet(session, showing.generation, showing.turnCount, number)
+        else { return nil }
+        defer { zmx_string_free(json) }
+        let data = Data(bytes: json, count: strlen(json))
+        return try? JSONDecoder().decode(MapSheet.self, from: data)
+    }
+
     /// The card for a carried item, by its place among the shown items.
     /// Nothing is sent to the game.
     func card(index: Int, showing: Snapshot) -> Card? {
