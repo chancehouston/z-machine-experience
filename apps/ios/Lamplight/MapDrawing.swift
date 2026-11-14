@@ -1,11 +1,135 @@
 import SwiftUI
 
+/// The hand the map is drawn in: outlines and lines that are a little
+/// uneven, as pencil on paper is, and always uneven in the same way. Every
+/// unevenness is worked out from a number the snapshot gave (a place's id),
+/// so a place looks the same each time it is drawn (contract A§10).
+enum MapHand {
+    /// `-showMapHand` adds elements that tests read: each place's outline,
+    /// and whether the map moves.
+    static let shown = ProcessInfo.processInfo.arguments.contains("-showMapHand")
+    /// `-reduceMotion` draws the map as the system's Reduce Motion does.
+    static let stillAsked = ProcessInfo.processInfo.arguments.contains("-reduceMotion")
+
+    /// Numbers between -1 and 1 that follow from a seed alone.
+    struct Run {
+        private var state: UInt64
+
+        init(seed: Int) {
+            state = UInt64(bitPattern: Int64(seed)) &* 0x9E37_79B9_7F4A_7C15 &+ 0xD1B5_4A32_D192_ED03
+        }
+
+        mutating func next() -> CGFloat {
+            state &+= 0x9E37_79B9_7F4A_7C15
+            var z = state
+            z = (z ^ (z >> 30)) &* 0xBF58_476D_1CE4_E5B9
+            z = (z ^ (z >> 27)) &* 0x94D0_49BB_1331_11EB
+            z ^= z >> 31
+            return CGFloat(z >> 11) / CGFloat(UInt64(1) << 53) * 2 - 1
+        }
+    }
+
+    /// What a place's outline is drawn from: how far each of its four
+    /// corners is moved, across and down, and how far each side bows.
+    static func wobble(seed: Int) -> [CGFloat] {
+        var run = Run(seed: seed)
+        return (0..<12).map { _ in run.next() }
+    }
+
+    /// The outline's numbers as text, for tests.
+    static func outline(seed: Int) -> String {
+        wobble(seed: seed).map { String(Int(($0 * 100).rounded())) }.joined(separator: " ")
+    }
+
+    /// A line from one point to another that bows a little to one side.
+    static func line(from: CGPoint, to: CGPoint, seed: Int, bow: CGFloat = 2.2) -> Path {
+        var run = Run(seed: seed)
+        let length = max(hypot(to.x - from.x, to.y - from.y), 1)
+        let across = CGPoint(x: -(to.y - from.y) / length, y: (to.x - from.x) / length)
+        let along = 0.5 + run.next() * 0.15
+        let aside = run.next() * bow
+        var path = Path()
+        path.move(to: from)
+        path.addQuadCurve(
+            to: to,
+            control: CGPoint(
+                x: from.x + (to.x - from.x) * along + across.x * aside,
+                y: from.y + (to.y - from.y) * along + across.y * aside))
+        return path
+    }
+}
+
+/// A place's outline: a box whose corners are not quite square and whose
+/// sides are not quite straight.
+struct PencilBox: Shape {
+    let seed: Int
+
+    func path(in rect: CGRect) -> Path {
+        let wobble = MapHand.wobble(seed: seed)
+        let reach: CGFloat = 1.6
+        let inner = rect.insetBy(dx: 2.2, dy: 2.2)
+        let square = [
+            CGPoint(x: inner.minX, y: inner.minY), CGPoint(x: inner.maxX, y: inner.minY),
+            CGPoint(x: inner.maxX, y: inner.maxY), CGPoint(x: inner.minX, y: inner.maxY),
+        ]
+        let corners = square.indices.map { index in
+            CGPoint(
+                x: square[index].x + wobble[index * 2] * reach,
+                y: square[index].y + wobble[index * 2 + 1] * reach)
+        }
+        var path = Path()
+        path.move(to: corners[0])
+        for index in corners.indices {
+            let from = corners[index]
+            let to = corners[(index + 1) % corners.count]
+            let length = max(hypot(to.x - from.x, to.y - from.y), 1)
+            let bow = wobble[8 + index] * 1.4
+            path.addQuadCurve(
+                to: to,
+                control: CGPoint(
+                    x: (from.x + to.x) / 2 - (to.y - from.y) / length * bow,
+                    y: (from.y + to.y) / 2 + (to.x - from.x) / length * bow))
+        }
+        path.closeSubpath()
+        return path
+    }
+}
+
+/// A line that is drawn in from its start when it first appears, over a
+/// quarter of a second; at once where the map is to be still (FR-029).
+private struct DrawnIn: View {
+    let path: Path
+    let color: Color
+    let style: StrokeStyle
+    let still: Bool
+
+    @State private var drawn = false
+
+    var body: some View {
+        path
+            .trim(from: 0, to: drawn || still ? 1 : 0)
+            .stroke(color, style: style)
+            .onAppear {
+                if still {
+                    drawn = true
+                } else {
+                    withAnimation(.easeOut(duration: 0.25)) { drawn = true }
+                }
+            }
+    }
+}
+
 /// Draws a sheet of the map as the snapshot gives it: places at their
 /// positions, the lines between them, the ways seen and not walked, and the
 /// ways that lead off the sheet. It decides nothing: which places there are,
 /// where each is, and which line is straight are the layer's.
 struct MapDrawing: View {
     let map: MapSheet
+    /// Whether nothing is to be drawn in: Reduce Motion.
+    let still: Bool
+
+    /// The pencil's colour.
+    private let pencil = Color.primary.opacity(0.82)
 
     private func place(_ id: Int) -> MapPlace? {
         map.places.first { $0.id == id }
@@ -13,8 +137,8 @@ struct MapDrawing: View {
 
     var body: some View {
         ZStack(alignment: .topLeading) {
-            ForEach(map.lines.indices, id: \.self) { index in
-                line(map.lines[index])
+            ForEach(map.lines, id: \.key) { line in
+                self.line(line)
             }
             ForEach(map.stubs.indices, id: \.self) { index in
                 stub(map.stubs[index])
@@ -29,15 +153,17 @@ struct MapDrawing: View {
     }
 
     /// A place: a box with its name. One seen only in the dark has no name,
-    /// and is filled in.
+    /// and is filled in. The place the player is in carries the lamp.
     private func box(_ place: MapPlace) -> some View {
         let size = MapLayout.size(place)
         let here = place.id == map.here
-        return RoundedRectangle(cornerRadius: 4)
+        return PencilBox(seed: place.id)
             .fill(place.name == nil ? Color.secondary.opacity(0.35) : Color(.systemBackground))
             .overlay {
-                RoundedRectangle(cornerRadius: 4)
-                    .strokeBorder(here ? Color.accentColor : Color.primary, lineWidth: here ? 2.5 : 1.2)
+                PencilBox(seed: place.id)
+                    .stroke(
+                        here ? Color.accentColor : pencil,
+                        style: StrokeStyle(lineWidth: here ? 2.4 : 1.3, lineCap: .round, lineJoin: .round))
             }
             .overlay {
                 Text(verbatim: place.name ?? "")
@@ -45,7 +171,7 @@ struct MapDrawing: View {
                     .multilineTextAlignment(.center)
                     .lineLimit(2)
                     .minimumScaleFactor(0.7)
-                    .padding(.horizontal, 3)
+                    .padding(.horizontal, 5)
             }
             .frame(width: size.width, height: size.height)
             .accessibilityElement(children: .ignore)
@@ -62,6 +188,33 @@ struct MapDrawing: View {
                         .accessibilityIdentifier("map.place.\(place.id)")
                 }
             }
+            // The marker: a lamp at the corner of the place the player is
+            // in, lit or out as the layer says (S§2).
+            .overlay(alignment: .topLeading) {
+                if here {
+                    Image(systemName: MapLayout.lampSymbol(for: map.lamp))
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(MapLayout.lampIsLit(map.lamp) ? Color.orange : Color.secondary)
+                        .frame(width: 20, height: 20)
+                        .background(Circle().fill(Color(.systemBackground)))
+                        .overlay(Circle().strokeBorder(Color.accentColor, lineWidth: 1.2))
+                        .accessibilityElement()
+                        .accessibilityLabel(Text(verbatim: map.lamp))
+                        .accessibilityValue(Text(verbatim: map.lamp))
+                        .accessibilityIdentifier("map.lamp")
+                        .offset(x: -9, y: -9)
+                }
+            }
+            .overlay(alignment: .bottomTrailing) {
+                if MapHand.shown {
+                    Color.clear
+                        .frame(width: 1, height: 1)
+                        .accessibilityElement()
+                        .accessibilityValue(Text(verbatim: MapHand.outline(seed: place.id)))
+                        .accessibilityIdentifier("map.outline.\(place.id)")
+                }
+            }
+            .modifier(AppearingIn(still: still))
             .position(MapLayout.point(place))
     }
 
@@ -71,36 +224,40 @@ struct MapDrawing: View {
         if let a = place(line.a), let b = place(line.b) {
             let from = MapLayout.point(a)
             let to = MapLayout.point(b)
+            let seed = line.a &* 8191 &+ line.b
             switch line.kind {
             case "straight":
-                Path { path in
-                    path.move(to: from)
-                    path.addLine(to: to)
-                }
-                .stroke(Color.primary, lineWidth: 1.6)
+                DrawnIn(
+                    path: MapHand.line(from: from, to: to, seed: seed),
+                    color: pencil,
+                    style: StrokeStyle(lineWidth: 1.6, lineCap: .round),
+                    still: still)
             case "ladder":
                 // Rungs: a mark that cannot be taken for a compass line.
-                Path { path in
-                    path.move(to: from)
-                    path.addLine(to: to)
-                }
-                .stroke(Color.primary, style: StrokeStyle(lineWidth: 7, dash: [1.5, 4]))
+                DrawnIn(
+                    path: MapHand.line(from: from, to: to, seed: seed, bow: 0.8),
+                    color: pencil,
+                    style: StrokeStyle(lineWidth: 7, dash: [1.5, 4]),
+                    still: still)
             case "bent":
                 // It leaves each end the way it was walked.
-                Path { path in
-                    path.move(to: from)
-                    path.addCurve(
-                        to: to,
-                        control1: lean(from, by: line.out, toward: to),
-                        control2: lean(to, by: line.back, toward: from))
-                }
-                .stroke(Color.primary, style: StrokeStyle(lineWidth: 1.4, lineCap: .round))
+                DrawnIn(
+                    path: Path { path in
+                        path.move(to: from)
+                        path.addCurve(
+                            to: to,
+                            control1: lean(from, by: line.out, toward: to),
+                            control2: lean(to, by: line.back, toward: from))
+                    },
+                    color: pencil,
+                    style: StrokeStyle(lineWidth: 1.4, lineCap: .round),
+                    still: still)
             default:
-                Path { path in
-                    path.move(to: from)
-                    path.addLine(to: to)
-                }
-                .stroke(Color.secondary, style: StrokeStyle(lineWidth: 1.4, lineCap: .round, dash: [2, 5]))
+                DrawnIn(
+                    path: MapHand.line(from: from, to: to, seed: seed),
+                    color: .secondary,
+                    style: StrokeStyle(lineWidth: 1.4, lineCap: .round, dash: [2, 5]),
+                    still: still)
             }
         }
     }
@@ -167,6 +324,27 @@ struct MapDrawing: View {
                     .position(x: end.x, y: end.y + (end.y >= start.y ? 8 : -8))
             }
         }
+    }
+}
+
+/// A place that comes into view when it is first drawn, over a quarter of a
+/// second; at once where the map is to be still.
+private struct AppearingIn: ViewModifier {
+    let still: Bool
+
+    @State private var shown = false
+
+    func body(content: Content) -> some View {
+        content
+            .opacity(shown || still ? 1 : 0)
+            .scaleEffect(shown || still ? 1 : 0.92)
+            .onAppear {
+                if still {
+                    shown = true
+                } else {
+                    withAnimation(.easeOut(duration: 0.25)) { shown = true }
+                }
+            }
     }
 }
 

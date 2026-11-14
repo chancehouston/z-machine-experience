@@ -749,3 +749,88 @@ fn the_same_turns_give_the_same_page() {
     assert_eq!(build().view(), build().view());
     assert!(build().page().len() >= 6);
 }
+
+// W§12a: in a place seen only in the dark, a way is offered when the layer
+// says it leads to a place the player walked here from. Nothing else of the
+// place is told, and where the way leads is not named until walked (W§7).
+#[test]
+fn in_the_dark_the_way_back_is_offered() {
+    let mut map = Map::new(true);
+    at(&mut map, None, 10, "Kitchen", &[(Up, Open, Some("Attic"))]);
+    let mut attic = At::room(
+        Some("up"),
+        11,
+        "Attic",
+        &[(Down, Open, Some("Kitchen")), (East, Open, Some("Loft"))],
+    );
+    attic.dark = Some(true);
+    attic.feed(&mut map);
+    let view = map.view().unwrap();
+    assert_eq!(view.places[1].name, None);
+    assert_eq!(view.ways.len(), 1, "only the way back: {:?}", view.ways);
+    let back = &view.ways[0];
+    assert_eq!(
+        (back.way.as_str(), back.command.as_deref(), &back.leads_to),
+        ("down", Some("down"), &None)
+    );
+    assert_eq!(back.spoken, "Down");
+    // Walked, it is the way back along the line already drawn.
+    at(
+        &mut map,
+        Some("down"),
+        10,
+        "Kitchen",
+        &[(Up, Open, Some("Attic"))],
+    );
+    let view = map.view().unwrap();
+    assert_eq!(view.lines.len(), 1);
+    assert_eq!(view.lines[0].back.as_deref(), Some("down"));
+    assert!(view.stubs.is_empty(), "the attic's ways were not seen");
+}
+
+// W§12a: a way that does not lead back where the player came from is not
+// offered in the dark, whatever the layer knows of it.
+#[test]
+fn in_the_dark_no_other_way_is_offered() {
+    let mut map = Map::new(true);
+    at(
+        &mut map,
+        None,
+        10,
+        "Kitchen",
+        &[(Down, Open, Some("Cellar"))],
+    );
+    let mut cellar = At::room(
+        Some("down"),
+        11,
+        "Cellar",
+        &[(North, Open, Some("Passage")), (Up, Door, None)],
+    );
+    cellar.dark = Some(true);
+    cellar.feed(&mut map);
+    assert!(map.view().unwrap().ways.is_empty());
+}
+
+// S§8: a place whose ways are known, and that has none, says so; not in the
+// dark, where nothing of the place is told.
+#[test]
+fn a_place_with_no_ways_says_so() {
+    let feed = |map: &mut Map, dark: bool| {
+        let mut compass = compass_of(&[], &[]);
+        compass.note = Some(crate::NOTE_NONE);
+        map.observe(Observation {
+            sent: None,
+            waiting: Waiting::Command,
+            room: Some((10, Some("Pit".to_string()))),
+            dark: Some(dark),
+            compass: &compass,
+            jumped: false,
+        });
+    };
+    let mut map = Map::new(true);
+    feed(&mut map, false);
+    assert_eq!(map.view().unwrap().note, Some(crate::NOTE_NONE));
+    let mut map = Map::new(true);
+    feed(&mut map, true);
+    assert_eq!(map.view().unwrap().note, None);
+}

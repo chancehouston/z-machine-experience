@@ -22,6 +22,12 @@ Four parts: what is witnessed (W), where places go (P), the snapshot (S), the sc
   such a place; no line not walked.
 - **W§12** A place seen only in the dark has no name and no stubs. Light reported as
   unknown counts as not dark.
+- **W§12a** In a place seen only in the dark, a way is offered when it is an open
+  way that the layer says leads to a place the player has walked between and here:
+  the way back. It is one of `ways` with a command; where it leads is not named
+  until it is walked (W§7), and it is never a stub. No other way of the place is
+  told. (Added 2026-11-14 by the owner's ruling after the phone trial of stage 2:
+  "Offer the way back".)
 - **W§13** Where the layer cannot say where the player is, nothing is added, the
   marker is "not known", and the place the next line starts from is not known either:
   the next arrival is recorded with no line.
@@ -139,7 +145,9 @@ A key `map` after `start_over`. `null` when the layer does not recognise the gam
   (W§8); `refused` is also true for an offered way that was tried and did not move
   the player. `returns` marks W§16 and `varies` W§10.
 - **S§8** `note` is the layer's words where there is something to say in place of the
-  map: that the ways here are not known, or that the player's place is not known.
+  map: that the ways here are not known; that they are known and there are none
+  ("No exits here", not said of a place in the dark; added 2026-11-14 by the
+  owner's ruling); or that the player's place is not known.
 - **S§9** `spoken` is the layer's summary for a screen reader.
 - **S§10** The snapshot's other keys are unchanged. `compass` is still given.
 

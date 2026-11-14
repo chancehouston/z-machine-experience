@@ -135,15 +135,15 @@ places stood in, each where first put, joined by exactly the lines walked.
 
 ## Phase 9: User Story 4 - I can open the map out (P1)
 
-- [ ] T046 [US4] Add `testOpeningTheMapOutAndBack`: walk twelve places; touch `button.openMap`; the keyboard is not shown and the sheet fills the space of band and transcript; drag to bring the farthest place into view; tap a way of the current place and stay on the sheet; touch `button.closeMap`, then separately the command field: the band and keyboard are back and the current place is centred (A§8, US4 scenarios 1 to 5). See it fail
-- [ ] T047 [US4] Implement opening out in `apps/ios/Lamplight/MapBand.swift` and `GameView.swift`: the pull and the button, the drag with limits at the sheet's edges, the return. T046 passes
+- [x] T046 [US4] Add `testOpeningTheMapOutAndBack`: walk twelve places; touch `button.openMap`; the keyboard is not shown and the sheet fills the space of band and transcript; drag to bring the farthest place into view; tap a way of the current place and stay on the sheet; touch `button.closeMap`, then separately the command field: the band and keyboard are back and the current place is centred (A§8, US4 scenarios 1 to 5). See it fail
+- [x] T047 [US4] Implement opening out in `apps/ios/Lamplight/MapBand.swift` and `GameView.swift`: the pull and the button, the drag with limits at the sheet's edges, the return. T046 passes
 
 ## Phase 10: User Story 7 - Drawn by hand, and alive (P2)
 
-- [ ] T048 [US7] Add tests: `testAPlaceIsDrawnTheSameEachTime` (a debug-only element exposes each place's outline seed, equal across two launches of a kept game; A§10); `testTheLampIsOutInTheDark` (the marker's value is `out` in the Attic unlit and `lit` in the Kitchen; S§2); `testReducedMotion` with the launch argument that sets it (no animation is pending after a move); and extend `testTheLargestTextSize` so that every way's button is at least 44 points and names are not clipped to nothing. See them fail
-- [ ] T049 [US7] In `apps/ios/Lamplight/MapDrawing.swift` give outlines and lines a pencil wobble worked out from the place's id; draw new lines and places in by `trim` over a quarter of a second and glide the view (FR-029), at once with Reduce Motion; draw the marker as a lamp, lit or out. T048 passes
-- [ ] T050 Run `scripts/build-ios.sh`, `scripts/test-ios.sh 27` and `scripts/test-ios.sh 26`; record the counts. Update the READMEs for opening out and the look
-- [ ] T051 Build for the owner's phone and walk quickstart "Stage 3, by hand" with the owner (SC-009): twenty rooms, opening the map out; does the page read as the places walked; what would they have drawn differently. Record what they say, in their words
+- [x] T048 [US7] Add tests: `testAPlaceIsDrawnTheSameEachTime` (a debug-only element exposes each place's outline seed, equal across two launches of a kept game; A§10); `testTheLampIsOutInTheDark` (the marker's value is `out` in the Attic unlit and `lit` in the Kitchen; S§2); `testReducedMotion` with the launch argument that sets it (no animation is pending after a move); and extend `testTheLargestTextSize` so that every way's button is at least 44 points and names are not clipped to nothing. See them fail
+- [x] T049 [US7] In `apps/ios/Lamplight/MapDrawing.swift` give outlines and lines a pencil wobble worked out from the place's id; draw new lines and places in by `trim` over a quarter of a second and glide the view (FR-029), at once with Reduce Motion; draw the marker as a lamp, lit or out. T048 passes
+- [x] T050 Run `scripts/build-ios.sh`, `scripts/test-ios.sh 27` and `scripts/test-ios.sh 26`; record the counts. Update the READMEs for opening out and the look
+- [x] T051 Build for the owner's phone and walk quickstart "Stage 3, by hand" with the owner (SC-009): twenty rooms, opening the map out; does the page read as the places walked; what would they have drawn differently. Record what they say, in their words
 
 **Stage 3 ends here: one pull request.**
 
@@ -385,3 +385,50 @@ keyboard does not lower it; the finger has to go on into the keyboard.
   mark for a way into the dark is looked for in `MapDrawing.swift`; a new rule holds
   the app to reading no compass.
 - `crates/zmachine-ffi/tests/abi.rs`: the list of declared functions gains one.
+
+## Record of stage 3 (2026-11-14)
+
+**Two rulings of the owner came first**, from the phone trial of stage 2, and are in
+the layer: in a place seen only in the dark the way back is offered (contract W§12a,
+FR-016a), and "No exits here" is shown where a lit place's ways are known and there
+are none (S§8, FR-016b). The tangle after wandering was put off by the owner until
+the opened-out sheet could be judged ("Stage 3 first, then decide").
+
+**Test-first, as it was done.**
+
+- **Written first and seen failing**: in the layer, `in_the_dark_the_way_back_is_offered`
+  (no way given) and `a_place_with_no_ways_says_so` (no note). In the app,
+  `testOpeningTheMapOutAndBack` (no `button.openMap`), `testAPlaceIsDrawnTheSameEachTime`
+  and `testReducedMotion` (no `map.motion`), `testTheLampIsOutInTheDark` (no
+  `map.lamp`), and the added lines of `testTheLargestTextSize` (no `button.openMap`).
+- **Passed when written**: `in_the_dark_no_other_way_is_offered`, which guards the
+  new rule's limit and held before it.
+- **Changed with the code**: `the_attic_has_no_name_until_it_is_seen_lit` (Zork I's
+  unlit Attic now offers down and nothing else), `testWalkingToTheKitchenByTheMap`
+  and `testDarknessIsWarnedOf` (the way back out of the Attic is touched, not typed).
+- All five app tests passed the first time the views existed.
+
+**Where the tests are thinner than the tasks asked.**
+
+- T046 walks eight places, not twelve, and does not prove "the farthest place is
+  brought into view": it proves that every place moves with the finger, and that
+  after dragging far a place is still within the sheet's frame (the limit).
+- T046 opens by the button. Pulling the band down is built and not tested.
+- `testReducedMotion` reads what the app says it is doing (`map.motion`) and that
+  the place is in the middle once a move is answered. A test cannot see whether an
+  animation ran. The system's own Reduce Motion setting is read as well as the
+  launch argument; only the argument is tested.
+- `testAPlaceIsDrawnTheSameEachTime` compares the numbers each outline is drawn
+  from, across two launches. It does not compare pixels.
+- Drawing in (lines by `trim`, places fading in) was looked at in the simulator by
+  me, not tested.
+
+**Counts.** Workspace: `cargo test --workspace` with no failure; `cargo clippy` clean
+but for the spike's untracked example. App: 49 tests on iOS 27.2 (iPhone 18 Pro) and
+49 on iOS 26.0 (iPhone 17 Pro), one skipped on each (`testScreenshots`), no failure.
+
+**T051 (the owner's phone, SC-009)**: installed on the owner's iPhone 15 Pro on
+2026-11-14. Asked whether the opened-out map works on the phone, they said: "Yes, it
+works". They were also asked whether the page reads as the places walked, what they
+would have drawn differently by hand, and what to do about the tangle after
+wandering; they have not answered those, so SC-009's two questions stand open.

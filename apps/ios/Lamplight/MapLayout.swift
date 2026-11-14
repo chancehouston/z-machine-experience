@@ -96,6 +96,19 @@ enum MapLayout {
         }
     }
 
+    /// The symbol for the marker's lamp, from the layer's word for it.
+    static func lampSymbol(for lamp: String) -> String {
+        switch lamp {
+        case "lit": "lightbulb.fill"
+        case "out": "lightbulb.slash"
+        default: "lightbulb"
+        }
+    }
+
+    static func lampIsLit(_ lamp: String) -> Bool {
+        lamp == "lit"
+    }
+
     /// Whether the way's name is written under its symbol: the four that are
     /// not points of the compass.
     static func isCaptioned(_ way: String) -> Bool {

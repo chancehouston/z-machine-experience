@@ -375,9 +375,11 @@ final class LamplightUITests: XCTestCase {
         element(app, "compass.up").tap()
         waitForPlace(app, "Attic")
         // The Attic is dark and has never been seen: the map shows no way
-        // out of it, and the way back is typed.
-        XCTAssertFalse(element(app, "compass.down").exists)
-        app.typeText("down\n")
+        // out of it but the way back (W§12a), and does not name where it
+        // leads until it is walked.
+        XCTAssertEqual(element(app, "compass.down").label, "Down")
+        XCTAssertFalse(element(app, "compass.up").exists)
+        element(app, "compass.down").tap()
         waitForPlace(app, "Kitchen")
         // Walked both ways now: each end names the other.
         // The Attic has no name yet: it has only been stood in dark.
@@ -641,10 +643,10 @@ final class LamplightUITests: XCTestCase {
         let note = element(app, "light.note")
         XCTAssertTrue(note.waitForExistence(timeout: patience))
         XCTAssertEqual(note.label, "It is dark")
-        // The Attic has only been stood in dark: the map shows no way out of
-        // it (feature 012, W§12), and the way back is typed.
-        XCTAssertNil(way(app, "down"))
-        type(app, "down")
+        // The Attic has only been stood in dark: the map shows the way back
+        // and no other (feature 012, W§12a).
+        XCTAssertEqual(way(app, "down"), "open")
+        element(app, "compass.down").tap()
         waitForPlace(app, "Kitchen")
         XCTAssertFalse(note.exists)
         element(app, "compass.west").tap()
@@ -1282,6 +1284,182 @@ final class LamplightUITests: XCTestCase {
         XCTAssertTrue(element(app, "turn.31.text").isHittable)
     }
 
+    // -----------------------------------------------------------------
+    // Feature 012, stage 3: the sheet opened out, and the hand
+    // (specs/012-map-first-slice/contracts/map.md, A§8 and A§10).
+    // -----------------------------------------------------------------
+
+    /// The frames of the places drawn, by identifier.
+    @MainActor
+    private func placeFrames(_ app: XCUIApplication) -> [String: CGRect] {
+        let found = app.descendants(matching: .any)
+            .matching(NSPredicate(format: "identifier BEGINSWITH %@", "map.place."))
+        var frames: [String: CGRect] = [:]
+        for index in 0..<found.count {
+            let place = found.element(boundBy: index)
+            frames[place.identifier] = place.frame
+        }
+        return frames
+    }
+
+    // A§8; US4 scenarios 1 to 5: the band opens out to the sheet with the
+    // keyboard down; the sheet is dragged, and stops at its edge; a way is
+    // walked without leaving the sheet; the button, and separately the
+    // command field, bring back the band and the keyboard with the player's
+    // place in the middle.
+    @MainActor
+    func testOpeningTheMapOutAndBack() {
+        let app = launch()
+        _ = turn(app, 0)
+        // Eight places, round the house and into the forest.
+        let walk = ["n", "n", "n", "s", "s", "e", "e", "w", "s", "s"]
+        for (index, line) in walk.enumerated() {
+            type(app, line)
+            _ = turn(app, index + 1)
+        }
+        XCTAssertEqual(placesDrawn(app), 8)
+        let frame = element(app, "map.frame")
+        let band = frame.frame
+        XCTAssertTrue(fieldHasTheKeyboard(app))
+
+        element(app, "button.openMap").tap()
+        let close = element(app, "button.closeMap")
+        XCTAssertTrue(close.waitForExistence(timeout: patience))
+        let down = NSPredicate { _, _ in !self.fieldHasTheKeyboard(app) }
+        expectation(for: down, evaluatedWith: nil)
+        waitForExpectations(timeout: patience)
+        XCTAssertFalse(element(app, "transcript").exists, "the sheet has the transcript's room")
+        let opened = frame.frame
+        XCTAssertGreaterThan(opened.height, band.height + 200, "\(opened)")
+        XCTAssertEqual(opened.minY, band.minY, accuracy: 1)
+        XCTAssertTrue(element(app, "field.command").exists)
+
+        // A way of the place the player is in is walked from the sheet.
+        let before = element(app, "map.here").label
+        element(app, "compass.north").tap()
+        expectation(
+            for: NSPredicate(format: "label != %@", before), evaluatedWith: element(app, "map.here"))
+        waitForExpectations(timeout: patience)
+        XCTAssertTrue(close.exists, "still on the sheet")
+        XCTAssertFalse(fieldHasTheKeyboard(app))
+
+        // Dragged: every place moves with the finger.
+        let start = placeFrames(app)
+        let from = frame.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.3))
+        from.press(
+            forDuration: 0.1,
+            thenDragTo: frame.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.6)))
+        let moved = placeFrames(app)
+        let here = element(app, "map.here").identifier
+        XCTAssertEqual(start.count, moved.count)
+        for (place, was) in start where place != here {
+            let now = moved[place] ?? .zero
+            XCTAssertGreaterThan(now.midY, was.midY + 60, place)
+            XCTAssertEqual(now.midX, was.midX, accuracy: 30, place)
+        }
+        // Dragged far: it stops with the sheet still in view.
+        for _ in 0..<4 {
+            from.press(
+                forDuration: 0.1,
+                thenDragTo: frame.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.95)))
+        }
+        let room = frame.frame
+        XCTAssertTrue(
+            placeFrames(app).values.contains { room.contains(CGPoint(x: $0.midX, y: $0.midY)) },
+            "a place is still within the sheet's frame")
+
+        // Back by the button: the band, the keyboard, the place in the middle.
+        close.tap()
+        XCTAssertTrue(element(app, "button.openMap").waitForExistence(timeout: patience))
+        let up = NSPredicate { _, _ in self.fieldHasTheKeyboard(app) }
+        expectation(for: up, evaluatedWith: nil)
+        waitForExpectations(timeout: patience)
+        XCTAssertTrue(element(app, "transcript").waitForExistence(timeout: patience))
+        XCTAssertEqual(frame.frame.height, band.height, accuracy: 1)
+        let marker = element(app, "map.here").frame
+        XCTAssertEqual(marker.midX, frame.frame.midX, accuracy: 4)
+        XCTAssertEqual(marker.midY, frame.frame.midY, accuracy: 4)
+
+        // Back by touching the command field.
+        element(app, "button.openMap").tap()
+        XCTAssertTrue(close.waitForExistence(timeout: patience))
+        element(app, "field.command").tap()
+        XCTAssertTrue(element(app, "button.openMap").waitForExistence(timeout: patience))
+        expectation(for: up, evaluatedWith: nil)
+        waitForExpectations(timeout: patience)
+        XCTAssertEqual(frame.frame.height, band.height, accuracy: 1)
+    }
+
+    /// The outline each place is drawn with, by place. Shown only with
+    /// `-showMapHand`.
+    @MainActor
+    private func outlines(_ app: XCUIApplication) -> [String: String] {
+        let found = app.descendants(matching: .any)
+            .matching(NSPredicate(format: "identifier BEGINSWITH %@", "map.outline."))
+        var outlines: [String: String] = [:]
+        for index in 0..<found.count {
+            let outline = found.element(boundBy: index)
+            outlines[outline.identifier] = outline.value as? String ?? ""
+        }
+        return outlines
+    }
+
+    // A§10: a place's outline is drawn from its id, the same each time; and
+    // two places are not drawn alike.
+    @MainActor
+    func testAPlaceIsDrawnTheSameEachTime() {
+        let app = launch(["-seed", "11", "-showMapHand"])
+        _ = turn(app, 0)
+        type(app, "n")
+        _ = turn(app, 1)
+        type(app, "e")
+        _ = turn(app, 2)
+        XCTAssertEqual(value(app, "map.motion"), "full")
+        let first = outlines(app)
+        XCTAssertEqual(first.count, 3)
+        XCTAssertEqual(Set(first.values).count, 3, "\(first)")
+        XCTAssertFalse(first.values.contains(""))
+        relaunch(app)
+        _ = turn(app, 2)
+        XCTAssertEqual(outlines(app), first)
+    }
+
+    // S§2: the marker is a lamp, lit where the place is lit and out where
+    // the layer reports it dark.
+    @MainActor
+    func testTheLampIsOutInTheDark() {
+        let app = launch()
+        _ = turn(app, 0)
+        XCTAssertEqual(value(app, "map.lamp"), "lit")
+        for (index, line) in ["n", "e", "open window", "w"].enumerated() {
+            type(app, line)
+            _ = turn(app, index + 1)
+        }
+        waitForPlace(app, "Kitchen")
+        XCTAssertEqual(value(app, "map.lamp"), "lit")
+        element(app, "compass.up").tap()
+        waitForPlace(app, "Attic")
+        let lamp = element(app, "map.lamp")
+        expectation(for: NSPredicate(format: "value == %@", "out"), evaluatedWith: lamp)
+        waitForExpectations(timeout: patience)
+    }
+
+    // A§10; FR-029: with Reduce Motion nothing is drawn in or glided: the
+    // map is as it will be the moment a move is answered.
+    @MainActor
+    func testReducedMotion() {
+        let app = launch(["-seed", "11", "-showMapHand", "-reduceMotion"])
+        _ = turn(app, 0)
+        XCTAssertEqual(value(app, "map.motion"), "reduced")
+        element(app, "compass.north").tap()
+        waitForPlace(app, "North of House")
+        XCTAssertEqual(placesDrawn(app), 2)
+        let frame = element(app, "map.frame").frame
+        let marker = element(app, "map.here").frame
+        XCTAssertEqual(marker.midX, frame.midX, accuracy: 4)
+        XCTAssertEqual(marker.midY, frame.midY, accuracy: 4)
+    }
+
     // SC-010; FR-030; S§ "At large text sizes".
     @MainActor
     func testTheLargestTextSize() {
@@ -1324,6 +1502,23 @@ final class LamplightUITests: XCTestCase {
             }
         }
         XCTAssertEqual(element(app, "compass.north").label, "North")
+        // The map at this size: every way is large enough to touch, the
+        // place's name has room, and the sheet can be opened.
+        let ways = app.descendants(matching: .any)
+            .matching(NSPredicate(format: "identifier BEGINSWITH %@", "compass."))
+        XCTAssertGreaterThan(ways.count, 0)
+        for index in 0..<ways.count {
+            let control = ways.element(boundBy: index)
+            XCTAssertGreaterThanOrEqual(control.frame.width, 44, control.identifier)
+            XCTAssertGreaterThanOrEqual(control.frame.height, 44, control.identifier)
+        }
+        let here = element(app, "map.here").frame
+        XCTAssertGreaterThanOrEqual(here.height, 30, "\(here)")
+        XCTAssertGreaterThanOrEqual(here.width, 60, "\(here)")
+        let open = element(app, "button.openMap")
+        XCTAssertTrue(open.isHittable)
+        XCTAssertGreaterThanOrEqual(open.frame.width, 44)
+        XCTAssertGreaterThanOrEqual(open.frame.height, 44)
     }
 
     /// Not a test: saves pictures of the states whose look no test can judge.
