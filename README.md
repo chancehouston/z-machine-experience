@@ -14,7 +14,7 @@ walk, tap an object to pick it up. Typing is always still available.
 The interpreter works and is tested for Z-machine versions 3, 5 and 8, and so does the
 read-only introspection interface that the touch layer is built on. A first demo of the
 touch interface runs in the iPhone simulator: an app called Lamplight that plays Zork I
-with a compass of exits you can tap.
+with a map that draws itself as you walk and ways out you can tap.
 
 What the core does today:
 
@@ -57,8 +57,10 @@ What the first demo does today:
 
 - **Plays a whole game on an iPhone, in the simulator.** The opening text appears at
   launch with the place, score and moves above it.
-- **Shows the ways out as a compass.** Twelve places: the eight points, up, down, in and
-  out. A way that is open is a filled disc, and says where it leads when that is known.
+- **Shows the ways out on the map.** Up to twelve round the place the player is in:
+  the eight points, up, down, in and out. A way that is open is a filled disc, and
+  says where it leads once the player has walked it. (Until feature 012 these were a
+  compass beneath the text.)
 - **Tries the uncertain ways first.** Where a game's own code decides whether a way may
   be taken, the layer gives three throwaway copies of the game the direction and sees
   what they do. If all three walk to the same room, the way is drawn open. If all three
@@ -68,7 +70,7 @@ What the first demo does today:
 - **A tap is a typed command.** Tapping north sends the word `north` to the game and
   shows it in the text, exactly as if it had been typed. The whole Zork I walkthrough,
   with 186 of its commands sent as taps, gives the same text as Frotz, byte for byte.
-- **Typing always works**, and the compass steps aside for the keyboard.
+- **Typing always works.**
 - **Speaks each reply to a screen reader.** With VoiceOver on, the game's reply is
   spoken as it arrives, without the listener leaving the control they used: the reply,
   then "It is dark" on the turn the dark falls. A new reply cuts off one still being
@@ -85,22 +87,25 @@ What the first demo does today:
   message. Zork I's walkthrough, brought back after every one of its commands, is the
   same game each time. "Start over", in the About sheet, asks before a game in progress
   is given up. In the simulator so far; not yet tried on a phone.
-- **The layer keeps a map (not yet on the screen).** As the game is played the
-  experience layer records the places the player has stood in and the moves they made,
-  and puts each place on a page as it is first reached, where it then stays
+- **The screen is a map that draws itself.** As the game is played the experience
+  layer records the places the player has stood in and the moves they made, and puts
+  each place on a page as it is first reached, where it then stays
   (`specs/012-map-first-slice/`). It holds only what the player has witnessed: no room
-  they have not been in, and no name of where a way leads until they have walked it. A
-  snapshot carries the sheet the player is on. Along Zork I's walkthrough the page has
-  83 places on 11 sheets, with 57 of its 60 joins straight; the recorded pages are in
-  `stories/zork1/map/` and `stories/advent/map/`. The app does not draw it yet: that
-  is the feature's next stage, which replaces the compass.
+  they have not been in, and no name of where a way leads until they have walked it.
+  The app draws the sheet the player is on in a band above the game's reply, with a
+  control for each way out of their place. Along Zork I's walkthrough the page has 83
+  places on 11 sheets, with 57 of its 60 joins straight; the recorded pages are in
+  `stories/zork1/map/` and `stories/advent/map/`. Opening the band out to the whole
+  sheet, and a hand-drawn look, are still to come.
+- **The keyboard stays up.** It is there whenever the game waits for a line, and goes
+  down only when the player scrolls back through the transcript.
 - **The app holds no rule of any game.** It draws what the experience layer reports and
   sends back taps and typed lines; tests read its source to hold it to that.
 
 What the demo does not do: answer the game's own `save` and `restore` (they are
 declined politely; the app keeps the game by itself), keep more than one game of a
 story, or run on Android.
-The compass goes dark whenever the game asks a question, and at one ordinary prompt of
+The ways out cannot be touched while the game asks a question, and at one ordinary prompt of
 Zork I (the Loud Room, where the game reads its command from a different place in its
 code).
 

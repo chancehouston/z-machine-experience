@@ -48,13 +48,45 @@ model: model names differ from one version to the next.
 | `Lamplight/Engine.swift` | The one owner of the session; the only file that touches the C interface |
 | `Lamplight/Snapshot.swift` | The snapshot's fields, decoded from the layer's JSON |
 | `Lamplight/Game.swift` | What is on screen: the turns so far and the newest snapshot |
-| `Lamplight/GameView.swift` | The screen: status, transcript, field, end states |
-| `Lamplight/CompassLayout.swift` | Where each of the twelve places goes, and its symbol |
-| `Lamplight/CompassView.swift` | How each state is drawn |
+| `Lamplight/GameView.swift` | The screen: status, the map's band, what is carried, transcript, field, end states |
+| `Lamplight/MapBand.swift` | The map as shown above the reply: the sheet about the player's place, and a control for each way out |
+| `Lamplight/MapDrawing.swift` | How places, lines, stubs and each way's state are drawn |
+| `Lamplight/MapLayout.swift` | How far apart positions are, where a way's control sits, and its symbol; the only file with direction words |
 | `Lamplight/AboutView.swift` | The About sheet |
 | `Lamplight/KeptFile.swift` | Where the game in progress is kept on the device; it holds the layer's bytes and does not read them |
 | `Lamplight/Announcer.swift` | Posts the layer's announcement for a turn to the system's screen reader |
 | `LamplightUITests/` | Tests of the screen, by accessibility identifier |
+
+## The map and the keyboard
+
+The screen is the map (`specs/012-map-first-slice/`). The compass is gone: the ways
+out of the place the player is in are controls round that place on the map, with the
+states and spoken labels the compass had.
+
+- **The band** is 200 points tall, between the status line and the reply. It shows
+  the sheet the player is on, moved so that their place is in the middle. Every
+  position, name, state and word in it is the layer's (`map` in the snapshot); the app
+  works out nothing.
+- **A way names where it leads only once it has been walked.** Until then its control
+  says "North", not "North, to Forest Path".
+- **A way the layer does not offer is not drawn.** The compass drew it as a faint dot.
+- **A place seen only in the dark shows no way out**, since none has been seen there;
+  the way back is typed.
+- **The keyboard is up** whenever the game waits for a line. It goes down only when
+  the player scrolls back through the transcript, and comes up again when they touch
+  the field or send. What is carried, and the note of darkness, sit under the band and
+  are visible with the keyboard up.
+- **A reply is shown from its first line.** One taller than its room has a mark at the
+  foot of the transcript: there is more below.
+- **A touch on a way** is sent to the layer by the way's place in the snapshot's list
+  (`zmx_session_tap_way`), and comes back as a tapped command in the transcript.
+
+Identifiers for tests: `map` (the band; its label is the layer's summary),
+`map.frame`, `map.here`, `map.place.<id>`, `map.note`, `compass.<way>` and
+`compass.extra.<n>` for the ways (kept from the compass), `transcript.more`.
+
+Opening the band out to the whole sheet, and the hand-drawn look, are the feature's
+third stage and are not built.
 
 ## The kept game
 

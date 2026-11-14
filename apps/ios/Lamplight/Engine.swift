@@ -88,15 +88,10 @@ actor Engine {
         return snapshot(since: showing.turnCount)
     }
 
-    /// Sends a tap on one of the twelve places.
-    func tap(place: String, showing: Snapshot) -> Snapshot? {
-        _ = zmx_session_tap(session, showing.generation, showing.turnCount, place)
-        return snapshot(since: showing.turnCount)
-    }
-
-    /// Sends a tap on one of the extra ways out.
-    func tap(extra index: Int, showing: Snapshot) -> Snapshot? {
-        _ = zmx_session_tap_extra(session, showing.generation, showing.turnCount, index)
+    /// Sends a touch on a way of the map: one of the snapshot's ways of the
+    /// place the player is in, by its place in that list.
+    func tap(way index: Int, showing: Snapshot) -> Snapshot? {
+        _ = zmx_session_tap_way(session, showing.generation, showing.turnCount, index)
         return snapshot(since: showing.turnCount)
     }
 

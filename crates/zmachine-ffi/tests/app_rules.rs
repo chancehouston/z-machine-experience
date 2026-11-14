@@ -154,7 +154,7 @@ fn no_direction_word_is_written_outside_the_layout() {
         "inventory",
     ];
     for (name, text) in app_swift() {
-        if name == "Lamplight/CompassLayout.swift" {
+        if name == "Lamplight/MapLayout.swift" {
             continue;
         }
         for (number, line) in text.lines().enumerate() {
@@ -355,7 +355,61 @@ fn the_app_says_nothing_of_its_own_about_darkness() {
         .expect("the layer's words");
     assert!(at - drawn < 400, "the identifier is the note's own");
     assert!(before[..drawn].contains("showing.light.note"));
-    // The mark is drawn where the layer says, and nowhere else.
-    let compass = source("Lamplight/CompassView.swift");
-    assert!(compass.contains("place.darkAhead"));
+    // The mark is drawn where the layer says, and nowhere else: on a way of
+    // the map (feature 012; until then, on the compass).
+    let drawing = source("Lamplight/MapDrawing.swift");
+    assert!(drawing.contains("way.darkAhead"));
+}
+
+// Feature 012 (specs/012-map-first-slice/contracts/map.md, A§2, A§3, A§11;
+// plan.md, the re-check): the compass is gone from the app. It draws the map
+// the layer gives, reads no compass from a snapshot, names no place a way
+// leads to, and sends a touch on a way by its index and nothing else.
+#[test]
+fn the_app_draws_the_map_and_reads_no_compass() {
+    let sources = app_swift();
+    let names: Vec<&str> = sources.iter().map(|(n, _)| n.as_str()).collect();
+    for gone in [
+        "Lamplight/CompassView.swift",
+        "Lamplight/CompassLayout.swift",
+    ] {
+        assert!(!names.contains(&gone), "{gone} is still there");
+    }
+    let source = |name: &str| &sources.iter().find(|(n, _)| n == name).unwrap().1;
+    let snapshot = source("Lamplight/Snapshot.swift");
+    assert!(snapshot.contains("let map: MapSheet?"));
+    for unread in ["compass", "leads_to", "leadsTo"] {
+        assert!(
+            !snapshot.contains(unread),
+            "the snapshot type reads {unread:?}"
+        );
+    }
+    // A touch on a way reaches the layer by the way's place in the list.
+    let engine = source("Lamplight/Engine.swift");
+    assert!(engine.contains("zmx_session_tap_way("));
+    for gone in ["zmx_session_tap(", "zmx_session_tap_extra("] {
+        assert!(!engine.contains(gone), "{gone} is still called");
+    }
+    // The map's views decide nothing and send nothing themselves: a touch is
+    // handed to the closure they are given.
+    for name in [
+        "Lamplight/MapDrawing.swift",
+        "Lamplight/MapBand.swift",
+        "Lamplight/MapLayout.swift",
+    ] {
+        let code: String = source(name)
+            .lines()
+            .map(|l| l.split("//").next().unwrap_or(""))
+            .collect::<Vec<_>>()
+            .join("\n");
+        for forbidden in ["zmx_", "game.", "Task {", "import ZMX"] {
+            assert!(!code.contains(forbidden), "{name} holds {forbidden:?}");
+        }
+    }
+    // Every name and every spoken word on the map is the snapshot's.
+    let drawing = source("Lamplight/MapDrawing.swift");
+    assert!(drawing.contains("Text(verbatim: place.name ?? \"\")"));
+    assert!(drawing.contains(".accessibilityLabel(Text(verbatim: way.spoken))"));
+    let band = source("Lamplight/MapBand.swift");
+    assert!(band.contains(".accessibilityLabel(Text(verbatim: map.spoken))"));
 }
