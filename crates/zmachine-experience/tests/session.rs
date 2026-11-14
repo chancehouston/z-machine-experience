@@ -992,8 +992,13 @@ fn the_snapshot_holds_the_light() {
         json.contains(r#"{"place":"up","label":"Up","state":"open","command":"up","leads_to":"Attic","dark_ahead":true,"spoken":"Up, to Attic, into darkness"}"#),
         "{json}"
     );
-    assert_eq!(json.matches(r#""dark_ahead":true"#).count(), 1);
-    assert_eq!(json.matches(r#""dark_ahead":false"#).count(), 11);
+    // Counted in the compass alone: since feature 012 the map has its own.
+    let compass = &json[json.find(r#""compass":"#).unwrap()..json.find(r#""inventory":"#).unwrap()];
+    assert_eq!(compass.matches(r#""dark_ahead":true"#).count(), 1);
+    assert_eq!(compass.matches(r#""dark_ahead":false"#).count(), 11);
+    // The map marks the same way, and no other.
+    let map = &json[json.find(r#""map":"#).unwrap()..];
+    assert_eq!(map.matches(r#""dark_ahead":true"#).count(), 1);
     say(&mut s, "up");
     assert!(
         s.snapshot_json(0)

@@ -314,6 +314,9 @@ pub struct Machine {
     /// Whether the game has buffering on (`buffer_mode`); it starts on.
     buffering: bool,
     undo: undo::History,
+    /// How many times the game has restarted, restored a position or undone a
+    /// turn: see [`Machine::jumps`].
+    jumps: u32,
     status: Option<StatusLine>,
     status_changed: bool,
     diagnostics: Vec<Diagnostic>,
@@ -374,6 +377,7 @@ impl Machine {
             memory_streams: Vec::new(),
             buffering: true,
             undo: undo::History::default(),
+            jumps: 0,
             status: None,
             status_changed: false,
             diagnostics: Vec::new(),
@@ -454,6 +458,17 @@ impl Machine {
         self.state = State::Running;
         self.answer_transcript_request(accepted);
         Ok(())
+    }
+
+    /// How many times the game has left the course of play: restarted itself,
+    /// restored a saved position, or undone a turn. It only counts; nothing
+    /// the game does depends on it.
+    ///
+    /// A host that keeps a record of where the player has walked compares it
+    /// before and after a command: if it rose, the player's change of place
+    /// was not a move (specs/012-map-first-slice/research.md R3).
+    pub fn jumps(&self) -> u32 {
+        self.jumps
     }
 
     /// Gives the machine a new value for its source of chance, as a host gives

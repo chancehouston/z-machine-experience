@@ -5,7 +5,7 @@ use crate::lookahead::Finding;
 use zmachine_introspect::{Answer, DoorState, ExitKind, Exits, Tri};
 
 /// A place on the compass.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum Place {
     North,
     Northeast,
@@ -158,7 +158,12 @@ pub const NOTE_UNKNOWN: &str = "Exits unknown: type a direction";
 pub const NOTE_NONE: &str = "No exits here";
 
 /// What a screen reader says for a place or an extra.
-fn spoken(label: &str, state: PlaceState, leads_to: Option<&str>, dark_ahead: bool) -> String {
+pub(crate) fn spoken(
+    label: &str,
+    state: PlaceState,
+    leads_to: Option<&str>,
+    dark_ahead: bool,
+) -> String {
     let said = spoken_of(label, state, leads_to);
     if dark_ahead {
         format!("{said}{SPOKEN_DARK}")
@@ -182,7 +187,7 @@ fn spoken_of(label: &str, state: PlaceState, leads_to: Option<&str>) -> String {
     }
 }
 
-fn place_in(
+pub(crate) fn place_in(
     place: Place,
     state: PlaceState,
     leads_to: Option<String>,

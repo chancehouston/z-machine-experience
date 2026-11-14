@@ -12,6 +12,8 @@ mod json;
 mod kept;
 mod light;
 pub mod lookahead;
+pub mod map;
+mod map_place;
 mod strip;
 mod transcript;
 
@@ -27,6 +29,10 @@ mod kept_tests;
 mod light_tests;
 #[cfg(test)]
 mod lookahead_tests;
+#[cfg(test)]
+mod map_place_tests;
+#[cfg(test)]
+mod map_tests;
 #[cfg(test)]
 mod strip_tests;
 
@@ -45,7 +51,7 @@ pub use strip::{ItemState, NOTE_NOT_KNOWN, NOTE_NOTHING, Strip, StripItem};
 pub use transcript::{Source, Turn};
 
 use zmachine_core::{Event, HostError, Key, LoadOptions, Machine, StatusKind, StatusLine};
-use zmachine_introspect::Introspector;
+use zmachine_introspect::{Family, Introspector};
 
 /// Where a game's randomness comes from.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -178,6 +184,13 @@ pub struct Session {
     notice: Option<&'static str>,
     /// Whether the player has been told, in this game, that it is not kept.
     keep_failed_told: bool,
+    /// The places the player has stood in and the moves they made
+    /// (specs/012-map-first-slice).
+    map: map::Map,
+    /// The input given since the last stop, for the map.
+    sent: Option<String>,
+    /// The core's count of jumps at the last stop.
+    jumps: u32,
 }
 
 fn load(story: &[u8], seed: Seed) -> Result<Machine, StartError> {
@@ -259,7 +272,11 @@ impl Session {
             answered: 0,
             notice: None,
             keep_failed_told: false,
+            map: map::Map::new(false),
+            sent: None,
+            jumps: 0,
         };
+        session.map = session.new_map();
         session.open();
         Ok(session)
     }
@@ -307,34 +324,26 @@ impl Session {
         if kept.story != kept::digest(story) {
             return None;
         }
-        // Look-ahead tries ways on copies and never touches the game, so it
-        // is left out until the last stop, where it gives what it gave
-        // before (research R2).
-        let limits = |last: bool| {
-            if last {
-                lookahead::LIMITS
-            } else {
-                lookahead::OFF
-            }
-        };
+        // Look-ahead runs at every stop, as it did when the game was played:
+        // it never touches the game, but the map is made from the compass it
+        // settles, and must come back the same (feature 012; this replaces
+        // feature 011's leaving it out until the last stop).
         let count = kept.inputs.len();
         let mut session = Session::start(
             story.to_vec(),
             kept.chance,
             pack,
-            limits(count == 0),
+            lookahead::LIMITS,
             ceiling,
         )
         .ok()?;
-        for (index, (source, line)) in kept.inputs.iter().enumerate() {
+        for (source, line) in &kept.inputs {
             // Each kept input was answered by a game that was waiting.
             if !matches!(session.waiting, Waiting::Command | Waiting::Answer) {
                 return None;
             }
-            session.look_ahead = limits(index + 1 == count);
             session.give(line, *source);
         }
-        session.look_ahead = lookahead::LIMITS;
         session.ceiling = INSTRUCTION_CEILING;
         if session.waiting == Waiting::Fault || session.answered != count {
             return None;
@@ -391,6 +400,17 @@ impl Session {
                 None => notice.to_string(),
             });
         }
+    }
+
+    /// A map with nothing on it, for the game about to be played. A story of
+    /// neither family has none: the layer cannot say where the player is.
+    fn new_map(&self) -> map::Map {
+        map::Map::new(self.introspector.family() != Family::Unrecognised)
+    }
+
+    /// The map of the game in progress.
+    pub fn map(&self) -> &map::Map {
+        &self.map
     }
 
     /// Lowers or raises the instruction ceiling. A host has no need to; tests do.
@@ -550,6 +570,28 @@ impl Session {
             Waiting::Command => Light::of(&self.introspector.location(&self.machine.view())),
             _ => Light::default(),
         };
+        // The map is told of every stop: what was sent, where the player now
+        // is, and the ways the compass gives. It reads nothing of the game
+        // itself (specs/012-map-first-slice/research.md R2).
+        let jumps = self.machine.jumps();
+        let room = match self.waiting {
+            Waiting::Command => self
+                .introspector
+                .location(&self.machine.view())
+                .value
+                .ok()
+                .map(|location| (location.room, location.name.ok())),
+            _ => None,
+        };
+        self.map.observe(map::Observation {
+            sent: self.sent.take().as_deref(),
+            waiting: self.waiting,
+            room,
+            dark: self.light.dark,
+            compass: &self.compass,
+            jumped: jumps != self.jumps,
+        });
+        self.jumps = jumps;
         text
     }
 
@@ -576,6 +618,7 @@ impl Session {
             return;
         }
         self.notice = None;
+        self.sent = Some(line.to_string());
         let text = self.advance();
         self.turns.push(Turn {
             number: self.turns.len(),
@@ -649,6 +692,9 @@ impl Session {
         self.answered = 0;
         self.notice = None;
         self.keep_failed_told = false;
+        self.map = self.new_map();
+        self.sent = None;
+        self.jumps = 0;
         match load(&self.story, seed) {
             Ok(machine) => {
                 self.machine = machine;

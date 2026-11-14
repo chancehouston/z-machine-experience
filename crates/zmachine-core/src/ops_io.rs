@@ -394,6 +394,7 @@ impl Machine {
     /// §6.1.3, §15 restart: back to the state at the start, except for the two
     /// bits of Flags 2 that survive.
     pub(crate) fn restart(&mut self) {
+        self.jumps = self.jumps.wrapping_add(1);
         let static_base = self.memory.static_base();
         let dynamic = self.memory.dynamic_mut();
         let flags = u16::from_be_bytes([dynamic[FLAGS2 as usize], dynamic[FLAGS2 as usize + 1]]);
@@ -513,6 +514,7 @@ impl Machine {
         match self.undo.pop() {
             None => self.store(ins, 0),
             Some(position) => {
+                self.jumps = self.jumps.wrapping_add(1);
                 self.replace_state(&position.dynamic, position.frames);
                 self.resume_storing(position.pc)
             }
@@ -543,6 +545,7 @@ impl Machine {
             return;
         };
 
+        self.jumps = self.jumps.wrapping_add(1);
         self.replace_state(&saved.dynamic, saved.frames);
         if !v3 {
             let result = self.resume_storing(saved.pc);

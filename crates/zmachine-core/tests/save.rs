@@ -22,6 +22,8 @@ struct Outcome {
     output: String,
     saves: Vec<Vec<u8>>,
     restores_requested: usize,
+    /// The machine's count of jumps when the game finished.
+    jumps: u32,
 }
 
 fn drive(image: Vec<u8>, host: Host) -> Outcome {
@@ -30,12 +32,16 @@ fn drive(image: Vec<u8>, host: Host) -> Outcome {
         output: String::new(),
         saves: Vec::new(),
         restores_requested: 0,
+        jumps: 0,
     };
     loop {
         let event = m.run(BIG).unwrap();
         outcome.output.push_str(&m.take_output());
         match event {
-            Event::Finished => return outcome,
+            Event::Finished => {
+                outcome.jumps = m.jumps();
+                return outcome;
+            }
             Event::SaveRequested(bytes) => {
                 let stored = host
                     .save_answers
@@ -177,6 +183,9 @@ fn restore_resumes_in_the_saved_save_with_state_as_it_was() {
     let outcome = drive(save_restore_program(), host);
     assert_eq!(outcome.saves.len(), 1, "the game saved once");
     assert_eq!(outcome.restores_requested, 2);
+    // One restore was carried out and one declined: one jump
+    // (specs/012-map-first-slice/research.md R3).
+    assert_eq!(outcome.jumps, 1);
     assert_eq!(
         outcome.output,
         // First time out of save: the argument 6 in the local, global 0 is 1.
@@ -238,6 +247,8 @@ fn a_refused_restore_leaves_the_game_untouched() {
         declined.output,
         "out:6,1 declined 2 rev:9 flags:2 result:33 stack:42\n"
     );
+    // A restore that was declined is no jump.
+    assert_eq!(declined.jumps, 0);
 
     let mut truncated = declined.saves[0].clone();
     truncated.truncate(truncated.len() - 3);
