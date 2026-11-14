@@ -2,6 +2,7 @@
 //! "Snapshot JSON"). One line; every field always present, `null` where it has
 //! no value.
 
+use crate::map::MapView;
 use crate::{CompassPlace, Extra, Session, Status, StripItem, Turn};
 
 fn text(out: &mut String, value: &str) {
@@ -185,6 +186,12 @@ pub(crate) fn snapshot(session: &Session, since: usize) -> String {
     optional_text(&mut out, session.notice());
     key(&mut out, "start_over");
     optional_text(&mut out, session.start_over());
+    // The sheet of the map the player is on (feature 012).
+    key(&mut out, "map");
+    match session.map().view() {
+        Some(view) => map(&mut out, &view),
+        None => out.push_str("null"),
+    }
     out.push('}');
     out
 }
@@ -197,5 +204,114 @@ fn item(out: &mut String, item: &StripItem) {
     text(out, item.state.as_str());
     key(out, "contents");
     list(out, &item.contents, self::item);
+    out.push('}');
+}
+
+fn flag(out: &mut String, value: bool) {
+    out.push_str(if value { "true" } else { "false" });
+}
+
+/// The map's sheet (specs/012-map-first-slice/contracts/map.md, part S).
+pub(crate) fn map(out: &mut String, view: &MapView) {
+    out.push('{');
+    key(out, "note");
+    optional_text(out, view.note);
+    key(out, "spoken");
+    text(out, &view.spoken);
+    key(out, "sheet");
+    out.push_str(&view.sheet.to_string());
+    key(out, "sheets");
+    out.push_str(&view.sheets.to_string());
+    key(out, "here");
+    optional_number(out, view.here);
+    key(out, "lamp");
+    text(out, view.lamp.as_str());
+    key(out, "places");
+    list(out, &view.places, |out, place| {
+        out.push('{');
+        key(out, "id");
+        out.push_str(&place.id.to_string());
+        key(out, "x");
+        out.push_str(&place.x.to_string());
+        key(out, "y");
+        out.push_str(&place.y.to_string());
+        key(out, "inset");
+        flag(out, place.inset);
+        key(out, "name");
+        optional_text(out, place.name.as_deref());
+        key(out, "attached_to");
+        optional_number(out, place.attached_to);
+        out.push('}');
+    });
+    key(out, "lines");
+    list(out, &view.lines, |out, line| {
+        out.push('{');
+        key(out, "a");
+        out.push_str(&line.a.to_string());
+        key(out, "b");
+        out.push_str(&line.b.to_string());
+        key(out, "out");
+        text(out, &line.out);
+        key(out, "back");
+        optional_text(out, line.back.as_deref());
+        key(out, "kind");
+        text(out, line.kind.as_str());
+        key(out, "label");
+        optional_text(out, line.label.as_deref());
+        out.push('}');
+    });
+    key(out, "leads");
+    list(out, &view.leads, |out, lead| {
+        out.push('{');
+        key(out, "from");
+        out.push_str(&lead.from.to_string());
+        key(out, "way");
+        text(out, &lead.way);
+        key(out, "label");
+        text(out, &lead.label);
+        key(out, "to");
+        optional_text(out, lead.to.as_deref());
+        key(out, "sheet");
+        out.push_str(&lead.sheet.to_string());
+        out.push('}');
+    });
+    key(out, "stubs");
+    list(out, &view.stubs, |out, stub| {
+        out.push('{');
+        key(out, "of");
+        out.push_str(&stub.of.to_string());
+        key(out, "way");
+        text(out, &stub.way);
+        key(out, "state");
+        text(out, &stub.state);
+        key(out, "dark_ahead");
+        flag(out, stub.dark_ahead);
+        out.push('}');
+    });
+    key(out, "ways");
+    list(out, &view.ways, |out, way| {
+        out.push('{');
+        key(out, "way");
+        text(out, &way.way);
+        key(out, "label");
+        text(out, &way.label);
+        key(out, "state");
+        text(out, &way.state);
+        key(out, "command");
+        optional_text(out, way.command.as_deref());
+        key(out, "leads_to");
+        optional_text(out, way.leads_to.as_deref());
+        key(out, "dark_ahead");
+        flag(out, way.dark_ahead);
+        key(out, "refused");
+        flag(out, way.refused);
+        key(out, "varies");
+        flag(out, way.varies);
+        key(out, "returns");
+        flag(out, way.returns);
+        key(out, "spoken");
+        text(out, &way.spoken);
+        out.push('}');
+    });
     out.push('}');
 }

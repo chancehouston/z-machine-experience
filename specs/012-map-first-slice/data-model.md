@@ -26,6 +26,7 @@ What the map is given at each stop (research R2).
 | `number` | From 1, or none | Given when a second place has the name (W§15) |
 | `sheet` | Which sheet | Changes at most once, by P§4 |
 | `x`, `y` | Whole numbers | Changes at most once, by P§4, and then only by the group's shift |
+| `inset` | Yes or no | Whether `x`, `y` count insets (P§3); cleared by P§4 |
 | `attached_to` | A place, or none | Set by P§3; cleared when its group moves |
 | `group` | A group, or none | P§4 |
 | `ways` | The ways last seen here | W§3, W§4 |
@@ -66,6 +67,7 @@ A place and a way: W§8.
 | --- | --- |
 | `number` | From 1, in the order made |
 | `cells` | Position to place; no two places in one (P§7) |
+| `insets` | Inset to place, for the places attached (P§3) |
 | `started_by_word` | Whether P§6 made it |
 
 ## Group

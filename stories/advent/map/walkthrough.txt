@@ -1,0 +1,202 @@
+drawn    30 --    38 bent
+drawn    30 --    49 straight
+drawn    49 --    51 straight
+drawn    51 --    53 straight
+drawn    56 --    58 straight
+drawn    58 --    60 straight
+drawn    60 --    64 straight
+drawn    64 --    65 straight
+drawn    65 --    67 straight
+drawn    71 --    75 straight
+drawn    71 --    91 ladder
+drawn    80 --    84 straight
+drawn    84 --    85 bent
+drawn    84 --   116 bent
+drawn    85 --    87 straight
+drawn    87 --    97 straight
+drawn    91 --    93 straight
+drawn    91 --    95 straight
+drawn    91 --    97 straight
+drawn    91 --   157 bent
+drawn   116 --   117 straight
+drawn   117 --   118 straight
+drawn   118 --   176 bent
+drawn   135 --   136 straight
+drawn   135 --   208 straight
+drawn   135 --   213 straight
+drawn   135 --   216 word
+drawn   136 --   137 straight
+drawn   137 --   190 straight
+drawn   137 --   195 straight
+drawn   139 --   142 ladder
+drawn   139 --   144 straight
+drawn   139 --   149 straight
+drawn   142 --   146 word
+drawn   144 --   146 ladder
+drawn   152 --   163 straight
+drawn   155 --   195 straight
+drawn   155 --   221 straight
+drawn   157 --   163 straight
+drawn   178 --   181 straight
+drawn   180 --   187 straight
+drawn   181 --   185 straight
+drawn   185 --   187 straight
+drawn   195 --   199 straight
+drawn   195 --   204 word
+drawn   199 --   201 bent
+drawn   201 --   202 bent
+drawn   202 --   204 bent
+drawn   208 --   211 ladder
+drawn   211 --   212 ladder
+drawn   213 --   216 straight
+drawn   221 --   222 ladder
+drawn   222 --   226 straight
+drawn   226 --   227 straight
+drawn   227 --   228 straight
+drawn   228 --   229 straight
+drawn   228 --   240 straight
+drawn   229 --   237 straight
+drawn   240 --   242 straight
+drawn   242 --   244 straight
+drawn   270 --   274 straight
+line     30 in ->    38, back west
+line     30 south ->    49
+line     38 "go to giant room" ->   181, back "go to inside" across sheets
+line     38 "go to large low" ->   155 across sheets
+line     38 "go to mountain king" ->    91 across sheets
+line     38 "wait" ->   270 across sheets
+line     49 south ->    51
+line     51 south ->    53
+line     53 down ->    56 across sheets
+line     56 west ->    58
+line     58 west ->    60
+line     60 west ->    64
+line     64 west ->    65
+line     65 west ->    67
+line     67 down ->    71 across sheets
+line     71 down ->    91
+line     71 south ->    75, back north
+line     84 east ->    80, back west
+line     84 south ->   116
+line     85 east ->    84
+line     87 west ->    85
+line     91 north ->    93, back south
+line     91 south ->    95, back north
+line     91 southwest ->   157
+line     91 west ->    97
+line     97 west ->    87
+line    116 east ->   117
+line    117 south ->   118
+line    118 north ->   176
+line    135 east ->   213
+line    135 north ->   208
+line    136 east ->   135
+line    137 east ->   190, back west
+line    137 northeast ->   136
+line    139 down ->   142, back up
+line    139 east ->   144
+line    142 "climb plant" ->   178 across sheets
+line    142 "go to inside" ->    38, back "go to in west pit" across sheets
+line    144 down ->   146
+line    146 "go to in west pit" ->   142
+line    149 south ->   139
+line    152 down ->   149 across sheets
+line    155 southeast ->   195
+line    155 southwest ->   221
+line    157 west ->   163
+line    163 north ->   152
+line    176 "go to inside" ->    38 across sheets
+line    178 west ->   181
+line    180 down ->   155 across sheets
+line    181 north ->   185
+line    185 north ->   187
+line    187 west ->   180
+line    195 north ->   199
+line    195 southeast ->   137
+line    199 west ->   201
+line    201 "go to plover" ->   202
+line    201 east ->   202, back west
+line    202 northeast ->   204
+line    204 "go to oriental" ->   195
+line    208 down ->   211
+line    211 down ->   212
+line    212 "go to inside" ->    38 across sheets
+line    213 east ->   216
+line    216 "go to complex junction" ->   135
+line    221 up ->   222
+line    222 northeast ->   226
+line    226 northeast ->   227
+line    227 east ->   228
+line    228 northeast ->   229, back south
+line    228 southeast ->   240
+line    229 east ->   237, back west
+line    240 south ->   242
+line    242 east ->   244
+line    244 "go to inside" ->    38 across sheets
+line    270 southwest ->   274, back northeast
+place    30 sheet  1 at      0,  0 seen   At End Of Road
+place    38 sheet  1 at     -1, -1 seen   Inside Building
+place    49 sheet  1 at      0,  1 seen   In A Valley
+place    51 sheet  1 at      0,  2 seen   At Slit In Streambed
+place    53 sheet  1 at      0,  3 seen   Outside Grate
+place    56 sheet  2 at      0,  0 seen   Below the Grate
+place    58 sheet  2 at     -1,  0 seen   In Cobble Crawl
+place    60 sheet  2 at     -2,  0 seen   In Debris Room
+place    64 sheet  2 at     -3,  0 seen   Sloping E/W Canyon
+place    65 sheet  2 at     -4,  0 seen   Orange River Chamber
+place    67 sheet  2 at     -5,  0 seen   At Top of Small Pit
+place    71 sheet  3 at      0,  0 seen   In Hall of Mists
+place    75 sheet  3 at      0,  1 seen   Low Room
+place    80 sheet  3 at     -2,  0 seen   West Side of Fissure
+place    84 sheet  3 at     -3,  0 seen   At West End of Hall of Mists
+place    85 sheet  3 at     -4,  1 seen   At East End of Long Hall
+place    87 sheet  3 at     -3,  1 seen   N/S and E/W Crossover
+place    91 sheet  3 at     -1,  1 seen   Hall of the Mountain King
+place    93 sheet  3 at     -1,  0 seen   Low N/S Passage
+place    95 sheet  3 at     -1,  2 seen   In South Side Chamber
+place    97 sheet  3 at     -2,  1 seen   In West Side Chamber
+place   116 sheet  3 at     -3,  2 seen   Maze 1
+place   117 sheet  3 at     -2,  2 seen   Maze 2
+place   118 sheet  3 at     -2,  3 seen   Maze 3
+place   135 sheet  6 at      4,  1 seen   At Complex Junction
+place   136 sheet  6 at      3,  1 seen   Bedquilt
+place   137 sheet  6 at      2,  2 seen   In Swiss Cheese Room
+place   139 sheet  4 at      0,  1 seen   At West End of Twopit Room
+place   142 sheet  4 at     -1,  2 seen   In West Pit
+place   144 sheet  4 at      1,  1 seen   At East End of Twopit Room
+place   146 sheet  4 inset   0,  1 seen   In East Pit
+place   149 sheet  4 at      0,  0 seen   Slab Room
+place   152 sheet  3 at     -5,  3 seen   Secret N/S Canyon
+place   155 sheet  6 at      0,  0 seen   Large Low Room
+place   157 sheet  3 at     -4,  4 seen   Secret E/W Canyon Above Tight Canyon
+place   163 sheet  3 at     -5,  4 seen   Secret Canyon
+place   176 sheet  3 at     -3,  3 seen   Dead End
+place   178 sheet  5 at      0,  0 seen   In Narrow Corridor
+place   180 sheet  5 at     -2, -2 seen   Steep Incline Above Large Room
+place   181 sheet  5 at     -1,  0 seen   Giant Room
+place   185 sheet  5 at     -1, -1 seen   Immense N/S Passage
+place   187 sheet  5 at     -1, -2 seen   In Cavern With Waterfall
+place   190 sheet  6 at      3,  2 seen   In Soft Room
+place   195 sheet  6 at      1,  1 seen   Oriental Room
+place   199 sheet  6 at      1,  0 seen   Misty Cavern
+place   201 sheet  6 at     -1,  0 seen   Alcove
+place   202 sheet  6 at      2,  0 seen   Plover Room
+place   204 sheet  6 at      4, -2 seen   The Dark Room
+place   208 sheet  6 at      4,  0 seen   Shell Room
+place   211 sheet  6 inset   3,  0 seen   Ragged Corridor
+place   212 sheet  6 inset   2,  1 seen   Cul-de-Sac
+place   213 sheet  6 at      5,  1 seen   In Anteroom
+place   216 sheet  6 at      6,  1 seen   At Witt's End
+place   221 sheet  6 at     -1,  1 seen   Sloping Corridor
+place   222 sheet  6 at     -1, -1 seen   On SW Side of Chasm
+place   226 sheet  6 at      0, -2 seen   On NE Side of Chasm
+place   227 sheet  6 at      1, -3 seen   In Corridor
+place   228 sheet  6 at      2, -3 seen   At Fork in Path
+place   229 sheet  6 at      3, -4 seen   At Junction With Warm Walls
+place   237 sheet  6 at      4, -4 seen   In Chamber of Boulders
+place   240 sheet  6 at      3, -2 seen   In Limestone Passage
+place   242 sheet  6 at      3, -1 seen   In Front of Barren Room
+place   244 sheet  6 at      4, -1 seen   In Barren Room
+place   270 sheet  7 at      0,  0 seen   NE End of Repository
+place   274 sheet  7 at     -1,  1 seen   SW End of Repository
+refused   222 northeast

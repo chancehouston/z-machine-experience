@@ -246,3 +246,50 @@ fn a_kept_game_is_made_and_brought_back_quickly() {
     println!("bringing back 2,000 turns: {took:?}");
     assert!(took < limit, "{took:?}");
 }
+
+// Feature 012 (specs/012-map-first-slice): FR-039, SC-007. The map is made at
+// every stop and its sheet is in every snapshot; the tests above therefore
+// already time it. This one measures what it adds: the snapshot's size with
+// the map, and the time of the map's part alone, over both walkthroughs.
+#[test]
+#[ignore = "timing; run with --release -- --ignored --nocapture"]
+fn the_map_adds_little_to_a_snapshot() {
+    let zork = || {
+        let pack = read_text("packs/zork1.pack");
+        Session::with_pack(read("stories/zork1/zork1.z3"), Seed::Fixed(11), Some(&pack)).unwrap()
+    };
+    let advent = || Session::new(read("stories/advent/advent.z5"), Seed::Fixed(1)).unwrap();
+    for (name, script, mut session) in [
+        ("zork1", "stories/zork1/fidelity/walkthrough.txt", zork()),
+        (
+            "advent",
+            "stories/advent/fidelity/walkthrough.txt",
+            advent(),
+        ),
+    ] {
+        let mut largest = 0;
+        let mut slowest_view = Duration::ZERO;
+        let mut slowest = Duration::ZERO;
+        for line in read_text(script).lines().skip(2) {
+            let at = session.stamp();
+            let began = Instant::now();
+            if session.send_line(at, line).is_err() {
+                break;
+            }
+            let json = session.snapshot_json(at.turn_count);
+            slowest = slowest.max(began.elapsed());
+            let began = Instant::now();
+            let view = session.map().view();
+            slowest_view = slowest_view.max(began.elapsed());
+            assert!(view.is_some());
+            let map = json.find(r#""map":"#).map_or(0, |start| json.len() - start);
+            largest = largest.max(map);
+        }
+        println!(
+            "{name}: slowest command with its snapshot and map {slowest:?}; \
+             slowest making of the map's sheet alone {slowest_view:?}; largest map {largest} bytes"
+        );
+        assert!(slowest < command_limit(), "{slowest:?}");
+        assert!(largest < 64 * 1024, "{largest}");
+    }
+}

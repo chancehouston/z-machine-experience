@@ -41,21 +41,40 @@ Four parts: what is witnessed (W), where places go (P), the snapshot (S), the sc
   steps along it, the first free; else the nearest free position to one step, by
   rings, preferring positions on the side the direction points to; ties by lowest y,
   then lowest x.
-- **P§3** By up or down: on the same sheet, nearest free to (+1, −1) for up and
-  (−1, +1) for down from the place left, by rings, passing over positions on a ray of
-  a compass way that place has. The place is attached to the place left.
-- **P§4** A place reached by compass, in or out from an attached place joins its
-  group. When a group has four places it moves to a new sheet, keeping the positions
-  of its places relative to each other, with the place first attached at (0, 0). It
-  is then not a group. No other placed place ever moves.
+- **P§3** By up or down: on the same sheet, **inset**: in the gap at a corner of the
+  place left, where four positions meet. Up takes the corner above-right, then
+  above-left; down the corner below-left, then below-right; then the other two. A
+  corner is passed over if another inset place is there, or the place left has a
+  compass way toward it. With no corner to be had, the nearest free inset. The place
+  is attached to the place left. Insets are a grid of their own, half a step off the
+  positions: an inset place takes no position, and a place drawn small there touches
+  none of the four around it. From an inset place, a compass way, in, out, up or down
+  puts the new place on the insets by the rules of P§2, P§5 and (for up and down)
+  nearest free to above-right or below-left off that place's compass ways.
+  (Changed in building, 2026-11-13: the plan put an attached place in an ordinary
+  position. On Zork I that took positions the walked rooms later needed and gave 46
+  straight lines of 60, under the bar; with insets it gives 49, as the spike did.)
+- **P§4** A place reached from an inset place by a way joins its group. When a group
+  has four places it moves to a new sheet, onto that sheet's positions, keeping the
+  places' steps from each other, with the place first attached at (0, 0). It is then
+  not a group and its places are not inset. No other placed place ever moves.
 - **P§5** By in or out: the nearest free position to the place left, on its sheet.
 - **P§6** By any other word, or carried (W§9), or after a jump (W§14): a new sheet at
   (0, 0); unless the place left was itself put by this clause on its sheet, when the
   new place goes at the nearest free position to one step below it.
-- **P§7** No two places of a sheet share a position.
-- **P§8** A compass line is straight when the far place is exactly along the
-  direction from the near one, the same holds for the direction walked back if it
-  was, and no place lies between. Otherwise it is bent.
+- **P§7** No two places of a sheet share a position, and no two share an inset.
+- **P§8** Two places are joined on the page once, however many ways have been walked
+  between them (north and northeast may both lead from one to the other, and west
+  and southwest back). The join is **straight** when any one of those ways lies along
+  the page: from the place it leaves, the other place is exactly along that
+  direction, on the same grid, with no place between. It is **bent** when ways of
+  the compass were walked and none lies along. It is a **ladder** when the only ways
+  are up or down, and a **word** otherwise. Each way is still recorded by itself,
+  and each place's own ways say which directions lead where.
+  (Changed in building, 2026-11-13. The plan drew a line for each way, and called a
+  line bent if the way back did not agree. A wander through Zork I's forest then gave
+  29 lines among 16 places, 25 of them bent. Joined once, the same wander gives 21
+  joins, 11 bent; the walkthrough gives 57 straight of 60.)
 - **P§9** For one story, one chance and one sequence of inputs, every place's sheet
   and position, and every line's being straight or bent, are the same every time.
 - **P§10** Nothing of P§1 to P§8 uses a place the player has not been in.
@@ -73,8 +92,8 @@ A key `map` after `start_over`. `null` when the layer does not recognise the gam
   "here": 74,
   "lamp": "lit",
   "places": [
-    {"id": 74, "x": 1, "y": 0, "name": "Kitchen", "attached_to": null},
-    {"id": 79, "x": 2, "y": -1, "name": null, "attached_to": 74}
+    {"id": 74, "x": 1, "y": 0, "inset": false, "name": "Kitchen", "attached_to": null},
+    {"id": 79, "x": 1, "y": -1, "inset": true, "name": null, "attached_to": 74}
   ],
   "lines": [
     {"a": 74, "b": 193, "out": "west", "back": "east", "kind": "straight", "label": null},
@@ -89,7 +108,7 @@ A key `map` after `start_over`. `null` when the layer does not recognise the gam
   "ways": [
     {"way": "west", "label": "West", "state": "open", "command": "west",
      "leads_to": "Living Room", "dark_ahead": false, "refused": false, "varies": false,
-     "spoken": "West, to Living Room"}
+     "returns": false, "spoken": "West, to Living Room"}
   ]
 }
 ```
@@ -99,12 +118,14 @@ A key `map` after `start_over`. `null` when the layer does not recognise the gam
 - **S§2** `here` is the place the player is in, or `null` (W§13). `lamp` is `lit`,
   `out` (the layer reports the place dark) or `unknown`.
 - **S§3** A place's `name` is `null` until W§2; it carries its number (W§15) when it
-  has one. `x` and `y` are whole numbers, y growing downward. `id` is stable for the
-  game.
-- **S§4** A line's `kind` is `straight`, `bent` (compass lines, P§8), `ladder` (up or
-  down between two places of this sheet) or `word` (W§6, W§9, in, out, between two
-  places of this sheet). `out` and `back` are the ways walked, as compass names,
-  `up`, `down`, `in`, `out`, or `word`; `label` is the command for a `word`.
+  has one. `x` and `y` are whole numbers, y growing downward. With `inset` true they
+  count insets, and the place is drawn small, centred half a step right of and below
+  that position (P§3). `id` is stable for the game.
+- **S§4** `lines` has one entry for each pair of places of this sheet joined by a
+  walked way (P§8). Its `kind` is `straight`, `bent`, `ladder` or `word`. `out` is
+  the way from `a` that it is drawn by, and `back` the way from `b`, if one was
+  walked: a way that lies along the page where there is one. They are compass
+  names, `up`, `down`, `in`, `out`, or `word`; `label` is the command for a `word`.
 - **S§5** `leads` are the walked lines whose far end is on another sheet: the way, the
   words to show for it (a direction's name, or the command), the far place's name if
   it has one, and its sheet.
@@ -114,6 +135,9 @@ A key `map` after `start_over`. `null` when the layer does not recognise the gam
   then the extras: every way that is a stub, a walked line or refused. `command` is
   present when it can be sent now. `leads_to` and the destination in `spoken` are
   given only by W§7. With the game not waiting for a command there are no commands.
+  `state` is the compass's word, or `refused` for a way not offered that was tried
+  (W§8); `refused` is also true for an offered way that was tried and did not move
+  the player. `returns` marks W§16 and `varies` W§10.
 - **S§8** `note` is the layer's words where there is something to say in place of the
   map: that the ways here are not known, or that the player's place is not known.
 - **S§9** `spoken` is the layer's summary for a screen reader.

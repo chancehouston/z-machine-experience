@@ -85,6 +85,15 @@ What the first demo does today:
   message. Zork I's walkthrough, brought back after every one of its commands, is the
   same game each time. "Start over", in the About sheet, asks before a game in progress
   is given up. In the simulator so far; not yet tried on a phone.
+- **The layer keeps a map (not yet on the screen).** As the game is played the
+  experience layer records the places the player has stood in and the moves they made,
+  and puts each place on a page as it is first reached, where it then stays
+  (`specs/012-map-first-slice/`). It holds only what the player has witnessed: no room
+  they have not been in, and no name of where a way leads until they have walked it. A
+  snapshot carries the sheet the player is on. Along Zork I's walkthrough the page has
+  83 places on 11 sheets, with 57 of its 60 joins straight; the recorded pages are in
+  `stories/zork1/map/` and `stories/advent/map/`. The app does not draw it yet: that
+  is the feature's next stage, which replaces the compass.
 - **The app holds no rule of any game.** It draws what the experience layer reports and
   sends back taps and typed lines; tests read its source to hold it to that.
 

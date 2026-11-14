@@ -218,7 +218,9 @@ fn the_snapshot_has_every_field_in_order() {
             // Feature 011: words to show once, and the question to ask
             // before a game in progress is given up.
             "notice",
-            "start_over"
+            "start_over",
+            // Feature 012: the sheet of the map the player is on.
+            "map"
         ]
     );
     assert_eq!(
@@ -491,4 +493,96 @@ fn snapshots_keep_the_validation_rules() {
         say(&mut s, line);
     }
     assert!(checked >= 20, "{checked}");
+}
+
+// specs/012-map-first-slice/contracts/map.md, S§1 to S§10: the map's sheet in
+// a snapshot, key for key.
+#[test]
+fn the_map_in_a_snapshot() {
+    let mut s = game();
+    let snapshot = read(&s.snapshot_json(0));
+    let map = snapshot.get("map");
+    assert_eq!(
+        map.keys(),
+        [
+            "note", "spoken", "sheet", "sheets", "here", "lamp", "places", "lines", "leads",
+            "stubs", "ways"
+        ]
+    );
+    assert_eq!(map.get("note"), &J::Null);
+    assert_eq!(map.get("spoken").text(), "Map. You are in West of House.");
+    assert_eq!(
+        (map.get("sheet").number(), map.get("sheets").number()),
+        (1.0, 1.0)
+    );
+    // With no game pack the layer cannot say whether Zork I's rooms are lit.
+    assert_eq!(map.get("lamp").text(), "unknown");
+    let places = map.get("places").list();
+    assert_eq!(places.len(), 1);
+    assert_eq!(
+        places[0].keys(),
+        ["id", "x", "y", "inset", "name", "attached_to"]
+    );
+    assert_eq!(places[0].get("id"), map.get("here"));
+    assert_eq!(
+        (places[0].get("x").number(), places[0].get("y").number()),
+        (0.0, 0.0)
+    );
+    assert_eq!(places[0].get("inset"), &J::Bool(false));
+    assert_eq!(places[0].get("name").text(), "West of House");
+    assert_eq!(places[0].get("attached_to"), &J::Null);
+    for empty in ["lines", "leads", "stubs"] {
+        assert!(map.get(empty).list().is_empty(), "{empty}");
+    }
+    // S§7: the ways of the place the player is in, with no name of where
+    // they lead until walked, though the compass gives one.
+    let ways = map.get("ways").list();
+    assert_eq!(
+        ways[0].keys(),
+        [
+            "way",
+            "label",
+            "state",
+            "command",
+            "leads_to",
+            "dark_ahead",
+            "refused",
+            "varies",
+            "returns",
+            "spoken"
+        ]
+    );
+    let names: Vec<&str> = ways.iter().map(|w| w.get("way").text()).collect();
+    assert_eq!(names, ["north", "northeast", "southeast", "south", "west"]);
+    assert_eq!(ways[0].get("label").text(), "North");
+    assert_eq!(ways[0].get("state").text(), "open");
+    assert_eq!(ways[0].get("command").text(), "north");
+    assert_eq!(ways[0].get("leads_to"), &J::Null);
+    assert_eq!(ways[0].get("spoken").text(), "North");
+    let compass_north = &snapshot.get("compass").get("places").list()[0];
+    assert_eq!(
+        compass_north.get("leads_to").text(),
+        "North of House",
+        "S§10"
+    );
+
+    // A walk: a line, and the stubs of the place left.
+    say(&mut s, "north");
+    let snapshot = read(&s.snapshot_json(0));
+    let map = snapshot.get("map");
+    assert_eq!(map.get("places").list().len(), 2);
+    let lines = map.get("lines").list();
+    assert_eq!(lines[0].keys(), ["a", "b", "out", "back", "kind", "label"]);
+    assert_eq!(lines[0].get("out").text(), "north");
+    assert_eq!(lines[0].get("back"), &J::Null);
+    assert_eq!(lines[0].get("kind").text(), "straight");
+    assert_eq!(lines[0].get("label"), &J::Null);
+    let stubs = map.get("stubs").list();
+    assert_eq!(stubs[0].keys(), ["of", "way", "state", "dark_ahead"]);
+    let stub_ways: Vec<&str> = stubs.iter().map(|w| w.get("way").text()).collect();
+    assert_eq!(
+        stub_ways,
+        ["northeast", "southeast", "south", "west"],
+        "of West of House, less the way walked"
+    );
 }

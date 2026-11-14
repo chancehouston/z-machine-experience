@@ -485,14 +485,14 @@ fn starting_over_asks_only_while_a_game_is_in_progress() {
     let (s, _) = open(&asker(), None);
     assert_eq!(s.start_over(), Some(ASK_START_OVER));
     assert!(s.snapshot_json(0).ends_with(&format!(
-        r#","notice":null,"start_over":"{ASK_START_OVER}"}}"#
+        r#","notice":null,"start_over":"{ASK_START_OVER}","map":null}}"#
     )));
     let (mut s, _) = open(&faulter(), None);
     say(&mut s, "go");
     assert_eq!(s.start_over(), None);
     assert!(
         s.snapshot_json(0)
-            .ends_with(r#","notice":null,"start_over":null}"#)
+            .ends_with(r#","notice":null,"start_over":null,"map":null}"#)
     );
 }
 

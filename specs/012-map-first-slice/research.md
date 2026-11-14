@@ -16,6 +16,14 @@ same path. A map that is a function of those turns comes back with the game for
 nothing (FR-037), and is the same on every platform (FR-015). It also makes the tests
 plain: play a script, compare the page.
 
+**Changed in building**: feature 011 left look-ahead out while a game's inputs were
+given again, running it at the last stop only. The map is made from the compass the
+look-ahead settles at every stop (a way settled as no way is not drawn), so a map
+made without it differed from the map that was left. Look-ahead now runs at every
+stop when a game is brought back. Measured on the development Mac: Zork I's
+walkthrough is brought back in 31 ms and a game of 2,000 turns in 80 ms, against a
+limit of one second.
+
 **What follows**: no map is stored. Nothing in the map may depend on the order of a
 hash map or on anything outside the session; ordered maps are used throughout.
 
@@ -119,7 +127,15 @@ turned to work as the player goes:
 **What the spike gave under these rules**: Zork I, 83 places on 11 sheets, 49 of 60
 compass lines straight, none crossing; Adventure, 65 places on 7 sheets, 44 of 51.
 
-**Known weakness**: an attached room can land well away from its parent when the near
+**Changed in building**: an attached place does not take a position. It is inset, in
+the gap at a corner of the place it was reached from (contract P§3). The first
+version put it in an ordinary position near above-right or below-left; on Zork I's
+walkthrough those rooms took positions that walked rooms later needed, and the page
+had 46 straight lines of 60. Inset, it has 49 of 60 on 11 sheets, the spike's
+figures exactly; Adventure has 43 of 51 on 7 sheets. This is also what the owner's
+second sketch drew, and what the review proposed.
+
+**Known weakness, as first written**: an attached room can land well away from its parent when the near
 positions are taken (the Attic, in the spike's Zork I page). The drawing shows the
 ladder, so it reads, but not well. It is left for the owner's eye at SC-009.
 
