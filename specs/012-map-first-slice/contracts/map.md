@@ -151,14 +151,24 @@ A key `map` after `start_over`. `null` when the layer does not recognise the gam
 - **A§2** Each of `ways` with a command is a button over the drawing at its place's
   edge in its direction, with the identifier `compass.<way>` for the twelve and
   `compass.extra.<n>` for the rest, the accessibility label `spoken`, and the value
-  its `state`. Touching it sends `command` through the one place a line is sent from.
+  its `state`. Touching it is sent to the layer as that way's place in `ways`
+  (`Session::tap_way`, `zmx_session_tap_way`), and the layer sends the way's command
+  as a tapped line. (Changed in building: the plan had the app send the command as
+  a typed line; the layer's own entry keeps a touch a touch in the transcript and in
+  the kept game.)
 - **A§3** The app shows no name, state or word the snapshot did not give.
 - **A§4** While the game waits for a line the command field has the focus. It gives
-  it up only when the map is opened out or the transcript is dragged.
-- **A§5** The band's height does not change while the keyboard is up.
+  it up only when the player scrolls back through the transcript, drawing the text
+  down into the keyboard, which the system then lowers with the finger; the command
+  field goes to the foot of the screen with it. Reading on through a reply, the
+  other way, does not lower it. Touching the field raises it, and the newest text is
+  brought back into view above it.
+- **A§5** The band's height does not change while the keyboard is up. Its own
+  frame is the element `map.frame`.
 - **A§6** The strip of what is carried and the note of darkness are shown at the
   band's lower edge whenever the band is.
-- **A§7** The newest reply is shown from its first line.
+- **A§7** The newest reply is shown from its first line. One taller than its room
+  has the mark `transcript.more` at the transcript's foot.
 - **A§8** Pulling the band down, or touching its `button.openMap`, shows the sheet in
   the space of the band and the transcript, with the keyboard down. It can be
   dragged. `button.closeMap`, or touching the command field, returns to the band.

@@ -1,16 +1,19 @@
 import SwiftUI
 
-/// The one screen: status, transcript, compass and field
-/// (specs/004-first-demo/contracts/screen.md).
+/// The one screen: status, the map's band, the transcript and the field, with
+/// the keyboard up (specs/004-first-demo/contracts/screen.md, and for the band
+/// and the keyboard specs/012-map-first-slice/contracts/map.md, part A).
 struct GameView: View {
     @State private var game = Game()
     @State private var line = ""
     @State private var showingAbout = false
-    @State private var typing = false
+    /// Whether the command field has the keyboard. It has it whenever the game
+    /// waits for a line, and gives it up only when the player scrolls back
+    /// through the transcript; touching the field or sending takes it again.
+    @State private var typing = true
     /// Lines typed and not yet sent: one is sent at a time, in order.
     @State private var waitingLines: [String] = []
     @State private var sending = false
-
     /// `-showLaunchTime` adds the time the launch took to the screen.
     private let showsLaunchTime = ProcessInfo.processInfo.arguments.contains("-showLaunchTime")
 
@@ -44,18 +47,18 @@ struct GameView: View {
                             .accessibilityIdentifier("announcement.last")
                     }
                     Divider()
-                    TranscriptView(turns: game.turns, keyboardUp: typing)
-                    Divider()
-                    // With the keyboard showing, the compass and the strip of
-                    // what is carried give their room to the transcript and the
-                    // field.
-                    if !typing {
-                        InventoryStrip(
-                            strip: showing.inventory, current: showing.waiting == .command)
-                        Divider()
-                        // Where the layer says the player is in the dark, its
-                        // words stand above the compass. The compass itself
-                        // is the room's own.
+                    // The map: the sheet the player is on, about their place,
+                    // with a control for each way out. Where the layer has no
+                    // map for the game there is no band.
+                    if let map = showing.map {
+                        MapBand(map: map, ready: !game.busy) { index in
+                            Task { await game.tap(way: index) }
+                        }
+                    }
+                    // At the band's lower edge, whether or not the keyboard
+                    // is up: what is carried, and the layer's words where the
+                    // player is in the dark.
+                    HStack(spacing: 8) {
                         if let note = showing.light.note {
                             Label {
                                 Text(verbatim: note)
@@ -63,16 +66,17 @@ struct GameView: View {
                                 Image(systemName: "moon.fill")
                             }
                             .font(.footnote.weight(.semibold))
-                            .padding(.top, 8)
+                            .fixedSize()
                             .accessibilityElement(children: .combine)
                             .accessibilityIdentifier("light.note")
                         }
-                        CompassView(
-                            compass: showing.compass, ready: !game.busy,
-                            tapPlace: { place in Task { await game.tap(place: place) } },
-                            tapExtra: { index in Task { await game.tap(extra: index) } })
-                        Divider()
+                        InventoryStrip(
+                            strip: showing.inventory, current: showing.waiting == .command)
                     }
+                    .padding(.leading, showing.light.note == nil ? 0 : 12)
+                    Divider()
+                    TranscriptView(turns: game.turns, keyboardUp: typing)
+                    Divider()
                     // The layer's words to show once: an earlier game that
                     // could not be brought back, or a place that is not kept.
                     if let notice = showing.notice {
@@ -97,18 +101,6 @@ struct GameView: View {
         switch showing.waiting {
         case .command, .answer:
             HStack(spacing: 8) {
-                // Beside the field rather than on the keyboard's own bar: there
-                // the system floats it over the send button.
-                if typing {
-                    Button {
-                        typing = false
-                    } label: {
-                        Image(systemName: "keyboard.chevron.compact.down")
-                            .font(.title3)
-                    }
-                    .accessibilityLabel("Show compass")
-                    .accessibilityIdentifier("button.compass")
-                }
                 CommandField(
                     placeholder: showing.waiting == .command
                         ? "Type a command" : "Type your answer",
@@ -118,9 +110,9 @@ struct GameView: View {
                 )
                 .accessibilityIdentifier("field.command")
                 .onChange(of: game.busy) { sendNextLine() }
-                // When the game ends the field goes, and the keyboard with it:
-                // a new game starts with the compass showing.
-                .onDisappear { typing = false }
+                // The field has the keyboard from the moment it is there: at
+                // launch, and again in a new game after one has ended.
+                .onAppear { typing = true }
                 Button {
                     let typed = line
                     line = ""
@@ -258,12 +250,26 @@ private struct StatusBar: View {
 /// Every turn in order. A turn is the game's text as printed; the command that
 /// led to the next turn is written straight after the prompt that ends it, as
 /// on a terminal, and set apart as the player's.
+///
+/// The newest turn is shown from its first line: a reply longer than the room
+/// is read from its start, with a sign that there is more below.
 private struct TranscriptView: View {
     let turns: [Turn]
+    /// Whether the command field has the keyboard. When it comes back, the
+    /// newest text is brought back into view.
     let keyboardUp: Bool
 
-    /// Where the transcript is scrolled to: its end, until the player moves it.
-    @State private var position = ScrollPosition(edge: .bottom)
+    /// Where the transcript is scrolled to: the newest turn's first line,
+    /// until the player moves it.
+    @State private var position = ScrollPosition(edge: .top)
+    /// How tall the room for the transcript is now.
+    @State private var roomHeight: CGFloat = 0
+    /// The moving of the transcript to the newest turn, while it is going on.
+    @State private var moving: Task<Void, Never>?
+    /// Whether there is text below what is shown.
+    @State private var more = false
+    /// Where the newest turn starts, and how tall it is.
+    @State private var newest: NewestTurn.Start?
 
     var body: some View {
         GeometryReader { room in
@@ -284,31 +290,109 @@ private struct TranscriptView: View {
                                         .accessibilityIdentifier("turn.\(turn.number + 1).command")
                                 }
                             }
+                            // The newest turn says where it starts, so that
+                            // the transcript can be moved there once it has
+                            // been laid out.
+                            .background {
+                                if turn.number == turns.count - 1 {
+                                    GeometryReader { spot in
+                                        Color.clear.preference(
+                                            key: NewestTurn.self,
+                                            value: NewestTurn.Start(
+                                                turn: turn.number,
+                                                y: spot.frame(in: .named("transcript.content")).minY,
+                                                height: spot.size.height))
+                                    }
+                                }
+                            }
                     }
                 }
+                .coordinateSpace(.named("transcript.content"))
                 .padding(.horizontal)
                 .padding(.vertical, 8)
                 // A transcript shorter than its room sits at the bottom, next
-                // to the compass and the field, whenever it is drawn.
+                // to the field, whenever it is drawn.
                 .frame(minHeight: room.size.height, alignment: .bottom)
             }
-            .defaultScrollAnchor(.bottom)
-            // It stays at its end as turns are added. Until iOS 27.2 a
-            // scroll to a marker after the last turn did this (a
-            // ScrollViewReader's). There, with the keyboard up and the
-            // transcript longer than its room, that scroll went to where
-            // the end would be without the keyboard, and left the newest
-            // turn behind it (testALongSession).
-            .defaultScrollAnchor(.bottom, for: .sizeChanges)
             .scrollPosition($position)
-            // A new turn brings the newest text back into view, wherever
-            // the player had scrolled to.
-            .onChange(of: turns.count) {
-                withAnimation { position.scrollTo(edge: .bottom) }
+            // Scrolling back lowers the keyboard, and the system does it:
+            // the finger draws the text down into the keyboard, which goes
+            // with it. Reading on through a long reply moves the finger the
+            // other way and leaves the keyboard where it is. (A first fix
+            // lowered it from here, by giving up the field's focus while the
+            // finger was still down. The keyboard went and the screen kept
+            // its room for it: found by the owner on a phone, 2026-11-14.)
+            .scrollDismissesKeyboard(.interactively)
+            .onScrollGeometryChange(for: Bool.self) { geometry in
+                geometry.contentOffset.y + geometry.containerSize.height
+                    < geometry.contentSize.height - 6
+            } action: { _, below in
+                more = below
+            }
+            // When the keyboard comes back the room is shorter: the newest
+            // text is brought back into it.
+            .onChange(of: keyboardUp) {
+                if keyboardUp {
+                    showNewest()
+                }
+            }
+            // A new turn brings the newest text into view, wherever the
+            // player had scrolled to: its first line where the reply is
+            // taller than the room, and otherwise the whole of it, at the
+            // end of the transcript. Its place is known only once it has
+            // been laid out.
+            .onPreferenceChange(NewestTurn.self) { start in
+                guard let start else { return }
+                let arrived = start.turn != newest?.turn
+                newest = start
+                // The opening of a new game is shown from the top as it is.
+                if arrived, start.turn > 0 || turns.count > 1 {
+                    showNewest(roomHeight: room.size.height)
+                }
+            }
+            .background {
+                // The room's height, for the moves asked for outside it.
+                Color.clear.onChange(of: room.size.height, initial: true) {
+                    roomHeight = room.size.height
+                }
             }
             .accessibilityIdentifier("transcript")
-            .onChange(of: keyboardUp) {
-                position.scrollTo(edge: .bottom)
+            .overlay(alignment: .bottom) {
+                if more {
+                    Image(systemName: "chevron.compact.down")
+                        .font(.title3.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 10)
+                        .background(Capsule().fill(Color(.systemBackground).opacity(0.85)))
+                        .accessibilityIdentifier("transcript.more")
+                        .allowsHitTesting(false)
+                }
+            }
+        }
+    }
+
+    /// Brings the newest turn into view: its first line where it is taller
+    /// than the room, and otherwise the whole of it, at the transcript's end.
+    private func showNewest(roomHeight given: CGFloat? = nil) {
+        guard let newest else { return }
+        moving?.cancel()
+        moving = Task { @MainActor in
+            // The move is asked for three times over most of a second: one
+            // asked for while the room is changing size (the keyboard
+            // arriving) is lost.
+            for attempt in 0..<3 {
+                if attempt > 0 {
+                    try? await Task.sleep(for: .milliseconds(350))
+                }
+                if Task.isCancelled { return }
+                let tall = newest.height > (given ?? roomHeight)
+                withAnimation(.easeOut(duration: 0.2)) {
+                    if tall {
+                        position.scrollTo(y: max(0, newest.y))
+                    } else {
+                        position.scrollTo(edge: .bottom)
+                    }
+                }
             }
         }
     }
@@ -322,5 +406,20 @@ private struct TranscriptView: View {
             text.append(typed)
         }
         return text
+    }
+}
+
+/// Where the newest turn starts within the transcript's content.
+private struct NewestTurn: PreferenceKey {
+    struct Start: Equatable {
+        let turn: Int
+        let y: CGFloat
+        let height: CGFloat
+    }
+
+    static let defaultValue: Start? = nil
+
+    static func reduce(value: inout Start?, nextValue: () -> Start?) {
+        value = nextValue() ?? value
     }
 }

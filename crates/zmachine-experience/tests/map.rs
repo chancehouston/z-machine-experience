@@ -529,3 +529,34 @@ fn write_pages_to_look_at() {
     write("zork1-wander", &wander(zork(), 1, 400).0);
     write("advent-wander", &wander(advent(), 1, 400).0);
 }
+
+// Contract A§2 and Principle III: a touch on a way of the map sends that
+// way's command, as a tap, and is refused where there is nothing to send.
+#[test]
+fn a_way_of_the_map_is_tapped_by_its_place_in_the_list() {
+    use zmachine_experience::{Refused, Source};
+    let mut s = Session::new(ring(), Seed::Fixed(1)).unwrap();
+    let ways = s.map().view().unwrap().ways;
+    let east = ways
+        .iter()
+        .position(|way| way.way == "east")
+        .expect("east is a way");
+    s.tap_way(s.stamp(), east).expect("the way can be tapped");
+    let turn = s.turns().last().unwrap();
+    assert_eq!(
+        (turn.command.as_deref(), turn.source),
+        (Some("east"), Some(Source::Tap))
+    );
+    assert_eq!(s.map().view().unwrap().here, Some(toy_room(1)));
+    // Beyond the list, and against a turn that has passed: refused, and
+    // nothing is sent.
+    let turns = s.turns().len();
+    assert_eq!(s.tap_way(s.stamp(), 99), Err(Refused::NotOffered));
+    let mut stale = s.stamp();
+    stale.turn_count -= 1;
+    assert_eq!(s.tap_way(stale, 0), Err(Refused::Stale));
+    assert_eq!(s.turns().len(), turns);
+    // A game with no map offers no way.
+    let mut none = Session::new(asker(), Seed::Fixed(1)).unwrap();
+    assert_eq!(none.tap_way(none.stamp(), 0), Err(Refused::NotOffered));
+}
