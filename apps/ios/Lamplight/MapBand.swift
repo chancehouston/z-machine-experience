@@ -13,6 +13,8 @@ struct MapBand: View {
     let open: Bool
     let setOpen: (Bool) -> Void
     let tapWay: (Int) -> Void
+    /// A touch on the place the player is in.
+    let tapPlace: () -> Void
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     /// How far the opened sheet has been dragged from having the player's
@@ -51,7 +53,7 @@ struct MapBand: View {
             let middle = CGPoint(
                 x: room.size.width / 2 + shift.width, y: room.size.height / 2 + shift.height)
             ZStack(alignment: .topLeading) {
-                MapDrawing(map: map, still: still)
+                MapDrawing(map: map, still: still, ready: ready, tapPlace: tapPlace)
                     .offset(x: middle.x - focus.x, y: middle.y - focus.y)
                 if map.here != nil {
                     ways(around: middle)

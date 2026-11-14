@@ -78,6 +78,10 @@ final class Game {
         await command { engine, showing in await engine.tap(way: index, showing: showing) }
     }
 
+    func tapPlace() async {
+        await command { engine, showing in await engine.tapPlace(showing: showing) }
+    }
+
     func newGame() async {
         await command { engine, _ in await engine.newGame() }
     }

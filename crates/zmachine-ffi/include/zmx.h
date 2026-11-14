@@ -76,6 +76,8 @@ int zmx_session_tap_extra(zmx_session *session, uint64_t generation, size_t turn
 /* A touch on a way of the map: index into the snapshot's map.ways. */
 int zmx_session_tap_way(zmx_session *session, uint64_t generation, size_t turn_count,
                         size_t index);
+/* A touch on the place the player is in: sends the snapshot's map.look. */
+int zmx_session_tap_place(zmx_session *session, uint64_t generation, size_t turn_count);
 
 /* Abandons the game and starts a new one, with a fresh number from the caller. */
 void zmx_session_new_game(zmx_session *session, uint32_t entropy);

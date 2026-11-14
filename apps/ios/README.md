@@ -80,6 +80,13 @@ states and spoken labels the compass had.
   place's id so that it is the same each time; lines bow slightly. A new place and
   its line are drawn in over a quarter of a second and the view glides to the
   player's place; with Reduce Motion both happen at once.
+- **A touch on the place the player is in looks around**
+  (`specs/013-room-look/`). The layer finds the story's own word for looking and
+  says in the snapshot (`map.look`) when the place can be touched; the app holds no
+  such word. The touch is sent by `zmx_session_tap_place` and comes back as a
+  tapped command with the game's full description. It costs whatever the game
+  charges for a look. Other places do nothing when touched. A drag that begins on
+  the place still moves the sheet.
 - **The marker is a lamp** at the corner of the player's place: lit, out where the
   layer reports the place dark, or plain where the layer cannot say.
 - **The keyboard is up** whenever the game waits for a line. It goes down only when

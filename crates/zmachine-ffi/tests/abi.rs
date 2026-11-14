@@ -358,6 +358,7 @@ fn the_header_and_the_library_agree() {
             "zmx_session_snapshot",
             "zmx_session_tap",
             "zmx_session_tap_extra",
+            "zmx_session_tap_place",
             "zmx_session_tap_way",
             "zmx_string_free"
         ]
@@ -618,6 +619,28 @@ fn a_kept_game_crosses_the_boundary_and_comes_back() {
     for session in [first, second, third, quiet] {
         zmx_session_free(session);
     }
+}
+
+// specs/013-room-look/contracts/look.md, A§1: a touch on the player's place
+// sends the look the snapshot gave, as a tap.
+#[test]
+fn the_players_place_is_tapped_across_the_boundary() {
+    let session = open();
+    let before = snapshot(session, 0);
+    assert!(
+        before.contains(r#""look":{"command":"look","spoken":"Look around"}"#),
+        "{before}"
+    );
+    assert_eq!(zmx_session_tap_place(session, 1, 1), 1);
+    let after = snapshot(session, 1);
+    assert!(
+        after.contains(r#""command":"look","source":"tap""#),
+        "{after}"
+    );
+    // A stale stamp and a null session are refused.
+    assert_eq!(zmx_session_tap_place(session, 1, 1), 0);
+    assert_eq!(zmx_session_tap_place(std::ptr::null_mut(), 1, 2), 0);
+    zmx_session_free(session);
 }
 
 // specs/012-map-first-slice/contracts/map.md, A§2: a way of the map is

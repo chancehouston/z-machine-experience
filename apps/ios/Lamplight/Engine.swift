@@ -95,6 +95,12 @@ actor Engine {
         return snapshot(since: showing.turnCount)
     }
 
+    /// Sends a touch on the place the player is in: the snapshot's look.
+    func tapPlace(showing: Snapshot) -> Snapshot? {
+        _ = zmx_session_tap_place(session, showing.generation, showing.turnCount)
+        return snapshot(since: showing.turnCount)
+    }
+
     /// Abandons the game and starts another.
     func newGame() -> Snapshot? {
         var generator = SystemRandomNumberGenerator()

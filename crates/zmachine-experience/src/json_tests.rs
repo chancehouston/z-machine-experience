@@ -506,9 +506,13 @@ fn the_map_in_a_snapshot() {
         map.keys(),
         [
             "note", "spoken", "sheet", "sheets", "here", "lamp", "places", "lines", "leads",
-            "stubs", "ways"
+            "stubs", "ways", "look"
         ]
     );
+    // specs/013-room-look/contracts/look.md, S§1, S§2.
+    assert_eq!(map.get("look").keys(), ["command", "spoken"]);
+    assert_eq!(map.get("look").get("command").text(), "look");
+    assert_eq!(map.get("look").get("spoken").text(), "Look around");
     assert_eq!(map.get("note"), &J::Null);
     assert_eq!(map.get("spoken").text(), "Map. You are in West of House.");
     assert_eq!(

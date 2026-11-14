@@ -834,3 +834,43 @@ fn a_place_with_no_ways_says_so() {
     feed(&mut map, true);
     assert_eq!(map.view().unwrap().note, None);
 }
+
+// specs/013-room-look/contracts/look.md, L§2, L§6: the place the player is in
+// can be touched to look when the game waits for a command, the place is
+// known and the story has the word; in the dark and with no name as anywhere.
+#[test]
+fn the_players_place_can_be_touched_to_look() {
+    let mut map = Map::new(true).with_look(Some("look".to_string()));
+    at(&mut map, None, 10, "Hall", HALL);
+    let look = map.view().unwrap().look.expect("a look");
+    assert_eq!(
+        (look.command.as_str(), look.spoken.as_str()),
+        ("look", "Look around")
+    );
+    // In the dark, in a place with no name.
+    let mut study = At::room(Some("north"), 11, "Study", STUDY);
+    study.dark = Some(true);
+    study.feed(&mut map);
+    let view = map.view().unwrap();
+    assert_eq!(view.places[1].name, None);
+    assert!(view.look.is_some());
+    // At a question there is nothing to touch.
+    study.waiting = Waiting::Answer;
+    study.sent = Some("quit");
+    study.feed(&mut map);
+    assert_eq!(map.view().unwrap().look, None);
+}
+
+// L§2: no look where the story has no word, or the place is not known.
+#[test]
+fn there_is_no_look_without_a_word_or_a_place() {
+    let mut map = Map::new(true);
+    at(&mut map, None, 10, "Hall", HALL);
+    assert_eq!(map.view().unwrap().look, None);
+    let mut map = Map::new(true).with_look(Some("look".to_string()));
+    at(&mut map, None, 10, "Hall", HALL);
+    let mut lost = At::room(Some("north"), 11, "Study", STUDY);
+    lost.room = None;
+    lost.feed(&mut map);
+    assert_eq!(map.view().unwrap().look, None);
+}

@@ -95,6 +95,8 @@ struct MapSheet: Decodable, Sendable, Equatable {
     let leads: [MapLead]
     let stubs: [MapStub]
     let ways: [MapWay]
+    /// Present when the place the player is in can be touched now.
+    let look: MapLook?
 }
 
 struct MapPlace: Decodable, Sendable, Equatable, Identifiable {
@@ -105,6 +107,13 @@ struct MapPlace: Decodable, Sendable, Equatable, Identifiable {
     let inset: Bool
     /// Nil until the player has seen the place lit.
     let name: String?
+}
+
+/// What a touch on the place the player is in sends, and the layer's words
+/// for what it does (specs/013-room-look/contracts/look.md).
+struct MapLook: Decodable, Sendable, Equatable {
+    let command: String
+    let spoken: String
 }
 
 struct MapLine: Decodable, Sendable, Equatable {

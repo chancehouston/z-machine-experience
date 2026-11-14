@@ -61,6 +61,8 @@ struct GameView: View {
                             typing = !open
                         } tapWay: { index in
                             Task { await game.tap(way: index) }
+                        } tapPlace: {
+                            Task { await game.tapPlace() }
                         }
                     }
                     // At the band's lower edge, whether or not the keyboard

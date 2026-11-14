@@ -251,6 +251,16 @@ pub struct WayView {
     pub spoken: String,
 }
 
+/// What a touch on the place the player is in sends
+/// (specs/013-room-look/contracts/look.md).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct LookView {
+    /// The story's word for looking.
+    pub command: String,
+    /// The layer's words for what the touch does.
+    pub spoken: String,
+}
+
 /// The sheet the player is on, as a snapshot gives it (contract part S).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct MapView {
@@ -266,6 +276,8 @@ pub struct MapView {
     pub leads: Vec<LeadView>,
     pub stubs: Vec<StubView>,
     pub ways: Vec<WayView>,
+    /// Present when the player's place can be touched to look.
+    pub look: Option<LookView>,
 }
 
 /// The map of one game.
@@ -296,6 +308,8 @@ pub struct Map {
     dark: Option<bool>,
     /// The compass's note where the ways here are not known.
     ways_note: Option<&'static str>,
+    /// The story's word for looking, if its dictionary has one.
+    look: Option<String>,
 }
 
 /// The direction a word names. Six characters are kept, as a version 3
@@ -337,7 +351,14 @@ impl Map {
             jumped: false,
             dark: None,
             ways_note: None,
+            look: None,
         }
+    }
+
+    /// The map of a story whose word for looking is this.
+    pub(crate) fn with_look(mut self, word: Option<String>) -> Map {
+        self.look = word;
+        self
     }
 
     /// Takes in one stop of the game (contract part W).
@@ -932,6 +953,16 @@ impl Map {
             leads,
             stubs,
             ways: self.here.map(|id| self.ways(id)).unwrap_or_default(),
+            // The place can be touched while the game waits for a command
+            // and the layer knows where the player is.
+            look: self
+                .look
+                .as_ref()
+                .filter(|_| self.at_command && self.here.is_some())
+                .map(|word| LookView {
+                    command: word.clone(),
+                    spoken: crate::look::SPOKEN_LOOK.to_string(),
+                }),
         })
     }
 
