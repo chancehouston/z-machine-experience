@@ -429,6 +429,11 @@ but for the spike's untracked example. App: 49 tests on iOS 27.2 (iPhone 18 Pro)
 
 **T051 (the owner's phone, SC-009)**: installed on the owner's iPhone 15 Pro on
 2026-11-14. Asked whether the opened-out map works on the phone, they said: "Yes, it
-works". They were also asked whether the page reads as the places walked, what they
-would have drawn differently by hand, and what to do about the tangle after
-wandering; they have not answered those, so SC-009's two questions stand open.
+works". Asked later the same day whether the page read as the places they walked,
+they chose "Yes, it read well" and added nothing they would have drawn differently.
+On the tangle after wandering, having seen the opened-out sheet: "Leave it for now".
+
+**Asked for by the owner at the trial, for later**: a touch on the place the player
+is in gives the game's full description of it (the game's own command for looking,
+sent as a tapped line). A touch on any other place does nothing for now. Not built
+in this feature; the owner chose "Later".
