@@ -95,7 +95,7 @@ places stood in, each where first put, joined by exactly the lines walked.
 - [x] T028 Add the recorded pages (R12): a function in `tests/map.rs` that writes a map as sorted text lines, and a test that compares it with `stories/zork1/map/walkthrough.txt` and `stories/advent/map/walkthrough.txt`, rewriting them when `UPDATE_PAGES=1`. Create the two files and a `README.md` in each folder saying what they are and that they hold the story's room names under its license
 - [x] T029 [P] Write `crates/zmachine-corpus/tests/map.rs`: every recognised story of the corpus is crawled with a session recording the map, with no fault and P§7 holding (FR-044); and the seeded wander of R13 on Zork I and Adventure, 400 moves, printing the measures of SC-003 and asserting P§7 (FR-043). Record the wander's figures here. No room name is written to any report
 - [x] T030 Add to `crates/zmachine-experience/tests/speed.rs` ignored timing tests: over both walkthroughs the slowest command with its snapshot and map within the command limit; bringing back 2,000 turns with the map within the layer's second; the largest `map` in bytes (FR-039, SC-007). Run in release and record the figures here
-- [ ] T031 Run `cargo fmt --all`, `cargo clippy --workspace --all-targets`, `cargo test --workspace`; build the app with `scripts/build-ios.sh` and run `scripts/test-ios.sh 27` to confirm the app, which does not yet read `map`, is unchanged. Record the counts here
+- [x] T031 Run `cargo fmt --all`, `cargo clippy --workspace --all-targets`, `cargo test --workspace`; build the app with `scripts/build-ios.sh` and run `scripts/test-ios.sh 27` to confirm the app, which does not yet read `map`, is unchanged. Record the counts here
 - [x] T032 [P] Update `README.md` (what the layer now keeps; that the screen is unchanged until stage 2) and `docs/` only if a published interface changed (it does not: the introspection specification is untouched)
 
 **Stage 1 ends here: one pull request.**
@@ -266,6 +266,11 @@ Inform 7 Adventure) are of no family and gave none. Zork III stopped after ten m
 | Bringing back 2,000 turns | 80 ms | 1 s |
 
 Adventure's 6.3 ms is look-ahead's, as before this feature.
+
+**The whole of the checks (T031)**: `cargo fmt` and `cargo clippy` clean; 1,025
+workspace tests passed, none failed, 22 ignored; the app built and all 37 of its tests
+passed on iOS 27.2, unchanged, since the app does not read the map yet. The app's
+tests were not run on iOS 26.0 in this stage; CI runs them there.
 
 **Tests of earlier features that changed**
 
