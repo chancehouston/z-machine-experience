@@ -110,22 +110,22 @@ places stood in, each where first put, joined by exactly the lines walked.
 
 ### Tests
 
-- [ ] T033 [US2] In `apps/ios/LamplightUITests/LamplightUITests.swift` add `testTheMapShowsWhereIAm`: at the opening the element `map` exists with the layer's spoken summary; `map.place.<id>` exists for the opening place only; after tapping `compass.north` there are two (A§1, A§3). See it fail
-- [ ] T034 [US2] Change the existing tests that walk by `compass.<way>` so that their expectations of a label's destination follow W§7 (a destination only once walked), and list each changed test here. Add `testWalkingToTheKitchenByTheMap` for SC-001 (A§2). See them fail
-- [ ] T035 [US3] Add `testTheKeyboardStaysUp`: the keyboard is shown at launch; after five commands, two typed and three tapped, it has been shown at every check; `button.compass` does not exist; the inventory strip and, in the Attic unlit, the darkness note exist with the keyboard up (A§4, A§6, A§11). Remove or rewrite the tests of the compass being hidden by the keyboard, listing each. See it fail
-- [ ] T036 [US3] Add `testALongReplyStartsAtItsFirstLine`: after a command with a long reply (Zork I's `look` in the Living Room, or the opening), the first line of the newest turn is within the transcript's frame (A§7). And `testScrollingBackLowersTheKeyboard`: dragging the transcript lowers it; touching the field raises it (A§4). See them fail
-- [ ] T037 [US8] Change the tests of feature 010 that read a way's spoken label, as T034; add an assertion that each of the opening place's ways is a button whose label is the snapshot's `spoken` (A§2, FR-032), and that the announcement after a reply is what it was (FR-034). See them fail
-- [ ] T038 [P] [US2] Rewrite the rules of `crates/zmachine-ffi/tests/app_rules.rs` that name `CompassView.swift` and `CompassLayout.swift` for `MapBand.swift`, `MapDrawing.swift` and `MapLayout.swift`: no direction word is written outside `MapLayout.swift`; the map's views send nothing but through the game's one place for a line; the app's source does not read the snapshot's `compass` key or any `leads_to` but the map's (plan.md, re-check). See them fail
+- [x] T033 [US2] In `apps/ios/LamplightUITests/LamplightUITests.swift` add `testTheMapShowsWhereIAm`: at the opening the element `map` exists with the layer's spoken summary; `map.place.<id>` exists for the opening place only; after tapping `compass.north` there are two (A§1, A§3). See it fail
+- [x] T034 [US2] Change the existing tests that walk by `compass.<way>` so that their expectations of a label's destination follow W§7 (a destination only once walked), and list each changed test here. Add `testWalkingToTheKitchenByTheMap` for SC-001 (A§2). See them fail
+- [x] T035 [US3] Add `testTheKeyboardStaysUp`: the keyboard is shown at launch; after five commands, two typed and three tapped, it has been shown at every check; `button.compass` does not exist; the inventory strip and, in the Attic unlit, the darkness note exist with the keyboard up (A§4, A§6, A§11). Remove or rewrite the tests of the compass being hidden by the keyboard, listing each. See it fail
+- [x] T036 [US3] Add `testALongReplyStartsAtItsFirstLine`: after a command with a long reply (Zork I's `look` in the Living Room, or the opening), the first line of the newest turn is within the transcript's frame (A§7). And `testScrollingBackLowersTheKeyboard`: dragging the transcript lowers it; touching the field raises it (A§4). See them fail
+- [x] T037 [US8] Change the tests of feature 010 that read a way's spoken label, as T034; add an assertion that each of the opening place's ways is a button whose label is the snapshot's `spoken` (A§2, FR-032), and that the announcement after a reply is what it was (FR-034). See them fail
+- [x] T038 [P] [US2] Rewrite the rules of `crates/zmachine-ffi/tests/app_rules.rs` that name `CompassView.swift` and `CompassLayout.swift` for `MapBand.swift`, `MapDrawing.swift` and `MapLayout.swift`: no direction word is written outside `MapLayout.swift`; the map's views send nothing but through the game's one place for a line; the app's source does not read the snapshot's `compass` key or any `leads_to` but the map's (plan.md, re-check). See them fail
 
 ### Implementation
 
-- [ ] T039 [US2] Add the map to `apps/ios/Lamplight/Snapshot.swift` (S§1 to S§9), optional so that hand-made fixture snapshots without it still decode
-- [ ] T040 [US2] Create `apps/ios/Lamplight/MapLayout.swift` (positions to points; where each way's button sits on a place's edge; the twelve ways' symbols moved from `CompassLayout.swift`) and `apps/ios/Lamplight/MapDrawing.swift` (a place as a box with its name; straight, bent, ladder and word lines; stubs with the compass's states; leads; the marker), as SwiftUI shapes (R9), plain strokes
-- [ ] T041 [US2] Create `apps/ios/Lamplight/MapBand.swift`: the sheet clipped to a band 200 points tall, moved so `here` is centred; the ways' buttons over it with identifiers `compass.<way>` and `compass.extra.<n>` (A§2); the strip and the darkness note at its lower edge (A§6); the whole an accessibility container labelled `spoken` (A§9); the layer's note where the map has one (S§8)
-- [ ] T042 [US3] In `apps/ios/Lamplight/GameView.swift` put the band between the status line and the transcript; keep the command field focused while the game waits for a line (A§4); lower the keyboard only on a drag of the transcript; show the newest reply from its first line (A§7); remove `CompassView`, `button.compass` and the `typing` switch that hid the compass. Delete `CompassView.swift` and `CompassLayout.swift`
-- [ ] T043 Run `scripts/build-ios.sh`, `scripts/test-ios.sh 27` and `scripts/test-ios.sh 26`. T033 to T038 pass and every other test passes. Record the counts and the list of changed tests (FR-045)
-- [ ] T044 [P] Update `README.md` and `apps/ios/README.md`: the map band; the keyboard; that the compass is gone and where its states are now; the files table
-- [ ] T045 Build for the owner's phone and walk quickstart "Stage 2, by hand" with the owner: twenty rooms; is the band tall enough to be worth looking at; does the keyboard stay put. Record what they say. If they say the band does not work, stop: the stage is not to be merged until the band is changed (plan.md, strongest objection)
+- [x] T039 [US2] Add the map to `apps/ios/Lamplight/Snapshot.swift` (S§1 to S§9), optional so that hand-made fixture snapshots without it still decode
+- [x] T040 [US2] Create `apps/ios/Lamplight/MapLayout.swift` (positions to points; where each way's button sits on a place's edge; the twelve ways' symbols moved from `CompassLayout.swift`) and `apps/ios/Lamplight/MapDrawing.swift` (a place as a box with its name; straight, bent, ladder and word lines; stubs with the compass's states; leads; the marker), as SwiftUI shapes (R9), plain strokes
+- [x] T041 [US2] Create `apps/ios/Lamplight/MapBand.swift`: the sheet clipped to a band 200 points tall, moved so `here` is centred; the ways' buttons over it with identifiers `compass.<way>` and `compass.extra.<n>` (A§2); the strip and the darkness note at its lower edge (A§6); the whole an accessibility container labelled `spoken` (A§9); the layer's note where the map has one (S§8)
+- [x] T042 [US3] In `apps/ios/Lamplight/GameView.swift` put the band between the status line and the transcript; keep the command field focused while the game waits for a line (A§4); lower the keyboard only on a drag of the transcript; show the newest reply from its first line (A§7); remove `CompassView`, `button.compass` and the `typing` switch that hid the compass. Delete `CompassView.swift` and `CompassLayout.swift`
+- [x] T043 Run `scripts/build-ios.sh`, `scripts/test-ios.sh 27` and `scripts/test-ios.sh 26`. T033 to T038 pass and every other test passes. Record the counts and the list of changed tests (FR-045)
+- [x] T044 [P] Update `README.md` and `apps/ios/README.md`: the map band; the keyboard; that the compass is gone and where its states are now; the files table
+- [x] T045 Build for the owner's phone and walk quickstart "Stage 2, by hand" with the owner: twenty rooms; is the band tall enough to be worth looking at; does the keyboard stay put. Record what they say. If they say the band does not work, stop: the stage is not to be merged until the band is changed (plan.md, strongest objection)
 
 **Stage 2 ends here: one pull request.**
 
@@ -281,3 +281,107 @@ tests were not run on iOS 26.0 in this stage; CI runs them there.
   count of "dark ahead" marks is taken in the compass's part of the snapshot, since
   the map has its own.
 - `crates/zmachine-core/tests/save.rs`: two tests also assert the count of jumps.
+
+---
+
+## Record of stage 2 (2026-11-14)
+
+**Test-first, as it was done.**
+
+- **Written first and seen failing against the app as it was**: `testTheMapShowsWhereIAm`
+  (no element `map`), `testTheKeyboardStaysUp` (the field did not have the keyboard at
+  launch), `testALongReplyStartsAtItsFirstLine` (with no keyboard the opening fitted
+  its room). `Session::tap_way` and `zmx_session_tap_way` (no such method).
+- **Written first, not run until the band existed**: `testWalkingToTheKitchenByTheMap`,
+  `testScrollingBackLowersTheKeyboard`.
+- **Changed with the code**: every older test that read the compass (below), and the
+  rules of `app_rules.rs`.
+- **Four of my own expectations were wrong** and were corrected to what the rules
+  give: a dark, unseen Attic has no way down on the map and no name on the way up to
+  it; the way back from Forest Path names nothing until walked from there; a band's
+  accessibility element is as large as what is drawn in it, so its frame is measured
+  on `map.frame`.
+
+**What differs from the tasks and the plan**
+
+- **A touch on a way goes through a new entry of the layer**, `Session::tap_way`, by
+  the way's index, and is recorded as a tap (contract A§2). The plan had the app send
+  the command as a typed line.
+- **The app no longer decodes the snapshot's `compass` at all.** The layer still gives
+  it, for the command-line program.
+- **The inventory strip and the darkness note sit in a row under the band**, not inside
+  its lower edge.
+- **A§7, the reply from its first line.** Moving the transcript to a new turn is asked
+  for three times over most of a second. One asking was seen to do nothing in a test
+  that typed straight at the app without touching the field; by hand, and typed
+  through the field, one asking was enough. The cause was not found. The three askings
+  are a guard, not an explanation.
+- **T036**: the long reply is the opening; a later long reply (`read leaflet`) is
+  checked only if it is taller than its room on the device under test.
+- **T037**: the spoken labels are checked in `testTheWaysAtTheOpening`,
+  `testWalkingToTheKitchenByTheMap` and the feature 010 tests, which pass unchanged in
+  what they ask to be spoken.
+
+**The checks (T043)**, after the fixes below: 1,028 workspace tests passed, none
+failed, 22 ignored; `cargo clippy` clean. The app's 44 tests passed on iOS 27.2 and
+all 44 on iOS 26.0.
+
+**A fault found by the owner on the phone, and its two fixes (2026-11-14)**
+
+1. *Reported*: with the keyboard down the whole transcript was in view; when the
+   keyboard came back it covered the newest text, and touching the transcript to
+   bring that text up dropped the keyboard again. Two tests were written and seen
+   failing (`testTheNewestTextIsInViewWhenTheKeyboardReturns`,
+   `testReadingOnKeepsTheKeyboard`). *First fix*: the newest text is brought back
+   into view when the keyboard returns; and the app, not the system, lowered the
+   keyboard, only when the transcript was scrolled back past the newest turn.
+2. *Reported after that fix*: "when I swipe down, the keyboard goes down, but the type
+   of command area doesn't go down." The first fix gave up the field's focus while
+   the finger was still moving the transcript; the keyboard went and the screen kept
+   its room for it. A picture of the phone, taken with the owner's leave, showed the
+   empty space; the simulator then showed the same. *Second fix*: the system lowers
+   the keyboard (`scrollDismissesKeyboard(.interactively)`): the finger draws the
+   text down into the keyboard and it goes with it. The first test now also asserts
+   that with the keyboard gone the command field is at the foot of the screen and
+   the transcript has grown; that assertion failed on the first fix.
+3. The owner tried the second fix on the phone and answered "Yes, fixed".
+
+This changes contract A§4 in one respect: a short scroll back that stays above the
+keyboard does not lower it; the finger has to go on into the keyboard.
+
+**Found, for the owner**
+
+- **A place seen only in the dark offers no way out on the map** (W§12). Feature 008
+  showed the compass there, with the way back. With the map the way back is typed.
+  This is the rule as specified; whether it is wanted is the owner's to say after
+  trying it.
+- **"No exits here"**, the compass's note for a place with no ways, is not shown by
+  the map. Only "exits unknown" is (S§8).
+
+**Tests of earlier features that changed (FR-045)**
+
+- Removed: every tap on `button.compass`, which is gone (thirteen places).
+- `testCompassAtTheOpening` is `testTheWaysAtTheOpening`: ways that are not there are
+  not drawn, where the compass drew them closed; the label is "North", not "North, to
+  North of House".
+- `testTheInventoryStrip`: the note is hittable with the keyboard up, where it was not.
+- `testDarknessIsWarnedOf`, `testDarknessIsAskedToBeSpoken`: the way down from the dark
+  Attic is typed, where it was tapped.
+- `testTheTrapDoorComesAndGoes`, `testADoorClosedThenOpen`, `testATapMovesThePlayer`,
+  `testTypingACommand`, `testLeavingAndReturning`, `testTheLargestTextSize`: a way
+  refused is absent, where it was "closed"; labels name a destination only once
+  walked.
+- `testTenTapsReachFiveRooms`: reads the state of the ways that exist.
+- `testAQuestionDarkensTheCompass`: the ways are there and cannot be touched, where
+  all twelve were "idle".
+- `testAShortTranscriptSitsAtTheBottom`: the keyboard is lowered first, since with it
+  up the opening is taller than its room.
+- `testUnknownExitsAreSaidToBeUnknown`, `testExtraWaysOutAreARowOfButtons`,
+  `testWhereLightIsNotKnownNothingIsShown`, `testAStripThatIsNotKnown`: their
+  hand-made snapshots hold a map in place of a compass; `compass.note` is `map.note`;
+  a way not offered is absent.
+- `testTheLargestTextSize` checks the three ways the opening has, not twelve.
+- `crates/zmachine-ffi/tests/app_rules.rs`: the layout file is `MapLayout.swift`; the
+  mark for a way into the dark is looked for in `MapDrawing.swift`; a new rule holds
+  the app to reading no compass.
+- `crates/zmachine-ffi/tests/abi.rs`: the list of declared functions gains one.

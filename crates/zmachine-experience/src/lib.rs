@@ -681,6 +681,21 @@ impl Session {
         Ok(())
     }
 
+    /// The player touched a way of the map: one of the ways of the place
+    /// they are in, by its place in the map's list of them
+    /// (specs/012-map-first-slice/contracts/map.md, S§7, A§2).
+    pub fn tap_way(&mut self, at: Stamp, index: usize) -> Result<(), Refused> {
+        self.check(at)?;
+        let command = self
+            .map
+            .view()
+            .and_then(|view| view.ways.into_iter().nth(index))
+            .and_then(|way| way.command)
+            .ok_or(Refused::NotOffered)?;
+        self.give(&command, Source::Tap);
+        Ok(())
+    }
+
     /// Abandons the game and starts a new one from the same story file.
     pub fn new_game(&mut self, seed: Seed) {
         self.generation += 1;

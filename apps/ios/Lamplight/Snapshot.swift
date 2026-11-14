@@ -9,7 +9,6 @@ struct Snapshot: Decodable, Sendable, Equatable {
     let message: String?
     let status: Status?
     let turns: [Turn]
-    let compass: Compass
     let inventory: Strip
     let light: Light
     /// What a screen reader is to speak for the newest turn: the layer's
@@ -21,10 +20,13 @@ struct Snapshot: Decodable, Sendable, Equatable {
     /// The layer's question before this game is given up for a new one; nil
     /// where nothing would be given up.
     let startOver: String?
+    /// The sheet of the map the player is on; nil where the layer has no map
+    /// for the game (specs/012-map-first-slice/contracts/map.md, part S).
+    let map: MapSheet?
 
     enum CodingKeys: String, CodingKey {
-        case generation, waiting, message, status, turns, compass, inventory, light
-        case announcement, notice
+        case generation, waiting, message, status, turns, inventory, light
+        case announcement, notice, map
         case turnCount = "turn_count"
         case startOver = "start_over"
     }
@@ -76,49 +78,77 @@ enum ItemState: String, Decodable, Sendable {
     case plain, open, closed
 }
 
-struct Compass: Decodable, Sendable, Equatable {
-    let offered: Bool
-    let known: Bool
+/// One sheet of the map, as the layer gives it. Every position, every state
+/// and every word is the layer's; the app draws them and works nothing out.
+struct MapSheet: Decodable, Sendable, Equatable {
+    /// The layer's words where there is something to say in place of the map.
     let note: String?
-    let places: [CompassPlace]
-    let extras: [CompassExtra]
-}
-
-enum PlaceState: String, Decodable, Sendable {
-    case open, maybe, door, closed, unknown, idle
-
-    /// Whether a tap on a control in this state is sent.
-    var sends: Bool { self == .open || self == .maybe || self == .door }
-}
-
-struct CompassPlace: Decodable, Sendable, Equatable {
-    let place: String
-    let label: String
-    let state: PlaceState
-    let command: String?
-    let leadsTo: String?
-    /// Whether the way leads into darkness, as far as the layer knows.
-    let darkAhead: Bool
+    /// The layer's summary, for a screen reader.
     let spoken: String
+    let sheet: Int
+    let sheets: Int
+    /// The place the player is in; nil where the layer cannot say.
+    let here: Int?
+    let lamp: String
+    let places: [MapPlace]
+    let lines: [MapLine]
+    let leads: [MapLead]
+    let stubs: [MapStub]
+    let ways: [MapWay]
+}
+
+struct MapPlace: Decodable, Sendable, Equatable, Identifiable {
+    let id: Int
+    let x: Int
+    let y: Int
+    /// Drawn small, half a step right of and below its position.
+    let inset: Bool
+    /// Nil until the player has seen the place lit.
+    let name: String?
+}
+
+struct MapLine: Decodable, Sendable, Equatable {
+    let a: Int
+    let b: Int
+    let out: String
+    let back: String?
+    let kind: String
+    let label: String?
+}
+
+struct MapLead: Decodable, Sendable, Equatable {
+    let from: Int
+    let way: String
+    let label: String
+    let to: String?
+    let sheet: Int
+}
+
+struct MapStub: Decodable, Sendable, Equatable {
+    let of: Int
+    let way: String
+    let state: String
+    let darkAhead: Bool
 
     enum CodingKeys: String, CodingKey {
-        case place, label, state, command, spoken
-        case leadsTo = "leads_to"
+        case of, way, state
         case darkAhead = "dark_ahead"
     }
 }
 
-struct CompassExtra: Decodable, Sendable, Equatable {
+/// A way of the place the player is in.
+struct MapWay: Decodable, Sendable, Equatable {
+    let way: String
     let label: String
-    let state: PlaceState
+    let state: String
+    /// Present when the way can be sent now.
     let command: String?
-    let leadsTo: String?
     let darkAhead: Bool
+    let refused: Bool
     let spoken: String
 
     enum CodingKeys: String, CodingKey {
-        case label, state, command, spoken
-        case leadsTo = "leads_to"
+        case way, label, state, command, refused, spoken
         case darkAhead = "dark_ahead"
     }
 }

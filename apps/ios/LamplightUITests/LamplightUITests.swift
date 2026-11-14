@@ -83,6 +83,14 @@ final class LamplightUITests: XCTestCase {
         return found.value as? String ?? ""
     }
 
+    /// The state of a way of the place the player is in, or nil where the map
+    /// shows no such way.
+    @MainActor
+    private func way(_ app: XCUIApplication, _ place: String) -> String? {
+        let control = element(app, "compass.\(place)")
+        return control.exists ? control.value as? String : nil
+    }
+
     /// Waits until the place in the status line is this.
     @MainActor
     private func waitForPlace(_ app: XCUIApplication, _ place: String) {
@@ -292,24 +300,263 @@ final class LamplightUITests: XCTestCase {
         print("launch into a kept game of seven turns: \(millis) ms")
     }
 
-    // S§ "The compass", "For automated tests"; FR-007, FR-008, FR-009, FR-012;
-    // US2 scenarios 1, 5, 6. The states are those stories/…/introspection/exits.txt
-    // gives for the opening and for Behind House.
+    // -----------------------------------------------------------------
+    // Feature 012, stage 2: the map's band in place of the compass
+    // (specs/012-map-first-slice/contracts/map.md, cited A§).
+    // -----------------------------------------------------------------
+
+    /// Whether the software keyboard, or a hardware one's stand-in, has the
+    /// command field: the field holds the keyboard's focus.
     @MainActor
-    func testCompassAtTheOpening() {
+    private func fieldHasTheKeyboard(_ app: XCUIApplication) -> Bool {
+        (element(app, "field.command").value(forKey: "hasKeyboardFocus") as? Bool) ?? false
+    }
+
+    /// Scrolls back as a player does to put the keyboard away: draws the
+    /// text down, the finger going on into the keyboard, which goes with it.
+    @MainActor
+    private func scrollBack(_ app: XCUIApplication) {
+        let transcript = element(app, "transcript")
+        let from = transcript.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.3))
+        let to = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.97))
+        from.press(forDuration: 0.1, thenDragTo: to)
+        let down = NSPredicate { _, _ in !self.fieldHasTheKeyboard(app) }
+        expectation(for: down, evaluatedWith: nil)
+        waitForExpectations(timeout: patience)
+    }
+
+    /// The places drawn on the map.
+    @MainActor
+    private func placesDrawn(_ app: XCUIApplication) -> Int {
+        app.descendants(matching: .any)
+            .matching(NSPredicate(format: "identifier BEGINSWITH %@", "map.place."))
+            .count
+    }
+
+    // A§1, A§3, A§9; US1 scenarios 1 and 2: the band shows the place the
+    // player is in, and each place they walk to, with the layer's summary.
+    @MainActor
+    func testTheMapShowsWhereIAm() {
         let app = launch()
         _ = turn(app, 0)
-        for place in places {
-            XCTAssertTrue(element(app, "compass.\(place)").exists, place)
+        let map = element(app, "map")
+        XCTAssertTrue(map.waitForExistence(timeout: patience))
+        XCTAssertEqual(map.label, "Map. You are in West of House.")
+        XCTAssertEqual(placesDrawn(app), 1)
+        XCTAssertEqual(element(app, "map.here").label, "West of House")
+        element(app, "compass.north").tap()
+        waitForPlace(app, "North of House")
+        XCTAssertEqual(placesDrawn(app), 2)
+        XCTAssertEqual(element(app, "map.here").label, "North of House")
+        XCTAssertEqual(map.label, "Map. You are in North of House.")
+        // A§11: there is no compass to bring back.
+        XCTAssertFalse(element(app, "button.compass").exists)
+    }
+
+    // A§2; W§7; SC-001: to the Kitchen and the Attic by touching the map
+    // alone. A way names where it leads only once it has been walked.
+    @MainActor
+    func testWalkingToTheKitchenByTheMap() {
+        let app = launch()
+        _ = turn(app, 0)
+        XCTAssertEqual(element(app, "compass.north").label, "North")
+        element(app, "compass.north").tap()
+        waitForPlace(app, "North of House")
+        XCTAssertEqual(element(app, "turn.1.command").label, "north")
+        element(app, "compass.east").tap()
+        waitForPlace(app, "Behind House")
+        // A closed door can be tried, and the game refuses.
+        XCTAssertEqual(value(app, "compass.west"), "door")
+        type(app, "open window")
+        _ = turn(app, 3)
+        element(app, "compass.west").tap()
+        waitForPlace(app, "Kitchen")
+        XCTAssertEqual(element(app, "compass.east").label, "East")
+        element(app, "compass.up").tap()
+        waitForPlace(app, "Attic")
+        // The Attic is dark and has never been seen: the map shows no way
+        // out of it, and the way back is typed.
+        XCTAssertFalse(element(app, "compass.down").exists)
+        app.typeText("down\n")
+        waitForPlace(app, "Kitchen")
+        // Walked both ways now: each end names the other.
+        // The Attic has no name yet: it has only been stood in dark.
+        XCTAssertEqual(element(app, "compass.up").label, "Up, into darkness")
+        element(app, "compass.east").tap()
+        waitForPlace(app, "Behind House")
+        XCTAssertEqual(element(app, "compass.west").label, "West, to Kitchen")
+        XCTAssertEqual(placesDrawn(app), 5)
+        XCTAssertTrue(fieldHasTheKeyboard(app), "the keyboard never went down")
+    }
+
+    // A§4, A§5, A§6; US3 scenarios 1, 2, 5: the keyboard is up from the
+    // start and stays up across typed and touched commands, with the band,
+    // what is carried and the field all in view.
+    @MainActor
+    func testTheKeyboardStaysUp() {
+        let app = launch()
+        _ = turn(app, 0)
+        let field = element(app, "field.command")
+        XCTAssertTrue(field.waitForExistence(timeout: patience))
+        let up = NSPredicate { _, _ in self.fieldHasTheKeyboard(app) }
+        expectation(for: up, evaluatedWith: nil)
+        waitForExpectations(timeout: patience)
+        let band = element(app, "map.frame").frame
+        // Typed without touching the field first.
+        app.typeText("open mailbox\n")
+        _ = turn(app, 1)
+        XCTAssertTrue(fieldHasTheKeyboard(app))
+        element(app, "compass.north").tap()
+        _ = turn(app, 2)
+        XCTAssertTrue(fieldHasTheKeyboard(app))
+        app.typeText("look\n")
+        _ = turn(app, 3)
+        element(app, "compass.east").tap()
+        _ = turn(app, 4)
+        element(app, "compass.south").tap()
+        _ = turn(app, 5)
+        XCTAssertTrue(fieldHasTheKeyboard(app))
+        XCTAssertEqual(element(app, "map.frame").frame, band, "the band keeps its size and place")
+        XCTAssertEqual(band.height, 200, accuracy: 1)
+        for identifier in ["map", "inventory.note", "field.command", "turn.5.text"] {
+            XCTAssertTrue(element(app, identifier).isHittable, identifier)
         }
+    }
+
+    // A§7; US3 scenario 3: a reply longer than its room is shown from its
+    // first line, with a sign that there is more.
+    @MainActor
+    func testALongReplyStartsAtItsFirstLine() {
+        let app = launch()
+        let opening = element(app, "turn.0.text")
+        XCTAssertTrue(opening.waitForExistence(timeout: patience))
+        let transcript = element(app, "transcript").frame
+        XCTAssertGreaterThan(opening.frame.height, transcript.height, "the opening is long")
+        XCTAssertEqual(opening.frame.minY, transcript.minY, accuracy: 12, "its first line is at the top")
+        XCTAssertTrue(element(app, "transcript.more").exists)
+        // A short reply fits, and nothing more is promised.
+        type(app, "open mailbox")
+        let reply = element(app, "turn.1.text")
+        XCTAssertTrue(reply.waitForExistence(timeout: patience))
+        // The view moves to the new turn over a moment.
+        expectation(for: NSPredicate(format: "isHittable == true"), evaluatedWith: reply)
+        waitForExpectations(timeout: patience)
+        XCTAssertLessThanOrEqual(reply.frame.maxY, element(app, "transcript").frame.maxY + 1)
+        XCTAssertFalse(element(app, "transcript.more").exists)
+        // A later reply that is long is also shown from its first line.
+        type(app, "take leaflet")
+        _ = turn(app, 2)
+        type(app, "north")
+        _ = turn(app, 3)
+        type(app, "south")
+        _ = turn(app, 4)
+        type(app, "read leaflet")
+        let leaflet = element(app, "turn.5.text")
+        XCTAssertTrue(leaflet.waitForExistence(timeout: patience))
+        if leaflet.frame.height > element(app, "transcript").frame.height {
+            let top = element(app, "transcript").frame.minY
+            let settled = NSPredicate { _, _ in abs(leaflet.frame.minY - top) < 14 }
+            expectation(for: settled, evaluatedWith: nil)
+            waitForExpectations(timeout: patience)
+            XCTAssertTrue(element(app, "transcript.more").exists)
+        }
+    }
+
+    // Found by the owner on their phone, 2026-11-14: with the keyboard down
+    // the whole transcript is in view; when the keyboard came back it covered
+    // the newest text, and touching the transcript to bring that text up
+    // dropped the keyboard again. The newest text comes back into view with
+    // the keyboard, and reading on through a reply does not lower it.
+    @MainActor
+    func testTheNewestTextIsInViewWhenTheKeyboardReturns() {
+        let app = launch()
+        _ = turn(app, 0)
+        type(app, "open mailbox")
+        _ = turn(app, 1)
+        type(app, "read leaflet")
+        let newest = element(app, "turn.2.text")
+        XCTAssertTrue(newest.waitForExistence(timeout: patience))
+        // Scroll back: the keyboard goes down.
+        scrollBack(app)
+        // With the keyboard gone the command bar is at the foot of the
+        // screen, and the transcript has the room the keyboard had: the
+        // screen keeps none for it. (Found by the owner: the bar stayed up.)
+        let field = element(app, "field.command")
+        let screen = app.windows.firstMatch.frame
+        let lowered = NSPredicate { _, _ in field.frame.maxY > screen.maxY - 80 }
+        expectation(for: lowered, evaluatedWith: nil)
+        waitForExpectations(timeout: patience)
+        XCTAssertGreaterThan(element(app, "transcript").frame.height, 300)
+        // Touch the field: the keyboard returns, and the newest text is
+        // within the transcript, above the field: the whole of it where it
+        // fits, and otherwise from its first line.
+        element(app, "field.command").tap()
+        let transcript = element(app, "transcript")
+        let shown = NSPredicate { _, _ in
+            let (text, room) = (newest.frame, transcript.frame)
+            let whole = text.maxY <= room.maxY + 1 && text.minY >= room.minY - 1
+            let fromItsStart = text.height > room.height && abs(text.minY - room.minY) < 14
+            return self.fieldHasTheKeyboard(app) && (whole || fromItsStart)
+        }
+        expectation(for: shown, evaluatedWith: nil)
+        waitForExpectations(timeout: patience)
+        XCTAssertLessThan(transcript.frame.maxY, element(app, "field.command").frame.minY + 1)
+    }
+
+    // The same fault's other half: reading on through a reply that is longer
+    // than its room does not lower the keyboard. Only scrolling back does.
+    @MainActor
+    func testReadingOnKeepsTheKeyboard() {
+        let app = launch()
+        let opening = element(app, "turn.0.text")
+        XCTAssertTrue(opening.waitForExistence(timeout: patience))
+        let ready = NSPredicate { _, _ in self.fieldHasTheKeyboard(app) }
+        expectation(for: ready, evaluatedWith: nil)
+        waitForExpectations(timeout: patience)
+        XCTAssertTrue(element(app, "transcript.more").exists, "the opening is longer than its room")
+        // Drag the text up to read the rest of it.
+        let transcript = element(app, "transcript")
+        let from = transcript.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.8))
+        let to = transcript.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.1))
+        from.press(forDuration: 0.05, thenDragTo: to)
+        let read = NSPredicate { _, _ in !self.element(app, "transcript.more").exists }
+        expectation(for: read, evaluatedWith: nil)
+        waitForExpectations(timeout: patience)
+        XCTAssertTrue(fieldHasTheKeyboard(app), "reading on keeps the keyboard")
+        // And back up to its first line: still the newest turn, still up.
+        to.press(forDuration: 0.05, thenDragTo: from)
+        XCTAssertTrue(fieldHasTheKeyboard(app), "back to the reply's start keeps it too")
+    }
+
+    // A§4; US3 scenario 4: scrolling back lowers the keyboard; touching the
+    // field raises it.
+    @MainActor
+    func testScrollingBackLowersTheKeyboard() {
+        let app = launch()
+        _ = turn(app, 0)
+        app.typeText("open mailbox\nread leaflet\nlook\n")
+        _ = turn(app, 3)
+        XCTAssertTrue(fieldHasTheKeyboard(app))
+        scrollBack(app)
+        element(app, "field.command").tap()
+        XCTAssertTrue(fieldHasTheKeyboard(app))
+    }
+
+    // The ways at the opening and behind the house, as the map shows them
+    // (feature 004's FR-007 to FR-012 for the compass; feature 012's A§2,
+    // W§3, W§7). Only the ways there are are drawn, and none names where it
+    // leads until it has been walked.
+    @MainActor
+    func testTheWaysAtTheOpening() {
+        let app = launch()
+        _ = turn(app, 0)
         for place in ["north", "south", "west"] {
             XCTAssertEqual(value(app, "compass.\(place)"), "open", place)
         }
-        XCTAssertEqual(value(app, "compass.east"), "closed")
-        XCTAssertEqual(element(app, "compass.north").label, "North, to North of House")
-        XCTAssertEqual(element(app, "compass.east").label, "East, no exit")
-        element(app, "compass.east").tap()
-        XCTAssertFalse(element(app, "turn.1.text").waitForExistence(timeout: 1), "a closed way sends nothing")
+        for place in ["east", "up", "down", "in", "out", "northwest", "southwest"] {
+            XCTAssertNil(way(app, place), "\(place) is no way here")
+        }
+        XCTAssertEqual(element(app, "compass.north").label, "North")
 
         element(app, "compass.north").tap()
         waitForPlace(app, "North of House")
@@ -335,12 +582,11 @@ final class LamplightUITests: XCTestCase {
 
         type(app, "open mailbox")
         _ = turn(app, 1)
-        // The keyboard is up: the strip gives way with the compass.
-        XCTAssertFalse(element(app, "inventory.note").isHittable)
+        // The keyboard is up, and what is carried is still shown (feature 012).
+        XCTAssertTrue(element(app, "inventory.note").isHittable)
         app.typeText("take leaflet")
         element(app, "button.send").tap()
         _ = turn(app, 2)
-        element(app, "button.compass").tap()
         let strip = element(app, "inventory.strip")
         XCTAssertTrue(strip.waitForExistence(timeout: patience))
         XCTAssertEqual(strip.label, "Carrying: leaflet")
@@ -352,12 +598,10 @@ final class LamplightUITests: XCTestCase {
         waitForPlace(app, "Behind House")
         type(app, "open window")
         _ = turn(app, 5)
-        element(app, "button.compass").tap()
         element(app, "compass.west").tap()
         waitForPlace(app, "Kitchen")
         type(app, "take sack")
         _ = turn(app, 7)
-        element(app, "button.compass").tap()
         XCTAssertEqual(strip.label, "Carrying: brown sack, closed; leaflet")
 
         // Touching the strip sends nothing.
@@ -366,7 +610,6 @@ final class LamplightUITests: XCTestCase {
 
         type(app, "open sack")
         _ = turn(app, 8)
-        element(app, "button.compass").tap()
         XCTAssertEqual(
             strip.label,
             "Carrying: brown sack, open, holding clove of garlic and lunch; leaflet")
@@ -386,7 +629,6 @@ final class LamplightUITests: XCTestCase {
         waitForPlace(app, "Behind House")
         type(app, "open window")
         _ = turn(app, 3)
-        element(app, "button.compass").tap()
         element(app, "compass.west").tap()
         waitForPlace(app, "Kitchen")
         let up = element(app, "compass.up")
@@ -399,11 +641,10 @@ final class LamplightUITests: XCTestCase {
         let note = element(app, "light.note")
         XCTAssertTrue(note.waitForExistence(timeout: patience))
         XCTAssertEqual(note.label, "It is dark")
-        // The compass is the room's own: the way back is offered.
-        XCTAssertEqual(value(app, "compass.down"), "open")
-        XCTAssertTrue(element(app, "compass.down").isEnabled)
-
-        element(app, "compass.down").tap()
+        // The Attic has only been stood in dark: the map shows no way out of
+        // it (feature 012, W§12), and the way back is typed.
+        XCTAssertNil(way(app, "down"))
+        type(app, "down")
         waitForPlace(app, "Kitchen")
         XCTAssertFalse(note.exists)
         element(app, "compass.west").tap()
@@ -413,9 +654,6 @@ final class LamplightUITests: XCTestCase {
         app.typeText("turn on lamp")
         element(app, "button.send").tap()
         _ = turn(app, 9)
-        element(app, "button.compass").tap()
-        // The compass comes back as the keyboard goes: wait until it can be
-        // touched.
         let east = element(app, "compass.east")
         expectation(for: NSPredicate(format: "isHittable == true"), evaluatedWith: east)
         waitForExpectations(timeout: patience)
@@ -504,7 +742,6 @@ final class LamplightUITests: XCTestCase {
         waitForPlace(app, "Behind House")
         type(app, "open window")
         _ = turn(app, 3)
-        element(app, "button.compass").tap()
         element(app, "compass.west").tap()
         waitForPlace(app, "Kitchen")
         XCTAssertFalse(asked(app, times: 5).contains("It is dark"))
@@ -512,7 +749,7 @@ final class LamplightUITests: XCTestCase {
         waitForPlace(app, "Attic")
         let attic = turn(app, 5)
         XCTAssertEqual(asked(app, times: 6), spoken(attic) + "\nIt is dark")
-        element(app, "compass.down").tap()
+        type(app, "down")
         waitForPlace(app, "Kitchen")
         let kitchen = turn(app, 6)
         XCTAssertEqual(asked(app, times: 7), spoken(kitchen))
@@ -549,39 +786,33 @@ final class LamplightUITests: XCTestCase {
         waitForPlace(app, "Behind House")
         type(app, "open window")
         _ = turn(app, 3)
-        element(app, "button.compass").tap()
         element(app, "compass.west").tap()
         waitForPlace(app, "Kitchen")
         element(app, "compass.west").tap()
         waitForPlace(app, "Living Room")
         let down = element(app, "compass.down")
-        XCTAssertEqual(value(app, "compass.down"), "closed")
-        XCTAssertFalse(down.isEnabled, "a way the game refuses cannot be touched")
+        XCTAssertFalse(down.exists, "a way the game refuses is not drawn")
 
         type(app, "move rug")
         _ = turn(app, 6)
         app.typeText("open trap door")
         element(app, "button.send").tap()
         _ = turn(app, 7)
-        element(app, "button.compass").tap()
-        // The compass comes back as the keyboard goes: wait until it can be
-        // touched.
         expectation(for: NSPredicate(format: "isHittable == true"), evaluatedWith: down)
         waitForExpectations(timeout: patience)
         XCTAssertEqual(value(app, "compass.down"), "open")
         XCTAssertTrue(down.isEnabled)
-        XCTAssertEqual(down.label, "Down, to Cellar, into darkness")
+        XCTAssertEqual(down.label, "Down, into darkness")
 
         type(app, "take lamp")
         _ = turn(app, 8)
         app.typeText("turn on lamp")
         element(app, "button.send").tap()
         _ = turn(app, 9)
-        element(app, "button.compass").tap()
         expectation(for: NSPredicate(format: "isHittable == true"), evaluatedWith: down)
         waitForExpectations(timeout: patience)
         XCTAssertEqual(value(app, "compass.down"), "open")
-        XCTAssertEqual(down.label, "Down, to Cellar")
+        XCTAssertEqual(down.label, "Down")
     }
 
     // Feature 008, FR-021; US4 scenario 5: where the layer does not know of
@@ -656,21 +887,18 @@ final class LamplightUITests: XCTestCase {
 
         type(app, "open window")
         _ = turn(app, 4)
-        // The keyboard is up after typing, and the compass away: bring it back.
-        element(app, "button.compass").tap()
         XCTAssertEqual(value(app, "compass.west"), "open")
-        XCTAssertEqual(element(app, "compass.west").label, "West, to Kitchen")
+        XCTAssertEqual(element(app, "compass.west").label, "West")
         element(app, "compass.west").tap()
         waitForPlace(app, "Kitchen")
-        XCTAssertEqual(element(app, "compass.east").label, "East, to Behind House")
+        XCTAssertEqual(element(app, "compass.east").label, "East")
 
         // The next room has a way down that the game decides in its own code.
         element(app, "compass.west").tap()
         waitForPlace(app, "Living Room")
         // Look-ahead finds the game refuses it while the trap door is hidden:
         // it is no way at all (feature 009).
-        XCTAssertEqual(value(app, "compass.down"), "closed")
-        XCTAssertEqual(element(app, "compass.down").label, "Down, no exit")
+        XCTAssertNil(way(app, "down"))
     }
 
     // S§ "What the app sends", "Waiting states"; FR-010, FR-011, FR-016;
@@ -684,10 +912,16 @@ final class LamplightUITests: XCTestCase {
         XCTAssertEqual(element(app, "turn.1.command").label, "north")
         XCTAssertEqual(element(app, "status.place").label, "North of House")
         XCTAssertEqual(value(app, "status.moves"), "1")
-        XCTAssertEqual(value(app, "compass.south"), "closed", "the compass is this room's")
-        XCTAssertEqual(element(app, "compass.north").label, "North, to Forest Path")
+        XCTAssertNil(way(app, "south"), "the ways are this room's")
+        XCTAssertEqual(element(app, "compass.north").label, "North")
         element(app, "compass.north").tap()
-        XCTAssertTrue(turn(app, 2).hasPrefix("Forest Path"), "where the label said it led")
+        XCTAssertTrue(turn(app, 2).hasPrefix("Forest Path"))
+        // The way back has not been walked from here: it names nothing yet.
+        XCTAssertEqual(element(app, "compass.south").label, "South")
+        element(app, "compass.south").tap()
+        waitForPlace(app, "North of House")
+        // Walked both ways now: each end names the other.
+        XCTAssertEqual(element(app, "compass.north").label, "North, to Forest Path")
     }
 
     // FR-016: two taps as fast as they can be made never send a command the
@@ -720,7 +954,7 @@ final class LamplightUITests: XCTestCase {
         ]
         for tap in 1...10 {
             // Any open way, but not straight back if there is another.
-            let open = places.filter { value(app, "compass.\($0)") == "open" }
+            let open = places.filter { way(app, $0) == "open" }
             XCTAssertFalse(open.isEmpty, "something is open at tap \(tap)")
             let choice = open.first { $0 != opposite[cameBy] } ?? open[0]
             element(app, "compass.\(choice)").tap()
@@ -745,9 +979,9 @@ final class LamplightUITests: XCTestCase {
         XCTAssertEqual(element(app, "turn.1.command").label, "open mailbox")
         XCTAssertFalse(send.isEnabled, "the field was cleared")
 
-        // The keyboard is still up: the compass is away, the newest text and
-        // the field are in reach.
-        XCTAssertFalse(element(app, "compass.north").isHittable)
+        // The keyboard is still up, and the ways, the newest text and the
+        // field are all in reach (feature 012).
+        XCTAssertTrue(element(app, "compass.north").isHittable)
         XCTAssertTrue(element(app, "turn.1.text").isHittable)
         XCTAssertTrue(element(app, "field.command").isHittable)
         // Typing again needs no tap on the field.
@@ -755,11 +989,8 @@ final class LamplightUITests: XCTestCase {
         send.tap()
         XCTAssertTrue(turn(app, 2).hasPrefix("North of House"))
         XCTAssertEqual(element(app, "status.place").label, "North of House")
-
-        element(app, "button.compass").tap()
-        XCTAssertTrue(element(app, "compass.north").waitForExistence(timeout: patience))
         XCTAssertTrue(element(app, "compass.north").isHittable)
-        XCTAssertEqual(element(app, "compass.north").label, "North, to Forest Path")
+        XCTAssertEqual(element(app, "compass.north").label, "North")
     }
 
     // S§ "Waiting states"; FR-015; US3 scenario 4.
@@ -770,15 +1001,14 @@ final class LamplightUITests: XCTestCase {
         type(app, "quit")
         _ = turn(app, 1)
         XCTAssertEqual(element(app, "field.command").placeholderValue, "Type your answer")
-        element(app, "button.compass").tap()
-        for place in places {
-            XCTAssertEqual(value(app, "compass.\(place)"), "idle", place)
+        for place in ["north", "south", "west"] {
+            XCTAssertTrue(element(app, "compass.\(place)").exists, place)
             XCTAssertFalse(element(app, "compass.\(place)").isEnabled, place)
         }
         type(app, "n")
         _ = turn(app, 2)
-        element(app, "button.compass").tap()
         XCTAssertEqual(value(app, "compass.north"), "open")
+        XCTAssertTrue(element(app, "compass.north").isEnabled)
         XCTAssertEqual(element(app, "field.command").placeholderValue, "Type a command")
     }
 
@@ -842,7 +1072,7 @@ final class LamplightUITests: XCTestCase {
         XCTAssertEqual(turn(app, 1), before)
         XCTAssertFalse(element(app, "turn.2.text").exists)
         XCTAssertEqual(element(app, "status.place").label, "North of House")
-        XCTAssertEqual(element(app, "compass.north").label, "North, to Forest Path")
+        XCTAssertEqual(element(app, "compass.north").label, "North")
     }
 
     // S§ "About"; FR-029.
@@ -866,29 +1096,25 @@ final class LamplightUITests: XCTestCase {
     }
 
     // Found by playing by hand: a transcript shorter than its room sat at the
-    // bottom at launch and at the top after "New game". It sits at the bottom,
-    // next to the compass, both times.
+    // top after "New game". It sits at the bottom, next to the field. With
+    // the keyboard up the opening is longer than its room (feature 012), so
+    // the keyboard is lowered first, by scrolling back.
     @MainActor
     func testAShortTranscriptSitsAtTheBottom() {
         let app = launch()
         _ = turn(app, 0)
-        func gap() -> CGFloat {
-            element(app, "transcript").frame.maxY - element(app, "turn.0.text").frame.maxY
-        }
-        XCTAssertLessThan(abs(gap()), 30, "at launch")
-        type(app, "quit")
-        _ = turn(app, 1)
-        type(app, "y")
-        let again = element(app, "button.newGame")
-        XCTAssertTrue(again.waitForExistence(timeout: patience))
-        again.tap()
-        XCTAssertTrue(element(app, "compass.north").waitForExistence(timeout: patience))
-        XCTAssertFalse(element(app, "turn.1.text").waitForExistence(timeout: 1))
-        XCTAssertLessThan(abs(gap()), 30, "after a new game")
+        scrollBack(app)
+        let transcript = element(app, "transcript")
+        let opening = element(app, "turn.0.text")
+        XCTAssertLessThan(opening.frame.height, transcript.frame.height)
+        let settled = NSPredicate { _, _ in abs(transcript.frame.maxY - opening.frame.maxY) < 30 }
+        expectation(for: settled, evaluatedWith: nil)
+        waitForExpectations(timeout: patience)
     }
 
-    /// A hand-made snapshot: a compass with every place in one state, given
-    /// extras and a note. Debug builds draw it in place of a game when it is
+    /// A hand-made snapshot: a map of one place with every one of the twelve
+    /// ways in one state (or none, for a state that is no way), given extra
+    /// ways and a note. Debug builds draw it in place of a game when it is
     /// passed in the environment (S§ "For automated tests").
     private func handMade(
         state: String, spokenTail: String, offered: Bool = true, known: Bool,
@@ -900,19 +1126,27 @@ final class LamplightUITests: XCTestCase {
             "North", "Northeast", "East", "Southeast", "South", "Southwest", "West", "Northwest",
             "Up", "Down", "In", "Out",
         ]
-        let drawn = zip(places, labels).map { place, label in
+        let isWay = ["open", "maybe", "door"].contains(state)
+        var ways = !isWay ? [] : zip(places, labels).map { place, label in
             """
-            {"place":"\(place)","label":"\(label)","state":"\(state)","command":null,\
-            "leads_to":null,"dark_ahead":\(darkAhead.contains(place)),"spoken":"\(label), \(spokenTail)"}
+            {"way":"\(place)","label":"\(label)","state":"\(state)",\
+            "command":\(offered ? "\"\(place)\"" : "null"),"leads_to":null,\
+            "dark_ahead":\(darkAhead.contains(place)),"refused":false,"varies":false,\
+            "returns":false,"spoken":"\(label), \(spokenTail)"}
             """
-        }.joined(separator: ",")
+        }
+        if !extras.isEmpty { ways.append(extras) }
         let noteJSON = note.map { "\"\($0)\"" } ?? "null"
+        _ = known
         return """
             {"generation":1,"turn_count":1,"waiting":"\(waiting)","message":null,\
             "status":{"place":"A Place","score":null,"moves":null,"hours":9,"minutes":5},\
             "turns":[{"number":0,"command":null,"source":null,"text":"Ready.\\n\\n>"}],\
-            "compass":{"offered":\(offered),"known":\(known),"note":\(noteJSON),\
-            "places":[\(drawn)],"extras":[\(extras)]},"inventory":\(inventory),"light":\(light)}
+            "inventory":\(inventory),"light":\(light),\
+            "map":{"note":\(noteJSON),"spoken":"Map. You are in A Place.","sheet":1,"sheets":1,\
+            "here":1,"lamp":"unknown",\
+            "places":[{"id":1,"x":0,"y":0,"inset":false,"name":"A Place","attached_to":null}],\
+            "lines":[],"leads":[],"stubs":[],"ways":[\(ways.joined(separator: ","))]}}
             """
     }
 
@@ -924,31 +1158,32 @@ final class LamplightUITests: XCTestCase {
         return app
     }
 
-    // FR-014; US4 scenario 1. No room on the bundled game's walkthrough has
-    // unknown exits, so the compass is drawn from a hand-made snapshot.
+    // FR-014; US4 scenario 1; feature 012 S§8. No room on the bundled game's
+    // walkthrough has unknown exits, so the map is drawn from a hand-made
+    // snapshot: the layer's note is shown, and no way is drawn.
     @MainActor
     func testUnknownExitsAreSaidToBeUnknown() {
         var app = launch(drawing: handMade(
             state: "unknown", spokenTail: "unknown", known: false,
             note: "Exits unknown: type a direction"))
         _ = turn(app, 0)
-        XCTAssertEqual(element(app, "compass.note").label, "Exits unknown: type a direction")
+        XCTAssertEqual(element(app, "map.note").label, "Exits unknown: type a direction")
         for place in places {
-            XCTAssertEqual(value(app, "compass.\(place)"), "unknown", place)
-            XCTAssertFalse(element(app, "compass.\(place)").isEnabled, place)
+            XCTAssertFalse(element(app, "compass.\(place)").exists, place)
         }
-        XCTAssertEqual(element(app, "compass.north").label, "North, unknown")
+        XCTAssertEqual(element(app, "map.here").label, "A Place")
         XCTAssertTrue(element(app, "field.command").isEnabled, "typing is still offered")
         XCTAssertEqual(element(app, "status.time").label, "9:05")
         XCTAssertFalse(element(app, "status.score").exists)
         app.terminate()
 
-        // Known, with nothing open, says something else.
+        // A place with no ways has no note and no way.
         app = launch(drawing: handMade(
-            state: "closed", spokenTail: "no exit", known: true, note: "No exits here"))
+            state: "closed", spokenTail: "no exit", known: true, note: nil))
         _ = turn(app, 0)
-        XCTAssertEqual(element(app, "compass.note").label, "No exits here")
-        XCTAssertEqual(value(app, "compass.north"), "closed")
+        XCTAssertTrue(element(app, "map.here").waitForExistence(timeout: patience))
+        XCTAssertFalse(element(app, "map.note").exists)
+        XCTAssertFalse(element(app, "compass.north").exists)
     }
 
     // FR-013; US2 scenario 7. The bundled game's first extra way out is over a
@@ -957,12 +1192,12 @@ final class LamplightUITests: XCTestCase {
     @MainActor
     func testExtraWaysOutAreARowOfButtons() {
         let extras = """
-            {"label":"Land","state":"open","command":"land","leads_to":"Sandy Beach","dark_ahead":false,\
+            {"way":"Land","label":"Land","state":"open","command":"land","leads_to":"Sandy Beach",\
+            "dark_ahead":false,"refused":false,"varies":false,"returns":false,\
             "spoken":"Land, to Sandy Beach"},\
-            {"label":"Cross","state":"maybe","command":"cross","leads_to":null,"dark_ahead":false,\
-            "spoken":"Cross, may be blocked"},\
-            {"label":"Launch","state":"closed","command":null,"leads_to":null,"dark_ahead":false,\
-            "spoken":"Launch, no exit"}
+            {"way":"Cross","label":"Cross","state":"maybe","command":"cross","leads_to":null,\
+            "dark_ahead":false,"refused":false,"varies":false,"returns":false,\
+            "spoken":"Cross, may be blocked"}
             """
         let app = launch(drawing: handMade(
             state: "closed", spokenTail: "no exit", known: true, note: nil, extras: extras))
@@ -974,9 +1209,9 @@ final class LamplightUITests: XCTestCase {
         XCTAssertTrue(land.isEnabled && land.isHittable)
         XCTAssertEqual(value(app, "compass.extra.1"), "maybe")
         XCTAssertTrue(element(app, "compass.extra.1").isEnabled)
-        XCTAssertFalse(element(app, "compass.extra.2").isEnabled)
-        XCTAssertFalse(element(app, "compass.extra.3").exists)
-        XCTAssertFalse(element(app, "compass.note").exists)
+        // A way the layer does not offer is not among the map's ways.
+        XCTAssertFalse(element(app, "compass.extra.2").exists)
+        XCTAssertFalse(element(app, "map.note").exists)
     }
 
     // S§ "With the keyboard showing": sending does not put the keyboard away,
@@ -1056,7 +1291,7 @@ final class LamplightUITests: XCTestCase {
         ])
         _ = turn(app, 0)
         var frames: [(String, CGRect)] = []
-        for place in places {
+        for place in ["north", "south", "west"] {
             let control = element(app, "compass.\(place)")
             XCTAssertTrue(control.isHittable, place)
             XCTAssertGreaterThanOrEqual(control.frame.width, 44, place)
@@ -1088,7 +1323,7 @@ final class LamplightUITests: XCTestCase {
                     "\(name) \(frame) overlaps \(other) \(otherFrame)")
             }
         }
-        XCTAssertEqual(element(app, "compass.north").label, "North, to North of House")
+        XCTAssertEqual(element(app, "compass.north").label, "North")
     }
 
     /// Not a test: saves pictures of the states whose look no test can judge.
@@ -1118,7 +1353,6 @@ final class LamplightUITests: XCTestCase {
         try save("keyboard")
         type(app, "quit")
         _ = turn(app, 4)
-        element(app, "button.compass").tap()
         try save("question")
         type(app, "y")
         XCTAssertTrue(element(app, "button.newGame").waitForExistence(timeout: patience))
@@ -1141,7 +1375,6 @@ final class LamplightUITests: XCTestCase {
         waitForPlace(dark, "Behind House")
         type(dark, "open window")
         _ = turn(dark, 3)
-        element(dark, "button.compass").tap()
         element(dark, "compass.west").tap()
         waitForPlace(dark, "Kitchen")
         try save("dark-ahead")
@@ -1149,7 +1382,7 @@ final class LamplightUITests: XCTestCase {
         waitForPlace(dark, "Attic")
         XCTAssertTrue(element(dark, "light.note").waitForExistence(timeout: patience))
         try save("in-the-dark")
-        element(dark, "compass.down").tap()
+        type(dark, "down")
         waitForPlace(dark, "Kitchen")
         element(dark, "compass.west").tap()
         waitForPlace(dark, "Living Room")
@@ -1158,7 +1391,6 @@ final class LamplightUITests: XCTestCase {
         dark.typeText("turn on lamp")
         element(dark, "button.send").tap()
         _ = turn(dark, 9)
-        element(dark, "button.compass").tap()
         let east = element(dark, "compass.east")
         expectation(for: NSPredicate(format: "isHittable == true"), evaluatedWith: east)
         waitForExpectations(timeout: patience)

@@ -45,7 +45,7 @@ struct AboutView: View {
                 VStack(alignment: .leading, spacing: 16) {
                     Text(verbatim: "Lamplight")
                         .font(.largeTitle.bold())
-                    Text("A demonstration: a classic text adventure with a compass that shows where you can go.")
+                    Text("A demonstration: a classic text adventure with a map that draws itself as you walk.")
                         .accessibilityIdentifier("about.demonstration")
                     // Giving up a game in progress is asked about first, in
                     // the layer's words. Where the layer has no question
