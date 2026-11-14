@@ -7,19 +7,22 @@
 #![forbid(unsafe_code)]
 
 mod announce;
+mod card;
 mod compass;
 mod json;
 mod kept;
 mod light;
-mod look;
 pub mod lookahead;
 pub mod map;
 mod map_place;
 mod strip;
 mod transcript;
+mod verbs;
 
 #[cfg(test)]
 mod announce_tests;
+#[cfg(test)]
+mod card_tests;
 #[cfg(test)]
 mod compass_tests;
 #[cfg(test)]
@@ -29,8 +32,6 @@ mod kept_tests;
 #[cfg(test)]
 mod light_tests;
 #[cfg(test)]
-mod look_tests;
-#[cfg(test)]
 mod lookahead_tests;
 #[cfg(test)]
 mod map_place_tests;
@@ -38,6 +39,8 @@ mod map_place_tests;
 mod map_tests;
 #[cfg(test)]
 mod strip_tests;
+#[cfg(test)]
+mod verbs_tests;
 
 pub use announce::NOTE_ENDED;
 
@@ -48,11 +51,13 @@ pub const NOTE_NOT_BROUGHT_BACK: &str =
 pub const NOTE_NOT_KEPT: &str = "Your place is not being kept.";
 /// The layer's question before a game in progress is given up.
 pub const ASK_START_OVER: &str = "Start over? The game in progress will be given up.";
+pub use card::{Action, Card, LABEL_DROP, NOTE_NO_DESCRIPTION};
 pub use compass::{Compass, CompassPlace, Extra, NOTE_NONE, NOTE_UNKNOWN, Place, PlaceState};
+pub use json::card_json;
 pub use light::{Light, NOTE_DARK};
-pub use look::SPOKEN_LOOK;
 pub use strip::{ItemState, NOTE_NOT_KNOWN, NOTE_NOTHING, Strip, StripItem};
 pub use transcript::{Source, Turn};
+pub use verbs::SPOKEN_LOOK;
 
 use zmachine_core::{Event, HostError, Key, LoadOptions, Machine, StatusKind, StatusLine};
 use zmachine_introspect::{Family, Introspector};
@@ -197,6 +202,11 @@ pub struct Session {
     jumps: u32,
     /// The story's word for looking, if its dictionary has one.
     look_word: Option<String>,
+    /// Its words for examining a thing and for dropping one.
+    examine_word: Option<String>,
+    drop_word: Option<String>,
+    /// How many characters of a word the story's dictionary keeps.
+    kept_chars: usize,
 }
 
 fn load(story: &[u8], seed: Seed) -> Result<Machine, StartError> {
@@ -282,6 +292,9 @@ impl Session {
             sent: None,
             jumps: 0,
             look_word: None,
+            examine_word: None,
+            drop_word: None,
+            kept_chars: 9,
         };
         // The story's word for looking is found once: its dictionary does
         // not change (specs/013-room-look/research.md, R2).
@@ -294,7 +307,10 @@ impl Session {
             .ok()
             .and_then(|words| {
                 let words: Vec<String> = words.into_iter().map(|word| word.word).collect();
-                look::word(&words, kept)
+                session.kept_chars = kept;
+                session.examine_word = verbs::examine(&words, kept);
+                session.drop_word = verbs::drop(&words, kept);
+                verbs::look(&words, kept)
             });
         session.map = session.new_map();
         session.open();
@@ -584,7 +600,14 @@ impl Session {
         };
         // What is carried is asked for at every stop, whatever the game is
         // waiting for; a host shows it as not current when it is not a command.
-        self.strip = Strip::of(&self.introspector.inventory(&self.machine.view()));
+        // An item can be tapped for its card while the game waits for a
+        // command and has a word for examining (feature 014, L§2).
+        let cards = self.waiting == Waiting::Command && self.examine_word.is_some();
+        self.strip = Strip::with(
+            &self.introspector.inventory(&self.machine.view()),
+            self.kept_chars,
+        )
+        .offering(cards);
         // Light is said only while the game waits for a command: at any other
         // stop nothing is claimed.
         self.light = match self.waiting {
@@ -727,6 +750,49 @@ impl Session {
             .view()
             .and_then(|view| view.look)
             .map(|look| look.command)
+            .ok_or(Refused::NotOffered)?;
+        self.give(&command, Source::Tap);
+        Ok(())
+    }
+
+    /// The card for a carried item: what a copy of the game says when the
+    /// item is examined, and what can be done with it. The game itself is not
+    /// touched (specs/014-inventory-card/contracts/card.md, L§3 to L§7).
+    pub fn card(&self, at: Stamp, index: usize) -> Result<Card, Refused> {
+        self.check(at)?;
+        let item = self
+            .strip
+            .item(index)
+            .filter(|item| item.card)
+            .ok_or(Refused::NotOffered)?;
+        let (Some(examine), Some(word), Some(address)) =
+            (&self.examine_word, item.word(), self.command_address)
+        else {
+            return Err(Refused::NotOffered);
+        };
+        let description = card::peek(
+            &self.machine,
+            &format!("{examine} {word}"),
+            address,
+            lookahead::LIMITS.copy,
+        );
+        Ok(card::card(item, description, self.drop_word.as_deref()))
+    }
+
+    /// The player chose an action on an item's card: its command is sent, as
+    /// a tap (L§8).
+    pub fn tap_action(&mut self, at: Stamp, index: usize, action: usize) -> Result<(), Refused> {
+        self.check(at)?;
+        let command = self
+            .strip
+            .item(index)
+            .filter(|item| item.card)
+            .and_then(|item| {
+                card::actions(item, self.drop_word.as_deref())
+                    .into_iter()
+                    .nth(action)
+            })
+            .map(|action| action.command)
             .ok_or(Refused::NotOffered)?;
         self.give(&command, Source::Tap);
         Ok(())

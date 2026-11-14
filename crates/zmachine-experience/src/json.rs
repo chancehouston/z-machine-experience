@@ -202,9 +202,44 @@ fn item(out: &mut String, item: &StripItem) {
     text(out, &item.name);
     key(out, "state");
     text(out, item.state.as_str());
+    // Feature 014: its place among the shown items, and whether it can be
+    // tapped for its card now.
+    key(out, "index");
+    out.push_str(&item.index.to_string());
+    key(out, "card");
+    flag(out, item.card);
     key(out, "contents");
     list(out, &item.contents, self::item);
     out.push('}');
+}
+
+/// A card as JSON (specs/014-inventory-card/contracts/card.md, S§2).
+pub fn card_json(card: &crate::Card) -> String {
+    let mut out = String::new();
+    out.push('{');
+    key(&mut out, "name");
+    text(&mut out, &card.name);
+    key(&mut out, "state");
+    text(&mut out, card.state.as_str());
+    key(&mut out, "description");
+    optional_text(&mut out, card.description.as_deref());
+    key(&mut out, "note");
+    optional_text(&mut out, card.note);
+    key(&mut out, "spoken");
+    text(&mut out, &card.spoken);
+    key(&mut out, "actions");
+    list(&mut out, &card.actions, |out, action| {
+        out.push('{');
+        key(out, "label");
+        text(out, &action.label);
+        key(out, "spoken");
+        text(out, &action.spoken);
+        key(out, "command");
+        text(out, &action.command);
+        out.push('}');
+    });
+    out.push('}');
+    out
 }
 
 fn flag(out: &mut String, value: bool) {

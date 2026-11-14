@@ -222,6 +222,7 @@ impl Json for Carried {
                 ("state", &self.state),
                 ("seen", &self.seen),
                 ("source", &self.source),
+                ("words", &self.words),
                 ("contents", &self.contents),
             ],
         );

@@ -64,6 +64,11 @@ struct GameView: View {
                         } tapPlace: {
                             Task { await game.tapPlace() }
                         }
+                        // An item's card is shown over the map.
+                        .overlay { card }
+                    } else if game.card != nil {
+                        // With no map, the card has the room a band would.
+                        card.frame(height: MapLayout.band)
                     }
                     // At the band's lower edge, whether or not the keyboard
                     // is up: what is carried, and the layer's words where the
@@ -81,7 +86,10 @@ struct GameView: View {
                             .accessibilityIdentifier("light.note")
                         }
                         InventoryStrip(
-                            strip: showing.inventory, current: showing.waiting == .command)
+                            strip: showing.inventory, current: showing.waiting == .command
+                        ) { index in
+                            Task { await game.openCard(item: index) }
+                        }
                     }
                     .padding(.leading, showing.light.note == nil ? 0 : 12)
                     Divider()
@@ -112,6 +120,18 @@ struct GameView: View {
         }
         .task { await game.start() }
         .sheet(isPresented: $showingAbout) { AboutView(game: game) }
+    }
+
+    /// The open card, if there is one.
+    @ViewBuilder
+    private var card: some View {
+        if let open = game.card {
+            ItemCard(card: open.card, index: open.index, ready: !game.busy) { action in
+                Task { await game.tap(action: action) }
+            } close: {
+                game.closeCard()
+            }
+        }
     }
 
     @ViewBuilder

@@ -293,3 +293,58 @@ fn the_map_adds_little_to_a_snapshot() {
         assert!(largest < 64 * 1024, "{largest}");
     }
 }
+
+// specs/014-inventory-card, SC-001, SC-004: along both walkthroughs every item
+// that can be tapped gives a card within the time a command is allowed, and
+// the game is as it was after each.
+#[test]
+#[ignore = "timing; run with --release -- --ignored --nocapture"]
+fn a_card_is_made_quickly_and_changes_nothing() {
+    use zmachine_experience::StripItem;
+    fn each(items: &[StripItem]) -> Vec<(usize, bool)> {
+        items
+            .iter()
+            .flat_map(|item| std::iter::once((item.index, item.card)).chain(each(&item.contents)))
+            .collect()
+    }
+    let zork = || {
+        let pack = read_text("packs/zork1.pack");
+        Session::with_pack(read("stories/zork1/zork1.z3"), Seed::Fixed(11), Some(&pack)).unwrap()
+    };
+    let advent = || Session::new(read("stories/advent/advent.z5"), Seed::Fixed(1)).unwrap();
+    for (name, script, mut session) in [
+        ("zork1", "stories/zork1/fidelity/walkthrough.txt", zork()),
+        (
+            "advent",
+            "stories/advent/fidelity/walkthrough.txt",
+            advent(),
+        ),
+    ] {
+        let (mut shown, mut cards, mut described) = (0, 0, 0);
+        let mut slowest = Duration::ZERO;
+        for line in read_text(script).lines().skip(2) {
+            if session.send_line(session.stamp(), line).is_err() {
+                break;
+            }
+            let kept = session.kept();
+            for (index, card) in each(&session.inventory().items) {
+                shown += 1;
+                if !card {
+                    continue;
+                }
+                let began = Instant::now();
+                let card = session.card(session.stamp(), index).unwrap();
+                slowest = slowest.max(began.elapsed());
+                cards += 1;
+                described += usize::from(card.description.is_some());
+            }
+            assert!(session.kept() == kept, "{name}: a peek changed the game");
+        }
+        println!(
+            "{name}: {shown} items shown along the walkthrough, {cards} cards, \
+             {described} with a description; slowest card {slowest:?}"
+        );
+        assert!(cards > 0);
+        assert!(slowest < command_limit(), "{slowest:?}");
+    }
+}

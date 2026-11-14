@@ -32,6 +32,9 @@ pub(crate) struct Zil {
     pub directions: Vec<Direction>,
     /// Objects with no parent and no children as shipped: the player is one.
     pub unplaced: Vec<u16>,
+    /// The property holding the words that name an object, where one can be
+    /// told by its shape.
+    pub nouns: Option<u8>,
 }
 
 /// The direction property a dictionary entry names, if it is a direction word:
@@ -119,11 +122,55 @@ impl Zil {
                     .is_some_and(|node| node.parent == 0 && node.child == 0)
             })
             .collect();
+        let nouns = naming_property(layout, b, &is_direction);
         Some(Zil {
             rooms,
             directions,
             unplaced,
+            nouns,
         })
+    }
+}
+
+/// The property that holds the dictionary words naming an object. Its number
+/// is the story's own and is written nowhere, so it is told by its shape: the
+/// one property, not a direction, that at least five objects provide and that
+/// in at least nine in ten of them is a list of whole dictionary entries.
+/// With none such, or more than one, it is not known
+/// (specs/014-inventory-card/research.md, R1).
+fn naming_property(layout: &Layout, b: Bytes, is_direction: &dyn Fn(u8) -> bool) -> Option<u8> {
+    let d = layout.dictionary(b)?;
+    let end = d.first + d.count * d.entry_len;
+    let entry = |address: usize| {
+        address >= d.first && address < end && (address - d.first).is_multiple_of(d.entry_len)
+    };
+    // For each property: how many objects provide it, and in how many it is
+    // such a list.
+    let mut seen: std::collections::BTreeMap<u8, (usize, usize)> = Default::default();
+    for number in 1..=layout.last_object {
+        for p in layout.properties(b, number)? {
+            if is_direction(p.number) {
+                continue;
+            }
+            let counts = seen.entry(p.number).or_default();
+            counts.0 += 1;
+            let list = p.len >= 2
+                && p.len % 2 == 0
+                && (0..p.len)
+                    .step_by(2)
+                    .all(|i| b.word(p.at + i).is_some_and(|w| entry(w as usize)));
+            if list {
+                counts.1 += 1;
+            }
+        }
+    }
+    let mut fits = seen
+        .into_iter()
+        .filter(|(_, (holders, lists))| *holders >= 5 && lists * 10 >= holders * 9)
+        .map(|(property, _)| property);
+    match (fits.next(), fits.next()) {
+        (Some(property), None) => Some(property),
+        _ => None,
     }
 }
 

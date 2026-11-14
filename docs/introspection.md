@@ -1,6 +1,6 @@
 # Z-Machine Introspection Interface
 
-**Version**: 0.5.0 | **Status**: draft
+**Version**: 0.6.0 | **Status**: draft
 
 A specification for reading the state of a running Z-machine game without changing it:
 where the player is, which ways lead out, what is here and what is carried. It is
@@ -492,6 +492,7 @@ The answer is a list, in the tree's order, of the player's children. Each entry 
 | `state` | `open`, `closed` or `unknown`, or none |
 | `seen` | `yes`, `no` or `unknown` |
 | `source` | `file` or `pack` |
+| `words` | The dictionary words that name it; a part that may be unknown (section 7.3) |
 | `contents` | The same, for the object's own children |
 
 `seen` says whether the game would show the player the object among what is carried.
@@ -556,6 +557,25 @@ T holds can be seen, whatever its `state`.
 In the reference implementation's tests, a complete game of Zork I has 332 command
 prompts; the inventory is `ambiguous-player` at 6 of them and agrees with the game's own
 listing at every other.
+
+### 7.3 The words that name a thing
+
+`words` lists the dictionary words of the object's naming property, as the dictionary
+stores them and in the property's order. An object that does not provide the property
+has an empty list. A value in the property that is not the address of a dictionary
+entry is passed over.
+
+In an Inform 6 story the naming property is `name` (property 1).
+
+A ZIL story numbers its own properties and none says which holds an object's words.
+The property is told by its shape, once, from the story file as shipped: it is the one
+property, not a direction, that at least five objects provide and that in at least nine
+in ten of those is a non-empty list of whole dictionary entries. Where no property is
+such, or more than one is, `words` is unknown with the reason `not-determinable`. A game
+pack may name the property (section 12.12), and it is then used with no search.
+
+The words are what the story's parser may know the object by. Nothing says that a
+command using one will be taken as meaning this object: another object may share it.
 
 ## 8. `exits`
 
@@ -867,7 +887,7 @@ line missing or out of place. A pack is never applied in part.
 
 | Key | Value | Times |
 | --- | --- | --- |
-| `pack` | `1`, `2` or `3`, the version of this format | once |
+| `pack` | `1`, `2`, `3` or `4`, the version of this format | once |
 | `sha256` | 64 of the characters `0` to `9` and `a` to `f` | once |
 | `release` | a decimal number, 0 to 65535 | once |
 | `serial` | six characters, each a letter or a digit | once |
@@ -1020,6 +1040,12 @@ From version 0.4.0 to 0.5.0:
   on a copy, and what such a trial must leave untouched. No query, field or rule of the
   interface changes.
 
+From version 0.5.0 to 0.6.0:
+
+- An entry of `inventory` has one more field, `words` (section 7.3).
+- The pack format has a version 4, with one more key, `noun-property`
+  (section 12.12).
+
 ### 12.8 `transparent-attribute`
 
 `transparent-attribute: T` says that, in this story file, attribute T is set on a thing
@@ -1087,3 +1113,13 @@ answer: a hidden object is still listed by `inventory`, `scope` and `object_tree
 
 Nothing is tried to answer. The game has the last word (section 8.3): it may refuse the
 way, and what lights or darkens a room may change as the player moves.
+
+### 12.12 `noun-property`
+
+A pack of version 4 may hold `noun-property: P`, once, with P from 1 to 31. It says that,
+in this story file, property P of an object holds the dictionary words that name it.
+
+With it in force, `inventory`'s `words` (section 7.3) are read from property P and the
+property is not searched for. It changes nothing else about any answer, and it does not
+change an entry's `source`: `words` is not one of the fields `source` speaks for.
+

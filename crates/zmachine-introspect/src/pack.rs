@@ -25,6 +25,10 @@ pub struct Pack {
     /// The attribute set on a thing the game hides (specification section
     /// 12.11).
     pub invisible_attribute: Option<u8>,
+    /// The property that holds the dictionary words naming an object, for a
+    /// story where it cannot be told by its shape (specification section
+    /// 12.12).
+    pub noun_property: Option<u8>,
 }
 
 /// Why a pack was refused: the line, counted from 1, and the fault.
@@ -69,6 +73,7 @@ pub(crate) struct Entries {
     pub transparent_attribute: Option<u8>,
     pub lit_attribute: Option<u8>,
     pub invisible_attribute: Option<u8>,
+    pub noun_property: Option<u8>,
 }
 
 /// A decimal number as the format writes one: digits only, no sign, and no
@@ -97,6 +102,7 @@ impl Pack {
             transparent_attribute: None,
             lit_attribute: None,
             invisible_attribute: None,
+            noun_property: None,
         };
         // How many lines that are not skipped have been read.
         let mut read = 0;
@@ -124,6 +130,7 @@ impl Pack {
                         "1" => 1,
                         "2" => 2,
                         "3" => 3,
+                        "4" => 4,
                         _ => {
                             return Err(fault("a version of the format this reader does not know"));
                         }
@@ -201,6 +208,16 @@ impl Pack {
                 "invisible-attribute" => {
                     return Err(fault("invisible-attribute needs a pack of version 3"));
                 }
+                "noun-property" if pack.version >= 4 => {
+                    let property = decimal(value, 1, 31)
+                        .ok_or_else(|| fault("noun-property is a number from 1 to 31"))?;
+                    if pack.noun_property.replace(property as u8).is_some() {
+                        return Err(fault("noun-property may be given once"));
+                    }
+                }
+                "noun-property" => {
+                    return Err(fault("noun-property needs a pack of version 4"));
+                }
                 _ => return Err(fault("a key this format does not have")),
             }
         }
@@ -220,6 +237,7 @@ impl Pack {
             || self.transparent_attribute.is_some()
             || self.lit_attribute.is_some()
             || self.invisible_attribute.is_some()
+            || self.noun_property.is_some()
     }
 
     pub(crate) fn entries(&self) -> Entries {
@@ -229,6 +247,7 @@ impl Pack {
             transparent_attribute: self.transparent_attribute,
             lit_attribute: self.lit_attribute,
             invisible_attribute: self.invisible_attribute,
+            noun_property: self.noun_property,
         }
     }
 }
