@@ -11,6 +11,7 @@ mod compass;
 mod json;
 mod kept;
 mod light;
+mod look;
 pub mod lookahead;
 pub mod map;
 mod map_place;
@@ -27,6 +28,8 @@ mod json_tests;
 mod kept_tests;
 #[cfg(test)]
 mod light_tests;
+#[cfg(test)]
+mod look_tests;
 #[cfg(test)]
 mod lookahead_tests;
 #[cfg(test)]
@@ -47,6 +50,7 @@ pub const NOTE_NOT_KEPT: &str = "Your place is not being kept.";
 pub const ASK_START_OVER: &str = "Start over? The game in progress will be given up.";
 pub use compass::{Compass, CompassPlace, Extra, NOTE_NONE, NOTE_UNKNOWN, Place, PlaceState};
 pub use light::{Light, NOTE_DARK};
+pub use look::SPOKEN_LOOK;
 pub use strip::{ItemState, NOTE_NOT_KNOWN, NOTE_NOTHING, Strip, StripItem};
 pub use transcript::{Source, Turn};
 
@@ -191,6 +195,8 @@ pub struct Session {
     sent: Option<String>,
     /// The core's count of jumps at the last stop.
     jumps: u32,
+    /// The story's word for looking, if its dictionary has one.
+    look_word: Option<String>,
 }
 
 fn load(story: &[u8], seed: Seed) -> Result<Machine, StartError> {
@@ -275,7 +281,21 @@ impl Session {
             map: map::Map::new(false),
             sent: None,
             jumps: 0,
+            look_word: None,
         };
+        // The story's word for looking is found once: its dictionary does
+        // not change (specs/013-room-look/research.md, R2).
+        let view = session.machine.view();
+        let kept = if view.version() <= 3 { 6 } else { 9 };
+        session.look_word = session
+            .introspector
+            .dictionary(&view)
+            .value
+            .ok()
+            .and_then(|words| {
+                let words: Vec<String> = words.into_iter().map(|word| word.word).collect();
+                look::word(&words, kept)
+            });
         session.map = session.new_map();
         session.open();
         Ok(session)
@@ -406,6 +426,7 @@ impl Session {
     /// neither family has none: the layer cannot say where the player is.
     fn new_map(&self) -> map::Map {
         map::Map::new(self.introspector.family() != Family::Unrecognised)
+            .with_look(self.look_word.clone())
     }
 
     /// The map of the game in progress.
@@ -691,6 +712,21 @@ impl Session {
             .view()
             .and_then(|view| view.ways.into_iter().nth(index))
             .and_then(|way| way.command)
+            .ok_or(Refused::NotOffered)?;
+        self.give(&command, Source::Tap);
+        Ok(())
+    }
+
+    /// The player touched the place they are in on the map: the story's
+    /// word for looking is sent, as a tap
+    /// (specs/013-room-look/contracts/look.md, L§3).
+    pub fn tap_place(&mut self, at: Stamp) -> Result<(), Refused> {
+        self.check(at)?;
+        let command = self
+            .map
+            .view()
+            .and_then(|view| view.look)
+            .map(|look| look.command)
             .ok_or(Refused::NotOffered)?;
         self.give(&command, Source::Tap);
         Ok(())

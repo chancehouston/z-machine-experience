@@ -127,6 +127,10 @@ struct MapDrawing: View {
     let map: MapSheet
     /// Whether nothing is to be drawn in: Reduce Motion.
     let still: Bool
+    /// False while a command is being worked out.
+    let ready: Bool
+    /// A touch on the place the player is in.
+    let tapPlace: () -> Void
 
     /// The pencil's colour.
     private let pencil = Color.primary.opacity(0.82)
@@ -174,9 +178,17 @@ struct MapDrawing: View {
                     .padding(.horizontal, 5)
             }
             .frame(width: size.width, height: size.height)
+            // The place the player is in is touched in a taller area than
+            // its box, and one no wider than leaves the ways' controls clear.
+            .frame(
+                width: here ? min(size.width, MapLayout.placeTouch.width) : size.width,
+                height: here ? max(size.height, MapLayout.placeTouch.height) : size.height
+            )
+            .contentShape(Rectangle())
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(Text(verbatim: place.name ?? ""))
             .accessibilityIdentifier(here ? "map.here" : "map.place.\(place.id)")
+            .modifier(Looking(look: here && ready ? map.look : nil, action: tapPlace))
             // The place the player is in is counted with the others by tests.
             .overlay {
                 if here {
@@ -323,6 +335,27 @@ struct MapDrawing: View {
                     .fixedSize()
                     .position(x: end.x, y: end.y + (end.y >= start.y ? 8 : -8))
             }
+        }
+    }
+}
+
+/// The place the player is in, where the map says it can be touched: a touch
+/// is handed on, and a screen reader is told it is a button and, in the
+/// layer's words, what it does (specs/013-room-look/contracts/look.md, A§1).
+/// It answers a tap and is not a button of its own, so that a drag beginning
+/// on it still moves the sheet.
+private struct Looking: ViewModifier {
+    let look: MapLook?
+    let action: () -> Void
+
+    func body(content: Content) -> some View {
+        if let look {
+            content
+                .onTapGesture(perform: action)
+                .accessibilityAddTraits(.isButton)
+                .accessibilityHint(Text(verbatim: look.spoken))
+        } else {
+            content
         }
     }
 }

@@ -91,3 +91,51 @@ fn every_story_can_be_wandered_with_a_sound_map() {
     assert!(wandered >= 5, "{wandered} stories were found to wander");
     assert!(mapped >= 4, "{mapped} stories gave a map");
 }
+
+// specs/013-room-look, SC-002: where a story's map offers a touch on the
+// player's place, the word it sends is a word of that story's dictionary; a
+// story without the word offers no touch. Counts only are printed.
+#[test]
+fn the_look_sends_only_a_word_the_story_has() {
+    use zmachine_introspect::Introspector;
+    let root = repo("");
+    let root = Path::new(&root);
+    let (stories, _) = corpus::load(root).expect("the manifest and the ledger are read");
+    let (mut with, mut without, mut unmapped) = (0, 0, 0);
+    for story in &stories {
+        let Some(bytes) = corpus::present(root, story) else {
+            continue;
+        };
+        let Ok(session) = Session::with_pack(bytes.clone(), Seed::Fixed(7), None) else {
+            continue;
+        };
+        let Some(view) = session.map().view() else {
+            unmapped += 1;
+            continue;
+        };
+        let Ok(machine) = zmachine_corpus::walk::load(bytes, 7) else {
+            continue;
+        };
+        let words: Vec<String> = Introspector::new(&machine.view())
+            .dictionary(&machine.view())
+            .value
+            .map(|words| words.into_iter().map(|word| word.word).collect())
+            .unwrap_or_default();
+        match view.look {
+            Some(look) => {
+                assert!(words.contains(&look.command), "{}", story.id);
+                with += 1;
+            }
+            None => {
+                assert!(
+                    !words.iter().any(|word| word == "look" || word == "l"),
+                    "{}: the word is there and no touch is offered",
+                    story.id
+                );
+                without += 1;
+            }
+        }
+    }
+    println!("look: {with} stories with the word, {without} without, {unmapped} with no map");
+    assert!(with >= 4, "{with} stories offered the look");
+}

@@ -151,6 +151,7 @@ fn no_direction_word_is_written_outside_the_layout() {
         "exit",
         "land",
         "look",
+        "l",
         "inventory",
     ];
     for (name, text) in app_swift() {
@@ -387,6 +388,14 @@ fn the_app_draws_the_map_and_reads_no_compass() {
     // A touch on a way reaches the layer by the way's place in the list.
     let engine = source("Lamplight/Engine.swift");
     assert!(engine.contains("zmx_session_tap_way("));
+    // specs/013-room-look/contracts/look.md, A§1, A§6: a touch on the
+    // player's place reaches the layer by its own entry, and what it does is
+    // said in the layer's words.
+    assert!(engine.contains("zmx_session_tap_place("));
+    assert!(
+        source("Lamplight/MapDrawing.swift")
+            .contains(".accessibilityHint(Text(verbatim: look.spoken))")
+    );
     for gone in ["zmx_session_tap(", "zmx_session_tap_extra("] {
         assert!(!engine.contains(gone), "{gone} is still called");
     }

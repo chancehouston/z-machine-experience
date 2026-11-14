@@ -13,6 +13,9 @@ enum MapLayout {
     /// The side of the square a way is touched in. It does not grow with the
     /// text size.
     static let control: CGFloat = 44
+    /// The area the place the player is in is touched in: as tall as a
+    /// way's control, and narrow enough to leave the ways beside it clear.
+    static let placeTouch = CGSize(width: 80, height: 44)
     /// How tall the band is while the keyboard is up.
     static let band: CGFloat = 200
 

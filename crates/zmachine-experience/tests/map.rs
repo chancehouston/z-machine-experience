@@ -6,7 +6,7 @@ mod common;
 use common::{asker, read, read_text, say};
 use std::collections::{BTreeMap, BTreeSet};
 use zmachine_experience::map::{LineKind, Map};
-use zmachine_experience::{Outcome, Place, Seed, Session};
+use zmachine_experience::{Outcome, Place, Refused, Seed, Session, Source};
 
 /// Four rooms in a ring: east, south, west and north bring the player round.
 fn ring() -> Vec<u8> {
@@ -565,4 +565,84 @@ fn a_way_of_the_map_is_tapped_by_its_place_in_the_list() {
     // A game with no map offers no way.
     let mut none = Session::new(asker(), Seed::Fixed(1)).unwrap();
     assert_eq!(none.tap_way(none.stamp(), 0), Err(Refused::NotOffered));
+}
+
+// ---------------------------------------------------------------------------
+// Feature 013: touching the place the player is in, to look
+// (specs/013-room-look/contracts/look.md, cited L§)
+// ---------------------------------------------------------------------------
+
+/// Walks out of the first place and back, touches it, and returns the reply.
+fn looked_at(mut s: Session, out: &str, back: &str) -> (Session, String) {
+    say(&mut s, out);
+    say(&mut s, back);
+    let page = s.map().page();
+    let view = s.map().view().unwrap();
+    let look = view.look.clone().expect("the place can be touched");
+    s.tap_place(s.stamp()).expect("the look is sent");
+    let turn = s.turns().last().unwrap().clone();
+    assert_eq!(
+        (turn.command.as_deref(), turn.source),
+        (Some(look.command.as_str()), Some(Source::Tap))
+    );
+    // L§4: the map is as it was.
+    assert_eq!(s.map().page(), page);
+    assert_eq!(s.map().view().unwrap().places, view.places);
+    (s, turn.text)
+}
+
+// L§3, L§4; SC-001: on Zork I one touch brings the full description.
+#[test]
+fn touching_the_place_looks_on_zork() {
+    let (mut s, text) = looked_at(zork(), "north", "west");
+    assert_eq!(s.map().view().unwrap().look.unwrap().command, "look");
+    assert!(text.contains("open field west of a white house"), "{text}");
+    // A stale stamp is refused, and nothing is sent.
+    let turns = s.turns().len();
+    let mut stale = s.stamp();
+    stale.turn_count -= 1;
+    assert_eq!(s.tap_place(stale), Err(Refused::Stale));
+    assert_eq!(s.turns().len(), turns);
+}
+
+// SC-001 on Adventure.
+#[test]
+fn touching_the_place_looks_on_adventure() {
+    let (_, text) = looked_at(advent(), "east", "west");
+    assert!(text.contains("end of a road"), "{text}");
+}
+
+// L§3: at a question there is no look, and a touch is refused.
+#[test]
+fn a_touch_at_a_question_is_refused() {
+    let mut s = zork();
+    say(&mut s, "quit");
+    assert_eq!(s.map().view().unwrap().look, None);
+    let turns = s.turns().len();
+    assert_eq!(s.tap_place(s.stamp()), Err(Refused::NotOffered));
+    assert_eq!(s.turns().len(), turns);
+    // A game with no map offers no look.
+    let mut none = Session::new(asker(), Seed::Fixed(1)).unwrap();
+    assert_eq!(none.tap_place(none.stamp()), Err(Refused::NotOffered));
+}
+
+// L§5; SC-003: a kept game holding touches on the place comes back the same.
+#[test]
+fn a_game_with_looks_comes_back_the_same() {
+    let story = read("stories/zork1/zork1.z3");
+    let pack = read_text("packs/zork1.pack");
+    let mut s = zork();
+    for line in ["north", "east"] {
+        say(&mut s, line);
+        s.tap_place(s.stamp()).unwrap();
+    }
+    for _ in 0..100 {
+        let (brought, outcome) =
+            Session::open_kept(story.clone(), Some(&pack), Seed::Fresh(5), Some(&s.kept()))
+                .unwrap();
+        assert_eq!(outcome, Outcome::BroughtBack);
+        assert_eq!(brought.map().view(), s.map().view());
+        assert_eq!(brought.turns().len(), s.turns().len());
+        assert_eq!(brought.turns().last(), s.turns().last());
+    }
 }

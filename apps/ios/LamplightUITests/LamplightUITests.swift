@@ -1343,13 +1343,17 @@ final class LamplightUITests: XCTestCase {
         XCTAssertTrue(close.exists, "still on the sheet")
         XCTAssertFalse(fieldHasTheKeyboard(app))
 
-        // Dragged: every place moves with the finger.
+        // Dragged: every place moves with the finger. The drag begins on the
+        // player's own place, which can be touched to look: it drags the
+        // sheet all the same, and no look is sent (feature 013, A§5).
         let start = placeFrames(app)
+        element(app, "map.here").coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+            .press(
+                forDuration: 0.1,
+                thenDragTo: frame.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.8)))
         let from = frame.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.3))
-        from.press(
-            forDuration: 0.1,
-            thenDragTo: frame.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.6)))
         let moved = placeFrames(app)
+        XCTAssertFalse(element(app, "turn.12.text").exists, "the drag sent nothing")
         let here = element(app, "map.here").identifier
         XCTAssertEqual(start.count, moved.count)
         for (place, was) in start where place != here {
@@ -1388,6 +1392,95 @@ final class LamplightUITests: XCTestCase {
         expectation(for: up, evaluatedWith: nil)
         waitForExpectations(timeout: patience)
         XCTAssertEqual(frame.frame.height, band.height, accuracy: 1)
+    }
+
+    // -----------------------------------------------------------------
+    // Feature 013: touching the place the player is in, to look
+    // (specs/013-room-look/contracts/look.md, cited A§).
+    // -----------------------------------------------------------------
+
+    /// Whether turn `number` has not come, a moment after it would have.
+    @MainActor
+    private func noTurn(_ app: XCUIApplication, _ number: Int) -> Bool {
+        !element(app, "turn.\(number).text").waitForExistence(timeout: 1.5)
+    }
+
+    // A§1; US1 scenarios 1 and 3: a touch on the player's place sends the
+    // layer's command for looking, and the game's full description follows;
+    // on the opened sheet too, which stays open.
+    @MainActor
+    func testTouchingMyRoomLooks() {
+        let app = launch()
+        _ = turn(app, 0)
+        type(app, "n")
+        _ = turn(app, 1)
+        type(app, "w")
+        XCTAssertFalse(turn(app, 2).contains("open field"), "the game names the place in a line")
+        let here = element(app, "map.here")
+        XCTAssertEqual(here.label, "West of House")
+        XCTAssertEqual(here.elementType, .button)
+        here.tap()
+        XCTAssertTrue(turn(app, 3).contains("open field west of a white house"))
+        let sent = element(app, "turn.3.command").label
+        XCTAssertFalse(sent.isEmpty)
+        XCTAssertTrue(fieldHasTheKeyboard(app))
+
+        element(app, "button.openMap").tap()
+        XCTAssertTrue(element(app, "button.closeMap").waitForExistence(timeout: patience))
+        here.tap()
+        expectation(
+            for: NSPredicate(format: "value == %@", "4"), evaluatedWith: element(app, "status.moves"))
+        waitForExpectations(timeout: patience)
+        XCTAssertTrue(element(app, "button.closeMap").exists, "still on the sheet")
+        element(app, "button.closeMap").tap()
+        XCTAssertTrue(turn(app, 4).contains("open field west of a white house"))
+        XCTAssertEqual(element(app, "turn.4.command").label, sent)
+    }
+
+    // A§2: at a question the player's place is not a button and sends
+    // nothing.
+    @MainActor
+    func testMyRoomIsNotAButtonAtAQuestion() {
+        let app = launch()
+        _ = turn(app, 0)
+        type(app, "quit")
+        _ = turn(app, 1)
+        let here = element(app, "map.here")
+        XCTAssertNotEqual(here.elementType, .button)
+        here.tap()
+        XCTAssertTrue(noTurn(app, 2))
+    }
+
+    // A§3: a touch on a place the player is not in sends nothing.
+    @MainActor
+    func testOtherRoomsDoNothing() {
+        let app = launch()
+        _ = turn(app, 0)
+        type(app, "n")
+        _ = turn(app, 1)
+        let other = app.descendants(matching: .any)
+            .matching(NSPredicate(format: "identifier BEGINSWITH %@", "map.place."))
+            .allElementsBoundByIndex.first { $0.frame.width > 10 }
+        XCTAssertNotNil(other)
+        XCTAssertNotEqual(other?.elementType, .button)
+        other?.tap()
+        XCTAssertTrue(noTurn(app, 2))
+    }
+
+    // A§5: pulling the band down from the player's own place opens the
+    // sheet and sends no look.
+    @MainActor
+    func testPullingTheBandDownFromMyRoom() {
+        let app = launch()
+        _ = turn(app, 0)
+        let here = element(app, "map.here")
+        here.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+            .press(
+                forDuration: 0.1,
+                thenDragTo: element(app, "transcript")
+                    .coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)))
+        XCTAssertTrue(element(app, "button.closeMap").waitForExistence(timeout: patience))
+        XCTAssertTrue(noTurn(app, 1))
     }
 
     /// The outline each place is drawn with, by place. Shown only with
@@ -1512,9 +1605,17 @@ final class LamplightUITests: XCTestCase {
             XCTAssertGreaterThanOrEqual(control.frame.width, 44, control.identifier)
             XCTAssertGreaterThanOrEqual(control.frame.height, 44, control.identifier)
         }
+        // Feature 013, A§4: the player's place is tall enough to touch and
+        // no way's control overlaps it.
         let here = element(app, "map.here").frame
-        XCTAssertGreaterThanOrEqual(here.height, 30, "\(here)")
+        XCTAssertGreaterThanOrEqual(here.height, 44, "\(here)")
         XCTAssertGreaterThanOrEqual(here.width, 60, "\(here)")
+        for index in 0..<ways.count {
+            let control = ways.element(boundBy: index)
+            XCTAssertFalse(
+                here.insetBy(dx: 0.5, dy: 0.5).intersects(control.frame),
+                "\(control.identifier) \(control.frame) overlaps the place \(here)")
+        }
         let open = element(app, "button.openMap")
         XCTAssertTrue(open.isHittable)
         XCTAssertGreaterThanOrEqual(open.frame.width, 44)

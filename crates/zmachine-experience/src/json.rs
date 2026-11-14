@@ -313,5 +313,18 @@ pub(crate) fn map(out: &mut String, view: &MapView) {
         text(out, &way.spoken);
         out.push('}');
     });
+    // specs/013-room-look/contracts/look.md, S§1.
+    key(out, "look");
+    match &view.look {
+        Some(look) => {
+            out.push('{');
+            key(out, "command");
+            text(out, &look.command);
+            key(out, "spoken");
+            text(out, &look.spoken);
+            out.push('}');
+        }
+        None => out.push_str("null"),
+    }
     out.push('}');
 }

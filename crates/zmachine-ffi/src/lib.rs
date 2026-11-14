@@ -304,6 +304,20 @@ pub extern "C" fn zmx_session_tap_way(
     })
 }
 
+/// The player touched the place they are in on the map: the snapshot's
+/// `map.look`. Returns 1 if the game received its command and 0 if it was
+/// refused.
+#[unsafe(no_mangle)]
+pub extern "C" fn zmx_session_tap_place(
+    session: *mut zmx_session,
+    generation: u64,
+    turn_count: usize,
+) -> c_int {
+    command(session, generation, turn_count, |session, at| {
+        session.tap_place(at).is_ok()
+    })
+}
+
 #[unsafe(no_mangle)]
 pub extern "C" fn zmx_session_new_game(session: *mut zmx_session, entropy: u32) {
     let Some(wrapper) = borrow(session) else {

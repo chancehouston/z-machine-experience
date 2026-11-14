@@ -98,7 +98,8 @@ What the first demo does today:
   `stories/zork1/map/` and `stories/advent/map/`. The band opens out to the whole
   sheet, which can be dragged about; places and lines are drawn as by a pencil,
   each place the same each time; and the player's place carries a lamp that is out
-  in the dark.
+  in the dark. A touch on the player's own place sends the story's word for
+  looking, for the full description (`specs/013-room-look/`).
 - **The keyboard stays up.** It is there whenever the game waits for a line, and goes
   down only when the player scrolls back through the transcript.
 - **The app holds no rule of any game.** It draws what the experience layer reports and
