@@ -187,3 +187,40 @@ passed, none failed. App: 59 tests on iOS 27.2 and 59 on iOS 26.0, one skipped o
 each (`testScreenshots`), no failure; run one after the other with nothing else
 building. These replace the counts above, which were taken before the trial.
 
+
+---
+
+# Tasks: The Inventory Card, stage 2
+
+**Input**: the "Stage 2" parts of plan.md, research.md (R10 to R17), data-model.md
+and contracts/card.md; decisions 7 to 10 of the specification.
+
+**Test-first**, as stage 1, with the record saying what happened. One pull request
+from `014-card-actions`.
+
+## Phase 6: Introspection, what a thing is for
+
+- [ ] T021 [US5] Add tests in `inform_tests.rs`: a carried thing's `uses` follow the library's flags (holds, open, switch, on, eat, wear, light); `read` and `drink` are unknown (I§4). See them fail: no field `uses`
+- [ ] T022 [US5] Add tests in `pack_tests.rs`: version 5 reads the eight keys, each once and in range, and refuses them in version 4; with them in force a ZIL thing's `uses` are as I§5 says (a surface does not open; a flame is not switched; without a key the part is unknown) (I§5, I§6). See them fail
+- [ ] T023 [US5] Add `Uses` and `Carried.uses`; read them in both families; add the keys to `pack.rs`. T021 and T022 pass. Add `uses` to the inventory's JSON with its test
+- [ ] T024 [US5] `docs/introspection.md`: section 7.4 (uses) and 12.13 (the keys), each cited by a test (`I§7.4`, `I§12.13`); version 0.7.0 with what changed; `spec_agreement.rs` and the CLI's pinned version follow
+
+## Phase 7: The layer
+
+- [ ] T025 [US5] Add tests in `card_tests.rs` of the actions from hand-made items: each pair by state, the order of L§10, nothing where a part is unknown, a command left out where a word of it is not in the dictionary, no action for an item inside another (L§10 to L§12, L§14). See them fail
+- [ ] T026 [US5] Add tests in `strip_tests.rs` of the kind and `lit` (L§13). See them fail
+- [ ] T027 [US5] Extend `verbs.rs` with the action words; write the actions and the kind in `card.rs` and `strip.rs`; the session keeps the words. T025 and T026 pass
+- [ ] T028 [US5] `json.rs`: `kind` and `lit` on items and cards, with tests (S§4)
+- [ ] T029 [US5] Write the eight entries into `packs/zork1.pack` (version 5) and `packs/README.md`. Add to `tests/card.rs`: on Zork I the lantern offers Turn on and then Turn off, the sack Open and then Close, the leaflet Read, the lunch Eat, in the order of L§10 with Drop where it belongs; on Adventure the lamp offers Turn on (SC-007). See them fail before the pack is changed; they pass
+- [ ] T030 [US5] Proof (P§1, R13): in `crates/zmachine-corpus/tests/card.rs`, along both walkthroughs, try each offered action on a copy and compare what the interface then reports; record the counts for each action here; a difference fails unless the ledger explains it
+
+## Phase 8: The app
+
+- [ ] T031 [US5] Add UI tests: `testTheLanternsCard` (take the lantern: its chip's value is the lamp kind; its card offers Turn on before Drop; touching it sends a tapped command and the card goes; opened again it offers Turn off; A§8, A§9); `testACardWithManyActions` (a hand-made card of five actions: the row scrolls and the last can be reached and is 44 points tall); extend the rule tests: the app holds none of the action words and draws no kind the layer did not give (A§10). See them fail
+- [ ] T032 [US5] `Snapshot.swift`: `kind`, `lit`. `ItemCard.swift`: the tokens by kind, the actions' row scrolling. `InventoryStrip.swift`: the token on each chip. T031 passes
+
+## Phase 9: Proof and record
+
+- [ ] T033 Run `cargo fmt`, `cargo clippy`, `cargo test --workspace` (totalled from the `test result` lines), the timing tests one at a time in release, `scripts/build-ios.sh`, then `scripts/test-ios.sh 27` and `26` in turn with nothing else building. Record the counts
+- [ ] T034 [P] Update `README.md`, `apps/ios/README.md`
+- [ ] T035 Build for the owner's phone and try it with them (SC-007): the lantern, the sack, the leaflet. Record what they say, in their words

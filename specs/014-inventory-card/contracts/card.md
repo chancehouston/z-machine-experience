@@ -69,3 +69,53 @@ Parts: introspection (I), the layer (L), the snapshot and the card (S), the scre
   are where they were.
 - **A§6** When the card opens its `spoken` is posted to the screen reader.
 - **A§7** The app's source holds no command word and writes no text for the card.
+
+# Stage 2: what an item is for
+
+## I. Introspection
+
+- **I§4** Each carried thing has `uses`, each part `yes`, `no` or `unknown`
+  (data-model). In an Inform story they are the library's flags (research R10);
+  `read` and `drink` are `unknown`.
+- **I§5** In a ZIL story a part is `unknown` unless a pack names its attribute
+  (R12). `holds` is `yes` for a thing with the holds attribute and without the
+  surface attribute; `switch` is `yes` for a thing with the switch attribute and
+  without the flame attribute; `open` and `on` are the pack's open and lit
+  attributes.
+- **I§6** A pack of version 5 may hold the keys of R12, each once.
+
+## L. The layer
+
+- **L§10** A card for an item not inside another offers, in this order and only
+  where every word of the command is in the story's dictionary:
+  Open (`holds` yes, `open` no) or Close (`holds` yes, `open` yes);
+  Turn on (`switch` yes, `on` no) or Turn off (`switch` yes, `on` yes);
+  Read (`read` yes); Wear (`wear` yes, `worn` no) or Take off (`worn` yes);
+  Drop; Eat (`eat` yes); Drink (`drink` yes).
+- **L§11** Where a part is `unknown` nothing is offered for it. Where `open` or
+  `on` is `unknown`, neither of its pair is offered.
+- **L§12** An action names the item and nothing else, and no action is tried on a
+  copy to decide whether to offer it.
+- **L§13** An item's kind is the first that applies of lamp, container, page, food,
+  clothing, else plain (R16); a lamp's `lit` is its `on`, or for an Inform lamp
+  true.
+- **L§14** A card for an item inside another has no action (stage 1, L§7).
+
+## S. The snapshot and the card
+
+- **S§4** Each of `inventory.items` and each card has `kind` and `lit`.
+
+## A. The screen
+
+- **A§8** The actions are in one row after the close control and its clear space,
+  in the order given, and the row scrolls sideways where it is longer than the
+  card.
+- **A§9** An item's token is drawn from its `kind`, `state` and `lit`, on its card
+  and on its chip in the strip (`item.<index>` has the kind as its value).
+- **A§10** The app draws no kind and writes no word the layer did not give.
+
+## P. Proof
+
+- **P§1** Along Zork I's walkthrough with its pack, and Adventure's, every action
+  offered does what it should when tried on a copy (R13), or its cause is in the
+  ledger. The counts are recorded.
