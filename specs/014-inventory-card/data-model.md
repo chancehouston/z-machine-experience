@@ -7,7 +7,7 @@
 - **StripItem** gains `index: usize` (its place among shown items, R5) and
   `card: bool` (can be tapped now).
 - **Card**: `name: String`, `state: ItemState`, `description: Option<String>`,
-  `note: Option<&'static str>` (in place of a description), `ahead: &'static str`,
+  `note: Option<&'static str>` (in place of a description),
   `spoken: String` (what a screen reader is given when it opens),
   `actions: Vec<Action>`.
 - **Action**: `label: String`, `spoken: String`, `command: String`.

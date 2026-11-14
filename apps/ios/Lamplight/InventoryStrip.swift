@@ -7,6 +7,8 @@ struct InventoryStrip: View {
     /// False when the game is not waiting for a command: the row is shown as
     /// the compass is at such times.
     let current: Bool
+    /// A touch on an item that can be touched: its place among the items.
+    let tap: (Int) -> Void
 
     var body: some View {
         Group {
@@ -20,7 +22,7 @@ struct InventoryStrip: View {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 8) {
                         ForEach(strip.items.indices, id: \.self) { index in
-                            StripGroup(item: strip.items[index])
+                            StripGroup(item: strip.items[index], current: current, tap: tap)
                         }
                     }
                     .padding(.horizontal, 16)
@@ -35,8 +37,9 @@ struct InventoryStrip: View {
                         ],
                         startPoint: .leading, endPoint: .trailing)
                 )
-                // One element for a screen reader, which says the layer's words.
-                .accessibilityElement(children: .ignore)
+                // For a screen reader the strip says the layer's words, and
+                // holds each item that can be touched.
+                .accessibilityElement(children: .contain)
                 .accessibilityLabel(Text(verbatim: strip.spoken))
                 .accessibilityIdentifier("inventory.strip")
             }
@@ -49,15 +52,17 @@ struct InventoryStrip: View {
 /// One item, and after it what is shown inside it, drawn as one group.
 private struct StripGroup: View {
     let item: StripItem
+    let current: Bool
+    let tap: (Int) -> Void
 
     var body: some View {
         if item.contents.isEmpty {
-            StripChip(item: item)
+            StripChip(item: item, current: current, tap: tap)
         } else {
             HStack(spacing: 6) {
-                StripChip(item: item)
+                StripChip(item: item, current: current, tap: tap)
                 ForEach(item.contents.indices, id: \.self) { index in
-                    StripGroup(item: item.contents[index])
+                    StripGroup(item: item.contents[index], current: current, tap: tap)
                 }
             }
             .padding(.trailing, 6)
@@ -69,8 +74,26 @@ private struct StripGroup: View {
 /// An item's name, with the mark of a closed way when it is closed.
 private struct StripChip: View {
     let item: StripItem
+    let current: Bool
+    let tap: (Int) -> Void
 
     var body: some View {
+        // Where the snapshot says the item has a card now, it is a button.
+        if let index = item.index, item.card == true, current {
+            Button {
+                tap(index)
+            } label: {
+                chip
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(Text(verbatim: item.name))
+            .accessibilityIdentifier("item.\(index)")
+        } else {
+            chip
+        }
+    }
+
+    private var chip: some View {
         HStack(spacing: 5) {
             if item.state == .closed {
                 RoundedRectangle(cornerRadius: 2)
@@ -85,5 +108,6 @@ private struct StripChip: View {
         .padding(.horizontal, 10)
         .padding(.vertical, 6)
         .overlay(Capsule().strokeBorder(Color.secondary.opacity(0.5), lineWidth: 1))
+        .contentShape(Capsule())
     }
 }

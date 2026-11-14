@@ -71,7 +71,29 @@ struct Strip: Decodable, Sendable, Equatable {
 struct StripItem: Decodable, Sendable, Equatable {
     let name: String
     let state: ItemState
+    /// Its place among the shown items, by which its card is asked for.
+    let index: Int?
+    /// Whether it can be touched for its card now.
+    let card: Bool?
     let contents: [StripItem]
+}
+
+/// What the layer gives for one carried item at one turn
+/// (specs/014-inventory-card/contracts/card.md, S§2). The description is the
+/// game's own; every other word is the layer's.
+struct Card: Decodable, Sendable, Equatable {
+    let name: String
+    let state: ItemState
+    let description: String?
+    let note: String?
+    let spoken: String
+    let actions: [CardAction]
+}
+
+struct CardAction: Decodable, Sendable, Equatable {
+    let label: String
+    let spoken: String
+    let command: String
 }
 
 enum ItemState: String, Decodable, Sendable {

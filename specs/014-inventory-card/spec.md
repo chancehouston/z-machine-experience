@@ -27,6 +27,26 @@
 6. **The card is shown over the map's band.** The keyboard, the transcript and the
    command field are not moved.
 
+## Decisions for the later stages (the owner, 2026-11-14, after stage 1's trial)
+
+7. **Stage 2's actions**: open and close; turn on and turn off; read; eat, drink
+   and wear. Each only where the item's flags say it applies and in the state it
+   is in.
+8. **Their order** after the close control: "Safest first, Drop and Eat last".
+   Open, close, turn on, turn off and read are nearest the close control; Drop,
+   eat and drink are farthest from it.
+9. **Infocom stories**: the flags are found, proven and written into the pack for
+   Zork I only.
+10. **Tokens**: five kinds and plain: a lamp for a light source, a box with a lid
+    for a container, a page for something readable, a mark for food and drink, a
+    mark for clothing. The token is on the item's chip in the strip as well as on
+    its card.
+11. **A third stage**: the card also shows the game's own text for a thing as it
+    was first seen lying where it started, marked as what the game said then, and
+    only for a thing the player did see there. Chosen by the owner against the
+    recommendation to show only what the game says now. Its own stage, after the
+    buttons.
+
 ## What was measured before this was written (2026-11-14)
 
 On the 18 story files the repository holds: in every recognised story, exactly one
@@ -45,8 +65,11 @@ changes something when an item is examined (a few do: examining can reveal a thi
 start a timer or score a point), the copy does it and the real game does not, and
 the card shows a reply the player has not earned in the game they are playing. The
 owner accepted the peek knowing a look is always available; this is the case where
-it is not quite the same thing. The card says in the layer's words that it is a
-look ahead, and the remedy for a game that minds is the typed command.
+it is not quite the same thing. The remedy for a game that minds is the typed
+command. (The first build said on every card, in the layer's words, that it was a
+look ahead. The owner found the words unclear on their phone and ruled on
+2026-11-14 that a card says something of the layer's only when it could not get a
+description.)
 
 **Second: the layer chooses a word for the item.** An item may be named by several
 words, and two carried items may share one. The layer picks by a fixed rule and
@@ -73,8 +96,8 @@ text the game gives for examining it; the moves and the transcript are as they w
    they tap it, **Then** a card shows the item's name as the game prints it and the
    game's reply to examining it, and the game itself has not moved: the same turn,
    the same count of moves, the same transcript.
-2. **Given** the card is open, **When** the player taps outside it, or its close
-   control, or sends any command, **Then** the card goes and the map is back.
+2. **Given** the card is open, **When** the player taps its close control, or sends
+   any command, **Then** the card goes and the map is back.
 3. **Given** an item shown inside an open container, **When** it is tapped, **Then**
    it has a card as any item has.
 4. **Given** the same item tapped twice at the same turn, **Then** the same text is
@@ -128,8 +151,9 @@ each give a card with the layer's words and no description.
    out, **Then** no item can be tapped.
 5. **Given** what is carried is not known, **Then** the strip is as it is today and
    nothing can be tapped.
-6. **Given** any card, **Then** it says in the layer's words that the description
-   is a look ahead and the game has not been told.
+6. **Given** a card with a description, **Then** it holds no words of the layer's
+   about the description. (Changed 2026-11-14 by the owner's ruling: "Only when
+   it matters".)
 
 ---
 
@@ -212,15 +236,17 @@ leaflet each offer the action their flags say, and no other.
 - **FR-009**: The snapshot MUST say which shown items can be tapped now. Asking for
   an item's card MUST be checked against the turn it was offered at.
 - **FR-010**: The card MUST hold: the item's printed name, its token's state, the
-  description or the layer's words in its place, the layer's words that this is a
-  look ahead, and the actions on offer, each with its label and spoken words.
+  description or the layer's words in its place, and the actions on offer, each
+  with its label and spoken words.
 - **FR-011**: Pressing an action MUST send that action's command as a tapped line,
   visible in the transcript and kept as a tap, and close the card.
 - **FR-012**: The app MUST compose no text and hold no command word for any of
   this. Every word on the card is the game's or the layer's.
 - **FR-013**: The card is shown over the map's band and does not move the keyboard,
-  the transcript or the command field. It closes on a touch outside it, on its
-  close control, and at any new turn.
+  the transcript or the command field. Closing is what any touch does that is not
+  on an action: on the close control, on the card, on the band beside it, on the
+  item again; and it closes at any new turn. An action is small and must be aimed
+  at. (Settled at the owner's phone trial, 2026-11-14.)
 - **FR-014**: The description on the card MUST be spoken once to a screen reader
   when the card opens, by the means replies are spoken.
 - **FR-015**: A closed carried container's contents are not shown or told, as now.
@@ -245,7 +271,7 @@ leaflet each offer the action their flags say, and no other.
 - **Item**: something carried and shown, with its printed name, its state, whether
   it can be tapped now, and its place among what is shown.
 - **Card**: what the layer gives for one item at one turn: name, state, description
-  or the words in its place, the note that it is a look ahead, the actions.
+  or the words in its place, the actions.
 - **Action**: a label, spoken words, and the command it sends.
 
 ## Success Criteria *(mandatory)*
@@ -271,8 +297,9 @@ leaflet each offer the action their flags say, and no other.
 
 - The words looked for are English: `examine` then `x`; `drop`. A story in another
   language gets no card.
-- The item's word is the first of its dictionary words in the order the story file
-  lists them. Adjectives are not added in stage 1.
+- The item's word is the word of its printed name that the game knows it by, or
+  failing that the first of its dictionary words (research R2; changed in building).
+  Adjectives are not added in stage 1.
 - A copy that prints a question is treated as having no description, even where a
   description came before the question.
 - Things in the room, not carried, are out of scope; so are things worn, unless the

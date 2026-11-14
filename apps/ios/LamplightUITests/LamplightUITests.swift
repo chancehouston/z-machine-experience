@@ -1483,6 +1483,187 @@ final class LamplightUITests: XCTestCase {
         XCTAssertTrue(noTurn(app, 1))
     }
 
+    // -----------------------------------------------------------------
+    // Feature 014: the inventory card
+    // (specs/014-inventory-card/contracts/card.md, cited A§).
+    // -----------------------------------------------------------------
+
+    /// A game with the leaflet in hand, after turn 2.
+    @MainActor
+    private func launchWithTheLeaflet(_ arguments: [String] = ["-seed", "11"]) -> XCUIApplication {
+        let app = launch(arguments)
+        _ = turn(app, 0)
+        type(app, "open mailbox")
+        _ = turn(app, 1)
+        type(app, "take leaflet")
+        _ = turn(app, 2)
+        return app
+    }
+
+    // A§1, A§2, A§3, A§5; US1 scenarios 1 and 2: a touch on a carried item
+    // shows its card over the map, with the game's own description; the game
+    // has not moved and the keyboard is where it was; the close control
+    // brings the map back.
+    @MainActor
+    func testAnItemsCard() {
+        let app = launchWithTheLeaflet()
+        let moves = value(app, "status.moves")
+        let item = element(app, "item.0")
+        XCTAssertTrue(item.waitForExistence(timeout: patience))
+        XCTAssertEqual(item.elementType, .button)
+        XCTAssertEqual(item.label, "leaflet")
+        XCTAssertFalse(element(app, "card").exists)
+        let band = element(app, "map.frame").frame
+        item.tap()
+        let card = element(app, "card")
+        XCTAssertTrue(card.waitForExistence(timeout: patience))
+        XCTAssertEqual(element(app, "card.name").label, "leaflet")
+        let text = element(app, "card.text").label
+        XCTAssertTrue(text.contains("low cunning"), text)
+        // The card holds the game's words and no note of the layer's
+        // (the owner's ruling at the phone trial).
+        XCTAssertFalse(element(app, "card.ahead").exists)
+        XCTAssertFalse(text.contains("look ahead"), text)
+        // The card is over the band and nowhere else.
+        XCTAssertTrue(band.insetBy(dx: -1, dy: -1).contains(card.frame), "\(card.frame) in \(band)")
+        // The game has not moved, and nothing else has.
+        XCTAssertTrue(noTurn(app, 3))
+        XCTAssertEqual(value(app, "status.moves"), moves)
+        XCTAssertTrue(fieldHasTheKeyboard(app))
+        XCTAssertTrue(element(app, "transcript").exists)
+        XCTAssertEqual(element(app, "map.frame").frame, band)
+        // Closed, the map is back.
+        element(app, "card.close").tap()
+        XCTAssertFalse(card.waitForExistence(timeout: 1))
+        XCTAssertTrue(element(app, "compass.north").isHittable)
+
+        // Closing is the easy thing (the owner's trial, 2026-11-14): a touch
+        // on the card's text closes it, and so does a touch on the item
+        // again, and a touch beside the card; none sends anything.
+        item.tap()
+        XCTAssertTrue(card.waitForExistence(timeout: patience))
+        element(app, "card.text").tap()
+        XCTAssertFalse(card.waitForExistence(timeout: 1))
+        item.tap()
+        XCTAssertTrue(card.waitForExistence(timeout: patience))
+        item.tap()
+        XCTAssertFalse(card.waitForExistence(timeout: 1))
+        item.tap()
+        XCTAssertTrue(card.waitForExistence(timeout: patience))
+        // The card is set in from the band's edges, with the band about it.
+        let frame = element(app, "map.frame").frame
+        XCTAssertGreaterThanOrEqual(card.frame.minX - frame.minX, 6, "\(card.frame)")
+        XCTAssertGreaterThanOrEqual(frame.maxX - card.frame.maxX, 6, "\(card.frame)")
+        app.coordinate(withNormalizedOffset: .zero)
+            .withOffset(CGVector(dx: frame.minX + 3, dy: frame.midY))
+            .tap()
+        XCTAssertFalse(card.waitForExistence(timeout: 1))
+        XCTAssertTrue(noTurn(app, 3))
+        XCTAssertTrue(element(app, "compass.north").isHittable)
+    }
+
+    // A§4; US2 scenario 1: the card's action sends the layer's command as a
+    // tapped command, and the card goes.
+    @MainActor
+    func testDroppingFromTheCard() {
+        let app = launchWithTheLeaflet()
+        element(app, "item.0").tap()
+        let drop = element(app, "card.action.0")
+        XCTAssertTrue(drop.waitForExistence(timeout: patience))
+        XCTAssertEqual(drop.label, "Drop leaflet")
+        // 44 points, to within what a frame at a fraction of a point rounds to.
+        XCTAssertGreaterThanOrEqual(drop.frame.height, 43.99)
+        // The action is small beside the card. The close control is at the
+        // card's bottom left, where the thumb is, and the actions follow it
+        // to its right in one row (the owner's trial, 2026-11-14).
+        let card = element(app, "card").frame
+        XCTAssertLessThan(drop.frame.width, card.width / 3, "\(drop.frame) in \(card)")
+        let close = element(app, "card.close").frame
+        XCTAssertLessThan(close.midX, card.minX + card.width / 4, "\(close) in \(card)")
+        XCTAssertGreaterThan(close.midY, card.midY, "\(close) in \(card)")
+        // With clear space between them: a thumb reaching across the phone
+        // for the close control must not land on an action.
+        XCTAssertGreaterThanOrEqual(drop.frame.minX - close.maxX, 28, "\(drop.frame) \(close)")
+        XCTAssertEqual(drop.frame.midY, close.midY, accuracy: 4)
+        drop.tap()
+        _ = turn(app, 3)
+        XCTAssertFalse(element(app, "turn.3.command").label.isEmpty)
+        XCTAssertFalse(element(app, "card").exists)
+        XCTAssertEqual(element(app, "inventory.note").label, "Carrying nothing")
+        XCTAssertFalse(element(app, "item.0").exists)
+    }
+
+    // A§2: a description taller than its room scrolls, with a mark that
+    // there is more below until its end is reached; scrolling does not
+    // close the card.
+    @MainActor
+    func testALongDescriptionScrolls() {
+        let app = launchWithTheLeaflet()
+        element(app, "item.0").tap()
+        let card = element(app, "card")
+        XCTAssertTrue(card.waitForExistence(timeout: patience))
+        let more = element(app, "card.more")
+        XCTAssertTrue(more.waitForExistence(timeout: patience), "the leaflet's text is taller")
+        let text = element(app, "card.text")
+        let before = text.frame.minY
+        for _ in 0..<3 {
+            text.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+                .press(
+                    forDuration: 0.1,
+                    thenDragTo: element(app, "card.name")
+                        .coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.2)))
+        }
+        XCTAssertTrue(card.exists, "scrolling does not close the card")
+        XCTAssertLessThan(text.frame.minY, before - 10, "the text moved up")
+        XCTAssertFalse(more.exists, "its end is in view")
+        XCTAssertTrue(noTurn(app, 3))
+    }
+
+    // A§3: the card belongs to one turn, and goes at the next.
+    @MainActor
+    func testTheCardGoesAtANewTurn() {
+        let app = launchWithTheLeaflet()
+        element(app, "item.0").tap()
+        XCTAssertTrue(element(app, "card").waitForExistence(timeout: patience))
+        type(app, "north")
+        _ = turn(app, 3)
+        XCTAssertFalse(element(app, "card").exists)
+        XCTAssertTrue(element(app, "item.0").exists)
+    }
+
+    // A§6; US4: the card's words are asked to be spoken once when it opens,
+    // and each item that can be tapped is a button.
+    @MainActor
+    func testTheCardIsSpoken() {
+        let app = launchWithTheLeaflet(["-seed", "11", "-speakAlways"])
+        let times = Int(value(app, "announcement.last")) ?? -1
+        element(app, "item.0").tap()
+        XCTAssertTrue(element(app, "card").waitForExistence(timeout: patience))
+        let said = asked(app, times: times + 1)
+        XCTAssertTrue(said.hasPrefix("leaflet. "), said)
+        XCTAssertTrue(said.contains("low cunning"), said)
+    }
+
+    // A§2 at the largest text size: the card's controls can be touched.
+    @MainActor
+    func testTheCardAtTheLargestTextSize() {
+        let app = launchWithTheLeaflet([
+            "-seed", "11",
+            "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL",
+        ])
+        let item = element(app, "item.0")
+        XCTAssertTrue(item.isHittable)
+        item.tap()
+        for identifier in ["card.close", "card.action.0"] {
+            let control = element(app, identifier)
+            XCTAssertTrue(control.waitForExistence(timeout: patience), identifier)
+            XCTAssertTrue(control.isHittable, identifier)
+            XCTAssertGreaterThanOrEqual(control.frame.width, 43.99, identifier)
+            XCTAssertGreaterThanOrEqual(control.frame.height, 43.99, identifier)
+        }
+        XCTAssertFalse(element(app, "card.text").label.isEmpty)
+    }
+
     /// The outline each place is drawn with, by place. Shown only with
     /// `-showMapHand`.
     @MainActor

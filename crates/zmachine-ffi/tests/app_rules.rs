@@ -152,6 +152,9 @@ fn no_direction_word_is_written_outside_the_layout() {
         "land",
         "look",
         "l",
+        "examine",
+        "x",
+        "drop",
         "inventory",
     ];
     for (name, text) in app_swift() {
@@ -297,7 +300,9 @@ fn the_strip_shows_the_layers_words_and_sends_nothing() {
         .map(|l| l.split("//").next().unwrap_or(""))
         .collect::<Vec<_>>()
         .join("\n");
-    for forbidden in ["Button", "onTapGesture", "zmx_", "game.", "Task {"] {
+    // A touch on an item is handed to the closure the strip is given
+    // (feature 014); the strip itself sends nothing.
+    for forbidden in ["zmx_", "game.", "Task {"] {
         assert!(!code.contains(forbidden), "the strip holds {forbidden:?}");
     }
     // Every text it draws is handed to it: a note, a name, or what is spoken.
@@ -311,12 +316,73 @@ fn the_strip_shows_the_layers_words_and_sends_nothing() {
         [
             "Text(verbatim: note)",
             ".accessibilityLabel(Text(verbatim: strip.spoken))",
+            ".accessibilityLabel(Text(verbatim: item.name))",
             "Text(verbatim: item.name)"
         ]
     );
     // Its only string literals are identifiers for tests.
     let literals: Vec<&str> = strip.lines().flat_map(literals).collect();
-    assert_eq!(literals, ["inventory.note", "inventory.strip"]);
+    assert_eq!(
+        literals,
+        ["inventory.note", "inventory.strip", "item.\\(index)"]
+    );
+}
+
+// specs/014-inventory-card/contracts/card.md, A§7: the card shows the game's
+// and the layer's words and holds none of its own but the name of its close
+// control; it sends nothing itself; and only the engine calls the bindings.
+#[test]
+fn the_card_shows_the_layers_words_and_sends_nothing() {
+    let sources = app_swift();
+    let source = |name: &str| {
+        &sources
+            .iter()
+            .find(|(n, _)| n == name)
+            .unwrap_or_else(|| panic!("there is no {name}"))
+            .1
+    };
+    let card = source("Lamplight/ItemCard.swift");
+    let code: String = card
+        .lines()
+        .map(|l| l.split("//").next().unwrap_or(""))
+        .collect::<Vec<_>>()
+        .join("\n");
+    for forbidden in ["zmx_", "game.", "Task {"] {
+        assert!(!code.contains(forbidden), "the card holds {forbidden:?}");
+    }
+    let texts: Vec<&str> = card
+        .lines()
+        .filter(|l| l.contains("Text("))
+        .map(str::trim)
+        .collect();
+    assert_eq!(
+        texts,
+        [
+            "Text(verbatim: card.name)",
+            "Text(verbatim: card.description ?? card.note ?? \"\")",
+            "Text(verbatim: action.label)",
+            ".accessibilityLabel(Text(verbatim: action.spoken))",
+        ]
+    );
+    let literals: Vec<&str> = card.lines().flat_map(literals).collect();
+    assert_eq!(
+        literals,
+        [
+            "chevron.compact.down",
+            "card.more",
+            "card",
+            "card.name",
+            "",
+            "card.text",
+            "xmark",
+            "Close",
+            "card.close",
+            "card.action.\\(index)"
+        ]
+    );
+    let engine = source("Lamplight/Engine.swift");
+    assert!(engine.contains("zmx_session_card("));
+    assert!(engine.contains("zmx_session_tap_action("));
 }
 
 // Feature 008, FR-022: what is said of darkness is the layer's. The app holds

@@ -10,10 +10,14 @@
   a second small one (9 objects of 502) and is not recognised as either family, so
   it is outside this; the nine-in-ten rule is judged against the larger. A pack
   may name the property (`noun-property`), which then is used without the search.
-- **R2. Which word is sent.** The first of the thing's words in the order its
-  property lists them, as the dictionary stores it. *Rejected*: the longest, or
-  the one nearest the printed name: each is a guess at what reads best, and the
-  word is seen only in a command sent to a copy, or in a Drop the player chose.
+- **R2. Which word is sent.** The word of the thing's printed name whose form as
+  the dictionary keeps it is one of the thing's words, given in full; where no
+  word of the name is one of its words, the first of its words as the dictionary
+  stores it. (Changed in building, 2026-11-14. The plan sent the first word of
+  the property. On Zork I the leaflet's first word is `advert`, cut from
+  "advertisement", so Drop would have put `drop advert` in the transcript. With
+  this rule it is `drop leaflet`. Both rules read only the story file; this one
+  reads as the player would have typed it.)
 - **R3. The verbs.** As feature 013 found the word for looking: `examine` then
   `x`; `drop`. `look.rs` becomes `verbs.rs` and holds all three.
 - **R4. The peek.** A clone of the machine is given the line and run, as

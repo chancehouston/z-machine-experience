@@ -12,6 +12,10 @@ state which attribute means see-through. A pack of version 3 may state which att
 means lit, and which is set on a thing the game hides; both are proven by asking the game
 to describe the room and seeing whether it does.
 
+A pack of version 4 may name the property that holds the words naming an object
+(`noun-property`), for a story where it cannot be told by its shape. No pack here needs
+it: in every story of the corpus the property is found from the file alone.
+
 On Zork I the attribute that means lit is singled out: no other of the 32 passes. The
 attribute for a hidden thing is not: 7 passes and so does 30. Attribute 30 is set on the
 character who takes the player's light and never changes; the game sets 7 on the taken

@@ -621,3 +621,27 @@ fn inventory_marks_follow_the_librarys_attributes() {
     );
     assert_eq!(cage.contents[0].seen, Tri::No);
 }
+
+// I§7.3 (specs/014-inventory-card/contracts/card.md, I§1, I§2): in an Inform story the
+// words that name a carried thing are those of its `name` property, in order;
+// a thing without the property has none.
+#[test]
+fn a_carried_things_words_are_its_name_property() {
+    use crate::fixtures::Late;
+    let mut f = Inform::new();
+    f.late
+        .push((inf::LAMP, 1, Late::Words(vec!["lamp", "take"])));
+    f.setup.extend(insert(inf::LAMP, inf::PLAYER));
+    f.setup.extend(insert(inf::HAT, inf::PLAYER));
+    let m = f.machine();
+    let carried = introspect(&m).inventory(&m.view()).value.unwrap();
+    assert_eq!(
+        (carried[0].object, carried[1].object),
+        (inf::HAT, inf::LAMP)
+    );
+    assert_eq!(carried[0].words, Ok(vec![]));
+    assert_eq!(
+        carried[1].words,
+        Ok(vec!["lamp".to_string(), "take".to_string()])
+    );
+}

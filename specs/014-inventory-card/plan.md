@@ -113,7 +113,8 @@ apps/ios/Lamplight/
 1. **The interface changes** (the strongest objection), with the pack as the remedy
    where a story's shape fails.
 2. **The layer's words**, fixed here unless changed:
-   - on every card: "A look ahead. The game has not been told."
+   - (removed 2026-11-14 by the owner's ruling) on every card: "A look ahead. The
+     game has not been told."
    - where there is no description: "The game did not describe it. Type to ask."
    - the action: "Drop", spoken "Drop" and the item's name.
 3. **The card's text is the reply as a screen reader hears it**: without the prompt

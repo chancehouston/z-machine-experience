@@ -40,7 +40,7 @@ mod table_tests;
 mod zil_tests;
 
 /// The version of `docs/introspection.md` this crate implements.
-pub const SPEC_VERSION: &str = "0.5.0";
+pub const SPEC_VERSION: &str = "0.6.0";
 
 /// The queries, as the specification names them and in its order.
 pub const QUERIES: [&str; 6] = [
@@ -154,6 +154,10 @@ pub struct Carried {
     pub seen: Tri,
     /// `Pack` when `state` or `seen` would be different with no game pack.
     pub source: Source,
+    /// The dictionary words that name it, in the order its naming property
+    /// lists them; empty for a thing with no such property; unknown where the
+    /// story's naming property is not known (specification section 7.3).
+    pub words: Part<Vec<String>>,
     /// Everything it holds, whatever its marks.
     pub contents: Vec<Carried>,
 }
@@ -660,6 +664,7 @@ impl Introspector {
                 state,
                 seen,
                 source: if changed { Source::Pack } else { Source::File },
+                words: self.words(b, object),
                 contents: if holds {
                     self.carried(b, object, within, false, budget)?
                 } else {
@@ -668,6 +673,33 @@ impl Introspector {
             });
         }
         Ok(out)
+    }
+
+    /// The dictionary words that name an object (specification section 7.3).
+    fn words(&self, b: Bytes, object: u16) -> Part<Vec<String>> {
+        let property = match &self.adapter {
+            Adapter::Inform(_) => inform::property::NAME,
+            Adapter::Zil(zil) => self
+                .entries
+                .noun_property
+                .or(zil.nouns)
+                .ok_or(Unknown::NotDeterminable)?,
+            Adapter::None => return Err(Unknown::UnrecognisedFamily),
+        };
+        let Some(list) = self
+            .layout
+            .property(b, object, property)
+            .ok_or(Unknown::Damaged)?
+        else {
+            return Ok(Vec::new());
+        };
+        let mut words = Vec::new();
+        for i in (0..list.len.saturating_sub(1)).step_by(2) {
+            let entry = b.word(list.at + i).ok_or(Unknown::Damaged)? as usize;
+            // What is not a dictionary entry names nothing.
+            words.extend(self.layout.word(b, entry));
+        }
+        Ok(words)
     }
 
     /// For an object that may hold things: its state, and whether what it holds
