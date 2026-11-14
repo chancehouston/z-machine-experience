@@ -40,7 +40,7 @@ mod table_tests;
 mod zil_tests;
 
 /// The version of `docs/introspection.md` this crate implements.
-pub const SPEC_VERSION: &str = "0.6.0";
+pub const SPEC_VERSION: &str = "0.7.0";
 
 /// The queries, as the specification names them and in its order.
 pub const QUERIES: [&str; 6] = [
@@ -158,8 +158,55 @@ pub struct Carried {
     /// lists them; empty for a thing with no such property; unknown where the
     /// story's naming property is not known (specification section 7.3).
     pub words: Part<Vec<String>>,
+    /// What it is for (specification section 7.4).
+    pub uses: Uses,
     /// Everything it holds, whatever its marks.
     pub contents: Vec<Carried>,
+}
+
+/// What a carried thing is for, and the states that go with it (specification
+/// section 7.4). Each part is `Unknown` where the story file does not say.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub struct Uses {
+    /// It holds things, and is not a surface.
+    pub container: Tri,
+    /// It is opened and closed.
+    pub opens: Tri,
+    /// It is open now.
+    pub open: Tri,
+    /// It is turned on and off.
+    pub switch: Tri,
+    /// It is on now.
+    pub on: Tri,
+    /// It is read.
+    pub read: Tri,
+    /// It is eaten.
+    pub eat: Tri,
+    /// It is drunk.
+    pub drink: Tri,
+    /// It is worn.
+    pub wear: Tri,
+    /// It gives light now.
+    pub light: Tri,
+    /// It is a light, whether or not it gives light now.
+    pub lamp: Tri,
+}
+
+impl Uses {
+    /// Nothing known.
+    pub const UNKNOWN: Uses = Uses {
+        container: Tri::Unknown,
+        opens: Tri::Unknown,
+        open: Tri::Unknown,
+        switch: Tri::Unknown,
+        on: Tri::Unknown,
+        read: Tri::Unknown,
+        eat: Tri::Unknown,
+        drink: Tri::Unknown,
+        wear: Tri::Unknown,
+        light: Tri::Unknown,
+        lamp: Tri::Unknown,
+    };
 }
 
 /// Whether a thing that holds something is open (specification section 7).
@@ -665,6 +712,7 @@ impl Introspector {
                 seen,
                 source: if changed { Source::Pack } else { Source::File },
                 words: self.words(b, object),
+                uses: self.uses(b, object),
                 contents: if holds {
                     self.carried(b, object, within, false, budget)?
                 } else {
@@ -673,6 +721,62 @@ impl Introspector {
             });
         }
         Ok(out)
+    }
+
+    /// What an object is for (specification section 7.4): the library's
+    /// flags in an Inform story; in a ZIL story the attributes a pack names,
+    /// and unknown where it names none.
+    fn uses(&self, b: Bytes, object: u16) -> Uses {
+        let has = |attribute: u8| self.layout.has_attribute(b, object, attribute) == Some(true);
+        match &self.adapter {
+            Adapter::Inform(_) => {
+                use inform::attribute::*;
+                Uses {
+                    container: Tri::from_bool(has(CONTAINER)),
+                    opens: Tri::from_bool(has(OPENABLE)),
+                    open: Tri::from_bool(has(OPEN)),
+                    switch: Tri::from_bool(has(SWITCHABLE)),
+                    on: Tri::from_bool(has(ON)),
+                    read: Tri::Unknown,
+                    eat: Tri::from_bool(has(EDIBLE)),
+                    drink: Tri::Unknown,
+                    wear: Tri::from_bool(has(CLOTHING)),
+                    light: Tri::from_bool(has(LIGHT)),
+                    // The library marks a light only while it is lit.
+                    lamp: if has(LIGHT) { Tri::Yes } else { Tri::Unknown },
+                }
+            }
+            // A pack older than version 5 says nothing of what things are
+            // for, and changes nothing here (specification section 12.13).
+            Adapter::Zil(_) if !self.entries.tells_uses => Uses::UNKNOWN,
+            Adapter::Zil(_) => {
+                let e = &self.entries;
+                let told = |attribute: Option<u8>| {
+                    attribute.map_or(Tri::Unknown, |a| Tri::from_bool(has(a)))
+                };
+                // A thing with `but` is not one of the kind `of` marks.
+                let told_but = |of: Option<u8>, but: Option<u8>| {
+                    of.map_or(Tri::Unknown, |a| {
+                        Tri::from_bool(has(a) && !but.is_some_and(has))
+                    })
+                };
+                let container = told_but(e.holds_attribute, e.surface_attribute);
+                Uses {
+                    container,
+                    opens: container,
+                    open: told(e.open_attribute),
+                    switch: told_but(e.switch_attribute, e.flame_attribute),
+                    on: told(e.lit_attribute),
+                    read: told(e.read_attribute),
+                    eat: told(e.food_attribute),
+                    drink: told(e.drink_attribute),
+                    wear: told(e.wear_attribute),
+                    light: told(e.lit_attribute),
+                    lamp: told(e.switch_attribute),
+                }
+            }
+            Adapter::None => Uses::UNKNOWN,
+        }
     }
 
     /// The dictionary words that name an object (specification section 7.3).

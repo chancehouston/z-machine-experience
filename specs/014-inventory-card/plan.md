@@ -124,3 +124,60 @@ apps/ios/Lamplight/
 ## Complexity Tracking
 
 No violation to justify.
+
+---
+
+# Stage 2: what an item is for
+
+**Date**: 2026-11-14 | **Branch**: `014-card-actions` | Decisions 7 to 10 of the
+specification. Stage 3 (the first-sight text) is not planned here.
+
+## Summary
+
+The introspection interface says, for each carried thing, what it is for: whether
+it opens, is turned on, is read, eaten, drunk or worn, and its state. In an Inform
+story these are the library's flags. In Zork I they are attributes named by seven
+new entries of its pack, each proven against the game. The layer turns them into
+the card's actions, in the order the owner chose, and into a kind for the item's
+token. The app draws the token on the card and on the strip's chips, and puts the
+actions in a row that scrolls.
+
+## Strongest objection
+
+**The pack's new entries are read off the file by looking at which objects carry
+which flag, and the proof only tries what is offered.** If flag 18 were "can be
+opened" only by coincidence for the things the walkthrough carries, the proof
+would pass and the card would offer Open on something that is not a container
+elsewhere in the game. The earlier pack entries were proven both ways (no other
+attribute passes); these are proven one way. The plan says so, and the ledger
+takes any case found later.
+
+**Second: Inform stories get less than Zork I.** No Read, no Drink, and a lamp that
+is off is drawn as a plain thing, because the library does not mark them. That is
+honest and it will look uneven.
+
+**Third: the walkthrough carries few things that are eaten, drunk or worn.** Those
+actions may be proven on one or two cases, or on none in Zork I for wearing, where
+nothing is worn at all.
+
+## Constitution Check
+
+| Principle | How this stage stands |
+| --- | --- |
+| I. Faithful Core | The core is not touched. **Pass.** |
+| II. Test-First | As stage 1: each clause a test, seen failing first, and the record says what happened. **Pass**, to be shown. |
+| III. Typed Commands | Each action is one tapped line, visible and kept. **Pass.** |
+| IV. Introspection Is Read-Only | The flags are facts of the story file. In Zork I a pack names which attribute is which, as it does already for open, see-through and lit; each is proven by trial. No action is tried to decide what to offer. Unknown stays unknown. **Pass.** |
+| V. Strict Layering | What is offered, its order, its words and the item's kind are the layer's. The token is drawing, from the layer's word. **Pass.** |
+| VI. Licensing | Nothing of a story is added. **Pass.** |
+
+## Decisions for the owner in this stage's plan
+
+1. **Items inside another get no action** (R15), as in stage 1.
+2. **A flame is not offered Turn on** (the torch, the candles): lighting one takes
+   something burning, which is a pairing.
+3. **The layer's labels**: Open, Close, Turn on, Turn off, Read, Wear, Take off,
+   Drop, Eat, Drink; each spoken with the item's name after it.
+4. **The proof is one way** (the strongest objection).
+5. **The specification's version becomes 0.7.0** and the pack format 5.
+

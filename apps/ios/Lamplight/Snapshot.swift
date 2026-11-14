@@ -71,6 +71,10 @@ struct Strip: Decodable, Sendable, Equatable {
 struct StripItem: Decodable, Sendable, Equatable {
     let name: String
     let state: ItemState
+    /// The layer's word for the kind of thing it is, for its token; and for
+    /// a lamp whether it is lit.
+    let kind: String?
+    let lit: Bool?
     /// Its place among the shown items, by which its card is asked for.
     let index: Int?
     /// Whether it can be touched for its card now.
@@ -84,6 +88,8 @@ struct StripItem: Decodable, Sendable, Equatable {
 struct Card: Decodable, Sendable, Equatable {
     let name: String
     let state: ItemState
+    let kind: String?
+    let lit: Bool?
     let description: String?
     let note: String?
     let spoken: String

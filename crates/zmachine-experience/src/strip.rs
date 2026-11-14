@@ -1,7 +1,7 @@
 //! The strip: what of the inventory to show a player, and what a screen reader says
 //! for it (specs/007-inventory-panel/data-model.md "Strip"; research R10).
 
-use zmachine_introspect::{Answer, Carried, ContainerState, Tri};
+use zmachine_introspect::{Answer, Carried, ContainerState, Tri, Uses};
 
 /// How an item of the strip is shown.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -24,6 +24,58 @@ impl ItemState {
     }
 }
 
+/// What kind of thing an item is, for its token
+/// (specs/014-inventory-card/contracts/card.md, L§13).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum Kind {
+    Plain,
+    /// A light, lit or not.
+    Lamp,
+    Container,
+    /// Something to read.
+    Page,
+    /// Something to eat or to drink.
+    Food,
+    Clothing,
+}
+
+impl Kind {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Kind::Plain => "plain",
+            Kind::Lamp => "lamp",
+            Kind::Container => "container",
+            Kind::Page => "page",
+            Kind::Food => "food",
+            Kind::Clothing => "clothing",
+        }
+    }
+
+    /// The first kind that applies; and for a lamp whether it is lit, where
+    /// that is known.
+    fn of(uses: &Uses) -> (Kind, Option<bool>) {
+        let yes = |part: Tri| part == Tri::Yes;
+        if yes(uses.lamp) {
+            let lit = match (uses.on, uses.light) {
+                (Tri::Yes, _) | (_, Tri::Yes) => Some(true),
+                (Tri::No, _) | (_, Tri::No) => Some(false),
+                _ => None,
+            };
+            (Kind::Lamp, lit)
+        } else if yes(uses.container) {
+            (Kind::Container, None)
+        } else if yes(uses.read) {
+            (Kind::Page, None)
+        } else if yes(uses.eat) || yes(uses.drink) {
+            (Kind::Food, None)
+        } else if yes(uses.wear) {
+            (Kind::Clothing, None)
+        } else {
+            (Kind::Plain, None)
+        }
+    }
+}
+
 /// Something the player carries and would be shown by the game.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct StripItem {
@@ -40,6 +92,13 @@ pub struct StripItem {
     pub(crate) word: Option<String>,
     /// Whether it is inside another shown thing.
     pub(crate) inside: bool,
+    /// What kind of thing it is, for its token.
+    pub kind: Kind,
+    /// For a lamp, whether it is lit, where that is known.
+    pub lit: Option<bool>,
+    /// What it is for, as the interface reports it.
+    pub(crate) uses: Uses,
+    pub(crate) worn: Tri,
     /// The things shown inside it.
     pub contents: Vec<StripItem>,
 }
@@ -167,7 +226,12 @@ fn shown(carried: &[Carried], kept: usize, inside: bool, next: &mut usize) -> Ve
                 .unwrap_or_else(|_| "something".to_string());
             let index = *next;
             *next += 1;
+            let (kind, lit) = Kind::of(&entry.uses);
             StripItem {
+                kind,
+                lit,
+                uses: entry.uses,
+                worn: entry.worn,
                 word: entry
                     .words
                     .as_deref()

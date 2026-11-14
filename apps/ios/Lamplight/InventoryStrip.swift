@@ -76,6 +76,8 @@ private struct StripChip: View {
     let item: StripItem
     let current: Bool
     let tap: (Int) -> Void
+    /// The layer's word for a thing of no particular kind.
+    private static let noKind = ItemToken.plain
 
     var body: some View {
         // Where the snapshot says the item has a card now, it is a button.
@@ -87,6 +89,7 @@ private struct StripChip: View {
             }
             .buttonStyle(.plain)
             .accessibilityLabel(Text(verbatim: item.name))
+            .accessibilityValue(Text(verbatim: item.kind ?? ""))
             .accessibilityIdentifier("item.\(index)")
         } else {
             chip
@@ -95,7 +98,14 @@ private struct StripChip: View {
 
     private var chip: some View {
         HStack(spacing: 5) {
-            if item.state == .closed {
+            // The item's token, small: its kind, and for a container or a
+            // lamp its state. A thing of no kind has the mark of a closed
+            // way where it is closed, as before, and none otherwise.
+            if item.kind != nil, item.kind != Self.noKind {
+                ItemToken(seed: item.index ?? 0, kind: item.kind, state: item.state, lit: item.lit)
+                    .scaleEffect(0.6)
+                    .frame(width: 18, height: 16)
+            } else if item.state == .closed {
                 RoundedRectangle(cornerRadius: 2)
                     .strokeBorder(Color.secondary, lineWidth: 1.5)
                     .frame(width: 9, height: 12)

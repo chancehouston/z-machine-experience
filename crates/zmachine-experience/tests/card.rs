@@ -109,8 +109,15 @@ fn an_item_is_dropped_from_its_card() {
         .iter()
         .map(|a| (a.label.as_str(), a.spoken.as_str(), a.command.as_str()))
         .collect();
-    assert_eq!(actions, [("Drop", "Drop leaflet", "drop leaflet")]);
-    s.tap_action(s.stamp(), 0, 0).expect("the drop is sent");
+    // With the pack, the leaflet is also read (stage 2); Drop follows it.
+    assert_eq!(
+        actions,
+        [
+            ("Read", "Read leaflet", "read leaflet"),
+            ("Drop", "Drop leaflet", "drop leaflet")
+        ]
+    );
+    s.tap_action(s.stamp(), 0, 1).expect("the drop is sent");
     let turn = s.turns().last().unwrap();
     assert_eq!(
         (turn.command.as_deref(), turn.source),
@@ -140,8 +147,10 @@ fn an_item_inside_another_has_no_drop() {
     let card = s.card(s.stamp(), inside.index).unwrap();
     assert!(card.actions.is_empty(), "{:?}", card.actions);
     assert!(card.description.is_some());
+    // The open sack itself is closed or dropped.
     let card = s.card(s.stamp(), sack.index).unwrap();
-    assert_eq!(card.actions.len(), 1);
+    let labels: Vec<&str> = card.actions.iter().map(|a| a.label.as_str()).collect();
+    assert_eq!(labels, ["Close", "Drop"]);
 }
 
 // SC-002 on Adventure: the lamp's card is the game's own description.
@@ -177,13 +186,15 @@ fn a_card_as_json() {
     let card = s.card(s.stamp(), 0).unwrap();
     let json = card_json(&card);
     assert!(
-        json.starts_with(r#"{"name":"leaflet","state":"plain","description":""#),
+        json.starts_with(
+            r#"{"name":"leaflet","state":"plain","kind":"page","lit":null,"description":""#
+        ),
         "{json}"
     );
     for key in [
         "\"note\":null",
         "\"spoken\":\"leaflet. ",
-        "\"actions\":[{\"label\":\"Drop\",\"spoken\":\"Drop leaflet\",\"command\":\"drop leaflet\"}]}",
+        "\"actions\":[{\"label\":\"Read\",\"spoken\":\"Read leaflet\",\"command\":\"read leaflet\"},{\"label\":\"Drop\",\"spoken\":\"Drop leaflet\",\"command\":\"drop leaflet\"}]}",
     ] {
         assert!(json.contains(key), "{key}: {json}");
     }
@@ -192,4 +203,149 @@ fn a_card_as_json() {
     for gone in ["ahead", "not been told"] {
         assert!(!json.contains(gone), "{gone}: {json}");
     }
+}
+
+// ---------------------------------------------------------------------------
+// Stage 2 (contracts/card.md, L§10, L§13, S§4; SC-007)
+// ---------------------------------------------------------------------------
+
+fn labels(s: &Session, name: &str) -> Vec<String> {
+    let item = s
+        .inventory()
+        .items
+        .iter()
+        .find(|item| item.name == name)
+        .unwrap_or_else(|| panic!("{name} is not carried: {:?}", s.inventory().items))
+        .clone();
+    s.card(s.stamp(), item.index)
+        .unwrap()
+        .actions
+        .into_iter()
+        .map(|action| action.label)
+        .collect()
+}
+
+// SC-007: on Zork I with its pack, the lantern, the sack, the leaflet and the
+// lunch each offer what their flags say, in the owner's order.
+#[test]
+fn zorks_things_offer_what_they_are_for() {
+    let mut s = zork();
+    for line in [
+        "open mailbox",
+        "take leaflet",
+        "north",
+        "east",
+        "open window",
+        "west",
+    ] {
+        say(&mut s, line);
+    }
+    for line in ["take sack", "west", "take lamp"] {
+        say(&mut s, line);
+    }
+    assert_eq!(labels(&s, "leaflet"), ["Read", "Drop"]);
+    assert_eq!(labels(&s, "brown sack"), ["Open", "Drop"]);
+    assert_eq!(labels(&s, "brass lantern"), ["Turn on", "Drop"]);
+    // The kinds, in the snapshot and on the card.
+    let kinds: Vec<(String, &str, Option<bool>)> = s
+        .inventory()
+        .items
+        .iter()
+        .map(|item| (item.name.clone(), item.kind.as_str(), item.lit))
+        .collect();
+    assert!(
+        kinds.contains(&("brass lantern".to_string(), "lamp", Some(false))),
+        "{kinds:?}"
+    );
+    assert!(
+        kinds.contains(&("brown sack".to_string(), "container", None)),
+        "{kinds:?}"
+    );
+    assert!(
+        kinds.contains(&("leaflet".to_string(), "page", None)),
+        "{kinds:?}"
+    );
+    let json = s.snapshot_json(0);
+    assert!(
+        json.contains(r#""name":"brass lantern","state":"plain","kind":"lamp","lit":false,"#),
+        "{json}"
+    );
+
+    // Turned on from its card, it offers Turn off; opened, the sack offers Close.
+    let lamp = s
+        .inventory()
+        .items
+        .iter()
+        .find(|i| i.name == "brass lantern")
+        .unwrap()
+        .index;
+    s.tap_action(s.stamp(), lamp, 0).unwrap();
+    assert_eq!(
+        s.turns().last().unwrap().command.as_deref(),
+        Some("turn on lantern")
+    );
+    assert_eq!(labels(&s, "brass lantern"), ["Turn off", "Drop"]);
+    let lamp = s
+        .inventory()
+        .items
+        .iter()
+        .find(|i| i.name == "brass lantern")
+        .unwrap()
+        .clone();
+    assert_eq!((lamp.kind.as_str(), lamp.lit), ("lamp", Some(true)));
+    let sack = s
+        .inventory()
+        .items
+        .iter()
+        .find(|i| i.name == "brown sack")
+        .unwrap()
+        .index;
+    s.tap_action(s.stamp(), sack, 0).unwrap();
+    assert_eq!(
+        s.turns().last().unwrap().command.as_deref(),
+        Some("open sack")
+    );
+    assert_eq!(labels(&s, "brown sack"), ["Close", "Drop"]);
+    // The lunch is in the sack: taken out, it can be eaten, after Drop.
+    say(&mut s, "take lunch");
+    assert_eq!(labels(&s, "lunch"), ["Drop", "Eat"]);
+    let card = s
+        .card(
+            s.stamp(),
+            s.inventory()
+                .items
+                .iter()
+                .find(|i| i.name == "lunch")
+                .unwrap()
+                .index,
+        )
+        .unwrap();
+    assert_eq!((card.kind.as_str(), card.lit), ("food", None));
+    assert!(card_json(&card).contains(r#""state":"plain","kind":"food","lit":null,"#));
+}
+
+// SC-007 on Adventure: the lamp is a switch; off, the library does not mark it
+// as a light, so it is a plain thing that can be turned on.
+#[test]
+fn adventures_lamp_can_be_turned_on() {
+    let mut s = Session::new(read("stories/advent/advent.z5"), Seed::Fixed(11)).unwrap();
+    for line in ["east", "take lamp"] {
+        say(&mut s, line);
+    }
+    let lamp = s
+        .inventory()
+        .items
+        .iter()
+        .find(|item| item.name.contains("lamp") || item.name.contains("lantern"))
+        .unwrap()
+        .clone();
+    assert_eq!((lamp.kind.as_str(), lamp.lit), ("plain", None));
+    let card = s.card(s.stamp(), lamp.index).unwrap();
+    let labels: Vec<&str> = card.actions.iter().map(|a| a.label.as_str()).collect();
+    assert_eq!(labels, ["Turn on", "Drop"]);
+    s.tap_action(s.stamp(), lamp.index, 0).unwrap();
+    let lamp = s.inventory().item(lamp.index).unwrap().clone();
+    assert_eq!((lamp.kind.as_str(), lamp.lit), ("lamp", Some(true)));
+    let card = s.card(s.stamp(), lamp.index).unwrap();
+    assert_eq!(card.actions[0].label, "Turn off");
 }

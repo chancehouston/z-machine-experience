@@ -187,3 +187,119 @@ passed, none failed. App: 59 tests on iOS 27.2 and 59 on iOS 26.0, one skipped o
 each (`testScreenshots`), no failure; run one after the other with nothing else
 building. These replace the counts above, which were taken before the trial.
 
+
+---
+
+# Tasks: The Inventory Card, stage 2
+
+**Input**: the "Stage 2" parts of plan.md, research.md (R10 to R17), data-model.md
+and contracts/card.md; decisions 7 to 10 of the specification.
+
+**Test-first**, as stage 1, with the record saying what happened. One pull request
+from `014-card-actions`.
+
+## Phase 6: Introspection, what a thing is for
+
+- [x] T021 [US5] Add tests in `inform_tests.rs`: a carried thing's `uses` follow the library's flags (holds, open, switch, on, eat, wear, light); `read` and `drink` are unknown (I§4). See them fail: no field `uses`
+- [x] T022 [US5] Add tests in `pack_tests.rs`: version 5 reads the eight keys, each once and in range, and refuses them in version 4; with them in force a ZIL thing's `uses` are as I§5 says (a surface does not open; a flame is not switched; without a key the part is unknown) (I§5, I§6). See them fail
+- [x] T023 [US5] Add `Uses` and `Carried.uses`; read them in both families; add the keys to `pack.rs`. T021 and T022 pass. Add `uses` to the inventory's JSON with its test
+- [x] T024 [US5] `docs/introspection.md`: section 7.4 (uses) and 12.13 (the keys), each cited by a test (`I§7.4`, `I§12.13`); version 0.7.0 with what changed; `spec_agreement.rs` and the CLI's pinned version follow
+
+## Phase 7: The layer
+
+- [x] T025 [US5] Add tests in `card_tests.rs` of the actions from hand-made items: each pair by state, the order of L§10, nothing where a part is unknown, a command left out where a word of it is not in the dictionary, no action for an item inside another (L§10 to L§12, L§14). See them fail
+- [x] T026 [US5] Add tests in `strip_tests.rs` of the kind and `lit` (L§13). See them fail
+- [x] T027 [US5] Extend `verbs.rs` with the action words; write the actions and the kind in `card.rs` and `strip.rs`; the session keeps the words. T025 and T026 pass
+- [x] T028 [US5] `json.rs`: `kind` and `lit` on items and cards, with tests (S§4)
+- [x] T029 [US5] Write the eight entries into `packs/zork1.pack` (version 5) and `packs/README.md`. Add to `tests/card.rs`: on Zork I the lantern offers Turn on and then Turn off, the sack Open and then Close, the leaflet Read, the lunch Eat, in the order of L§10 with Drop where it belongs; on Adventure the lamp offers Turn on (SC-007). See them fail before the pack is changed; they pass
+- [x] T030 [US5] Proof (P§1, R13): in `crates/zmachine-corpus/tests/card.rs`, along both walkthroughs, try each offered action on a copy and compare what the interface then reports; record the counts for each action here; a difference fails unless the ledger explains it
+
+## Phase 8: The app
+
+- [x] T031 [US5] Add UI tests: `testTheLanternsCard` (take the lantern: its chip's value is the lamp kind; its card offers Turn on before Drop; touching it sends a tapped command and the card goes; opened again it offers Turn off; A§8, A§9); `testACardWithManyActions` (a hand-made card of five actions: the row scrolls and the last can be reached and is 44 points tall); extend the rule tests: the app holds none of the action words and draws no kind the layer did not give (A§10). See them fail
+- [x] T032 [US5] `Snapshot.swift`: `kind`, `lit`. `ItemCard.swift`: the tokens by kind, the actions' row scrolling. `InventoryStrip.swift`: the token on each chip. T031 passes
+
+## Phase 9: Proof and record
+
+- [x] T033 Run `cargo fmt`, `cargo clippy`, `cargo test --workspace` (totalled from the `test result` lines), the timing tests one at a time in release, `scripts/build-ios.sh`, then `scripts/test-ios.sh 27` and `26` in turn with nothing else building. Record the counts
+- [x] T034 [P] Update `README.md`, `apps/ios/README.md`
+- [x] T035 Build for the owner's phone and try it with them (SC-007): the lantern, the sack, the leaflet. Record what they say, in their words
+
+## Record of stage 2 (2026-11-14)
+
+**Test-first, as it was done.**
+
+- **Written first and seen failing**: the introspection tests of `uses` in both
+  families and of the pack's eight keys (did not build); the layer's tests of the
+  actions, their order, what is unknown, the words a command needs, items inside
+  another, and the kinds (did not build: no `Acts`, no `Kind`); Zork I's test of
+  what its things offer (failed with the pack unchanged: the leaflet offered only
+  Drop), which passed once the pack named the flags; the three UI tests (the chip
+  had no kind; the library the app was built with was stage 1's).
+- **Passed when written**: Adventure's lamp, which needs no pack.
+- **Written after the code**: the assertions for `lamp` (an eleventh part added in
+  building; my edit of the tests did not apply the first time and I did not see it
+  until the code was in). The proof test (T030).
+- **Older tests changed for the new behaviour**: three of stage 1's card tests and
+  one UI test expected Drop to be an item's only action; the leaflet is now read
+  first. Two tests that pin the strip's JSON gained `kind` and `lit`.
+- **Caught by tests I had not thought of**: an older rule that a pack changes no
+  query but exits failed when a version 1 pack began to tell `uses.open`; now only
+  a pack of version 5 tells what things are for. The corpus's own list of the
+  pack's keys did not know the new ones. Adding `open` and `close` to the words the
+  app may not hold failed on the card's close control and on the map's word for a
+  way's state; those two are not in the list.
+
+**Changed from the plan.**
+
+1. **`uses` has eleven parts, not nine.** `container` (for the token) is apart from
+   `opens` (for the action), and `lamp` says a thing is a light whether or not it
+   is lit, which Zork I can say and an Inform story cannot.
+2. **Only a pack of version 5 tells what things are for**, so that an older pack
+   changes nothing it did not change before.
+
+**T030, the proof (P§1).** Each distinct item and set of actions along the
+walkthroughs, tried once on a copy:
+
+| | Zork I | Adventure |
+| --- | --- | --- |
+| Open | 1 of 5 | 1 of 1 |
+| Close | 3 of 3 | 1 of 1 |
+| Turn on | 1 of 1 | 1 of 1 |
+| Turn off | 1 of 1 | 1 of 1 |
+| Read | 3 of 3 | none offered |
+| Eat | 1 of 1 | 1 of 1 |
+| Drop | 39 of 39 | 15 of 15 |
+
+Drink and Wear were never offered on either walkthrough: they are unproven.
+
+**Open is the finding.** In Zork I the attribute of things that hold others is not
+the attribute of things that open. Of the four that did not do what Open says: one
+opened, and the copy's game then ended in the same turn for a reason of the
+walkthrough's; three were refused by the thing's own routine (opening it is a
+puzzle; it answers that it is open already; it has no lid). So the card offers Open
+on some things the game will not open, at the cost of a move and with the game's
+own words in reply. No attribute of the file tells these apart. The plan's
+strongest objection said the proof was one way and this could happen; it did. The
+four cases are written in the test with their causes, and any new one fails it.
+
+**Where the tests are thin.** The tokens' drawing is judged by eye, in the
+simulator. Drink and Wear rest on unit tests only. An Inform lamp that is off is a
+plain thing with Turn on, as the plan said.
+
+**Counts (T033).** `cargo fmt --check` and `cargo clippy --workspace --all-targets`:
+clean. `cargo test --workspace`: 1,073 passed, none failed, totalled from the result
+lines. App: 61 tests on iOS 27.2 and 61 on iOS 26.0, one skipped on each, no failure,
+run in turn with nothing else building. The timing tests were not run again for
+stage 2: it adds nothing to a stop but reading a few flags of each carried thing.
+
+**T035 (the owner's phone, SC-007)**: installed on 2026-11-14 after the runs, as the
+owner asked. Asked whether the action buttons and tokens work on the phone, they
+said: "Yes, it works".
+
+**The owner's ruling on Open (2026-11-14).** Told that in Zork I the card offers Open
+on some things the game then refuses to open, at the cost of a move, and offered
+three courses, the owner chose "Leave it": Open is offered wherever the item's flag
+says it holds things, nothing is tried beforehand, and the game has the last word.
+Stage 2's last task is done.
+

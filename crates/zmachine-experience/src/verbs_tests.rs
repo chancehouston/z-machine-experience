@@ -44,8 +44,8 @@ fn a_word_is_found_cut_to_what_the_dictionary_keeps() {
 fn the_words_for_examining_and_dropping() {
     let words = dictionary(&["drop", "examine", "x"]);
     assert_eq!(verbs::examine(&words, 9).as_deref(), Some("examine"));
-    assert_eq!(verbs::drop(&words, 9).as_deref(), Some("drop"));
+    assert_eq!(verbs::Acts::of(&words, 9).drop.as_deref(), Some("drop"));
     let words = dictionary(&["x"]);
     assert_eq!(verbs::examine(&words, 9).as_deref(), Some("x"));
-    assert_eq!(verbs::drop(&words, 9), None);
+    assert_eq!(verbs::Acts::of(&words, 9).drop, None);
 }

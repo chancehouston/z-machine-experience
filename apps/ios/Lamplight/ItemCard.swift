@@ -27,7 +27,9 @@ struct ItemCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(alignment: .center, spacing: 10) {
-                ItemToken(seed: index, state: card.state)
+                ItemToken(
+                    seed: index, kind: card.kind, state: card.state, lit: card.lit,
+                    probe: "card.token")
                 name
                 Spacer(minLength: 8)
             }
@@ -111,9 +113,11 @@ struct ItemCard: View {
     }
 
     /// The card's controls, in one row at its foot: the close control first,
-    /// at the bottom left where the thumb is, and then each action.
+    /// at the bottom left where the thumb is, then clear space, then each
+    /// action in the layer's order. The actions scroll sideways where there
+    /// are more than the card has room for; the close control stays put.
     private var controls: some View {
-        HStack(spacing: 4) {
+        HStack(spacing: 0) {
             Button(action: close) {
                 Image(systemName: "xmark")
                     .font(.system(size: 13, weight: .semibold))
@@ -128,6 +132,14 @@ struct ItemCard: View {
             // the phone for the close control does not land on an action
             // (the owner's trial).
             .padding(.trailing, MapLayout.control)
+            ScrollView(.horizontal, showsIndicators: false) {
+                actions
+            }
+        }
+    }
+
+    private var actions: some View {
+        HStack(spacing: 4) {
             ForEach(card.actions.indices, id: \.self) { index in
                 let action = card.actions[index]
                 Button {
@@ -150,36 +162,5 @@ struct ItemCard: View {
                 .accessibilityIdentifier("card.action.\(index)")
             }
         }
-    }
-}
-
-/// An item's token: the same plain mark for every item in this stage, drawn in
-/// the map's hand, with a lid where the layer says the item is closed and the
-/// lid lifted where it says it is open.
-struct ItemToken: View {
-    let seed: Int
-    let state: ItemState
-
-    var body: some View {
-        PencilBox(seed: seed &+ 7)
-            .stroke(Color.primary.opacity(0.82), style: StrokeStyle(lineWidth: 1.4, lineJoin: .round))
-            .frame(width: 30, height: 26)
-            .overlay {
-                switch state {
-                case .closed:
-                    MapHand.line(
-                        from: CGPoint(x: 4, y: 9), to: CGPoint(x: 26, y: 9), seed: seed, bow: 1
-                    )
-                    .stroke(Color.primary.opacity(0.82), lineWidth: 1.3)
-                case .open:
-                    MapHand.line(
-                        from: CGPoint(x: 4, y: 3), to: CGPoint(x: 24, y: -4), seed: seed, bow: 1
-                    )
-                    .stroke(Color.primary.opacity(0.82), lineWidth: 1.3)
-                case .plain:
-                    EmptyView()
-                }
-            }
-            .accessibilityHidden(true)
     }
 }

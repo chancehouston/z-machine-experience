@@ -270,7 +270,7 @@ fn an_inventory() {
     assert_eq!(
         json,
         format!(
-            r#"{{"exactness":"exact","value":[{{"object":{},"name":"box","worn":"no","state":"open","seen":"yes","source":"file","words":[],"contents":[{{"object":{},"name":"coin","worn":"no","state":null,"seen":"yes","source":"file","words":[],"contents":[]}}]}}]}}"#,
+            r#"{{"exactness":"exact","value":[{{"object":{},"name":"box","worn":"no","state":"open","seen":"yes","source":"file","words":[],"uses":{{"container":"yes","opens":"no","open":"yes","switch":"no","on":"no","read":"unknown","eat":"no","drink":"unknown","wear":"no","light":"no","lamp":"unknown"}},"contents":[{{"object":{},"name":"coin","worn":"no","state":null,"seen":"yes","source":"file","words":[],"uses":{{"container":"no","opens":"no","open":"no","switch":"no","on":"no","read":"unknown","eat":"no","drink":"unknown","wear":"no","light":"no","lamp":"unknown"}},"contents":[]}}]}}]}}"#,
             inf::BOX,
             inf::COIN
         )

@@ -48,3 +48,52 @@
   the story has. The interface reports a thing's kinds; the layer turns kinds and
   states into actions; the token shows the kind. To be researched: Zork I's flag
   numbers, and what "readable" is in each family.
+
+## Stage 2 (researched 2026-11-14, after stage 1's trial)
+
+- **R10. What an item is for, in an Inform story.** The library numbers its flags
+  alike in every story: clothing 2, container 4, edible 6, light 9, on 13, open 14,
+  openable 15, switchable 21, worn 26. These agree with the numbers the interface
+  already uses (3, 5, 9, 14, 16, 17, 20, 23, 26). The library has no flag for a
+  thing to read or to drink, so an Inform item is never offered Read or Drink. It
+  marks a thing as giving light only while it does: an unlit lamp cannot be told
+  from any other switchable thing.
+- **R11. In Zork I (release 119).** Read from the story file by which objects carry
+  each flag: 16 is on the leaflet, the map, the label, the book, the guidebook, the
+  matchbook, the manual and the prayer (readable); 18 on the sack, the egg, the
+  bottle, the coffin, the buoy, the mailbox, the basket (holds things); 10 on the
+  altar, the pedestal and the tables (a surface: holds things and is not opened);
+  20 on the lunch and the garlic (food); 21 on the water (drink); 31 on the lantern,
+  the torch and the candles (a light that is turned on and off); 25 on the torch
+  and the candles only (a flame: lit with something burning, which is a pairing,
+  and not offered). No carried thing is worn in Zork I. 11 (open), 12
+  (see-through) and 19 (lit, which is "on") are in the pack already. These are
+  read off the file, not yet proven: R13.
+- **R12. The pack's new keys** (format version 5): `holds-attribute`,
+  `surface-attribute`, `read-attribute`, `food-attribute`, `drink-attribute`,
+  `switch-attribute`, `flame-attribute`, `wear-attribute`. Each is an attribute
+  number, given once, and optional. Without a key the interface says "unknown" for
+  what it would have told, and the card offers nothing for it.
+- **R13. Proof of the pack's entries**, as every entry is proven: by the game.
+  Along the walkthrough, at each stop, each action the card would offer is tried
+  on a copy and what the interface then reports is compared with what the action
+  should have done: Open, then open is yes; Close, then no; Turn on, then on is
+  yes; Turn off, then no; Eat and Drink, then the thing is no longer carried;
+  Read, then the copy came back to the prompt having printed something. The counts
+  of agreed and differed are recorded for each action; a difference fails the
+  build until its cause is written in the ledger. This proves that what is offered
+  works. It does not prove that nothing else would: an action is never tried on a
+  thing whose flags do not offer it.
+- **R14. The verbs.** Zork I, Adventure and Anchorhead each have `open`, `close`,
+  `turn`, `on`, `off`, `read`, `eat`, `drink`, `wear`, `remove` and `take` in their
+  dictionaries. The commands are `open X`, `close X`, `turn on X`, `turn off X`,
+  `read X`, `wear X`, `remove X`, `eat X`, `drink X`, each offered only where every
+  word of it is in the story's dictionary.
+- **R15. Items inside another** keep stage 1's rule: a card, and no action. The
+  game may have to take the thing out first, and the card does not guess how.
+- **R16. The token's kind** is the first that applies of: lamp (a switch-light in
+  Zork I; in an Inform story a thing giving light now), container, page, food
+  (food or drink), clothing; else plain. A lamp's token shows whether it is on. It
+  is drawn by the app from the layer's word for the kind.
+- **R17. Room for the buttons.** A card may have four or five actions. They are in
+  one row that scrolls sideways, after the close control and its clear space.

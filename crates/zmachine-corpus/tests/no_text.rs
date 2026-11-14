@@ -245,7 +245,16 @@ fn pack_fault(text: &str, names: &[String]) -> Option<(usize, String)> {
             | "untrusted-variable"
             | "transparent-attribute"
             | "lit-attribute"
-            | "invisible-attribute" => digits,
+            | "invisible-attribute"
+            | "noun-property"
+            | "holds-attribute"
+            | "surface-attribute"
+            | "read-attribute"
+            | "food-attribute"
+            | "drink-attribute"
+            | "switch-attribute"
+            | "flame-attribute"
+            | "wear-attribute" => digits,
             "sha256" => {
                 value.len() == 64
                     && value

@@ -89,3 +89,331 @@ fn a_peek_that_does_not_come_back_gives_nothing() {
     let (machine, address) = at_prompt(story(|_| Vec::new()));
     assert_eq!(peek(&machine, "examine lamp", address, LIMIT), None);
 }
+
+// ---------------------------------------------------------------------------
+// Stage 2: what an item is for
+// (specs/014-inventory-card/contracts/card.md, L§10 to L§14)
+// ---------------------------------------------------------------------------
+
+mod actions {
+    use crate::card;
+    use crate::strip::{Kind, Strip, StripItem};
+    use crate::verbs::Acts;
+    use zmachine_introspect::Tri::{self, No, Unknown as Unk, Yes};
+    use zmachine_introspect::{Answer, Carried, Source, Uses};
+
+    const NOTHING: Uses = Uses {
+        container: No,
+        opens: No,
+        open: No,
+        switch: No,
+        on: No,
+        read: No,
+        eat: No,
+        drink: No,
+        wear: No,
+        light: No,
+        lamp: No,
+    };
+
+    fn carried(name: &str, uses: Uses, worn: Tri, contents: Vec<Carried>) -> Carried {
+        Carried {
+            object: 1,
+            name: Ok(name.to_string()),
+            worn,
+            state: None,
+            seen: Yes,
+            source: Source::File,
+            words: Ok(vec![name.to_string()]),
+            uses,
+            contents,
+        }
+    }
+
+    fn item(name: &str, uses: Uses) -> StripItem {
+        Strip::with(&Answer::exact(vec![carried(name, uses, No, vec![])]), 9)
+            .offering(true)
+            .items
+            .remove(0)
+    }
+
+    /// A dictionary with every word an action needs, but for `without`.
+    fn acts(without: &[&str]) -> Acts {
+        let words: Vec<String> = [
+            "drop", "open", "close", "turn", "on", "off", "read", "wear", "remove", "eat", "drink",
+        ]
+        .iter()
+        .filter(|word| !without.contains(word))
+        .map(|word| word.to_string())
+        .collect();
+        Acts::of(&words, 9)
+    }
+
+    fn labels(item: &StripItem, acts: &Acts) -> Vec<String> {
+        card::actions(item, acts)
+            .into_iter()
+            .map(|action| format!("{}={}", action.label, action.command))
+            .collect()
+    }
+
+    // L§10: each pair by its state, and Drop for anything.
+    #[test]
+    fn an_action_follows_the_items_state() {
+        let all = acts(&[]);
+        assert_eq!(labels(&item("rock", NOTHING), &all), ["Drop=drop rock"]);
+        let closed = Uses {
+            opens: Yes,
+            container: Yes,
+            ..NOTHING
+        };
+        assert_eq!(
+            labels(&item("sack", closed), &all),
+            ["Open=open sack", "Drop=drop sack"]
+        );
+        let open = Uses {
+            open: Yes,
+            ..closed
+        };
+        assert_eq!(
+            labels(&item("sack", open), &all),
+            ["Close=close sack", "Drop=drop sack"]
+        );
+        let off = Uses {
+            switch: Yes,
+            lamp: Yes,
+            ..NOTHING
+        };
+        assert_eq!(
+            labels(&item("lamp", off), &all),
+            ["Turn on=turn on lamp", "Drop=drop lamp"]
+        );
+        let on = Uses {
+            on: Yes,
+            light: Yes,
+            ..off
+        };
+        assert_eq!(
+            labels(&item("lamp", on), &all),
+            ["Turn off=turn off lamp", "Drop=drop lamp"]
+        );
+    }
+
+    // L§10: the order: open or close, turn on or off, read, wear or take off;
+    // then Drop, eat, drink. The safest are nearest the close control.
+    #[test]
+    fn the_actions_are_in_the_owners_order() {
+        let everything = Uses {
+            container: Yes,
+            opens: Yes,
+            open: No,
+            switch: Yes,
+            on: No,
+            read: Yes,
+            eat: Yes,
+            drink: Yes,
+            wear: Yes,
+            light: No,
+            lamp: Yes,
+        };
+        let labels: Vec<String> = card::actions(&item("thing", everything), &acts(&[]))
+            .into_iter()
+            .map(|action| action.label)
+            .collect();
+        assert_eq!(
+            labels,
+            ["Open", "Turn on", "Read", "Wear", "Drop", "Eat", "Drink"]
+        );
+        let spoken: Vec<String> = card::actions(&item("thing", everything), &acts(&[]))
+            .into_iter()
+            .map(|action| action.spoken)
+            .collect();
+        assert_eq!(spoken[0], "Open thing");
+        assert_eq!(spoken[6], "Drink thing");
+        // Worn, it is taken off.
+        let strip = Strip::with(
+            &Answer::exact(vec![carried(
+                "hat",
+                Uses {
+                    wear: Yes,
+                    ..NOTHING
+                },
+                Yes,
+                vec![],
+            )]),
+            9,
+        )
+        .offering(true);
+        assert_eq!(
+            labels_of(&strip.items[0], &acts(&[])),
+            ["Take off=remove hat", "Drop=drop hat"]
+        );
+    }
+
+    fn labels_of(item: &StripItem, acts: &Acts) -> Vec<String> {
+        labels(item, acts)
+    }
+
+    // L§11: where a part is not known nothing is offered for it; where the
+    // state of a pair is not known, neither of the pair is.
+    #[test]
+    fn what_is_not_known_is_not_offered() {
+        let all = acts(&[]);
+        assert_eq!(
+            labels(&item("thing", Uses::UNKNOWN), &all),
+            ["Drop=drop thing"]
+        );
+        let opens = Uses {
+            opens: Yes,
+            open: Unk,
+            ..NOTHING
+        };
+        assert_eq!(labels(&item("box", opens), &all), ["Drop=drop box"]);
+        let switch = Uses {
+            switch: Yes,
+            on: Unk,
+            ..NOTHING
+        };
+        assert_eq!(labels(&item("lamp", switch), &all), ["Drop=drop lamp"]);
+    }
+
+    // L§10: an action is offered only where every word of its command is in
+    // the story's dictionary.
+    #[test]
+    fn an_action_needs_every_word_of_its_command() {
+        let lamp = item(
+            "lamp",
+            Uses {
+                switch: Yes,
+                lamp: Yes,
+                ..NOTHING
+            },
+        );
+        assert_eq!(labels(&lamp, &acts(&["on"])), ["Drop=drop lamp"]);
+        assert_eq!(labels(&lamp, &acts(&["turn"])), ["Drop=drop lamp"]);
+        assert_eq!(labels(&lamp, &acts(&["drop"])), ["Turn on=turn on lamp"]);
+        let page = item(
+            "page",
+            Uses {
+                read: Yes,
+                ..NOTHING
+            },
+        );
+        assert_eq!(labels(&page, &acts(&["read"])), ["Drop=drop page"]);
+    }
+
+    // L§14: an item inside another has no action.
+    #[test]
+    fn an_item_inside_another_has_no_action() {
+        let page = carried(
+            "page",
+            Uses {
+                read: Yes,
+                ..NOTHING
+            },
+            No,
+            vec![],
+        );
+        let mut bag = carried(
+            "bag",
+            Uses {
+                container: Yes,
+                opens: Yes,
+                open: Yes,
+                ..NOTHING
+            },
+            No,
+            vec![page],
+        );
+        bag.state = Some(zmachine_introspect::ContainerState::Open);
+        let strip = Strip::with(&Answer::exact(vec![bag]), 9).offering(true);
+        let inside = &strip.items[0].contents[0];
+        assert!(inside.card);
+        assert!(card::actions(inside, &acts(&[])).is_empty());
+    }
+
+    // L§13: the kind is the first that applies of lamp, container, page, food,
+    // clothing, and else plain; a lamp says whether it is lit.
+    #[test]
+    fn an_items_kind() {
+        let kind = |uses: Uses| {
+            let item = item("thing", uses);
+            (item.kind, item.lit)
+        };
+        assert_eq!(kind(NOTHING), (Kind::Plain, None));
+        assert_eq!(kind(Uses::UNKNOWN), (Kind::Plain, None));
+        assert_eq!(
+            kind(Uses {
+                lamp: Yes,
+                switch: Yes,
+                ..NOTHING
+            }),
+            (Kind::Lamp, Some(false))
+        );
+        assert_eq!(
+            kind(Uses {
+                lamp: Yes,
+                on: Yes,
+                ..NOTHING
+            }),
+            (Kind::Lamp, Some(true))
+        );
+        assert_eq!(
+            kind(Uses {
+                lamp: Yes,
+                light: Yes,
+                on: Unk,
+                ..NOTHING
+            }),
+            (Kind::Lamp, Some(true))
+        );
+        assert_eq!(
+            kind(Uses {
+                lamp: Yes,
+                on: Unk,
+                light: Unk,
+                ..NOTHING
+            }),
+            (Kind::Lamp, None)
+        );
+        assert_eq!(
+            kind(Uses {
+                container: Yes,
+                read: Yes,
+                ..NOTHING
+            }),
+            (Kind::Container, None)
+        );
+        assert_eq!(
+            kind(Uses {
+                read: Yes,
+                eat: Yes,
+                ..NOTHING
+            }),
+            (Kind::Page, None)
+        );
+        assert_eq!(
+            kind(Uses {
+                eat: Yes,
+                wear: Yes,
+                ..NOTHING
+            }),
+            (Kind::Food, None)
+        );
+        assert_eq!(
+            kind(Uses {
+                drink: Yes,
+                ..NOTHING
+            }),
+            (Kind::Food, None)
+        );
+        assert_eq!(
+            kind(Uses {
+                wear: Yes,
+                ..NOTHING
+            }),
+            (Kind::Clothing, None)
+        );
+        assert_eq!(Kind::Lamp.as_str(), "lamp");
+        assert_eq!(Kind::Clothing.as_str(), "clothing");
+    }
+}

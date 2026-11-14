@@ -13,3 +13,14 @@
 - **Action**: `label: String`, `spoken: String`, `command: String`.
 - **Refusals**: `Stale` for another turn; `NotOffered` for an index with no card or
   an action that is not on it.
+
+## Stage 2
+
+- **Carried.uses** (introspection): each `yes`, `no` or `unknown`: `holds` (a
+  container that opens and closes), `open`, `switch` (turned on and off), `on`,
+  `read`, `eat`, `drink`, `wear`; and `light` (giving light now). `worn` is as
+  before. In a ZIL story each is unknown unless the pack names its attribute.
+- **Kind** (layer): `plain`, `lamp`, `container`, `page`, `food`, `clothing`.
+- **StripItem** and **Card** gain `kind` and `lit` (`true`, `false` or none).
+- **Card.actions** in order: Open or Close; Turn on or Turn off; Read; Wear or Take
+  off; Drop; Eat; Drink.

@@ -30,7 +30,44 @@ pub(crate) fn examine(words: &[String], kept: usize) -> Option<String> {
     find(words, kept, &["examine", "x"])
 }
 
-/// The word for dropping a thing.
-pub(crate) fn drop(words: &[String], kept: usize) -> Option<String> {
-    find(words, kept, &["drop"])
+/// The commands the card's actions send, each as the words that go before the
+/// item's own: present only where every word of it is in the story's
+/// dictionary (specs/014-inventory-card/contracts/card.md, L§10).
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub(crate) struct Acts {
+    pub drop: Option<String>,
+    pub open: Option<String>,
+    pub close: Option<String>,
+    pub turn_on: Option<String>,
+    pub turn_off: Option<String>,
+    pub read: Option<String>,
+    pub wear: Option<String>,
+    pub remove: Option<String>,
+    pub eat: Option<String>,
+    pub drink: Option<String>,
+}
+
+impl Acts {
+    /// The commands a dictionary of `words` allows, where it keeps `kept`
+    /// characters of each word.
+    pub(crate) fn of(words: &[String], kept: usize) -> Acts {
+        let phrase = |phrase: &str| {
+            phrase
+                .split(' ')
+                .all(|word| find(words, kept, &[word]).is_some())
+                .then(|| phrase.to_string())
+        };
+        Acts {
+            drop: phrase("drop"),
+            open: phrase("open"),
+            close: phrase("close"),
+            turn_on: phrase("turn on"),
+            turn_off: phrase("turn off"),
+            read: phrase("read"),
+            wear: phrase("wear"),
+            remove: phrase("remove"),
+            eat: phrase("eat"),
+            drink: phrase("drink"),
+        }
+    }
 }

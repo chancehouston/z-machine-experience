@@ -1568,9 +1568,13 @@ final class LamplightUITests: XCTestCase {
     func testDroppingFromTheCard() {
         let app = launchWithTheLeaflet()
         element(app, "item.0").tap()
-        let drop = element(app, "card.action.0")
-        XCTAssertTrue(drop.waitForExistence(timeout: patience))
+        // The leaflet is read before it is dropped (stage 2): Drop is the
+        // second action, farther from the close control.
+        XCTAssertTrue(element(app, "card.action.0").waitForExistence(timeout: patience))
+        XCTAssertEqual(element(app, "card.action.0").label, "Read leaflet")
+        let drop = element(app, "card.action.1")
         XCTAssertEqual(drop.label, "Drop leaflet")
+        XCTAssertGreaterThan(drop.frame.minX, element(app, "card.action.0").frame.maxX - 0.5)
         // 44 points, to within what a frame at a fraction of a point rounds to.
         XCTAssertGreaterThanOrEqual(drop.frame.height, 43.99)
         // The action is small beside the card. The close control is at the
@@ -1583,7 +1587,8 @@ final class LamplightUITests: XCTestCase {
         XCTAssertGreaterThan(close.midY, card.midY, "\(close) in \(card)")
         // With clear space between them: a thumb reaching across the phone
         // for the close control must not land on an action.
-        XCTAssertGreaterThanOrEqual(drop.frame.minX - close.maxX, 28, "\(drop.frame) \(close)")
+        let first = element(app, "card.action.0").frame
+        XCTAssertGreaterThanOrEqual(first.minX - close.maxX, 28, "\(first) \(close)")
         XCTAssertEqual(drop.frame.midY, close.midY, accuracy: 4)
         drop.tap()
         _ = turn(app, 3)
@@ -1591,6 +1596,76 @@ final class LamplightUITests: XCTestCase {
         XCTAssertFalse(element(app, "card").exists)
         XCTAssertEqual(element(app, "inventory.note").label, "Carrying nothing")
         XCTAssertFalse(element(app, "item.0").exists)
+    }
+
+    // Stage 2, A§8, A§9: the lantern's chip says it is a lamp; its card
+    // offers to turn it on before anything that loses it; turned on from the
+    // card, it offers to turn it off.
+    @MainActor
+    func testTheLanternsCard() {
+        let app = launch(["-seed", "11", "-showMapHand"])
+        _ = turn(app, 0)
+        for (index, line) in ["n", "e", "open window", "w", "w", "take lamp"].enumerated() {
+            type(app, line)
+            _ = turn(app, index + 1)
+        }
+        let chip = element(app, "item.0")
+        XCTAssertTrue(chip.waitForExistence(timeout: patience))
+        XCTAssertEqual(chip.label, "brass lantern")
+        XCTAssertEqual(chip.value as? String, "lamp")
+        chip.tap()
+        let first = element(app, "card.action.0")
+        XCTAssertTrue(first.waitForExistence(timeout: patience))
+        XCTAssertEqual(first.label, "Turn on brass lantern")
+        XCTAssertEqual(element(app, "card.action.1").label, "Drop brass lantern")
+        XCTAssertEqual(element(app, "card.token").value as? String, "lamp-")
+        first.tap()
+        _ = turn(app, 7)
+        XCTAssertFalse(element(app, "card").exists)
+        chip.tap()
+        XCTAssertTrue(first.waitForExistence(timeout: patience))
+        XCTAssertEqual(first.label, "Turn off brass lantern")
+        XCTAssertEqual(element(app, "card.token").value as? String, "lamp+")
+    }
+
+    // Stage 2, A§8: a card with more actions than it has room for scrolls
+    // them sideways; the last can be reached and is as tall to touch as any.
+    @MainActor
+    func testACardWithManyActions() {
+        let item = #"{"known":true,"note":null,"spoken":"Carrying: thing","items":[{"name":"thing","state":"closed","kind":"container","lit":null,"index":0,"card":true,"contents":[]}]}"#
+        let names = ["Open", "Turn on", "Read", "Wear", "Drop", "Eat", "Drink"]
+        let actions = names.map {
+            #"{"label":"\#($0)","spoken":"\#($0) thing","command":"x"}"#
+        }.joined(separator: ",")
+        let card = #"{"name":"thing","state":"closed","kind":"container","lit":null,"description":"A thing.","note":null,"spoken":"thing. A thing.","actions":[\#(actions)]}"#
+        let app = XCUIApplication()
+        app.launchEnvironment["LAMPLIGHT_FIXTURE_SNAPSHOT"] = handMade(
+            state: "open", spokenTail: "to somewhere", known: true, note: nil, inventory: item)
+        app.launchEnvironment["LAMPLIGHT_FIXTURE_CARD"] = card
+        app.launch()
+        let chip = element(app, "item.0")
+        XCTAssertTrue(chip.waitForExistence(timeout: patience))
+        XCTAssertEqual(chip.value as? String, "container")
+        chip.tap()
+        let frame = element(app, "card").frame
+        XCTAssertEqual(element(app, "card.action.0").label, "Open thing")
+        let last = element(app, "card.action.6")
+        XCTAssertTrue(last.waitForExistence(timeout: patience))
+        XCTAssertGreaterThan(last.frame.minX, frame.maxX - 20, "it is off the card to begin with")
+        let row = element(app, "card.action.1")
+        for _ in 0..<4 where last.frame.maxX > frame.maxX {
+            row.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5))
+                .press(
+                    forDuration: 0.1,
+                    thenDragTo: element(app, "card.close")
+                        .coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)))
+        }
+        XCTAssertLessThanOrEqual(last.frame.maxX, frame.maxX + 1, "\(last.frame) in \(frame)")
+        XCTAssertEqual(last.label, "Drink thing")
+        XCTAssertGreaterThanOrEqual(last.frame.height, 43.99)
+        XCTAssertTrue(last.isHittable)
+        // The close control has not gone with them.
+        XCTAssertTrue(element(app, "card.close").isHittable)
     }
 
     // A§2: a description taller than its room scrolls, with a mark that

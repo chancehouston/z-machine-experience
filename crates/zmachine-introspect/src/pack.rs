@@ -29,6 +29,22 @@ pub struct Pack {
     /// story where it cannot be told by its shape (specification section
     /// 12.12).
     pub noun_property: Option<u8>,
+    /// The attribute named by `holds-attribute` (specification section 12.13).
+    pub holds_attribute: Option<u8>,
+    /// The attribute named by `surface-attribute` (specification section 12.13).
+    pub surface_attribute: Option<u8>,
+    /// The attribute named by `read-attribute` (specification section 12.13).
+    pub read_attribute: Option<u8>,
+    /// The attribute named by `food-attribute` (specification section 12.13).
+    pub food_attribute: Option<u8>,
+    /// The attribute named by `drink-attribute` (specification section 12.13).
+    pub drink_attribute: Option<u8>,
+    /// The attribute named by `switch-attribute` (specification section 12.13).
+    pub switch_attribute: Option<u8>,
+    /// The attribute named by `flame-attribute` (specification section 12.13).
+    pub flame_attribute: Option<u8>,
+    /// The attribute named by `wear-attribute` (specification section 12.13).
+    pub wear_attribute: Option<u8>,
 }
 
 /// Why a pack was refused: the line, counted from 1, and the fault.
@@ -74,6 +90,17 @@ pub(crate) struct Entries {
     pub lit_attribute: Option<u8>,
     pub invisible_attribute: Option<u8>,
     pub noun_property: Option<u8>,
+    /// Whether the pack is of a version that says what things are for (5 or
+    /// later): an earlier pack changes nothing of `uses`.
+    pub tells_uses: bool,
+    pub holds_attribute: Option<u8>,
+    pub surface_attribute: Option<u8>,
+    pub read_attribute: Option<u8>,
+    pub food_attribute: Option<u8>,
+    pub drink_attribute: Option<u8>,
+    pub switch_attribute: Option<u8>,
+    pub flame_attribute: Option<u8>,
+    pub wear_attribute: Option<u8>,
 }
 
 /// A decimal number as the format writes one: digits only, no sign, and no
@@ -103,6 +130,14 @@ impl Pack {
             lit_attribute: None,
             invisible_attribute: None,
             noun_property: None,
+            holds_attribute: None,
+            surface_attribute: None,
+            read_attribute: None,
+            food_attribute: None,
+            drink_attribute: None,
+            switch_attribute: None,
+            flame_attribute: None,
+            wear_attribute: None,
         };
         // How many lines that are not skipped have been read.
         let mut read = 0;
@@ -131,6 +166,7 @@ impl Pack {
                         "2" => 2,
                         "3" => 3,
                         "4" => 4,
+                        "5" => 5,
                         _ => {
                             return Err(fault("a version of the format this reader does not know"));
                         }
@@ -218,6 +254,66 @@ impl Pack {
                 "noun-property" => {
                     return Err(fault("noun-property needs a pack of version 4"));
                 }
+                "holds-attribute" if pack.version >= 5 => {
+                    let attribute = decimal(value, 0, 31)
+                        .ok_or_else(|| fault("an attribute is a number from 0 to 31"))?;
+                    if pack.holds_attribute.replace(attribute as u8).is_some() {
+                        return Err(fault("this key may be given once"));
+                    }
+                }
+                "surface-attribute" if pack.version >= 5 => {
+                    let attribute = decimal(value, 0, 31)
+                        .ok_or_else(|| fault("an attribute is a number from 0 to 31"))?;
+                    if pack.surface_attribute.replace(attribute as u8).is_some() {
+                        return Err(fault("this key may be given once"));
+                    }
+                }
+                "read-attribute" if pack.version >= 5 => {
+                    let attribute = decimal(value, 0, 31)
+                        .ok_or_else(|| fault("an attribute is a number from 0 to 31"))?;
+                    if pack.read_attribute.replace(attribute as u8).is_some() {
+                        return Err(fault("this key may be given once"));
+                    }
+                }
+                "food-attribute" if pack.version >= 5 => {
+                    let attribute = decimal(value, 0, 31)
+                        .ok_or_else(|| fault("an attribute is a number from 0 to 31"))?;
+                    if pack.food_attribute.replace(attribute as u8).is_some() {
+                        return Err(fault("this key may be given once"));
+                    }
+                }
+                "drink-attribute" if pack.version >= 5 => {
+                    let attribute = decimal(value, 0, 31)
+                        .ok_or_else(|| fault("an attribute is a number from 0 to 31"))?;
+                    if pack.drink_attribute.replace(attribute as u8).is_some() {
+                        return Err(fault("this key may be given once"));
+                    }
+                }
+                "switch-attribute" if pack.version >= 5 => {
+                    let attribute = decimal(value, 0, 31)
+                        .ok_or_else(|| fault("an attribute is a number from 0 to 31"))?;
+                    if pack.switch_attribute.replace(attribute as u8).is_some() {
+                        return Err(fault("this key may be given once"));
+                    }
+                }
+                "flame-attribute" if pack.version >= 5 => {
+                    let attribute = decimal(value, 0, 31)
+                        .ok_or_else(|| fault("an attribute is a number from 0 to 31"))?;
+                    if pack.flame_attribute.replace(attribute as u8).is_some() {
+                        return Err(fault("this key may be given once"));
+                    }
+                }
+                "wear-attribute" if pack.version >= 5 => {
+                    let attribute = decimal(value, 0, 31)
+                        .ok_or_else(|| fault("an attribute is a number from 0 to 31"))?;
+                    if pack.wear_attribute.replace(attribute as u8).is_some() {
+                        return Err(fault("this key may be given once"));
+                    }
+                }
+                "holds-attribute" | "surface-attribute" | "read-attribute" | "food-attribute"
+                | "drink-attribute" | "switch-attribute" | "flame-attribute" | "wear-attribute" => {
+                    return Err(fault("this key needs a pack of version 5"));
+                }
                 _ => return Err(fault("a key this format does not have")),
             }
         }
@@ -238,6 +334,14 @@ impl Pack {
             || self.lit_attribute.is_some()
             || self.invisible_attribute.is_some()
             || self.noun_property.is_some()
+            || self.holds_attribute.is_some()
+            || self.surface_attribute.is_some()
+            || self.read_attribute.is_some()
+            || self.food_attribute.is_some()
+            || self.drink_attribute.is_some()
+            || self.switch_attribute.is_some()
+            || self.flame_attribute.is_some()
+            || self.wear_attribute.is_some()
     }
 
     pub(crate) fn entries(&self) -> Entries {
@@ -248,6 +352,15 @@ impl Pack {
             lit_attribute: self.lit_attribute,
             invisible_attribute: self.invisible_attribute,
             noun_property: self.noun_property,
+            tells_uses: self.version >= 5,
+            holds_attribute: self.holds_attribute,
+            surface_attribute: self.surface_attribute,
+            read_attribute: self.read_attribute,
+            food_attribute: self.food_attribute,
+            drink_attribute: self.drink_attribute,
+            switch_attribute: self.switch_attribute,
+            flame_attribute: self.flame_attribute,
+            wear_attribute: self.wear_attribute,
         }
     }
 }

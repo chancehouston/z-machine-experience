@@ -155,6 +155,16 @@ fn no_direction_word_is_written_outside_the_layout() {
         "examine",
         "x",
         "drop",
+        // Not `open` or `close`: they are also the layer's word for a way's
+        // state and the name of the card's close control.
+        "turn",
+        "on",
+        "off",
+        "read",
+        "wear",
+        "remove",
+        "eat",
+        "drink",
         "inventory",
     ];
     for (name, text) in app_swift() {
@@ -317,6 +327,7 @@ fn the_strip_shows_the_layers_words_and_sends_nothing() {
             "Text(verbatim: note)",
             ".accessibilityLabel(Text(verbatim: strip.spoken))",
             ".accessibilityLabel(Text(verbatim: item.name))",
+            ".accessibilityValue(Text(verbatim: item.kind ?? \"\"))",
             "Text(verbatim: item.name)"
         ]
     );
@@ -324,7 +335,7 @@ fn the_strip_shows_the_layers_words_and_sends_nothing() {
     let literals: Vec<&str> = strip.lines().flat_map(literals).collect();
     assert_eq!(
         literals,
-        ["inventory.note", "inventory.strip", "item.\\(index)"]
+        ["inventory.note", "inventory.strip", "", "item.\\(index)"]
     );
 }
 
@@ -368,6 +379,7 @@ fn the_card_shows_the_layers_words_and_sends_nothing() {
     assert_eq!(
         literals,
         [
+            "card.token",
             "chevron.compact.down",
             "card.more",
             "card",
