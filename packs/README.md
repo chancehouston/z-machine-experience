@@ -21,3 +21,19 @@ attribute for a hidden thing is not: 7 passes and so does 30. Attribute 30 is se
 character who takes the player's light and never changes; the game sets 7 on the taken
 thing itself and clears it again, so the pack names 7. The corpus run cannot tell the two
 apart, and a test records that exactly those two pass.
+
+A pack of version 5 may say which attribute marks what a thing is for: one that holds
+other things, a surface, something to read, to eat, to drink, to wear, a light that is
+turned on and off, and a flame (section 12.13 of the specification). Zork I's pack has
+seven of the eight; nothing in that game is worn.
+
+These entries are proven one way only. Along the walkthrough each action the card
+offers from them is tried on a copy of the game and must do what it says
+(`crates/zmachine-corpus/tests/card.rs`): reading, eating, turning on and off, closing
+and dropping did every time. Opening did not: of five things with the attribute of
+things that hold others, the game opened two and its own routines refused the other
+three (one is a puzzle, one answers that it is open already, one has no lid). The
+attribute marks a thing that holds others, which is not always a thing that opens; no
+attribute of the file says which. The cases are written in that test, and a new one
+fails it. Nothing proves that no other attribute would also pass.
+

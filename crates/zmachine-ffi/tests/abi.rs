@@ -639,7 +639,7 @@ fn an_items_card_crosses_the_boundary() {
     );
     let before = snapshot(session, 0);
     assert!(
-        before.contains(r#""items":[{"name":"leaflet","state":"plain","index":0,"card":true,"#),
+        before.contains(r#""items":[{"name":"leaflet","state":"plain","kind":"plain","lit":null,"index":0,"card":true,"#),
         "{before}"
     );
     let pointer = zmx_session_card(session, 1, 3, 0);

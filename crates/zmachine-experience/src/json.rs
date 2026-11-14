@@ -202,6 +202,15 @@ fn item(out: &mut String, item: &StripItem) {
     text(out, &item.name);
     key(out, "state");
     text(out, item.state.as_str());
+    // Its kind, for its token, and for a lamp whether it is lit (S§4).
+    key(out, "kind");
+    text(out, item.kind.as_str());
+    key(out, "lit");
+    out.push_str(match item.lit {
+        Some(true) => "true",
+        Some(false) => "false",
+        None => "null",
+    });
     // Feature 014: its place among the shown items, and whether it can be
     // tapped for its card now.
     key(out, "index");
@@ -221,6 +230,14 @@ pub fn card_json(card: &crate::Card) -> String {
     text(&mut out, &card.name);
     key(&mut out, "state");
     text(&mut out, card.state.as_str());
+    key(&mut out, "kind");
+    text(&mut out, card.kind.as_str());
+    key(&mut out, "lit");
+    out.push_str(match card.lit {
+        Some(true) => "true",
+        Some(false) => "false",
+        None => "null",
+    });
     key(&mut out, "description");
     optional_text(&mut out, card.description.as_deref());
     key(&mut out, "note");

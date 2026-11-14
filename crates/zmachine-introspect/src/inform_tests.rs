@@ -645,3 +645,43 @@ fn a_carried_things_words_are_its_name_property() {
         Ok(vec!["lamp".to_string(), "take".to_string()])
     );
 }
+
+// I§7.4 (specs/014-inventory-card/contracts/card.md, I§4): what a carried
+// thing is for follows the library's flags; the library has none for a thing
+// to read or to drink.
+#[test]
+fn a_carried_things_uses_are_the_librarys_flags() {
+    use crate::Tri::{No, Unknown as Unk, Yes};
+    let m = after(vec![
+        insert(inf::LAMP, inf::PLAYER),
+        insert(inf::BOX, inf::PLAYER),
+        insert(inf::HAT, inf::PLAYER),
+        set_attr(inf::LAMP, 21),
+        set_attr(inf::LAMP, 13),
+        set_attr(inf::LAMP, 9),
+        set_attr(inf::BOX, 4),
+        set_attr(inf::BOX, 15),
+        clear_attr(inf::BOX, 14),
+        set_attr(inf::HAT, 2),
+        set_attr(inf::HAT, 6),
+    ]);
+    let carried = introspect(&m).inventory(&m.view()).value.unwrap();
+    let uses = |object: u16| carried.iter().find(|c| c.object == object).unwrap().uses;
+    let lamp = uses(inf::LAMP);
+    assert_eq!((lamp.switch, lamp.on, lamp.light), (Yes, Yes, Yes));
+    assert_eq!(
+        (lamp.container, lamp.opens, lamp.eat, lamp.wear),
+        (No, No, No, No)
+    );
+    let chest = uses(inf::BOX);
+    assert_eq!((chest.container, chest.opens, chest.open), (Yes, Yes, No));
+    assert_eq!((chest.switch, chest.on, chest.light), (No, No, No));
+    let hat = uses(inf::HAT);
+    assert_eq!((hat.wear, hat.eat), (Yes, Yes));
+    for uses in [lamp, chest, hat] {
+        assert_eq!((uses.read, uses.drink), (Unk, Unk));
+    }
+    // A thing giving light is a lamp; of one that is not, the library does
+    // not say.
+    assert_eq!((lamp.lamp, chest.lamp), (Yes, Unk));
+}

@@ -860,7 +860,7 @@ fn the_snapshot_holds_the_strip() {
     let json = s.snapshot_json(0);
     assert!(
         json.contains(
-            r#""inventory":{"known":true,"note":null,"spoken":"Carrying: glass bottle, closed, holding quantity of water","items":[{"name":"glass bottle","state":"closed","index":0,"card":true,"contents":[{"name":"quantity of water","state":"plain","index":1,"card":true,"contents":[]}]}]},"light":{"dark":false,"note":null},"announcement":"#
+            r#""inventory":{"known":true,"note":null,"spoken":"Carrying: glass bottle, closed, holding quantity of water","items":[{"name":"glass bottle","state":"closed","kind":"container","lit":null,"index":0,"card":true,"contents":[{"name":"quantity of water","state":"plain","kind":"food","lit":null,"index":1,"card":true,"contents":[]}]}]},"light":{"dark":false,"note":null},"announcement":"#
         ),
         "{}",
         &json[json.len().saturating_sub(300)..]

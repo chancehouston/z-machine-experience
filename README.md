@@ -104,7 +104,10 @@ What the first demo does today:
   game's own description of it, read from a copy of the game so that no move is
   spent, and a button to drop it. The words that name each item are read from the
   story file; on a wander through the corpus every item that could be tapped gave a
-  description.
+  description. The card also offers what the item is for (open it, turn it on, read
+  it, eat it), read from the item's own flags and never tried beforehand, and each
+  item has a small token for its kind. In an Inform story the flags are the
+  library's; for Zork I its pack names them.
 - **The keyboard stays up.** It is there whenever the game waits for a line, and goes
   down only when the player scrolls back through the transcript.
 - **The app holds no rule of any game.** It draws what the experience layer reports and

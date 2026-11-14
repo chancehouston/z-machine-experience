@@ -55,7 +55,7 @@ pub use card::{Action, Card, LABEL_DROP, NOTE_NO_DESCRIPTION};
 pub use compass::{Compass, CompassPlace, Extra, NOTE_NONE, NOTE_UNKNOWN, Place, PlaceState};
 pub use json::card_json;
 pub use light::{Light, NOTE_DARK};
-pub use strip::{ItemState, NOTE_NOT_KNOWN, NOTE_NOTHING, Strip, StripItem};
+pub use strip::{ItemState, Kind, NOTE_NOT_KNOWN, NOTE_NOTHING, Strip, StripItem};
 pub use transcript::{Source, Turn};
 pub use verbs::SPOKEN_LOOK;
 
@@ -204,7 +204,8 @@ pub struct Session {
     look_word: Option<String>,
     /// Its words for examining a thing and for dropping one.
     examine_word: Option<String>,
-    drop_word: Option<String>,
+    /// The commands the card's actions send.
+    acts: verbs::Acts,
     /// How many characters of a word the story's dictionary keeps.
     kept_chars: usize,
 }
@@ -293,7 +294,7 @@ impl Session {
             jumps: 0,
             look_word: None,
             examine_word: None,
-            drop_word: None,
+            acts: verbs::Acts::default(),
             kept_chars: 9,
         };
         // The story's word for looking is found once: its dictionary does
@@ -309,7 +310,7 @@ impl Session {
                 let words: Vec<String> = words.into_iter().map(|word| word.word).collect();
                 session.kept_chars = kept;
                 session.examine_word = verbs::examine(&words, kept);
-                session.drop_word = verbs::drop(&words, kept);
+                session.acts = verbs::Acts::of(&words, kept);
                 verbs::look(&words, kept)
             });
         session.map = session.new_map();
@@ -776,7 +777,7 @@ impl Session {
             address,
             lookahead::LIMITS.copy,
         );
-        Ok(card::card(item, description, self.drop_word.as_deref()))
+        Ok(card::card(item, description, &self.acts))
     }
 
     /// The player chose an action on an item's card: its command is sent, as
@@ -787,11 +788,7 @@ impl Session {
             .strip
             .item(index)
             .filter(|item| item.card)
-            .and_then(|item| {
-                card::actions(item, self.drop_word.as_deref())
-                    .into_iter()
-                    .nth(action)
-            })
+            .and_then(|item| card::actions(item, &self.acts).into_iter().nth(action))
             .map(|action| action.command)
             .ok_or(Refused::NotOffered)?;
         self.give(&command, Source::Tap);

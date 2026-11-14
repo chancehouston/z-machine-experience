@@ -51,7 +51,8 @@ model: model names differ from one version to the next.
 | `Lamplight/GameView.swift` | The screen: status, the map's band, what is carried, transcript, field, end states |
 | `Lamplight/MapBand.swift` | The map as a band above the reply and opened out to the sheet: the control for each way out, the drag, opening and closing |
 | `Lamplight/MapDrawing.swift` | How places, lines, stubs, the lamp and each way's state are drawn, and the pencil's hand |
-| `Lamplight/ItemCard.swift` | The card for a carried item, and its token |
+| `Lamplight/ItemCard.swift` | The card for a carried item |
+| `Lamplight/ItemToken.swift` | An item's token, drawn from the layer's word for its kind |
 | `Lamplight/MapLayout.swift` | How far apart positions are, where a way's control sits, and its symbol; the only file with direction words |
 | `Lamplight/AboutView.swift` | The About sheet |
 | `Lamplight/KeptFile.swift` | Where the game in progress is kept on the device; it holds the layer's bytes and does not read them |
@@ -99,7 +100,17 @@ states and spoken labels the compass had.
   itself, the band beside it, the item again), and it goes at the next turn. An
   action is small and has to be aimed at. The close control is at the card's
   bottom left with the actions to its right. A long description scrolls, with a
-  mark (`card.more`) while there is more below. The app holds no command
+  mark (`card.more`) while there is more below.
+- **The card says what the item is for.** After the close control and its clear
+  space come the actions the layer gives, in the layer's order: what can be
+  undone first (Open or Close, Turn on or Turn off, Read, Wear or Take off), then
+  Drop, Eat and Drink. Each is offered only where the item's own flags say it
+  applies and in the state it is in; none is tried beforehand, and the game may
+  still refuse. The row scrolls sideways where there are many.
+- **Each item has a token** for its kind, on its card and on its chip in the
+  strip: a lamp (with rays when lit), a box (lid down or lifted), a page, food or
+  drink, clothing, or a plain mark. The kind is the layer's word
+  (`Lamplight/ItemToken.swift` is the one file that knows those words). The app holds no command
   word; `zmx_session_card` and `zmx_session_tap_action` are the two entries.
   Identifiers for tests: `item.<index>`, `card`, `card.name`, `card.text`,
   `card.action.<n>`, `card.close`.

@@ -104,7 +104,7 @@ fn a_malformed_pack_is_refused_with_its_line() {
         (format!("open-attribute: 7\n{head}"), 1),
         (String::new(), 1),
         // A version of the format this reader does not know.
-        (head.replace("pack: 1", "pack: 5"), 1),
+        (head.replace("pack: 1", "pack: 6"), 1),
         (head.replace("pack: 1", "pack: 01"), 1),
         // Values out of range or of the wrong shape.
         (head.replace(&digest, &"0".repeat(63)), 2),
@@ -406,7 +406,7 @@ fn a_pack_not_in_force_changes_nothing() {
                 PackState::NotMatching,
             ),
             (format!("{right}open-attribute: 9\n"), PackState::Refused),
-            (right.replace("pack: 1", "pack: 5"), PackState::Refused),
+            (right.replace("pack: 1", "pack: 6"), PackState::Refused),
         ] {
             let i = Introspector::with_pack(&view, &text);
             assert_eq!(i.pack(), state);
@@ -603,7 +603,7 @@ fn the_formats_second_version_adds_one_key() {
     assert_eq!((plain.version, plain.transparent_attribute), (2, None));
     assert_eq!(Pack::parse(EXAMPLE).unwrap().version, 1);
     for (text, line) in [
-        (EXAMPLE.replace("pack: 1", "pack: 5"), 1),
+        (EXAMPLE.replace("pack: 1", "pack: 6"), 1),
         (EXAMPLE.replace("pack: 1", "pack: 0"), 1),
         (format!("{EXAMPLE}transparent-attribute: 12\n"), 7),
         (format!("{two}transparent-attribute: 32\n"), 7),
@@ -678,7 +678,7 @@ fn the_formats_third_version_adds_the_lit_attribute() {
     assert_eq!(Pack::parse(EXAMPLE).unwrap().lit_attribute, None);
     let two = EXAMPLE.replace("pack: 1", "pack: 2");
     for (text, line) in [
-        (EXAMPLE.replace("pack: 1", "pack: 5"), 1),
+        (EXAMPLE.replace("pack: 1", "pack: 6"), 1),
         (format!("{two}lit-attribute: 19\n"), 7),
         (format!("{EXAMPLE}lit-attribute: 19\n"), 7),
         (format!("{three}lit-attribute: 32\n"), 7),
@@ -994,4 +994,125 @@ fn the_formats_fourth_version_adds_the_noun_property() {
         carried[0].words,
         Ok(vec!["lamp".to_string(), "brass".to_string()])
     );
+}
+
+// I§12.13 (specs/014-inventory-card/contracts/card.md, I§5, I§6): the format's
+// version 5 adds eight keys that say which attribute marks what a thing is
+// for; with them in force a carried thing's `uses` are told, and without one
+// its part is unknown.
+#[test]
+fn the_formats_fifth_version_says_what_things_are_for() {
+    use crate::Tri::{No, Unknown as Unk, Yes};
+    let five = EXAMPLE.replace("pack: 1", "pack: 5");
+    let keys = [
+        "holds-attribute",
+        "surface-attribute",
+        "read-attribute",
+        "food-attribute",
+        "drink-attribute",
+        "switch-attribute",
+        "flame-attribute",
+        "wear-attribute",
+    ];
+    let all: String = keys
+        .iter()
+        .enumerate()
+        .map(|(n, key)| format!("{key}: {}\n", 20 + n))
+        .collect();
+    let pack = Pack::parse(&format!("{five}{all}")).unwrap();
+    assert_eq!(pack.version, 5);
+    assert_eq!(
+        (
+            pack.holds_attribute,
+            pack.surface_attribute,
+            pack.read_attribute,
+            pack.food_attribute
+        ),
+        (Some(20), Some(21), Some(22), Some(23))
+    );
+    assert_eq!(
+        (
+            pack.drink_attribute,
+            pack.switch_attribute,
+            pack.flame_attribute,
+            pack.wear_attribute
+        ),
+        (Some(24), Some(25), Some(26), Some(27))
+    );
+    let four = EXAMPLE.replace("pack: 1", "pack: 4");
+    for key in keys {
+        assert!(
+            Pack::parse(&format!("{five}{key}: 3\n"))
+                .unwrap()
+                .has_entries()
+        );
+        for (text, line) in [
+            (format!("{four}{key}: 3\n"), 7),
+            (format!("{five}{key}: 32\n"), 7),
+            (format!("{five}{key}: 3\n{key}: 3\n"), 8),
+        ] {
+            match Pack::parse(&text) {
+                Ok(pack) => panic!("read as {pack:?}:\n{text}"),
+                Err(error) => assert_eq!(error.line, line, "{error}:\n{text}"),
+            }
+        }
+    }
+
+    // In a built story: the lamp is a switch that is on, the sack holds
+    // things and is open, the boat is a surface, the door a flame.
+    let built = fixture(vec![
+        crate::fixtures::insert(zl::SACK, zl::PLAYER),
+        crate::fixtures::insert(zl::BOAT, zl::PLAYER),
+        crate::fixtures::insert(zl::DOOR, zl::PLAYER),
+        set_attr(zl::LAMP, 25),
+        set_attr(zl::LAMP, LIT),
+        set_attr(zl::SACK, 20),
+        set_attr(zl::SACK, OPEN),
+        set_attr(zl::SACK, 22),
+        set_attr(zl::BOAT, 20),
+        set_attr(zl::BOAT, 21),
+        set_attr(zl::BOAT, 23),
+        set_attr(zl::DOOR, 25),
+        set_attr(zl::DOOR, 26),
+        set_attr(zl::DOOR, 24),
+        set_attr(zl::DOOR, 27),
+    ]);
+    let entries = format!("open-attribute: {OPEN}\nlit-attribute: {LIT}\n{all}");
+    let things = carried(&built, 5, &entries);
+    let uses = |object: u16| things.iter().find(|c| c.object == object).unwrap().uses;
+    let lamp = uses(zl::LAMP);
+    assert_eq!((lamp.switch, lamp.on, lamp.light), (Yes, Yes, Yes));
+    assert_eq!((lamp.container, lamp.opens, lamp.open), (No, No, No));
+    assert_eq!(
+        (lamp.read, lamp.eat, lamp.drink, lamp.wear),
+        (No, No, No, No)
+    );
+    let sack = uses(zl::SACK);
+    assert_eq!(
+        (sack.container, sack.opens, sack.open, sack.read),
+        (Yes, Yes, Yes, Yes)
+    );
+    assert_eq!((sack.switch, sack.on), (No, No));
+    // A surface holds things and is not opened.
+    let boat = uses(zl::BOAT);
+    assert_eq!((boat.container, boat.opens, boat.eat), (No, No, Yes));
+    // A flame is not switched; it may be drunk or worn for all the format cares.
+    let door = uses(zl::DOOR);
+    assert_eq!((door.switch, door.drink, door.wear), (No, Yes, Yes));
+    // A flame is a lamp all the same; so is a switch-light, on or off.
+    assert_eq!((door.lamp, lamp.lamp, sack.lamp), (Yes, Yes, No));
+
+    // Without a key, its part is unknown; the others stand.
+    let things = carried(&built, 5, "read-attribute: 22\n");
+    let sack = things.iter().find(|c| c.object == zl::SACK).unwrap().uses;
+    assert_eq!(sack.read, Yes);
+    assert_eq!(
+        (sack.container, sack.opens, sack.open, sack.switch, sack.on),
+        (Unk, Unk, Unk, Unk, Unk)
+    );
+    assert_eq!(
+        (sack.eat, sack.drink, sack.wear, sack.light),
+        (Unk, Unk, Unk, Unk)
+    );
+    assert_eq!(sack.lamp, Unk);
 }

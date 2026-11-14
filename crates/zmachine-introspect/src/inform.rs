@@ -9,6 +9,12 @@ use crate::{Part, Tri, Unknown};
 
 pub(crate) mod attribute {
     pub const ANIMATE: u8 = 0;
+    pub const CLOTHING: u8 = 2;
+    pub const CONTAINER: u8 = 4;
+    pub const EDIBLE: u8 = 6;
+    pub const ON: u8 = 13;
+    pub const OPENABLE: u8 = 15;
+    pub const SWITCHABLE: u8 = 21;
     pub const ABSENT: u8 = 1;
     pub const CONCEALED: u8 = 3;
     pub const DOOR: u8 = 5;

@@ -94,6 +94,17 @@ final class Game {
             card = nil
             return
         }
+        #if DEBUG
+            // For tests of how a card is drawn: a hand-made one, with the
+            // hand-made snapshot. There is no game to ask.
+            if engine == nil,
+                let json = ProcessInfo.processInfo.environment["LAMPLIGHT_FIXTURE_CARD"],
+                let made = try? JSONDecoder().decode(Card.self, from: Data(json.utf8))
+            {
+                card = (index, made)
+                return
+            }
+        #endif
         guard !busy, let engine, let showing else { return }
         busy = true
         let made = await engine.card(index: index, showing: showing)

@@ -1,6 +1,6 @@
 # Z-Machine Introspection Interface
 
-**Version**: 0.6.0 | **Status**: draft
+**Version**: 0.7.0 | **Status**: draft
 
 A specification for reading the state of a running Z-machine game without changing it:
 where the player is, which ways lead out, what is here and what is carried. It is
@@ -493,6 +493,7 @@ The answer is a list, in the tree's order, of the player's children. Each entry 
 | `seen` | `yes`, `no` or `unknown` |
 | `source` | `file` or `pack` |
 | `words` | The dictionary words that name it; a part that may be unknown (section 7.3) |
+| `uses` | What it is for, and the states that go with that (section 7.4) |
 | `contents` | The same, for the object's own children |
 
 `seen` says whether the game would show the player the object among what is carried.
@@ -576,6 +577,38 @@ pack may name the property (section 12.12), and it is then used with no search.
 
 The words are what the story's parser may know the object by. Nothing says that a
 command using one will be taken as meaning this object: another object may share it.
+
+### 7.4 What a thing is for
+
+`uses` has eleven parts, each `yes`, `no` or `unknown`:
+
+| Part | `yes` means |
+| --- | --- |
+| `container` | It holds things, and is not a surface |
+| `opens` | It is opened and closed |
+| `open` | It is open now |
+| `switch` | It is turned on and off |
+| `on` | It is on now |
+| `read` | It is read |
+| `eat` | It is eaten |
+| `drink` | It is drunk |
+| `wear` | It is worn |
+| `light` | It gives light now |
+| `lamp` | It is a light, whether or not it gives light now |
+
+In an Inform 6 story they are the library's attributes: `container` 4, `opens`
+(openable) 15, `open` 14, `switch` (switchable) 21, `on` 13, `eat` (edible) 6, `wear`
+(clothing) 2, `light` 9. The library has no attribute for a thing to read or to drink:
+`read` and `drink` are `unknown`. It sets `light` on a thing only while it gives light,
+so a lamp that is off has `light` `no`; `lamp` is `yes` for a thing with `light` and
+`unknown` for any other.
+
+A ZIL story numbers its own attributes. Every part is `unknown` unless a game pack of
+version 5 or later is in force (section 12.13), and then each part is `unknown` unless
+the pack names the attribute it is read from.
+
+`uses` says what the story file marks. It does not say that a command will succeed:
+the game may refuse to open a thing that is locked, or to light a lamp that is spent.
 
 ## 8. `exits`
 
@@ -887,7 +920,7 @@ line missing or out of place. A pack is never applied in part.
 
 | Key | Value | Times |
 | --- | --- | --- |
-| `pack` | `1`, `2`, `3` or `4`, the version of this format | once |
+| `pack` | `1`, `2`, `3`, `4` or `5`, the version of this format | once |
 | `sha256` | 64 of the characters `0` to `9` and `a` to `f` | once |
 | `release` | a decimal number, 0 to 65535 | once |
 | `serial` | six characters, each a letter or a digit | once |
@@ -1040,6 +1073,11 @@ From version 0.4.0 to 0.5.0:
   on a copy, and what such a trial must leave untouched. No query, field or rule of the
   interface changes.
 
+From version 0.6.0 to 0.7.0:
+
+- An entry of `inventory` has one more field, `uses` (section 7.4).
+- The pack format has a version 5, with eight more keys (section 12.13).
+
 From version 0.5.0 to 0.6.0:
 
 - An entry of `inventory` has one more field, `words` (section 7.3).
@@ -1122,4 +1160,38 @@ in this story file, property P of an object holds the dictionary words that name
 With it in force, `inventory`'s `words` (section 7.3) are read from property P and the
 property is not searched for. It changes nothing else about any answer, and it does not
 change an entry's `source`: `words` is not one of the fields `source` speaks for.
+
+### 12.13 What things are for
+
+A pack of version 5 may hold any of these keys, each once, each an attribute number
+from 0 to 31. Each says that, in this story file, the attribute is set on a thing of
+the kind named.
+
+| Key | The attribute is set on |
+| --- | --- |
+| `holds-attribute` | A thing that holds other things |
+| `surface-attribute` | A thing that holds other things on it, and is not opened |
+| `read-attribute` | A thing that is read |
+| `food-attribute` | A thing that is eaten |
+| `drink-attribute` | A thing that is drunk |
+| `switch-attribute` | A light that is turned on and off |
+| `flame-attribute` | A light that burns, and is lit with something burning |
+| `wear-attribute` | A thing that is worn |
+
+With a pack of version 5 in force, the parts of `uses` (section 7.4) are:
+
+- `container` and `opens`: `yes` for a thing with the holds attribute and without the
+  surface attribute, `no` for any other; `unknown` if `holds-attribute` is not given.
+- `open`: by `open-attribute` (section 12.3); `unknown` if it is not given.
+- `switch`: `yes` for a thing with the switch attribute and without the flame
+  attribute; `unknown` if `switch-attribute` is not given.
+- `on` and `light`: by `lit-attribute` (section 12.9); `unknown` if it is not given.
+- `lamp`: `yes` for a thing with the switch attribute, a flame or not; `unknown` if
+  `switch-attribute` is not given.
+- `read`, `eat`, `drink`, `wear`: by their keys; `unknown` where the key is not given.
+
+A pack of an earlier version says nothing of what things are for: with it in force
+every part of `uses` is `unknown`, whatever else it holds.
+
+These keys change nothing else about any answer, and do not change an entry's `source`.
 

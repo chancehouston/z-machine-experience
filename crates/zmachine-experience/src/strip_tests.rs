@@ -8,6 +8,7 @@ use zmachine_introspect::{Answer, Carried, ContainerState, Exactness, Source, Tr
 fn item(name: &str, seen: Tri, state: Option<ContainerState>, contents: Vec<Carried>) -> Carried {
     Carried {
         words: Ok(vec![name.to_string()]),
+        uses: zmachine_introspect::Uses::UNKNOWN,
         object: 1,
         name: Ok(name.to_string()),
         worn: Tri::Unknown,

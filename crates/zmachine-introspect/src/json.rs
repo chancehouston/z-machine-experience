@@ -211,6 +211,27 @@ impl Json for Location {
     }
 }
 
+impl Json for crate::Uses {
+    fn write_json(&self, out: &mut String) {
+        object(
+            out,
+            &[
+                ("container", &self.container),
+                ("opens", &self.opens),
+                ("open", &self.open),
+                ("switch", &self.switch),
+                ("on", &self.on),
+                ("read", &self.read),
+                ("eat", &self.eat),
+                ("drink", &self.drink),
+                ("wear", &self.wear),
+                ("light", &self.light),
+                ("lamp", &self.lamp),
+            ],
+        );
+    }
+}
+
 impl Json for Carried {
     fn write_json(&self, out: &mut String) {
         object(
@@ -223,6 +244,7 @@ impl Json for Carried {
                 ("seen", &self.seen),
                 ("source", &self.source),
                 ("words", &self.words),
+                ("uses", &self.uses),
                 ("contents", &self.contents),
             ],
         );
