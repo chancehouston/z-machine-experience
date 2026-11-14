@@ -49,8 +49,8 @@ model: model names differ from one version to the next.
 | `Lamplight/Snapshot.swift` | The snapshot's fields, decoded from the layer's JSON |
 | `Lamplight/Game.swift` | What is on screen: the turns so far and the newest snapshot |
 | `Lamplight/GameView.swift` | The screen: status, the map's band, what is carried, transcript, field, end states |
-| `Lamplight/MapBand.swift` | The map as shown above the reply: the sheet about the player's place, and a control for each way out |
-| `Lamplight/MapDrawing.swift` | How places, lines, stubs and each way's state are drawn |
+| `Lamplight/MapBand.swift` | The map as a band above the reply and opened out to the sheet: the control for each way out, the drag, opening and closing |
+| `Lamplight/MapDrawing.swift` | How places, lines, stubs, the lamp and each way's state are drawn, and the pencil's hand |
 | `Lamplight/MapLayout.swift` | How far apart positions are, where a way's control sits, and its symbol; the only file with direction words |
 | `Lamplight/AboutView.swift` | The About sheet |
 | `Lamplight/KeptFile.swift` | Where the game in progress is kept on the device; it holds the layer's bytes and does not read them |
@@ -70,8 +70,18 @@ states and spoken labels the compass had.
 - **A way names where it leads only once it has been walked.** Until then its control
   says "North", not "North, to Forest Path".
 - **A way the layer does not offer is not drawn.** The compass drew it as a faint dot.
-- **A place seen only in the dark shows no way out**, since none has been seen there;
-  the way back is typed.
+- **A place seen only in the dark shows only the way back**: a way the layer says
+  leads to a place the player walked there from. No other way has been seen there.
+- **Opened out**, by the button at the map's corner or by pulling the band down, the
+  sheet has the transcript's room as well, the keyboard goes down, and the sheet can
+  be dragged as far as its outermost places. A way can be walked from there. The
+  button, or a touch on the command field, brings the band and the keyboard back.
+- **Drawn as by hand.** A place's outline is a little uneven, worked out from the
+  place's id so that it is the same each time; lines bow slightly. A new place and
+  its line are drawn in over a quarter of a second and the view glides to the
+  player's place; with Reduce Motion both happen at once.
+- **The marker is a lamp** at the corner of the player's place: lit, out where the
+  layer reports the place dark, or plain where the layer cannot say.
 - **The keyboard is up** whenever the game waits for a line. It goes down only when
   the player scrolls back through the transcript, and comes up again when they touch
   the field or send. What is carried, and the note of darkness, sit under the band and
@@ -82,11 +92,12 @@ states and spoken labels the compass had.
   (`zmx_session_tap_way`), and comes back as a tapped command in the transcript.
 
 Identifiers for tests: `map` (the band; its label is the layer's summary),
-`map.frame`, `map.here`, `map.place.<id>`, `map.note`, `compass.<way>` and
-`compass.extra.<n>` for the ways (kept from the compass), `transcript.more`.
-
-Opening the band out to the whole sheet, and the hand-drawn look, are the feature's
-third stage and are not built.
+`map.frame`, `map.here`, `map.place.<id>`, `map.note`, `map.lamp` (its value is the
+layer's word), `button.openMap`, `button.closeMap`, `compass.<way>` and
+`compass.extra.<n>` for the ways (kept from the compass), `transcript.more`. With the
+launch argument `-showMapHand` there are also `map.outline.<id>` (the numbers a
+place's outline is drawn from) and `map.motion` (`full` or `reduced`); `-reduceMotion`
+draws the map as the system's Reduce Motion does.
 
 ## The kept game
 

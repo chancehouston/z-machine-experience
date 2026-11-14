@@ -95,8 +95,10 @@ What the first demo does today:
   The app draws the sheet the player is on in a band above the game's reply, with a
   control for each way out of their place. Along Zork I's walkthrough the page has 83
   places on 11 sheets, with 57 of its 60 joins straight; the recorded pages are in
-  `stories/zork1/map/` and `stories/advent/map/`. Opening the band out to the whole
-  sheet, and a hand-drawn look, are still to come.
+  `stories/zork1/map/` and `stories/advent/map/`. The band opens out to the whole
+  sheet, which can be dragged about; places and lines are drawn as by a pencil,
+  each place the same each time; and the player's place carries a lamp that is out
+  in the dark.
 - **The keyboard stays up.** It is there whenever the game waits for a line, and goes
   down only when the player scrolls back through the transcript.
 - **The app holds no rule of any game.** It draws what the experience layer reports and

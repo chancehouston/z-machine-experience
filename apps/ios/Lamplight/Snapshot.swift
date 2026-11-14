@@ -114,6 +114,9 @@ struct MapLine: Decodable, Sendable, Equatable {
     let back: String?
     let kind: String
     let label: String?
+
+    /// What tells one line of a sheet from another.
+    var key: String { "\(a)-\(b)-\(kind)" }
 }
 
 struct MapLead: Decodable, Sendable, Equatable {

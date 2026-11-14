@@ -293,8 +293,8 @@ fn adventure_along_its_walkthrough() {
     assert!(got.largest <= 30, "{}", got.largest);
 }
 
-// SC-005: on Zork I a place entered only in the dark has no name and no ways
-// until it is stood in lit, and does not move when it is.
+// SC-005: on Zork I a place entered only in the dark has no name, and no way
+// but the way back, until it is stood in lit; and does not move when it is.
 #[test]
 fn the_attic_has_no_name_until_it_is_seen_lit() {
     let mut s = zork();
@@ -307,7 +307,13 @@ fn the_attic_has_no_name_until_it_is_seen_lit() {
     let here = view.here.expect("the player is somewhere");
     assert_eq!(view.lamp.as_str(), "out");
     assert!(view.places.iter().any(|p| p.id == here && p.name.is_none()));
-    assert!(view.ways.is_empty());
+    // W§12a: only the way back to the Kitchen, which the player walked from.
+    let ways: Vec<(&str, Option<&str>)> = view
+        .ways
+        .iter()
+        .map(|way| (way.way.as_str(), way.leads_to.as_deref()))
+        .collect();
+    assert_eq!(ways, [("down", None)]);
     assert_eq!(view.spoken, "Map. You are somewhere dark.");
     assert!(place_named(s.map(), "Attic").is_none());
     let dark_at = s.map().position(here);

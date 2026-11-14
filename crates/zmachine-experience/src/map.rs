@@ -112,6 +112,17 @@ struct Spot {
     ways: Option<Vec<Seen>>,
     /// Ways found to lead back here (W§16).
     returns: Vec<Step>,
+    /// While the place has been seen only in the dark: the ways the layer
+    /// says lead to a place the player walked here from (W§12a).
+    back: Vec<Seen>,
+}
+
+impl Spot {
+    /// The ways that may be offered here: those seen, or in the dark the
+    /// ways back.
+    fn offered(&self) -> &[Seen] {
+        self.ways.as_deref().unwrap_or(&self.back)
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -349,7 +360,12 @@ impl Map {
         let command = self.pending.take();
         let jumped = std::mem::take(&mut self.jumped);
         self.dark = seen.dark;
-        self.ways_note = (!seen.compass.known).then_some(seen.compass.note).flatten();
+        // S§8: that the ways are not known; or that there are none, which is
+        // not told of a place in the dark.
+        self.ways_note = seen
+            .compass
+            .note
+            .filter(|_| !seen.compass.known || seen.dark != Some(true));
         let Some((id, name)) = seen.room else {
             // W§13: nothing is added, and the next arrival is joined to
             // nothing.
@@ -376,22 +392,55 @@ impl Map {
                 }
             }
         }
-        if lit && let Some(spot) = self.places.get_mut(&id) {
-            if name.is_some() {
-                spot.name = name;
+        let back = if lit {
+            Vec::new()
+        } else {
+            self.ways_back(id, seen.compass)
+        };
+        if let Some(spot) = self.places.get_mut(&id) {
+            if lit {
+                if name.is_some() {
+                    spot.name = name;
+                }
+                spot.ways = Some(ways_of(seen.compass));
             }
-            spot.ways = Some(ways_of(seen.compass));
+            spot.back = back;
         }
         self.here = Some(id);
         self.last = Some(id);
         self.shown = self.places[&id].sheet;
     }
 
+    /// W§12a: the ways out of `id` that the layer says lead to a place the
+    /// player has walked between and here. They are open ways only: what is
+    /// behind a door, or may be blocked, is not told in the dark.
+    fn ways_back(&self, id: u16, compass: &Compass) -> Vec<Seen> {
+        let joined: Vec<&str> = self
+            .lines
+            .iter()
+            .filter_map(|line| match (line.a == id, line.b == id) {
+                (true, false) => Some(line.b),
+                (false, true) => Some(line.a),
+                _ => None,
+            })
+            .filter_map(|other| self.places[&other].name.as_deref())
+            .collect();
+        ways_of(compass)
+            .into_iter()
+            .filter(|way| way.state == PlaceState::Open)
+            .filter(|way| {
+                way.said
+                    .as_deref()
+                    .is_some_and(|said| joined.contains(&said))
+            })
+            .collect()
+    }
+
     /// How the move from `from` by `command` is to be recorded, given the
     /// name of the place reached.
     fn step_taken(&self, from: u16, command: &str, reached: Option<&str>) -> Step {
         let lower = command.to_ascii_lowercase();
-        let ways = self.places[&from].ways.as_deref().unwrap_or(&[]);
+        let ways = self.places[&from].offered();
         // A way the place offered, by the line that walks it.
         let offered = ways
             .iter()
@@ -439,6 +488,7 @@ impl Map {
             by_word: false,
             ways: None,
             returns: Vec::new(),
+            back: Vec::new(),
         };
         match step {
             Step::Way(Place::Up | Place::Down) => {
@@ -516,6 +566,7 @@ impl Map {
             by_word: self.sheets.len() > 1,
             ways: None,
             returns: Vec::new(),
+            back: Vec::new(),
         };
         self.places.insert(id, spot);
         self.order.push(id);
@@ -888,7 +939,7 @@ impl Map {
     /// compass's order and then the extras, and those tried and refused.
     fn ways(&self, id: u16) -> Vec<WayView> {
         let spot = &self.places[&id];
-        let seen = spot.ways.as_deref().unwrap_or(&[]);
+        let seen = spot.offered();
         let refused = |step: &Step| {
             self.refusals
                 .iter()

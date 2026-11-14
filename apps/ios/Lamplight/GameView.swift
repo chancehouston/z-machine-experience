@@ -11,6 +11,9 @@ struct GameView: View {
     /// waits for a line, and gives it up only when the player scrolls back
     /// through the transcript; touching the field or sending takes it again.
     @State private var typing = true
+    /// Whether the map is opened out to the whole sheet, in the room of the
+    /// band and the transcript, with the keyboard down (contract A§8).
+    @State private var mapOpen = false
     /// Lines typed and not yet sent: one is sent at a time, in order.
     @State private var waitingLines: [String] = []
     @State private var sending = false
@@ -51,7 +54,12 @@ struct GameView: View {
                     // with a control for each way out. Where the layer has no
                     // map for the game there is no band.
                     if let map = showing.map {
-                        MapBand(map: map, ready: !game.busy) { index in
+                        MapBand(map: map, ready: !game.busy, open: mapOpen) { open in
+                            // Opening the map out puts the keyboard down;
+                            // bringing the band back raises it.
+                            mapOpen = open
+                            typing = !open
+                        } tapWay: { index in
                             Task { await game.tap(way: index) }
                         }
                     }
@@ -75,8 +83,10 @@ struct GameView: View {
                     }
                     .padding(.leading, showing.light.note == nil ? 0 : 12)
                     Divider()
-                    TranscriptView(turns: game.turns, keyboardUp: typing)
-                    Divider()
+                    if !mapOpen || showing.map == nil {
+                        TranscriptView(turns: game.turns, keyboardUp: typing)
+                        Divider()
+                    }
                     // The layer's words to show once: an earlier game that
                     // could not be brought back, or a place that is not kept.
                     if let notice = showing.notice {
@@ -90,6 +100,12 @@ struct GameView: View {
                     }
                     bottomBar(showing)
                 }
+            }
+        }
+        // Touching the command field brings the band back.
+        .onChange(of: typing) {
+            if typing {
+                mapOpen = false
             }
         }
         .task { await game.start() }

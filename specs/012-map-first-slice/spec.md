@@ -231,7 +231,8 @@ has its name and its ways, in the same position.
 
 1. **Given** the player is in a place the layer reports dark, and has never stood in
    it lit, **When** it is drawn, **Then** it has no name and no stubs: only its
-   position and the line they came by.
+   position and the line they came by. The way back along that line is offered
+   to touch (FR-016a).
 2. **Given** such a place, **When** the player stands in it lit, **Then** its name
    and stubs appear, and it has not moved.
 3. **Given** a game where the layer cannot say whether a place is lit, **Then** the
@@ -409,6 +410,14 @@ open it: the map is the same, each place where it was.
 - **FR-016**: A place's name and stubs MUST be shown only once the player has stood
   in it while the layer did not report it dark. Until then it is drawn as a place
   with no name and no stubs.
+- **FR-016a**: In a place seen only in the dark, the map MUST offer a way when the
+  layer reports it an open way that leads to a place the player walked here from,
+  and MUST offer no other. Where it leads is not named until it is walked.
+  (Added 2026-11-14: the owner's ruling after trying stage 2 on a phone, "Offer
+  the way back". The compass of feature 008 offered every way in the dark.)
+- **FR-016b**: Where the layer knows the ways of a lit place and there are none,
+  the map MUST show the layer's words for that ("No exits here"). (Added
+  2026-11-14 by the owner's ruling, "Bring it back".)
 - **FR-017**: Each stub MUST show the state the layer gave that way when the player
   last stood in the place: open, uncertain, a door open, a door closed, not known.
   The mark for a way that leads into the dark is kept.
@@ -525,8 +534,8 @@ open it: the map is the same, each place where it was.
 - **SC-004**: Zork I's walkthrough gives at most twelve sheets and Adventure's at most
   eight (the spike gave eleven and seven), and no sheet holds more than thirty
   places.
-- **SC-005**: On Zork I, a place entered only in the dark shows no name and no ways,
-  at every turn until it is stood in lit.
+- **SC-005**: On Zork I, a place entered only in the dark shows no name, and no way
+  but the way back (FR-016a), at every turn until it is stood in lit.
 - **SC-006**: Every state the compass's tests expected at each place they visit is
   the state the map shows there, and every spoken label is the same but for the name
   of a place not yet walked to.
