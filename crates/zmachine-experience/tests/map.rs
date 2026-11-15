@@ -749,3 +749,265 @@ fn every_sheet_of_zorks_map_can_be_had() {
 fn every_sheet_of_adventures_map_can_be_had() {
     assert_eq!(every_sheet_can_be_had(advent(), &walkthrough("advent")), 7);
 }
+
+// ---------------------------------------------------------------------------
+// Feature 016: the sheet redrawn around the player
+// (specs/016-map-untangle/contracts/untangle.md, cited R§ and K§)
+// ---------------------------------------------------------------------------
+
+/// A wander through Zork I with a redraw asked for every `every` moves.
+fn wander_redrawing(
+    mut session: Session,
+    seed: u32,
+    moves: usize,
+    every: usize,
+) -> (Session, usize) {
+    let mut state = seed;
+    let mut redrawn = 0;
+    for made in 1..=moves {
+        let ways: Vec<String> = session
+            .map()
+            .view()
+            .map(|view| {
+                view.ways
+                    .into_iter()
+                    .filter_map(|way| way.command)
+                    .collect()
+            })
+            .unwrap_or_default();
+        state = state.wrapping_mul(1_103_515_245).wrapping_add(12345);
+        let line = match ways.len() {
+            0 => "look".to_string(),
+            n => ways[(state >> 16) as usize % n].clone(),
+        };
+        if session.send_line(session.stamp(), &line).is_err() {
+            break;
+        }
+        if made % every == 0 && session.redraw_map(session.stamp()).is_ok() {
+            redrawn += 1;
+        }
+    }
+    (session, redrawn)
+}
+
+/// A kept game's bytes with its lines changed by `change`, and its check
+/// made again so that only the lines differ.
+fn with_lines(kept: &[u8], change: impl FnOnce(&mut Vec<String>)) -> Vec<u8> {
+    let text = String::from_utf8(kept.to_vec()).unwrap();
+    let mut lines: Vec<String> = text.lines().map(str::to_string).collect();
+    lines.pop();
+    change(&mut lines);
+    let body = format!("{}\n", lines.join("\n"));
+    let check = zmachine_introspect::pack::sha256_hex(body.as_bytes());
+    format!("{body}check {check}\n").into_bytes()
+}
+
+// R§10, and the refusals: a redraw sends nothing and adds no turn; it is
+// refused for a turn that has passed and where there is nothing to redraw.
+#[test]
+fn a_redraw_sends_the_game_nothing() {
+    let mut s = zork();
+    assert_eq!(s.map().view().unwrap().redraw, None);
+    assert_eq!(s.redraw_map(s.stamp()), Err(Refused::NotOffered));
+    say(&mut s, "north");
+    assert!(s.map().view().unwrap().redraw.is_some());
+    let (turns, stamp, moves) = (
+        s.turns().len(),
+        s.stamp(),
+        s.status().and_then(|st| st.moves),
+    );
+    let mut stale = stamp;
+    stale.turn_count -= 1;
+    assert_eq!(s.redraw_map(stale), Err(Refused::Stale));
+    assert_eq!(s.redraw_map(stamp), Ok(()));
+    assert_eq!(s.turns().len(), turns);
+    assert_eq!(s.stamp(), stamp);
+    assert_eq!(s.status().and_then(|st| st.moves), moves);
+    // At a question there is none.
+    say(&mut s, "quit");
+    assert_eq!(s.redraw_map(s.stamp()), Err(Refused::NotOffered));
+}
+
+// K§1, K§2; SC-003: a game with redraws at several turns is kept in form 2 and
+// comes back with the map it was left with, every time.
+#[test]
+fn a_redrawn_map_comes_back_as_it_was_left() {
+    let story = read("stories/zork1/zork1.z3");
+    let pack = read_text("packs/zork1.pack");
+    let (s, redrawn) = wander_redrawing(zork(), 1, 120, 30);
+    assert_eq!(redrawn, 4);
+    let kept = s.kept();
+    assert!(kept.starts_with(b"lamplight-kept 2\n"));
+    let lines = String::from_utf8(kept.clone()).unwrap();
+    assert!(
+        lines.lines().filter(|l| *l == "redraw").count() >= 1,
+        "{lines}"
+    );
+    // A wander with no redraw differs: the redraws did move places.
+    let plain = wander(zork(), 1, 120).0;
+    assert!(plain.kept().starts_with(b"lamplight-kept 1\n"));
+    assert_ne!(plain.map().page(), s.map().page());
+    for _ in 0..100 {
+        let (brought, outcome) =
+            Session::open_kept(story.clone(), Some(&pack), Seed::Fresh(5), Some(&kept)).unwrap();
+        assert_eq!(outcome, Outcome::BroughtBack);
+        assert_eq!(brought.map().page(), s.map().page());
+        assert_eq!(brought.map().view(), s.map().view());
+        assert_eq!(brought.kept(), kept);
+    }
+}
+
+// K§2: a redraw belongs where it was made. Moved one input later in the
+// kept game, the map that comes back is another.
+#[test]
+fn a_redraw_one_input_late_gives_another_map() {
+    let story = read("stories/zork1/zork1.z3");
+    let pack = read_text("packs/zork1.pack");
+    let (s, _) = wander_redrawing(zork(), 1, 120, 30);
+    let mut differed = 0;
+    let redraws = String::from_utf8(s.kept())
+        .unwrap()
+        .lines()
+        .filter(|l| *l == "redraw")
+        .count();
+    for which in 0..redraws {
+        let late = with_lines(&s.kept(), |lines| {
+            let at = lines
+                .iter()
+                .enumerate()
+                .filter(|(_, l)| *l == "redraw")
+                .nth(which)
+                .unwrap()
+                .0;
+            if at + 1 < lines.len() {
+                lines.swap(at, at + 1);
+            }
+        });
+        let (brought, outcome) =
+            Session::open_kept(story.clone(), Some(&pack), Seed::Fresh(5), Some(&late)).unwrap();
+        if outcome == Outcome::BroughtBack && brought.map().page() != s.map().page() {
+            differed += 1;
+        }
+    }
+    assert!(differed > 0, "moving a redraw never changed the map");
+}
+
+// K§4: a redraw where none can be made is no kept game of this story.
+#[test]
+fn a_redraw_that_cannot_be_made_is_not_brought_back() {
+    let story = read("stories/zork1/zork1.z3");
+    let pack = read_text("packs/zork1.pack");
+    let mut s = zork();
+    say(&mut s, "north");
+    // Before the first input the map has one place.
+    let bad = with_lines(&s.kept(), |lines| {
+        lines[0] = "lamplight-kept 2".to_string();
+        let first = lines.iter().position(|l| l.starts_with("typed ")).unwrap();
+        lines.insert(first, "redraw".to_string());
+    });
+    let (_, outcome) = Session::open_kept(story, Some(&pack), Seed::Fresh(5), Some(&bad)).unwrap();
+    assert_eq!(outcome, Outcome::CouldNot);
+}
+
+/// Of the joins of the place the player is in: how many are straight, and
+/// how many there are; and how many joins of the whole sheet are bent.
+fn clarity(session: &Session) -> (usize, usize, usize) {
+    let view = session.map().view().unwrap();
+    let here = view.here.unwrap();
+    let compass = |l: &&zmachine_experience::map::LineView| {
+        matches!(l.kind, LineKind::Straight | LineKind::Bent)
+    };
+    let own: Vec<_> = view
+        .lines
+        .iter()
+        .filter(compass)
+        .filter(|l| l.a == here || l.b == here)
+        .collect();
+    (
+        own.iter().filter(|l| l.kind == LineKind::Straight).count(),
+        own.len(),
+        view.lines
+            .iter()
+            .filter(|l| l.kind == LineKind::Bent)
+            .count(),
+    )
+}
+
+// SC-001, SC-002: along a wander through Zork I, at every tenth move a copy
+// of the game is redrawn around the room the player is in. The room's own
+// joins are never fewer straight than they were; in at least four cases of
+// five every one of them is straight; and the sheet has no more bent joins
+// than it had. The figures are printed.
+#[test]
+fn a_redraw_makes_the_players_room_clear() {
+    let story = read("stories/zork1/zork1.z3");
+    let pack = read_text("packs/zork1.pack");
+    let mut session = zork();
+    let mut state = 1u32;
+    let (mut cases, mut clear_before, mut clear_after) = (0, 0, 0);
+    let (mut bent_before, mut bent_after, mut worse) = (0, 0, 0);
+    for made in 1..=400 {
+        let ways: Vec<String> = session
+            .map()
+            .view()
+            .map(|view| {
+                view.ways
+                    .into_iter()
+                    .filter_map(|way| way.command)
+                    .collect()
+            })
+            .unwrap_or_default();
+        state = state.wrapping_mul(1_103_515_245).wrapping_add(12345);
+        let line = match ways.len() {
+            0 => "look".to_string(),
+            n => ways[(state >> 16) as usize % n].clone(),
+        };
+        if session.send_line(session.stamp(), &line).is_err() {
+            break;
+        }
+        if made % 10 != 0 || session.map().view().is_none_or(|v| v.redraw.is_none()) {
+            continue;
+        }
+        let (mut copy, _) = Session::open_kept(
+            story.clone(),
+            Some(&pack),
+            Seed::Fresh(5),
+            Some(&session.kept()),
+        )
+        .unwrap();
+        let (straight, own, bent) = clarity(&copy);
+        if own == 0 {
+            continue;
+        }
+        let here = copy
+            .map()
+            .position(copy.map().view().unwrap().here.unwrap());
+        copy.redraw_map(copy.stamp()).unwrap();
+        assert_eq!(
+            copy.map()
+                .position(copy.map().view().unwrap().here.unwrap()),
+            here,
+            "the player's place moved at move {made}"
+        );
+        let (straight_after, own_after, bent_now) = clarity(&copy);
+        assert_eq!(own_after, own);
+        assert!(
+            straight_after >= straight,
+            "move {made}: {straight} of {own} straight before, {straight_after} after"
+        );
+        cases += 1;
+        clear_before += usize::from(straight == own);
+        clear_after += usize::from(straight_after == own);
+        bent_before += bent;
+        bent_after += bent_now;
+        worse += usize::from(bent_now > bent);
+    }
+    println!(
+        "redraw on a wander: {cases} cases; the room's own joins all straight in {clear_before} before \
+         and {clear_after} after; bent joins on the sheet, summed, {bent_before} before and \
+         {bent_after} after; the sheet had more bent joins after in {worse} cases"
+    );
+    assert!(cases >= 20, "{cases}");
+    assert!(clear_after * 5 >= cases * 4, "{clear_after} of {cases}");
+    assert_eq!(worse, 0);
+}

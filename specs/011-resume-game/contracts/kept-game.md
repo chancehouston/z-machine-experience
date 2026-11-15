@@ -20,6 +20,10 @@ check 77d0…(64 hex digits)
 ```
 
 - **K§1** Line 1 is `lamplight-kept ` and the form's number. This contract is form 1.
+  (Feature 016 added form 2: as form 1, and among the input lines a line `redraw`
+  for each redraw of the map the player asked for, standing after the inputs
+  answered before it. A kept game with no redraw is still written as form 1. A
+  reader takes both. See `specs/016-map-untangle/contracts/untangle.md`, part K.)
 - **K§2** `story` is the SHA-256 of the story file, lower-case hex.
 - **K§3** `chance` is `fixed` or `fresh` and a number from 0 to 4294967295; for
   `fixed`, at most 2147483647.

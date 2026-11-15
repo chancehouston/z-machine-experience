@@ -78,6 +78,14 @@ states and spoken labels the compass had.
   sheet has the transcript's room as well, the keyboard goes down, and the sheet can
   be dragged as far as its outermost places. A way can be walked from there. The
   button, or a touch on the command field, brings the band and the keyboard back.
+- **Redrawing the map around you** (`specs/016-map-untangle/`). A control at the
+  map's lower left (`button.map.redraw`, its words the layer's) has the layer lay
+  the player's sheet out again around the place they are in: that place stays,
+  the places it joins go exactly where the ways walked say, and the rest are
+  placed outward and tidied. Places and their lines glide to where they now are;
+  with Reduce Motion they are there at once. It sends the game nothing and adds
+  no turn (`zmx_session_redraw_map`), and it is kept with the game, so the sheet
+  comes back as it was left. Between presses no place moves.
 - **The other sheets** (`specs/015-map-sheets/`). Opened out, the map says which
   sheet is shown ("Sheet 2 of 11 · Cellar", the layer's words) and can be turned
   to any other: by a touch on a way that leaves the sheet, which turns to the

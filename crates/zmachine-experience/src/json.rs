@@ -408,6 +408,9 @@ pub(crate) fn map(out: &mut String, view: &MapView) {
             None => out.push_str("null"),
         }
     }
+    // specs/016-map-untangle/contracts/untangle.md, S§1.
+    key(out, "redraw");
+    optional_text(out, view.redraw);
     out.push('}');
 }
 

@@ -15,6 +15,7 @@ mod light;
 pub mod lookahead;
 pub mod map;
 mod map_place;
+mod map_redraw;
 mod strip;
 mod transcript;
 mod verbs;
@@ -35,6 +36,8 @@ mod light_tests;
 mod lookahead_tests;
 #[cfg(test)]
 mod map_place_tests;
+#[cfg(test)]
+mod map_redraw_tests;
 #[cfg(test)]
 mod map_tests;
 #[cfg(test)]
@@ -206,6 +209,9 @@ pub struct Session {
     examine_word: Option<String>,
     /// The commands the card's actions send.
     acts: verbs::Acts,
+    /// The redraws of the map the player has asked for in this game, each
+    /// as the count of inputs answered before it (feature 016).
+    redraws: Vec<usize>,
     /// How many characters of a word the story's dictionary keeps.
     kept_chars: usize,
 }
@@ -295,6 +301,7 @@ impl Session {
             look_word: None,
             examine_word: None,
             acts: verbs::Acts::default(),
+            redraws: Vec::new(),
             kept_chars: 9,
         };
         // The story's word for looking is found once: its dictionary does
@@ -374,13 +381,26 @@ impl Session {
             ceiling,
         )
         .ok()?;
-        for (source, line) in &kept.inputs {
+        // A redraw of the map is made again where it was made: after the
+        // inputs answered before it (specs/016-map-untangle, K§2). One that
+        // cannot be made there is not of a game this was (K§4).
+        let redraw = |session: &mut Session, answered: usize| {
+            for _ in kept.redraws.iter().filter(|at| **at == answered) {
+                session.map.view().and_then(|view| view.redraw)?;
+                session.map.redraw();
+                session.redraws.push(answered);
+            }
+            Some(())
+        };
+        for (answered, (source, line)) in kept.inputs.iter().enumerate() {
+            redraw(&mut session, answered)?;
             // Each kept input was answered by a game that was waiting.
             if !matches!(session.waiting, Waiting::Command | Waiting::Answer) {
                 return None;
             }
             session.give(line, *source);
         }
+        redraw(&mut session, count)?;
         session.ceiling = INSTRUCTION_CEILING;
         if session.waiting == Waiting::Fault || session.answered != count {
             return None;
@@ -402,6 +422,7 @@ impl Session {
             chance: self.chance,
             inputs,
             transcript: kept::transcript(turns.iter().map(|turn| turn.text.as_str())),
+            redraws: self.redraws.clone(),
         }
         .to_bytes()
     }
@@ -756,6 +777,24 @@ impl Session {
         Ok(())
     }
 
+    /// Lays the player's sheet of the map out again around the place they
+    /// are in (specs/016-map-untangle/contracts/untangle.md). Nothing is sent
+    /// to the game and no turn is added; the redraw is kept with the game,
+    /// so that it comes back as it was left.
+    pub fn redraw_map(&mut self, at: Stamp) -> Result<(), Refused> {
+        if at != self.stamp() {
+            return Err(Refused::Stale);
+        }
+        self.map
+            .view()
+            .and_then(|view| view.redraw)
+            .ok_or(Refused::NotOffered)?;
+        if self.map.redraw() {
+            self.redraws.push(self.answered);
+        }
+        Ok(())
+    }
+
     /// Any sheet of the map, by its number from 1: the player's own, or
     /// another to look at. Nothing is changed
     /// (specs/015-map-sheets/contracts/sheets.md, L§7).
@@ -817,6 +856,7 @@ impl Session {
         self.notice = None;
         self.keep_failed_told = false;
         self.map = self.new_map();
+        self.redraws.clear();
         self.sent = None;
         self.jumps = 0;
         match load(&self.story, seed) {

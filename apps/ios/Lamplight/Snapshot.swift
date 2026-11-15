@@ -134,6 +134,9 @@ struct MapSheet: Decodable, Sendable, Equatable {
     let before: SheetRef?
     let after: SheetRef?
     let back: SheetRef?
+    /// The layer's words for the control that redraws the sheet around the
+    /// player, where that can be asked for.
+    let redraw: String?
 }
 
 /// Another sheet of the map, to turn to: its number and the layer's words

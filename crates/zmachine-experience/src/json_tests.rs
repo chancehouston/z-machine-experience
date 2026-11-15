@@ -506,14 +506,16 @@ fn the_map_in_a_snapshot() {
         map.keys(),
         [
             "note", "spoken", "sheet", "sheets", "here", "lamp", "places", "lines", "leads",
-            "stubs", "ways", "look", "own", "label", "first", "before", "after", "back"
+            "stubs", "ways", "look", "own", "label", "first", "before", "after", "back", "redraw"
         ]
     );
     // specs/015-map-sheets/contracts/sheets.md, S§1.
     assert_eq!(map.get("own"), &J::Bool(true));
     assert_eq!(map.get("label").text(), "Sheet 1 of 1 \u{b7} West of House");
     assert_eq!(map.get("first"), map.get("here"));
-    for none in ["before", "after", "back"] {
+    // specs/016-map-untangle/contracts/untangle.md, S§1: with one place there
+    // is nothing to redraw.
+    for none in ["before", "after", "back", "redraw"] {
         assert_eq!(map.get(none), &J::Null, "{none}");
     }
     // specs/013-room-look/contracts/look.md, S§1, S§2.

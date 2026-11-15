@@ -1521,6 +1521,90 @@ final class LamplightUITests: XCTestCase {
     }
 
     // -----------------------------------------------------------------
+    // Feature 016: the sheet redrawn around the player
+    // (specs/016-map-untangle/contracts/untangle.md, cited A§).
+    // -----------------------------------------------------------------
+
+    /// A walk round three sides of the house and back across it, which
+    /// leaves West of House with a join that is not straight.
+    @MainActor
+    private func launchWithATangle() -> XCUIApplication {
+        let app = launch()
+        _ = turn(app, 0)
+        for (index, line) in ["north", "east", "south", "northwest"].enumerated() {
+            type(app, line)
+            _ = turn(app, index + 1)
+        }
+        waitForPlace(app, "West of House")
+        return app
+    }
+
+    // A§16, A§17: the map has a control that redraws it around the player.
+    // Their place does not move, other places do, no turn is added, and
+    // pressed again it changes nothing.
+    @MainActor
+    func testRedrawingTheMapAroundMe() {
+        let app = launchWithATangle()
+        let redraw = element(app, "button.map.redraw")
+        XCTAssertTrue(redraw.waitForExistence(timeout: patience))
+        XCTAssertEqual(redraw.label, "Redraw the map around here")
+        XCTAssertGreaterThanOrEqual(redraw.frame.width, 43.99)
+        XCTAssertGreaterThanOrEqual(redraw.frame.height, 43.99)
+        let here = element(app, "map.here").frame
+        let before = placeFrames(app)
+        touch(app, "button.map.redraw")
+        let moved = NSPredicate { _, _ in self.placeFrames(app) != before }
+        expectation(for: moved, evaluatedWith: nil)
+        waitForExpectations(timeout: patience)
+        XCTAssertEqual(element(app, "map.here").frame, here, "the player's place has not moved")
+        XCTAssertEqual(element(app, "map.here").label, "West of House")
+        XCTAssertTrue(noTurn(app, 5))
+        XCTAssertTrue(fieldHasTheKeyboard(app))
+        // The places are all still there.
+        let after = placeFrames(app)
+        XCTAssertEqual(Set(after.keys), Set(before.keys))
+        // Again: nothing more to do.
+        touch(app, "button.map.redraw")
+        XCTAssertTrue(noTurn(app, 5))
+        XCTAssertEqual(placeFrames(app), after)
+        // Opened out it is there too, and on another sheet it would not be.
+        touch(app, "button.openMap")
+        XCTAssertTrue(element(app, "button.closeMap").waitForExistence(timeout: patience))
+        XCTAssertTrue(redraw.exists)
+    }
+
+    // K§2: a redrawn sheet is there when the app is opened again.
+    @MainActor
+    func testARedrawnMapComesBack() {
+        let app = launchWithATangle()
+        let before = placeFrames(app)
+        touch(app, "button.map.redraw")
+        let moved = NSPredicate { _, _ in self.placeFrames(app) != before }
+        expectation(for: moved, evaluatedWith: nil)
+        waitForExpectations(timeout: patience)
+        let left = placeFrames(app)
+        relaunch(app)
+        _ = turn(app, 4)
+        XCTAssertTrue(element(app, "map.here").waitForExistence(timeout: patience))
+        XCTAssertEqual(placeFrames(app), left)
+    }
+
+    // A§16: with one place there is nothing to redraw, and at a question
+    // the control is not there.
+    @MainActor
+    func testNothingToRedraw() {
+        let app = launch()
+        _ = turn(app, 0)
+        XCTAssertFalse(element(app, "button.map.redraw").exists)
+        type(app, "north")
+        _ = turn(app, 1)
+        XCTAssertTrue(element(app, "button.map.redraw").waitForExistence(timeout: patience))
+        type(app, "quit")
+        _ = turn(app, 2)
+        XCTAssertFalse(element(app, "button.map.redraw").exists)
+    }
+
+    // -----------------------------------------------------------------
     // Feature 015: the other sheets of the map
     // (specs/015-map-sheets/contracts/sheets.md, cited A§).
     // -----------------------------------------------------------------
@@ -1585,6 +1669,8 @@ final class LamplightUITests: XCTestCase {
         waitForExpectations(timeout: patience)
         XCTAssertFalse(element(app, "map.lamp").exists)
         XCTAssertFalse(element(app, "map.here").exists)
+        XCTAssertFalse(
+            element(app, "button.map.redraw").exists, "a sheet the player is not on is not redrawn")
         let ways = app.descendants(matching: .any)
             .matching(NSPredicate(format: "identifier BEGINSWITH %@", "compass."))
         XCTAssertEqual(ways.count, 0, "no way can be walked from another sheet")

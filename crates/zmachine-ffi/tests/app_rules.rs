@@ -398,6 +398,12 @@ fn the_card_shows_the_layers_words_and_sends_nothing() {
     // whatever sheet is looked at; and no file of the map writes a word for
     // a sheet.
     assert!(engine.contains("zmx_session_sheet("));
+    // specs/016-map-untangle/contracts/untangle.md, A§19: a redraw is asked
+    // for by the engine alone, and its words are the snapshot's.
+    assert!(engine.contains("zmx_session_redraw_map("));
+    assert!(
+        source("Lamplight/MapBand.swift").contains(".accessibilityLabel(Text(verbatim: words))")
+    );
     let view = source("Lamplight/GameView.swift");
     assert!(
         view.contains("map: mapOpen ? game.looking?.sheet ?? map : map,"),

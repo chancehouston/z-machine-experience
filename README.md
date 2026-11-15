@@ -99,7 +99,10 @@ What the first demo does today:
   sheet, which can be dragged about; places and lines are drawn as by a pencil,
   each place the same each time; and the player's place carries a lamp that is out
   in the dark. Opened out, the map can be turned to any of its other sheets, by a
-  way that leaves the sheet or by arrows (`specs/015-map-sheets/`). A touch on the
+  way that leaves the sheet or by arrows (`specs/015-map-sheets/`). A sheet that
+  has tangled can be redrawn around the room the player is in, at a press
+  (`specs/016-map-untangle/`): on a wander through Zork I the player's room had
+  every join straight in 4 cases of 38 before a redraw and 34 after. A touch on the
   player's own place sends the story's word for
   looking, for the full description (`specs/013-room-look/`).
 - **A carried item can be tapped for its card** (`specs/014-inventory-card/`): the

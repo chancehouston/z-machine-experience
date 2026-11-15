@@ -69,6 +69,8 @@ struct GameView: View {
                             if !open {
                                 game.ownSheet()
                             }
+                        } redraw: {
+                            Task { await game.redrawMap() }
                         } turnSheet: { number, centre in
                             Task { await game.turn(toSheet: number, centre: centre) }
                         } tapWay: { index in

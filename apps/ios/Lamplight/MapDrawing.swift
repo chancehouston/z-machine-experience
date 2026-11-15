@@ -97,8 +97,44 @@ struct PencilBox: Shape {
 
 /// A line that is drawn in from its start when it first appears, over a
 /// quarter of a second; at once where the map is to be still (FR-029).
-private struct DrawnIn: View {
-    let path: Path
+/// A join between two places: a slightly bowed line, or for a join that
+/// cannot lie along its way a curve that leaves each end the way it was
+/// walked. Its two ends are what is animated when its places move.
+struct JoinShape: Shape {
+    var from: CGPoint
+    var to: CGPoint
+    let seed: Int
+    let bow: CGFloat
+    let bent: Bool
+    /// For a bent join: how it leaves each end, where the way is known.
+    let out: CGVector?
+    let back: CGVector?
+
+    var animatableData: AnimatablePair<
+        AnimatablePair<CGFloat, CGFloat>, AnimatablePair<CGFloat, CGFloat>
+    > {
+        get { AnimatablePair(AnimatablePair(from.x, from.y), AnimatablePair(to.x, to.y)) }
+        set {
+            from = CGPoint(x: newValue.first.first, y: newValue.first.second)
+            to = CGPoint(x: newValue.second.first, y: newValue.second.second)
+        }
+    }
+
+    func path(in rect: CGRect) -> Path {
+        guard bent else { return MapHand.line(from: from, to: to, seed: seed, bow: bow) }
+        let middle = CGPoint(x: (from.x + to.x) / 2, y: (from.y + to.y) / 2)
+        let leave = { (end: CGPoint, by: CGVector?) in
+            by.map { CGPoint(x: end.x + $0.dx, y: end.y + $0.dy) } ?? middle
+        }
+        var path = Path()
+        path.move(to: from)
+        path.addCurve(to: to, control1: leave(from, out), control2: leave(to, back))
+        return path
+    }
+}
+
+private struct DrawnIn<S: Shape>: View {
+    let shape: S
     let color: Color
     let style: StrokeStyle
     let still: Bool
@@ -106,7 +142,7 @@ private struct DrawnIn: View {
     @State private var drawn = false
 
     var body: some View {
-        path
+        shape
             .trim(from: 0, to: drawn || still ? 1 : 0)
             .stroke(color, style: style)
             .onAppear {
@@ -231,61 +267,60 @@ struct MapDrawing: View {
             }
             .modifier(AppearingIn(still: still))
             .position(MapLayout.point(place))
+            // A place a redraw has moved glides to where it now is.
+            .animation(
+                still ? nil : .easeInOut(duration: 0.3),
+                value: [MapLayout.point(place).x, MapLayout.point(place).y])
     }
 
-    /// A line between two places of the sheet.
+    /// A line between two places of the sheet. It is a shape whose ends can
+    /// be animated, so that when a redraw moves its places it goes with them
+    /// (specs/016-map-untangle/contracts/untangle.md, A§18).
     @ViewBuilder
     private func line(_ line: MapLine) -> some View {
         if let a = place(line.a), let b = place(line.b) {
             let from = MapLayout.point(a)
             let to = MapLayout.point(b)
             let seed = line.a &* 8191 &+ line.b
-            switch line.kind {
-            case "straight":
-                DrawnIn(
-                    path: MapHand.line(from: from, to: to, seed: seed),
-                    color: pencil,
-                    style: StrokeStyle(lineWidth: 1.6, lineCap: .round),
-                    still: still)
-            case "ladder":
-                // Rungs: a mark that cannot be taken for a compass line.
-                DrawnIn(
-                    path: MapHand.line(from: from, to: to, seed: seed, bow: 0.8),
-                    color: pencil,
-                    style: StrokeStyle(lineWidth: 7, dash: [1.5, 4]),
-                    still: still)
-            case "bent":
-                // It leaves each end the way it was walked.
-                DrawnIn(
-                    path: Path { path in
-                        path.move(to: from)
-                        path.addCurve(
-                            to: to,
-                            control1: lean(from, by: line.out, toward: to),
-                            control2: lean(to, by: line.back, toward: from))
-                    },
-                    color: pencil,
-                    style: StrokeStyle(lineWidth: 1.4, lineCap: .round),
-                    still: still)
-            default:
-                DrawnIn(
-                    path: MapHand.line(from: from, to: to, seed: seed),
-                    color: .secondary,
-                    style: StrokeStyle(lineWidth: 1.4, lineCap: .round, dash: [2, 5]),
-                    still: still)
+            let join = { (bow: CGFloat, bent: Bool) in
+                JoinShape(
+                    from: from, to: to, seed: seed, bow: bow, bent: bent,
+                    out: lean(by: line.out), back: lean(by: line.back))
             }
+            Group {
+                switch line.kind {
+                case "straight":
+                    DrawnIn(
+                        shape: join(2.2, false), color: pencil,
+                        style: StrokeStyle(lineWidth: 1.6, lineCap: .round), still: still)
+                case "ladder":
+                    // Rungs: a mark that cannot be taken for a compass line.
+                    DrawnIn(
+                        shape: join(0.8, false), color: pencil,
+                        style: StrokeStyle(lineWidth: 7, dash: [1.5, 4]), still: still)
+                case "bent":
+                    // It leaves each end the way it was walked.
+                    DrawnIn(
+                        shape: join(0, true), color: pencil,
+                        style: StrokeStyle(lineWidth: 1.4, lineCap: .round), still: still)
+                default:
+                    DrawnIn(
+                        shape: join(2.2, false), color: .secondary,
+                        style: StrokeStyle(lineWidth: 1.4, lineCap: .round, dash: [2, 5]),
+                        still: still)
+                }
+            }
+            .animation(
+                still ? nil : .easeInOut(duration: 0.3), value: [from.x, from.y, to.x, to.y])
         }
     }
 
-    /// A point out from `from` in the direction of `way`, or toward `other`
-    /// where the way is not one of the compass's.
-    private func lean(_ from: CGPoint, by way: String?, toward other: CGPoint) -> CGPoint {
-        if let way, let step = MapLayout.step(for: way) {
-            return CGPoint(
-                x: from.x + step.x * MapLayout.step.width * 0.6,
-                y: from.y + step.y * MapLayout.step.height * 0.8)
-        }
-        return CGPoint(x: (from.x + other.x) / 2, y: (from.y + other.y) / 2)
+    /// How far out from a place a bent line leaves it for a way; nil where
+    /// the way is not one of the compass's.
+    private func lean(by way: String?) -> CGVector? {
+        guard let way, let step = MapLayout.step(for: way) else { return nil }
+        return CGVector(
+            dx: step.x * MapLayout.step.width * 0.6, dy: step.y * MapLayout.step.height * 0.8)
     }
 
     /// The edge of a place's box in the direction of a way, and a point a

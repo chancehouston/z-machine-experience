@@ -10,8 +10,14 @@ use zmachine_introspect::pack::sha256_hex;
 
 /// The form's first line, less its number.
 const NAME: &str = "lamplight-kept ";
-/// The form this code writes and reads.
+/// The first form: inputs only.
 const FORM: &str = "1";
+/// The second form: as the first, with redraws of the map among the inputs
+/// (specs/016-map-untangle/contracts/untangle.md, part K). A kept game with
+/// no redraw is written in the first form, as it always was.
+const FORM_WITH_REDRAWS: &str = "2";
+/// The line that stands for a redraw.
+const REDRAW: &str = "redraw";
 /// The largest fixed seed (K§3).
 const MAX_FIXED: u32 = 2_147_483_647;
 
@@ -25,6 +31,9 @@ pub(crate) struct Kept {
     pub inputs: Vec<(Source, String)>,
     /// The digest of the turns those inputs gave (K§5).
     pub transcript: String,
+    /// The redraws of the map the player asked for, each as the count of
+    /// inputs answered before it, in order.
+    pub redraws: Vec<usize>,
 }
 
 /// Why bytes are not a kept game this code reads.
@@ -66,19 +75,32 @@ fn number(text: &str) -> Option<u32> {
 
 impl Kept {
     pub fn to_bytes(&self) -> Vec<u8> {
-        let mut out = format!("{NAME}{FORM}\nstory {}\n", self.story);
+        let form = if self.redraws.is_empty() {
+            FORM
+        } else {
+            FORM_WITH_REDRAWS
+        };
+        let mut out = format!("{NAME}{form}\nstory {}\n", self.story);
         match self.chance {
             Seed::Fixed(n) => out.push_str(&format!("chance fixed {n}\n")),
             Seed::Fresh(n) => out.push_str(&format!("chance fresh {n}\n")),
         }
         out.push_str(&format!("inputs {}\n", self.inputs.len()));
         out.push_str(&format!("transcript {}\n", self.transcript));
-        for (source, text) in &self.inputs {
+        let redraws = |out: &mut String, answered: usize| {
+            for _ in self.redraws.iter().filter(|at| **at == answered) {
+                out.push_str(REDRAW);
+                out.push('\n');
+            }
+        };
+        for (answered, (source, text)) in self.inputs.iter().enumerate() {
+            redraws(&mut out, answered);
             out.push_str(source.as_str());
             out.push(' ');
             out.push_str(text);
             out.push('\n');
         }
+        redraws(&mut out, self.inputs.len());
         let check = digest(out.as_bytes());
         out.push_str(&format!("check {check}\n"));
         out.into_bytes()
@@ -104,7 +126,7 @@ impl Kept {
             .next()
             .and_then(|line| line.strip_prefix(NAME))
             .ok_or(Unread::Damaged)?;
-        if form != FORM {
+        if form != FORM && form != FORM_WITH_REDRAWS {
             return Err(Unread::OtherForm);
         }
         let mut field = |name: &str| {
@@ -128,7 +150,12 @@ impl Kept {
         .ok_or(Unread::Damaged)?;
         let count = number(count).ok_or(Unread::Damaged)? as usize;
         let mut inputs = Vec::new();
+        let mut redraws = Vec::new();
         for line in lines {
+            if line == REDRAW && form == FORM_WITH_REDRAWS {
+                redraws.push(inputs.len());
+                continue;
+            }
             let input = if let Some(text) = line.strip_prefix("typed ") {
                 (Source::Typed, text.to_string())
             } else if let Some(text) = line.strip_prefix("tap ") {
@@ -146,6 +173,7 @@ impl Kept {
             chance,
             inputs,
             transcript: transcript.to_string(),
+            redraws,
         })
     }
 }

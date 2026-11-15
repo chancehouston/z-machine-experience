@@ -17,6 +17,7 @@ fn example() -> Kept {
             (Source::Typed, String::new()),
         ],
         transcript: TEXT.to_string(),
+        redraws: Vec::new(),
     }
 }
 
@@ -154,7 +155,7 @@ fn every_departure_from_the_form_is_refused() {
 // K§1: another form is known for what it is.
 #[test]
 fn another_form_is_not_read() {
-    let body = body().replace("lamplight-kept 1", "lamplight-kept 2");
+    let body = body().replace("lamplight-kept 1", "lamplight-kept 3");
     assert_eq!(Kept::from_bytes(&sealed(&body)), Err(Unread::OtherForm));
 }
 
@@ -206,4 +207,39 @@ fn any_one_byte_altered_is_refused() {
             assert!(Kept::from_bytes(&bad).is_err(), "byte {at} xor {change}");
         }
     }
+}
+
+// Feature 016 (specs/016-map-untangle/contracts/untangle.md, K§1, K§3): a
+// redraw of the map is kept among the inputs, after those answered before
+// it; a kept game that has one is of form 2, and one that has none is
+// written exactly as form 1 was.
+#[test]
+fn a_redraw_is_kept_among_the_inputs() {
+    let mut kept = example();
+    assert!(kept.to_bytes().starts_with(b"lamplight-kept 1\n"));
+    // One before any input, two after the first, one after the last.
+    kept.redraws = vec![0, 1, 1, 3];
+    let body = format!(
+        "lamplight-kept 2\nstory {STORY}\nchance fresh 2891337402\ninputs 3\n\
+         transcript {TEXT}\nredraw\ntyped open mailbox\nredraw\nredraw\ntap north\ntyped \nredraw\n"
+    );
+    assert_eq!(kept.to_bytes(), sealed(&body));
+    assert_eq!(Kept::from_bytes(&kept.to_bytes()), Ok(kept.clone()));
+    // Form 1 is still read, and has no redraw.
+    assert_eq!(Kept::from_bytes(&example().to_bytes()), Ok(example()));
+    // A redraw in a kept game of form 1 is not that form.
+    let one = body.replace("lamplight-kept 2", "lamplight-kept 1");
+    assert_eq!(Kept::from_bytes(&sealed(&one)), Err(Unread::Damaged));
+    // A line that is nearly one is refused.
+    for wrong in ["redraw \n", "redraw 1\n", "Redraw\n"] {
+        let bad = body.replacen("redraw\n", wrong, 1);
+        assert_eq!(
+            Kept::from_bytes(&sealed(&bad)),
+            Err(Unread::Damaged),
+            "{wrong:?}"
+        );
+    }
+    // A form this code does not know.
+    let three = body.replace("lamplight-kept 2", "lamplight-kept 3");
+    assert_eq!(Kept::from_bytes(&sealed(&three)), Err(Unread::OtherForm));
 }
