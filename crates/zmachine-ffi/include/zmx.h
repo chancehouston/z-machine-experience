@@ -44,10 +44,16 @@ zmx_session *zmx_session_new_with_pack(const uint8_t *story, size_t length,
  * entropy are not used. If outcome is not NULL, *outcome is set to 0 for a new
  * game with nothing kept, 1 for a game brought back, and 2 for a new game
  * because the kept one could not be brought back; the session's snapshot then
- * carries a notice saying so. */
+ * carries a notice saying so.
+ *
+ * presentation is the text of the story's presentation file
+ * (specs/017-authored-map/contracts/presentation.md): a NUL-terminated UTF-8
+ * string, or NULL for none. It says where places of the map are drawn and
+ * nothing else. The text is read before the call returns. One that cannot be
+ * used changes nothing but the first snapshot's notice, which says so. */
 zmx_session *zmx_session_open(const uint8_t *story, size_t length,
                               uint32_t seed, int has_seed, uint32_t entropy,
-                              const char *pack,
+                              const char *pack, const char *presentation,
                               const uint8_t *kept, size_t kept_length,
                               int *outcome, char **error);
 

@@ -1195,3 +1195,183 @@ fn a_redraw_leaves_other_sheets_alone() {
     let ids: Vec<u16> = map.sheet(1).unwrap().places.iter().map(|p| p.id).collect();
     assert_eq!(ids, [10, 11]);
 }
+
+// ---------------------------------------------------------------------------
+// Feature 017: places put where a presentation file says
+// (specs/017-authored-map/contracts/presentation.md, parts M and S).
+// ---------------------------------------------------------------------------
+
+/// A map with a file made by hand: sheet 1 is named and has 10, 11 (north of
+/// 10, two steps), 13, and 20, which no test visits; sheet 2 has 12.
+fn authored() -> Map {
+    let file = crate::presentation::Presentation::parse(&format!(
+        "presentation: 1\nsha256: {}\nrelease: 1\nserial: 000000\n\
+         sheet: 1 Upstairs\nsheet: 2\n\
+         place: 10 1 5 5\nplace: 11 1 5 3\nplace: 13 1 7 5\nplace: 20 1 6 5\nplace: 12 2 0 0\n",
+        "0".repeat(64)
+    ))
+    .unwrap();
+    Map::new(true).with_presentation(Some(file))
+}
+
+fn place_of(map: &Map, id: u16) -> crate::map::PlaceView {
+    let (sheet, ..) = map.position(id).expect("a place");
+    let view = map.sheet(sheet).unwrap();
+    view.places
+        .into_iter()
+        .find(|place| place.id == id)
+        .unwrap()
+}
+
+const ATTIC: &[WayOf] = &[(Down, Open, Some("Study"))];
+
+// M§1, S§1: a place the file has is put at its sheet and position, not
+// inset, whatever way it was reached by.
+#[test]
+fn an_authored_place_is_put_where_the_file_says() {
+    // The first place of a game.
+    let mut map = authored();
+    at(&mut map, None, 10, "Hall", HALL);
+    assert_eq!(map.position(10), Some((1, 5, 5)));
+    assert!(place_of(&map, 10).authored);
+    // By a compass way: where the file says, not one step along.
+    at(
+        &mut map,
+        Some("north"),
+        11,
+        "Study",
+        &[(South, Open, Some("Hall")), (Up, Open, None)],
+    );
+    assert_eq!(map.position(11), Some((1, 5, 3)));
+    // Up: on the sheet's positions, not attached.
+    at(&mut map, Some("up"), 13, "Attic", ATTIC);
+    assert_eq!(map.position(13), Some((1, 7, 5)));
+    let attic = place_of(&map, 13);
+    assert!(attic.authored && !attic.inset && attic.attached_to.is_none());
+    // By a word: on the file's sheet for it, which is the map's second.
+    at(&mut map, Some("xyzzy"), 12, "Cave", &[]);
+    assert_eq!(map.position(12), Some((2, 0, 0)));
+    assert!(place_of(&map, 12).authored);
+
+    // After a jump: on the sheet its file's sheet already has, not a new one.
+    let mut map = authored();
+    at(&mut map, None, 10, "Hall", HALL);
+    At {
+        jumped: true,
+        ..At::room(Some("wait"), 11, "Study", STUDY)
+    }
+    .feed(&mut map);
+    assert_eq!(map.position(11), Some((1, 5, 3)));
+    assert_eq!(map.sheet_count(), 1);
+}
+
+// M§3, S§1: a place the file does not have is put by the present rules, and
+// never on a position the file gives, whether that place is drawn yet or not.
+#[test]
+fn an_unauthored_place_never_takes_an_authored_position() {
+    let mut map = authored();
+    at(&mut map, None, 10, "Hall", HALL);
+    // East of 10 is 20's position and then 13's; neither has been visited.
+    at(
+        &mut map,
+        Some("east"),
+        30,
+        "Den",
+        &[(West, Open, Some("Hall"))],
+    );
+    assert_eq!(map.position(30), Some((1, 8, 5)));
+    assert!(!place_of(&map, 30).authored);
+    // South of 10 is free: one step along, as ever.
+    at(&mut map, Some("west"), 10, "Hall", HALL);
+    at(&mut map, Some("south"), 31, "Yard", &[]);
+    assert_eq!(map.position(31), Some((1, 5, 6)));
+    // M§2: nothing is drawn that was not visited.
+    let ids: Vec<u16> = map.view().unwrap().places.iter().map(|p| p.id).collect();
+    assert_eq!(ids, [10, 30, 31]);
+}
+
+// M§4: another order of discovery, the same authored positions.
+#[test]
+fn authored_positions_do_not_depend_on_the_order_found() {
+    let mut one = authored();
+    at(&mut one, None, 10, "Hall", HALL);
+    at(&mut one, Some("north"), 11, "Study", STUDY);
+    at(&mut one, Some("south"), 10, "Hall", HALL);
+    at(&mut one, Some("east"), 13, "Attic", ATTIC);
+    let mut other = authored();
+    at(&mut other, None, 13, "Attic", ATTIC);
+    at(&mut other, Some("xyzzy"), 11, "Study", STUDY);
+    at(&mut other, Some("south"), 10, "Hall", HALL);
+    for id in [10, 11, 13] {
+        assert_eq!(one.position(id), other.position(id), "{id}");
+    }
+    assert_eq!((one.sheet_count(), other.sheet_count()), (1, 1));
+}
+
+// M§5: a sheet the file names has that name; sheets are numbered in the
+// order reached, whatever the file calls them. A way walked between two of
+// the file's sheets is a lead.
+#[test]
+fn a_named_sheet_is_labelled_with_its_name() {
+    let mut map = authored();
+    at(&mut map, None, 12, "Cave", &[(East, Open, Some("Hall"))]);
+    assert_eq!(map.view().unwrap().label, "Sheet 1 of 1 \u{b7} Cave");
+    at(&mut map, Some("east"), 10, "Hall", HALL);
+    let view = map.view().unwrap();
+    assert_eq!(map.position(10), Some((2, 5, 5)));
+    assert_eq!(view.label, "Sheet 2 of 2 \u{b7} Upstairs");
+    assert_eq!(
+        view.before.as_ref().unwrap().label,
+        "Sheet 1 of 2 \u{b7} Cave"
+    );
+    let cave = map.sheet(1).unwrap();
+    assert_eq!(
+        cave.spoken,
+        "Map. Sheet 1 of 2, Cave. You are not on this sheet."
+    );
+    assert_eq!(
+        cave.back.as_ref().unwrap().label,
+        "Sheet 2 of 2 \u{b7} Upstairs"
+    );
+    let lead = &cave.leads[0];
+    assert_eq!(
+        (lead.from, lead.way.as_str(), lead.sheet, lead.place),
+        (12, "east", 2, 10)
+    );
+    assert!(cave.lines.is_empty() && view.lines.is_empty());
+}
+
+// M§6: no redraw is offered or made on a sheet with an authored place; one
+// is on a sheet with none.
+#[test]
+fn an_authored_sheet_is_not_redrawn() {
+    let mut map = authored();
+    at(&mut map, None, 10, "Hall", HALL);
+    at(&mut map, Some("north"), 11, "Study", STUDY);
+    at(&mut map, Some("south"), 10, "Hall", HALL);
+    at(&mut map, Some("south"), 31, "Yard", &[]);
+    assert_eq!(map.view().unwrap().redraw, None);
+    let before = map.clone();
+    assert!(!map.redraw());
+    assert_eq!(map, before);
+    // A sheet reached by a word, with nothing of the file on it.
+    at(&mut map, Some("plugh"), 40, "Pit", &[(North, Open, None)]);
+    at(&mut map, Some("north"), 41, "Ledge", &[]);
+    assert_eq!(map.view().unwrap().redraw, Some(crate::map::SPOKEN_REDRAW));
+}
+
+// M§7: a map with no file is as it was: nothing is authored.
+#[test]
+fn without_a_file_nothing_is_authored() {
+    let mut map = Map::new(true).with_presentation(None);
+    at(&mut map, None, 10, "Hall", HALL);
+    at(&mut map, Some("north"), 11, "Study", STUDY);
+    assert_eq!(map.position(11), Some((1, 0, -1)));
+    assert!(
+        map.view()
+            .unwrap()
+            .places
+            .iter()
+            .all(|place| !place.authored)
+    );
+}

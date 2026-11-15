@@ -30,8 +30,9 @@ test.
   place at the same position.
 - **M§5** A sheet the file names is labelled "Sheet N of M · Name"; N and M count
   the sheets the player has reached, in the order reached.
-- **M§6** No redraw is offered or made on a sheet with an authored place; a kept
-  redraw of such a sheet is passed over when the game is brought back.
+- **M§6** No redraw is offered or made on a sheet with an authored place. With a
+  file in use, a kept redraw that is not on offer when the game is brought back is
+  passed over, and the game comes back without it.
 - **M§7** With no file, or a file refused, every position, sheet, line and label is
   what it is without one.
 - **M§8** The transcript of a game is the same with and without the file.

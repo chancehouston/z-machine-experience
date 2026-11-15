@@ -23,8 +23,12 @@
   sheet is the file's sheet for it and it sits at its authored position.
 - **R7. Redraw.** Not offered, and not made, where the player's sheet has an authored
   place. Bringing back a kept game, a `redraw` line that meets such a sheet is
-  passed over; one that cannot be made for any other reason still fails (feature
-  016, K§4).
+  passed over. Changed in building: with a file in use, any kept redraw that is not
+  on offer is passed over, not only one on an authored sheet. The map with a file is
+  not the map the redraw was made on (the game may have been kept before the file
+  existed), so a redraw of a sheet the file left alone may also have nothing to
+  redraw; failing there would lose the player's game. Without a file a redraw that
+  cannot be made still fails (feature 016, K§4).
 - **R8. Opening.** `Session::open_kept` and its kin take the file's text beside the
   pack's; `zmx_session_open` gains a pointer for it. A new game of the same session
   uses the same file.

@@ -560,6 +560,7 @@ fn a_kept_game_crosses_the_boundary_and_comes_back() {
             1,
             0,
             std::ptr::null(),
+            std::ptr::null(),
             kept.map_or(std::ptr::null(), <[u8]>::as_ptr),
             kept.map_or(0, <[u8]>::len),
             &mut outcome,
@@ -614,6 +615,7 @@ fn a_kept_game_crosses_the_boundary_and_comes_back() {
         1,
         0,
         std::ptr::null(),
+        std::ptr::null(),
         kept.as_ptr(),
         kept.len(),
         std::ptr::null_mut(),
@@ -623,6 +625,64 @@ fn a_kept_game_crosses_the_boundary_and_comes_back() {
     for session in [first, second, third, quiet] {
         zmx_session_free(session);
     }
+}
+
+// specs/017-authored-map/contracts/presentation.md, A§2, S§1, S§2: the text
+// of a presentation file is handed over when a game is opened. One that is the
+// story's puts its places; one that is not is told of in the notice.
+#[test]
+fn a_presentation_file_crosses_the_boundary() {
+    let story = story();
+    let open_with = |file: Option<&str>| {
+        let file = file.map(c);
+        let session = zmx_session_open(
+            story.as_ptr(),
+            story.len(),
+            11,
+            1,
+            0,
+            std::ptr::null(),
+            file.as_ref().map_or(std::ptr::null(), |file| file.as_ptr()),
+            std::ptr::null(),
+            0,
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+        );
+        assert!(!session.is_null());
+        let text = snapshot(session, 0);
+        // The kept game names the story by its digest.
+        let kept = zmx_session_kept(session);
+        // SAFETY: the interface returned a NUL-terminated string that it owns
+        // until zmx_string_free.
+        let digest = unsafe { CStr::from_ptr(kept) }
+            .to_str()
+            .unwrap()
+            .to_string();
+        let digest = digest.lines().nth(1).unwrap()["story ".len()..].to_string();
+        zmx_string_free(kept);
+        zmx_session_free(session);
+        (text, digest)
+    };
+    let (none, digest) = open_with(None);
+    assert!(none.contains(r#""x":0,"y":0,"inset":false"#), "{none}");
+    assert!(none.contains(r#""authored":false"#) && none.contains(r#","notice":null"#));
+    let here = none.split(r#""here":"#).nth(1).unwrap();
+    let here = &here[..here.find(',').unwrap()];
+    let file = format!(
+        "presentation: 1\nsha256: {}\nrelease: {}\nserial: {}\nsheet: 1\nplace: {here} 1 3 -2\n",
+        digest,
+        u16::from_be_bytes([story[2], story[3]]),
+        String::from_utf8(story[0x12..0x18].to_vec()).unwrap(),
+    );
+    let (with, _) = open_with(Some(&file));
+    assert!(with.contains(r#""x":3,"y":-2,"inset":false"#), "{with}");
+    assert!(with.contains(r#""authored":true"#) && with.contains(r#","notice":null"#));
+    let (refused, _) = open_with(Some(&file.replace("sheet: 1", "sheet: 0")));
+    assert!(
+        refused.contains(r#","notice":"The map's layout could not be used.","#),
+        "{refused}"
+    );
+    assert!(refused.contains(r#""x":0,"y":0,"inset":false"#));
 }
 
 // specs/016-map-untangle/contracts/untangle.md, A§17, R§10: a redraw of the

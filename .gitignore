@@ -30,5 +30,9 @@ target/
 /apps/ios/Frameworks/
 /apps/ios/Lamplight/Resources/story.z3
 /apps/ios/Lamplight/Resources/story.pack
+/apps/ios/Lamplight/Resources/story.present
 /apps/ios/Lamplight/Resources/story-license.txt
 xcuserdata/
+
+# draw.io diagrams of presentation files: they hold room names (presentations/README.md)
+/presentations/drawio/

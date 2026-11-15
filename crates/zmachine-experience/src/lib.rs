@@ -16,6 +16,7 @@ pub mod lookahead;
 pub mod map;
 mod map_place;
 mod map_redraw;
+mod presentation;
 mod strip;
 mod transcript;
 mod verbs;
@@ -41,6 +42,8 @@ mod map_redraw_tests;
 #[cfg(test)]
 mod map_tests;
 #[cfg(test)]
+mod presentation_tests;
+#[cfg(test)]
 mod strip_tests;
 #[cfg(test)]
 mod verbs_tests;
@@ -52,6 +55,9 @@ pub const NOTE_NOT_BROUGHT_BACK: &str =
     "Your earlier game could not be brought back. This is a new game.";
 /// The layer's words when a host could not keep the game.
 pub const NOTE_NOT_KEPT: &str = "Your place is not being kept.";
+/// The layer's words when a story's presentation file could not be used
+/// (specs/017-authored-map/contracts/presentation.md, S§2).
+pub const NOTE_LAYOUT_NOT_USED: &str = "The map's layout could not be used.";
 /// The layer's question before a game in progress is given up.
 pub const ASK_START_OVER: &str = "Start over? The game in progress will be given up.";
 pub use card::{Action, Card, LABEL_DROP, NOTE_NO_DESCRIPTION};
@@ -214,6 +220,11 @@ pub struct Session {
     redraws: Vec<usize>,
     /// How many characters of a word the story's dictionary keeps.
     kept_chars: usize,
+    /// The story's presentation file, where one was given and can be used:
+    /// every game of the session is drawn by it (feature 017).
+    layout: Option<presentation::Presentation>,
+    /// Whether a presentation file was given and could not be used.
+    layout_refused: bool,
 }
 
 fn load(story: &[u8], seed: Seed) -> Result<Machine, StartError> {
@@ -251,15 +262,104 @@ impl Session {
         seed: Seed,
         pack: Option<&str>,
     ) -> Result<Session, StartError> {
-        Session::start(story, seed, pack, lookahead::LIMITS, INSTRUCTION_CEILING)
+        Session::with_presentation(story, seed, pack, None)
     }
 
-    /// Loads the story file and runs it to its first stop, with these limits
-    /// in force from the first instruction.
+    /// As [`Session::with_pack`], with the text of a presentation file for
+    /// the story (the constitution's Principle VII;
+    /// specs/017-authored-map/contracts/presentation.md). A file that cannot
+    /// be read, is another story's, or names a place that is not a room of
+    /// this one changes nothing but the notice, which says so.
+    pub fn with_presentation(
+        story: Vec<u8>,
+        seed: Seed,
+        pack: Option<&str>,
+        presentation: Option<&str>,
+    ) -> Result<Session, StartError> {
+        Session::start(
+            story,
+            seed,
+            pack,
+            presentation,
+            lookahead::LIMITS,
+            INSTRUCTION_CEILING,
+        )
+    }
+
+    /// Loads the story file and runs it to its first stop, drawn by its
+    /// presentation file if that can be used.
     fn start(
         story: Vec<u8>,
         seed: Seed,
         pack: Option<&str>,
+        presentation: Option<&str>,
+        look_ahead: lookahead::Limits,
+        ceiling: u64,
+    ) -> Result<Session, StartError> {
+        let file = presentation.map(|text| presentation::Presentation::parse(text).ok());
+        let refused = file == Some(None);
+        let mut session = Session::begin(story, seed, pack, file.flatten(), look_ahead, ceiling)?;
+        // Whether the file is this story's can be told only once the game
+        // has said where the player is. A file that is not is as no file:
+        // the game is begun again without it (F§6, M§7).
+        if session.layout.is_some() && !session.layout_holds() {
+            let story = std::mem::take(&mut session.story);
+            session = Session::begin(story, seed, pack, None, look_ahead, ceiling)?;
+            session.layout_refused = true;
+        }
+        session.layout_refused |= refused;
+        session.tell_layout_refused();
+        Ok(session)
+    }
+
+    /// S§2: says, once, that the file given could not be used.
+    fn tell_layout_refused(&mut self) {
+        if self.layout_refused {
+            self.notice = Some(NOTE_LAYOUT_NOT_USED);
+            self.announce_notice();
+        }
+    }
+
+    /// F§6: whether the file names this story by its digest, release and
+    /// serial, and every place it has is a room of it: an object with the
+    /// parent that the room the player begins in has.
+    fn layout_holds(&self) -> bool {
+        let Some(file) = &self.layout else {
+            return false;
+        };
+        let view = self.machine.view();
+        let serial: Option<Vec<u8>> = (0x12..0x18).map(|at| view.shipped_byte(at)).collect();
+        if file.sha256 != self.identity
+            || view.shipped_word(2) != Some(file.release)
+            || serial.as_deref() != Some(&file.serial[..])
+        {
+            return false;
+        }
+        let (Ok(here), Ok(objects)) = (
+            self.introspector.location(&view).value,
+            self.introspector.object_tree(&view).value,
+        ) else {
+            return false;
+        };
+        let parent = |number: u16| {
+            let object = objects.get(usize::from(number).checked_sub(1)?)?;
+            object.parent.ok().filter(|_| object.number == number)
+        };
+        let Some(Some(rooms)) = parent(here.room) else {
+            return false;
+        };
+        file.places
+            .keys()
+            .all(|room| parent(*room) == Some(Some(rooms)))
+    }
+
+    /// Loads the story file and runs it to its first stop, with these limits
+    /// in force from the first instruction.
+    fn begin(
+        story: Vec<u8>,
+        seed: Seed,
+        pack: Option<&str>,
+        layout: Option<presentation::Presentation>,
         look_ahead: lookahead::Limits,
         ceiling: u64,
     ) -> Result<Session, StartError> {
@@ -303,6 +403,8 @@ impl Session {
             acts: verbs::Acts::default(),
             redraws: Vec::new(),
             kept_chars: 9,
+            layout,
+            layout_refused: false,
         };
         // The story's word for looking is found once: its dictionary does
         // not change (specs/013-room-look/research.md, R2).
@@ -337,7 +439,20 @@ impl Session {
         chance: Seed,
         kept: Option<&[u8]>,
     ) -> Result<(Session, Outcome), StartError> {
-        Session::open_kept_within(story, pack, chance, kept, INSTRUCTION_CEILING)
+        Session::open_within(story, pack, None, chance, kept, INSTRUCTION_CEILING)
+    }
+
+    /// As [`Session::open_kept`], with the text of a presentation file for
+    /// the story, as [`Session::with_presentation`] takes it. A kept game
+    /// comes back whether or not it was played with the file.
+    pub fn open_presented(
+        story: Vec<u8>,
+        pack: Option<&str>,
+        presentation: Option<&str>,
+        chance: Seed,
+        kept: Option<&[u8]>,
+    ) -> Result<(Session, Outcome), StartError> {
+        Session::open_within(story, pack, presentation, chance, kept, INSTRUCTION_CEILING)
     }
 
     /// As [`Session::open_kept`], with the instruction ceiling to hold while
@@ -349,13 +464,27 @@ impl Session {
         kept: Option<&[u8]>,
         ceiling: u64,
     ) -> Result<(Session, Outcome), StartError> {
+        Session::open_within(story, pack, None, chance, kept, ceiling)
+    }
+
+    fn open_within(
+        story: Vec<u8>,
+        pack: Option<&str>,
+        presentation: Option<&str>,
+        chance: Seed,
+        kept: Option<&[u8]>,
+        ceiling: u64,
+    ) -> Result<(Session, Outcome), StartError> {
         let Some(bytes) = kept else {
-            return Session::with_pack(story, chance, pack).map(|s| (s, Outcome::New));
+            return Session::with_presentation(story, chance, pack, presentation)
+                .map(|s| (s, Outcome::New));
         };
-        if let Some(session) = Session::bring_back(&story, pack, bytes, ceiling) {
+        if let Some(mut session) = Session::bring_back(&story, pack, presentation, bytes, ceiling) {
+            // The kept inputs took the notice with them.
+            session.tell_layout_refused();
             return Ok((session, Outcome::BroughtBack));
         }
-        let mut session = Session::with_pack(story, chance, pack)?;
+        let mut session = Session::with_presentation(story, chance, pack, presentation)?;
         session.notice = Some(NOTE_NOT_BROUGHT_BACK);
         session.announce_notice();
         Ok((session, Outcome::CouldNot))
@@ -363,7 +492,13 @@ impl Session {
 
     /// The game a kept game was made from, or none if these bytes are not
     /// one this story can be brought back from (L§2).
-    fn bring_back(story: &[u8], pack: Option<&str>, bytes: &[u8], ceiling: u64) -> Option<Session> {
+    fn bring_back(
+        story: &[u8],
+        pack: Option<&str>,
+        presentation: Option<&str>,
+        bytes: &[u8],
+        ceiling: u64,
+    ) -> Option<Session> {
         let kept = kept::Kept::from_bytes(bytes).ok()?;
         if kept.story != kept::digest(story) {
             return None;
@@ -377,16 +512,25 @@ impl Session {
             story.to_vec(),
             kept.chance,
             pack,
+            presentation,
             lookahead::LIMITS,
             ceiling,
         )
         .ok()?;
         // A redraw of the map is made again where it was made: after the
         // inputs answered before it (specs/016-map-untangle, K§2). One that
-        // cannot be made there is not of a game this was (K§4).
+        // cannot be made there is not of a game this was (K§4). Where the
+        // story's presentation file is in use the map is not the one the
+        // redraw was made on, which may have been drawn before there was a
+        // file: a redraw that is not on offer is then passed over, and the
+        // game comes back without it (feature 017, M§6).
         let redraw = |session: &mut Session, answered: usize| {
             for _ in kept.redraws.iter().filter(|at| **at == answered) {
-                session.map.view().and_then(|view| view.redraw)?;
+                let offered = session.map.view().and_then(|view| view.redraw);
+                if offered.is_none() && session.layout.is_some() {
+                    continue;
+                }
+                offered?;
                 session.map.redraw();
                 session.redraws.push(answered);
             }
@@ -464,6 +608,7 @@ impl Session {
     /// neither family has none: the layer cannot say where the player is.
     fn new_map(&self) -> map::Map {
         map::Map::new(self.introspector.family() != Family::Unrecognised)
+            .with_presentation(self.layout.clone())
             .with_look(self.look_word.clone())
     }
 

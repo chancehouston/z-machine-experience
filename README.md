@@ -278,6 +278,24 @@ redistribute: they are fetched by name with `scripts/fetch-corpus.sh` into a fol
 repository ignores, and are never committed. Where they are absent their tests are
 reported as ignored, not passed.
 
+## Presentation files
+
+The map draws only the places the player has been in, and by itself it has to guess
+where each belongs from the ways walked so far. For a game whose geography does not
+fit a page, that guess tangles. A presentation file is a hand-made answer to the
+placement problem and nothing else: it says which sheet each room is on, where on the
+sheet it sits, and what the sheet is called. The constitution's Principle VII holds it
+to that. A room is still drawn only once the player has been in it; the file shows
+nothing early, sends the game nothing, and holds no word of a game. A game with no
+file is drawn as before.
+
+The files are in [`presentations/`](presentations/). Zork I's places 37 of its 110
+rooms on two sheets; the rest are still placed by the map's own rules. A file is not
+written by hand but laid out in draw.io: `map_drawio export zork1` makes a diagram
+with a box for every room, and `map_drawio import zork1` turns the diagram back into
+the file. [`presentations/README.md`](presentations/README.md) has the form of the
+file and the rules for the diagram.
+
 ## Layout
 
 | Path | What it is |
@@ -293,6 +311,7 @@ reported as ignored, not passed.
 | `crates/zmachine-corpus` | Testing tools: tries a game's exits on copies and judges what introspection reported. Nothing depends on it. |
 | `stories/corpus/` | The corpus: its manifest, the ledger of known wrong reports, and each story's figures. |
 | `packs/` | Game packs: a few facts about one story file each, in the format of `docs/introspection.md` section 12, each proven by the corpus. |
+| `presentations/` | Presentation files: where one story's rooms are drawn on the map, authored by hand under Principle VII. |
 | `stories/` | Story files that may be redistributed, each with its license record. |
 | `stories/zork1/fidelity/` | The Zork I walkthrough and what Frotz makes of it. |
 | `stories/advent/fidelity/` | The same for Adventure in versions 5 and 8, with undo and save files. |

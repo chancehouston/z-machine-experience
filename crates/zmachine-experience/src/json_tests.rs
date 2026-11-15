@@ -534,8 +534,10 @@ fn the_map_in_a_snapshot() {
     assert_eq!(places.len(), 1);
     assert_eq!(
         places[0].keys(),
-        ["id", "x", "y", "inset", "name", "attached_to"]
+        ["id", "x", "y", "inset", "name", "attached_to", "authored"]
     );
+    // S§1 of feature 017: no file, so nothing is authored.
+    assert_eq!(places[0].get("authored"), &J::Bool(false));
     assert_eq!(places[0].get("id"), map.get("here"));
     assert_eq!(
         (places[0].get("x").number(), places[0].get("y").number()),
