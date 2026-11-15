@@ -77,8 +77,8 @@ reproducible from its command script.
   - **Marked.** An answer that depended on a pack MUST say so.
   - **Absent means unchanged.** Without a pack, every answer is what the introspection
     spec defines without one, including "unknown".
-- Authored presentation content (art, map layouts, icons) is not a game pack and is not
-  permitted by this principle. It is to be decided by a separate amendment.
+- Authored presentation content (art, map layouts, icons) is not a game pack. It is
+  governed by Principle VII.
 - Every query MUST be able to answer "unknown". When an adapter cannot answer, the UI
   degrades to typing; it MUST NOT guess. A pack supplies a fact; it does not license a
   guess.
@@ -125,6 +125,42 @@ their story files may be redistributed with attribution; most other Infocom titl
 remain commercial. What decides the matter is each file's license, checked and recorded,
 not the game's fame.
 
+### VII. Authored Presentation
+
+How a game is drawn may be authored by hand, per game, only as a **presentation file**,
+and a presentation file MUST keep every one of these rules:
+
+- **Identity.** It names exactly one story file, by SHA-256 digest, release and serial
+  number, and applies only when all three match.
+- **Drawing only.** It says how what the player has witnessed is drawn: where a place
+  sits on the map, what mark or picture stands for a place or a thing, how a region
+  looks. It MUST NOT cause anything to be shown that would not be shown without it: no
+  place, thing, way or name the player has not witnessed.
+- **Names of sheets and regions only.** It MAY hold a name for a sheet or a region of the
+  map, shown only once the player has been on that sheet or in that region. It MUST hold
+  no other text that is shown or spoken to the player, and no text of a game.
+- **No behaviour.** It MUST hold no conditions, scripts or commands. It MUST NOT change
+  what is sent to the game, or what any introspection query answers.
+- **Our own work.** Its content MUST be the project's own, or licensed for redistribution
+  with its source and license recorded beside it. A published map or picture may be
+  consulted; it MUST NOT be copied.
+- **Checked.** Every entry MUST be tested against the story file it names for what can be
+  tested: that what it names exists in that file, and that the result is sound (no two
+  places in one position). Its choices are the author's and are not claimed to be facts.
+- **Marked.** What is drawn from a presentation file MUST be told apart, in what the
+  layer reports, from what the layer worked out.
+- **Absent means unchanged.** Without a presentation file, everything is drawn as it is
+  without one.
+
+Rationale: the experience layer draws only what it can work out from the story file and
+what the player has done, and for a map that is not always enough: a game's geography may
+not fit a page, and no rule finds the layout a person would draw. An author can. Keeping
+this content out of game packs keeps a pack's facts provable; holding it to drawing keeps
+the interface honest, since nothing unwitnessed is shown and, but for the name of a sheet
+or a region, no word of ours stands in for the game's. Admitted in version 3.0.0, after
+the map that the layer lays out by itself was seen to tangle on a phone, and the project
+owner asked that published maps be a guide to a map that still reveals itself.
+
 ## Scope & Technology Constraints
 
 - Z-machine versions 3, 5 and 8 are supported. Version 6 is out of scope. Versions 1, 2,
@@ -158,4 +194,4 @@ not the game's fame.
 - Every plan and every review MUST verify compliance. A deviation MUST be written down
   in the plan with its justification and the simpler alternative that was rejected.
 
-**Version**: 2.0.0 | **Ratified**: 2026-11-11 | **Last Amended**: 2026-11-12
+**Version**: 3.0.0 | **Ratified**: 2026-11-11 | **Last Amended**: 2026-11-15
