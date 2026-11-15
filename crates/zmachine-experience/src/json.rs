@@ -293,6 +293,8 @@ pub(crate) fn map(out: &mut String, view: &MapView) {
         optional_text(out, place.name.as_deref());
         key(out, "attached_to");
         optional_number(out, place.attached_to);
+        key(out, "authored");
+        flag(out, place.authored);
         out.push('}');
     });
     key(out, "lines");

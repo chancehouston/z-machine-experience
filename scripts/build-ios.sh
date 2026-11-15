@@ -67,5 +67,19 @@ if [ -f "$pack" ]; then
     echo "Copied the story's game pack to $resources"
 fi
 
+# The story's presentation file (presentations/README.md), if it has one: where
+# the places of its map are drawn. It is copied only if it names this story
+# file; the layer checks the same again, and that its places are rooms.
+present=presentations/zork1.present
+rm -f "$resources/story.present"
+if [ -f "$present" ]; then
+    if ! grep -qx "sha256: $actual" "$present"; then
+        echo "$present does not name $story" >&2
+        exit 1
+    fi
+    cp "$present" "$resources/story.present"
+    echo "Copied the story's presentation file to $resources"
+fi
+
 (cd apps/ios && xcodegen generate --quiet)
 echo "Generated apps/ios/Lamplight.xcodeproj"

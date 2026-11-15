@@ -8,11 +8,16 @@ final class LamplightUITests: XCTestCase {
     }
 
     @MainActor
-    private func launch(_ arguments: [String] = ["-seed", "11"]) -> XCUIApplication {
+    private func launch(
+        _ arguments: [String] = ["-seed", "11"], authored: Bool = false
+    ) -> XCUIApplication {
         let app = XCUIApplication()
         // The app brings back the game it kept (feature 011). `-fresh` has it
         // give that up first, so that every test starts from a new game.
-        app.launchArguments = arguments + ["-fresh"]
+        // `-plainMap` has the layer lay the map out by itself, as the tests
+        // of earlier features expect; a test of the story's own layout
+        // (feature 017) asks for it with `authored`.
+        app.launchArguments = arguments + ["-fresh"] + (authored ? [] : ["-plainMap"])
         app.launch()
         return app
     }
@@ -1601,6 +1606,85 @@ final class LamplightUITests: XCTestCase {
         XCTAssertTrue(element(app, "button.map.redraw").waitForExistence(timeout: patience))
         type(app, "quit")
         _ = turn(app, 2)
+        XCTAssertFalse(element(app, "button.map.redraw").exists)
+    }
+
+    // -----------------------------------------------------------------
+    // Feature 017: the map laid out by the story's presentation file
+    // (specs/017-authored-map/contracts/presentation.md, cited M§).
+    // -----------------------------------------------------------------
+
+    // M§1, M§6: the four places round the house are at the four points of a
+    // ring, each exactly along the way walked from the last, and there is no
+    // control to redraw a sheet that is laid out already.
+    @MainActor
+    func testTheHouseIsARing() {
+        let app = launch(authored: true)
+        _ = turn(app, 0)
+        let walk = ["northeast", "southeast", "southwest", "northwest"]
+        touch(app, "button.openMap")
+        XCTAssertTrue(element(app, "button.closeMap").waitForExistence(timeout: patience))
+        // The places in the order the player comes to them. Each is known
+        // by the identifier it is given when it is first drawn.
+        var places = Array(placeFrames(app).keys)
+        XCTAssertEqual(places.count, 1)
+        for (index, line) in walk.enumerated() {
+            // The opened sheet covers the transcript: the walk is seen on
+            // the map.
+            let before = Set(placeFrames(app).keys)
+            touch(app, "compass.\(line)")
+            if index < walk.count - 1 {
+                wait { Set(self.placeFrames(app).keys).subtracting(before).count == 1 }
+                places += Set(placeFrames(app).keys).subtracting(before)
+            }
+        }
+        wait { self.element(app, "map.here").label == "West of House" }
+        XCTAssertEqual(element(app, "map.here").label, "West of House")
+        // The places glide to where they are drawn: wait for them to be
+        // still.
+        var last = placeFrames(app)
+        wait {
+            let now = self.placeFrames(app)
+            defer { last = now }
+            return now == last
+        }
+        let frames = placeFrames(app)
+        let middles = places.compactMap { frames[$0] }.map { CGPoint(x: $0.midX, y: $0.midY) }
+        XCTAssertEqual(middles.count, 4)
+        let (west, north, east, south) = (middles[0], middles[1], middles[2], middles[3])
+        let step = north.x - west.x
+        XCTAssertGreaterThan(step, 100, "the place to the northeast is to the right")
+        XCTAssertLessThan(north.y, west.y - 100, "and above")
+        XCTAssertEqual(east.x - north.x, step, accuracy: 1)
+        XCTAssertEqual(east.y, west.y, accuracy: 1, "behind the house is level with its front")
+        XCTAssertEqual(south.x, north.x, accuracy: 1, "south of it is under north of it")
+        XCTAssertEqual(south.y - west.y, west.y - north.y, accuracy: 1)
+        // Back where the walk began, there is nothing to redraw.
+        XCTAssertFalse(element(app, "button.map.redraw").exists)
+        XCTAssertEqual(element(app, "map.sheet.label").label, "Sheet 1 of 1 \u{b7} Above Ground")
+    }
+
+    // M§5: a sheet the file names is called by that name, and sheets are
+    // numbered as the player reaches them.
+    @MainActor
+    func testASheetHasItsName() {
+        let app = launch(authored: true)
+        _ = turn(app, 0)
+        let walk = [
+            "n", "e", "open window", "w", "w", "take lamp", "move rug", "open trap door",
+            "turn on lamp", "d",
+        ]
+        for (index, line) in walk.enumerated() {
+            type(app, line)
+            _ = turn(app, index + 1)
+        }
+        waitForPlace(app, "Cellar")
+        touch(app, "button.openMap")
+        let label = element(app, "map.sheet.label")
+        XCTAssertTrue(label.waitForExistence(timeout: patience))
+        XCTAssertEqual(label.label, "Sheet 2 of 2 \u{b7} Under the House")
+        XCTAssertEqual(
+            element(app, "button.sheet.before").label, "Sheet 1 of 2 \u{b7} Above Ground")
         XCTAssertFalse(element(app, "button.map.redraw").exists)
     }
 

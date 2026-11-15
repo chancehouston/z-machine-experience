@@ -62,6 +62,10 @@ final class Game {
             // text is handed over as it is; the app reads none of it.
             let pack = Bundle.main.url(forResource: name, withExtension: "pack")
                 .flatMap { try? String(contentsOf: $0, encoding: .utf8) }
+            // Its presentation file, likewise: where the layer is to draw
+            // the places of the map. The app reads none of it.
+            let layout = Bundle.main.url(forResource: name, withExtension: "present")
+                .flatMap { try? String(contentsOf: $0, encoding: .utf8) }
             // The game in progress, kept from the last launch. `-fresh` gives
             // it up first, so that a test starts from a new game.
             let keptFile = KeptFile(story: name)
@@ -75,7 +79,16 @@ final class Game {
                     try? keptFile?.write(Data("damaged".utf8))
                 }
             #endif
-            let engine = try Engine(story: story, pack: pack, seed: seed, keptFile: keptFile)
+            #if DEBUG
+                // `-plainMap`: for a test of the map as the layer lays it
+                // out by itself.
+                let presentation = arguments.contains("-plainMap") ? nil : layout
+            #else
+                let presentation = layout
+            #endif
+            let engine = try Engine(
+                story: story, pack: pack, presentation: presentation, seed: seed,
+                keptFile: keptFile)
             self.engine = engine
             show(await kept(engine, await engine.snapshot(since: 0), since: 0))
         } catch {

@@ -14,6 +14,8 @@ committed:
 | `Frameworks/ZMX.xcframework` | `crates/zmachine-ffi`, built for the simulator and for a device |
 | `Lamplight/Resources/story.z3` | The story file the script names, after checking its digest against its source record |
 | `Lamplight/Resources/story-license.txt` | That story's source and license, from the same folder |
+| `Lamplight/Resources/story.pack` | The story's game pack, if it has one, after checking that it names the story |
+| `Lamplight/Resources/story.present` | The story's presentation file, if it has one, after the same check |
 | `Lamplight.xcodeproj` | `project.yml`, by XcodeGen |
 
 ## Needs
@@ -86,6 +88,16 @@ states and spoken labels the compass had.
   with Reduce Motion they are there at once. It sends the game nothing and adds
   no turn (`zmx_session_redraw_map`), and it is kept with the game, so the sheet
   comes back as it was left. Between presses no place moves.
+- **A map laid out by hand** (`specs/017-authored-map/`). Where the story has a
+  presentation file (`presentations/`), the app finds it in the bundle by the
+  story's name and hands its text to the layer when it opens a game
+  (`zmx_session_open`); it reads none of it. The layer then puts each room the
+  file has where the file says, on the sheet the file says, once the player has
+  been in it; a sheet the file names is called by that name ("Sheet 1 of 2 ·
+  Above Ground"), and such a sheet has no redraw control, since it is laid out
+  already. Launched with `-plainMap` (debug builds), the app leaves the file out,
+  and the layer lays the map out by itself: the UI tests of earlier features run
+  so, and two tests run with the file.
 - **The other sheets** (`specs/015-map-sheets/`). Opened out, the map says which
   sheet is shown ("Sheet 2 of 11 · Cellar", the layer's words) and can be turned
   to any other: by a touch on a way that leaves the sheet, which turns to the

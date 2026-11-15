@@ -294,6 +294,62 @@ fn the_app_carries_its_storys_pack_and_reads_none_of_it() {
     }
 }
 
+// specs/017-authored-map/contracts/presentation.md, A§1, A§2: the app carries
+// the presentation file of the story it carries. The build copies it beside
+// the story after checking that it names that story; the app finds it by the
+// story's resource name, hands its text to the layer, and reads none of it.
+#[test]
+fn the_app_carries_its_storys_presentation_file_and_reads_none_of_it() {
+    let root = concat!(env!("CARGO_MANIFEST_DIR"), "/../..");
+    let script = std::fs::read_to_string(format!("{root}/scripts/build-ios.sh")).unwrap();
+    assert!(
+        script.contains(r#"cp "$present" "$resources/story.present""#),
+        "the build copies the file beside the story"
+    );
+    assert!(
+        script.contains(r#"grep -qx "sha256: $actual" "$present""#),
+        "and only if the file names the story it is copied beside"
+    );
+    assert!(script.contains("present=presentations/zork1.present"));
+    let project = std::fs::read_to_string(format!("{APP}/project.yml")).unwrap();
+    assert!(
+        project.contains("Lamplight/Resources/story.present"),
+        "the file is a resource"
+    );
+    let ignore = std::fs::read_to_string(format!("{root}/.gitignore")).unwrap();
+    assert!(
+        ignore.contains("/apps/ios/Lamplight/Resources/story.present"),
+        "the copy is generated, not committed"
+    );
+    let sources = app_swift();
+    let source = |name: &str| &sources.iter().find(|(n, _)| n == name).unwrap().1;
+    assert!(
+        source("Lamplight/Game.swift")
+            .contains(r#"Bundle.main.url(forResource: name, withExtension: "present")"#),
+        "the file is found by the story's resource name"
+    );
+    assert!(source("Lamplight/Engine.swift").contains("pack, presentation, kept, length"));
+    // No source of the app reads the file: no key of its form is written
+    // anywhere in the app.
+    // The file is named in one place, where it is found, and its text goes
+    // to one place, the call that opens a game.
+    for (name, text) in &sources {
+        let named = text.matches(r#""present""#).count();
+        assert_eq!(named, usize::from(name == "Lamplight/Game.swift"), "{name}");
+        assert!(!text.contains("presentation: 1"), "apps/ios/{name}");
+        assert!(
+            !text.contains("sheet: 1") && !text.contains("place: 1"),
+            "apps/ios/{name}"
+        );
+    }
+    let game = source("Lamplight/Game.swift");
+    assert_eq!(
+        game.matches("layout").count(),
+        3,
+        "found, and handed on or not"
+    );
+}
+
 // Feature 007, FR-023, FR-027: the strip of what is carried shows the layer's
 // words and nothing of the app's own, and nothing in it sends anything.
 #[test]

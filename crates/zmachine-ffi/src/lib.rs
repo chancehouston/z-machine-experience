@@ -128,6 +128,7 @@ pub extern "C" fn zmx_session_new_with_pack(
         entropy,
         pack,
         std::ptr::null(),
+        std::ptr::null(),
         0,
         std::ptr::null_mut(),
         error,
@@ -141,7 +142,12 @@ pub extern "C" fn zmx_session_new_with_pack(
 /// if not null, is written with 0 for a new game with nothing kept, 1 for a
 /// game brought back, and 2 for a new game because the kept one could not be
 /// brought back; the session then has a notice saying so.
+///
+/// `presentation` is the text of the story's presentation file
+/// (specs/017-authored-map/contracts/presentation.md), or null for none. One
+/// that cannot be used changes nothing but the notice, which says so.
 #[unsafe(no_mangle)]
+#[allow(clippy::too_many_arguments)]
 pub extern "C" fn zmx_session_open(
     story: *const u8,
     length: usize,
@@ -149,6 +155,7 @@ pub extern "C" fn zmx_session_open(
     has_seed: c_int,
     entropy: u32,
     pack: *const c_char,
+    presentation: *const c_char,
     kept: *const u8,
     kept_length: usize,
     outcome: *mut c_int,
@@ -172,9 +179,10 @@ pub extern "C" fn zmx_session_open(
         // call. They are read, and nothing of them is held, before it returns.
         let kept =
             (!kept.is_null()).then(|| unsafe { std::slice::from_raw_parts(kept, kept_length) });
-        // Null, or bytes that are not UTF-8, are no pack. The text is copied
-        // into the interface before the call returns.
-        Session::open_kept(bytes, text(pack), seed, kept).map_err(|e| e.message)
+        // Null, or bytes that are not UTF-8, are no pack and no presentation
+        // file. The texts are read before the call returns.
+        Session::open_presented(bytes, text(pack), text(presentation), seed, kept)
+            .map_err(|e| e.message)
     });
     let message = match result {
         Ok(Ok((session, came))) => {

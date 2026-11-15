@@ -28,6 +28,9 @@ targets:
       - path: Lamplight/Resources/story.pack
         buildPhase: resources
         optional: true
+      - path: Lamplight/Resources/story.present
+        buildPhase: resources
+        optional: true
     dependencies:
       - framework: Frameworks/ZMX.xcframework
         embed: false

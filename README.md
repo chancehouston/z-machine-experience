@@ -9,6 +9,28 @@ walk, tap an object to pick it up. Typing is always still available.
 
 "Z-Machine Experience" is a working name.
 
+## A touchstone (2026-11-15)
+
+Work on this repository stopped here, after feature 017. The project owner's words: "It's
+not a tombstone. It's more of a touchstone, a moment in time when something important was
+learned."
+
+What was learned is about the files that frame the work, not about the code. This
+project was built with an AI agent under a Spec Kit constitution
+(`.specify/memory/constitution.md`) that the agent wrote on the first day and the owner
+did not read. Its rules were kept faithfully, and some of them, above all that nothing
+about a game may be authored by hand, made a good map far harder than it needed to be.
+The constitution was amended three times before the owner saw the pattern. In their
+words: "it's easy to write it in there and it becomes permanent and hidden, but it
+remains influential in the outcome."
+
+The practice taken from it: whoever owns the outcome reads, understands and agrees to
+every file that frames the work (a constitution, instruction files, an agent's memory)
+before it takes effect, and again whenever it changes.
+
+The project may be taken up again in a new repository. Everything below describes the
+code as it stood on this date.
+
 ## Status
 
 The interpreter works and is tested for Z-machine versions 3, 5 and 8, and so does the
@@ -278,6 +300,24 @@ redistribute: they are fetched by name with `scripts/fetch-corpus.sh` into a fol
 repository ignores, and are never committed. Where they are absent their tests are
 reported as ignored, not passed.
 
+## Presentation files
+
+The map draws only the places the player has been in, and by itself it has to guess
+where each belongs from the ways walked so far. For a game whose geography does not
+fit a page, that guess tangles. A presentation file is a hand-made answer to the
+placement problem and nothing else: it says which sheet each room is on, where on the
+sheet it sits, and what the sheet is called. The constitution's Principle VII holds it
+to that. A room is still drawn only once the player has been in it; the file shows
+nothing early, sends the game nothing, and holds no word of a game. A game with no
+file is drawn as before.
+
+The files are in [`presentations/`](presentations/). Zork I's places 37 of its 110
+rooms on two sheets; the rest are still placed by the map's own rules. A file is not
+written by hand but laid out in draw.io: `map_drawio export zork1` makes a diagram
+with a box for every room, and `map_drawio import zork1` turns the diagram back into
+the file. [`presentations/README.md`](presentations/README.md) has the form of the
+file and the rules for the diagram.
+
 ## Layout
 
 | Path | What it is |
@@ -293,6 +333,7 @@ reported as ignored, not passed.
 | `crates/zmachine-corpus` | Testing tools: tries a game's exits on copies and judges what introspection reported. Nothing depends on it. |
 | `stories/corpus/` | The corpus: its manifest, the ledger of known wrong reports, and each story's figures. |
 | `packs/` | Game packs: a few facts about one story file each, in the format of `docs/introspection.md` section 12, each proven by the corpus. |
+| `presentations/` | Presentation files: where one story's rooms are drawn on the map, authored by hand under Principle VII. |
 | `stories/` | Story files that may be redistributed, each with its license record. |
 | `stories/zork1/fidelity/` | The Zork I walkthrough and what Frotz makes of it. |
 | `stories/advent/fidelity/` | The same for Adventure in versions 5 and 8, with undo and save files. |

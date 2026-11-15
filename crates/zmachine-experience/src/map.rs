@@ -14,6 +14,7 @@
 use crate::compass::{self, Compass, SPOKEN_DARK};
 use crate::map_place::{self, Cell, Sheet};
 use crate::map_redraw;
+use crate::presentation::Presentation;
 use crate::{Place, PlaceState, Waiting};
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -109,6 +110,8 @@ struct Spot {
     group: Option<usize>,
     /// Whether a move by a word put it where it is (P§6).
     by_word: bool,
+    /// Whether the story's presentation file put it where it is.
+    authored: bool,
     /// The ways last seen here; none until the place is seen not dark.
     ways: Option<Vec<Seen>>,
     /// Ways found to lead back here (W§16).
@@ -200,6 +203,8 @@ pub struct PlaceView {
     /// place has the same name.
     pub name: Option<String>,
     pub attached_to: Option<u16>,
+    /// Whether the story's presentation file put it where it is.
+    pub authored: bool,
 }
 
 /// A line between two places of the sheet shown.
@@ -338,6 +343,10 @@ pub struct Map {
     ways_note: Option<&'static str>,
     /// The story's word for looking, if its dictionary has one.
     look: Option<String>,
+    /// The story's presentation file, if it has one that could be used.
+    layout: Option<Presentation>,
+    /// For each sheet, the file's sheet it stands for, if any.
+    stands_for: Vec<Option<u8>>,
 }
 
 /// What a screen reader is given for the control that redraws the sheet
@@ -388,7 +397,16 @@ impl Map {
             dark: None,
             ways_note: None,
             look: None,
+            layout: None,
+            stands_for: Vec::new(),
         }
+    }
+
+    /// The map of a story whose places are put where this file says
+    /// (specs/017-authored-map/contracts/presentation.md, part M).
+    pub(crate) fn with_presentation(mut self, file: Option<Presentation>) -> Map {
+        self.layout = file;
+        self
     }
 
     /// The map of a story whose word for looking is this.
@@ -435,7 +453,7 @@ impl Map {
         match (from, command) {
             (Some(from), Some(command)) if from != id => {
                 let step = self.step_taken(from, &command, name.as_deref());
-                if !self.places.contains_key(&id) {
+                if !self.places.contains_key(&id) && !self.put_authored(id) {
                     self.put(id, from, &step);
                 }
                 self.join(from, id, step);
@@ -444,7 +462,7 @@ impl Map {
             (Some(_), None) => {}
             // The first place; or a jump; or the place before was not known.
             (None, _) => {
-                if !self.places.contains_key(&id) {
+                if !self.places.contains_key(&id) && !self.put_authored(id) {
                     self.put_on_new_sheet(id);
                 }
             }
@@ -524,7 +542,7 @@ impl Map {
     /// Puts a new place, reached from `from` by `step` (contract part P).
     fn put(&mut self, id: u16, from: u16, step: &Step) {
         let origin = self.places[&from].clone();
-        let sheet = &self.sheets[origin.sheet];
+        let sheet = &self.reserving(origin.sheet);
         // An attached place and what is reached from it live on the insets,
         // which are a grid like the other.
         let layer = if origin.inset {
@@ -543,6 +561,7 @@ impl Map {
             attached_to: None,
             group: origin.group,
             by_word: false,
+            authored: false,
             ways: None,
             returns: Vec::new(),
             back: Vec::new(),
@@ -604,6 +623,65 @@ impl Map {
         }
     }
 
+    /// Puts a new place where the story's presentation file says, if it has
+    /// it: on the sheet that stands for the file's sheet, made now if this
+    /// is the first place of it; on a position, attached to nothing and in no
+    /// group, whatever way it was reached by (M§1). Returns whether it did.
+    fn put_authored(&mut self, id: u16) -> bool {
+        let Some(&(of, cell)) = self.layout.as_ref().and_then(|file| file.places.get(&id)) else {
+            return false;
+        };
+        let sheet = match self.stands_for.iter().position(|s| *s == Some(of)) {
+            Some(sheet) => sheet,
+            None => {
+                self.sheets.push(Sheet::default());
+                self.stands_for.push(Some(of));
+                self.sheets.len() - 1
+            }
+        };
+        // Not reached: every position the file gives is kept free (M§3).
+        if let Some(other) = self.sheets[sheet].cells.insert(cell, id) {
+            let free = map_place::beside(&self.reserving(sheet), cell);
+            self.sheets[sheet].cells.insert(free, other);
+            if let Some(spot) = self.places.get_mut(&other) {
+                spot.cell = free;
+            }
+        }
+        self.places.insert(
+            id,
+            Spot {
+                name: None,
+                sheet,
+                cell,
+                inset: false,
+                attached_to: None,
+                group: None,
+                by_word: false,
+                authored: true,
+                ways: None,
+                returns: Vec::new(),
+                back: Vec::new(),
+            },
+        );
+        self.order.push(id);
+        true
+    }
+
+    /// A sheet as a new place may be put on it: with every position the
+    /// file gives to a place of it taken, whether or not that place has been
+    /// found (M§3).
+    fn reserving(&self, sheet: usize) -> Sheet {
+        let mut page = self.sheets[sheet].clone();
+        if let (Some(file), Some(Some(of))) = (&self.layout, self.stands_for.get(sheet)) {
+            for (room, (on, cell)) in &file.places {
+                if on == of {
+                    page.cells.entry(*cell).or_insert(*room);
+                }
+            }
+        }
+        page
+    }
+
     fn put_on_new_sheet(&mut self, id: u16) {
         // The first sheet is where the game begins; every other is reached by
         // a word, a jump, or from a place that was not known.
@@ -613,6 +691,7 @@ impl Map {
         };
         sheet.cells.insert((0, 0), id);
         self.sheets.push(sheet);
+        self.stands_for.push(None);
         let spot = Spot {
             name: None,
             sheet: self.sheets.len() - 1,
@@ -621,6 +700,7 @@ impl Map {
             attached_to: None,
             group: None,
             by_word: self.sheets.len() > 1,
+            authored: false,
             ways: None,
             returns: Vec::new(),
             back: Vec::new(),
@@ -656,6 +736,7 @@ impl Map {
             sheet.cells.insert(spot.cell, *id);
         }
         self.sheets.push(sheet);
+        self.stands_for.push(None);
     }
 
     /// Records the move from `from` to `to` by `step` as a line, or as the
@@ -923,9 +1004,11 @@ impl Map {
     fn can_redraw(&self) -> bool {
         self.recognised
             && self.at_command
-            && self
-                .redraw_anchor()
-                .is_some_and(|anchor| self.positioned(self.places[&anchor].sheet).len() >= 2)
+            && self.redraw_anchor().is_some_and(|anchor| {
+                let sheet = self.places[&anchor].sheet;
+                // A sheet the file lays out is not laid out again (M§6).
+                self.stands_for[sheet].is_none() && self.positioned(sheet).len() >= 2
+            })
     }
 
     /// Lays the player's sheet out again around the place they are in
@@ -1051,11 +1134,16 @@ impl Map {
             self.sheet_number(index),
             self.sheet_count()
         );
-        let named = self
-            .order
-            .iter()
-            .filter(|id| self.places[id].sheet == index)
-            .find_map(|id| self.name(*id));
+        // The file's name for the sheet (M§5); else the first place found on
+        // it that has one.
+        let authored =
+            self.stands_for[index].and_then(|of| self.layout.as_ref()?.sheets.get(&of)?.clone());
+        let named = authored.or_else(|| {
+            self.order
+                .iter()
+                .filter(|id| self.places[id].sheet == index)
+                .find_map(|id| self.name(*id))
+        });
         match named {
             Some(name) => (
                 format!("{numbers} \u{b7} {name}"),
@@ -1088,6 +1176,7 @@ impl Map {
                 inset: spot.inset,
                 name: self.name(*id),
                 attached_to: spot.attached_to.filter(|to| on(*to)),
+                authored: spot.authored,
             })
             .collect();
         let mut lines = Vec::new();
