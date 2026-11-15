@@ -29,7 +29,8 @@ a test.
   inputs answered before each press.
 - **K§2** Brought back, it has the positions of the game never closed.
 - **K§3** A kept game of form 1 is brought back as before. A kept game with no
-  redraw is written as form 1 was, byte for byte but for the form's number.
+  redraw is written as form 1, byte for byte. (The plan had it written as form 2
+  with only the number changed; written as form 1, an older reader still takes it.)
 - **K§4** A `redraw` line where none can be made (no place known, a sheet of one)
   makes the kept game one that cannot be brought back.
 

@@ -1011,3 +1011,187 @@ fn a_way_off_the_sheet_names_the_place_it_leads_to() {
     assert_eq!(cave.leads.len(), 1);
     assert_eq!((cave.leads[0].sheet, cave.leads[0].place), (1, 10));
 }
+
+// ---------------------------------------------------------------------------
+// Feature 016: the sheet redrawn around the player
+// (specs/016-map-untangle/contracts/untangle.md, cited R§ and S§)
+// ---------------------------------------------------------------------------
+
+/// A sheet with a place out of place. The Pit, found first, has the position
+/// south of the Hall; the Yard, which is south of the Hall, was pushed past
+/// it. The player ends in the Yard.
+fn out_of_place() -> Map {
+    let hall: &[WayOf] = &[(East, Open, Some("Den")), (South, Open, Some("Yard"))];
+    let den: &[WayOf] = &[(West, Open, Some("Hall")), (Southwest, Open, Some("Pit"))];
+    let pit: &[WayOf] = &[(Northeast, Open, Some("Den"))];
+    let mut map = Map::new(true);
+    at(&mut map, None, 10, "Hall", hall);
+    at(&mut map, Some("east"), 11, "Den", den);
+    at(&mut map, Some("southwest"), 13, "Pit", pit);
+    at(&mut map, Some("northeast"), 11, "Den", den);
+    at(&mut map, Some("west"), 10, "Hall", hall);
+    at(
+        &mut map,
+        Some("south"),
+        12,
+        "Yard",
+        &[(North, Open, Some("Hall"))],
+    );
+    map
+}
+
+fn kind_of(map: &Map, a: u16, b: u16) -> LineKind {
+    map.view()
+        .unwrap()
+        .lines
+        .iter()
+        .find(|l| (l.a, l.b) == (a, b) || (l.a, l.b) == (b, a))
+        .unwrap_or_else(|| panic!("no line between {a} and {b}"))
+        .kind
+}
+
+// R§1, R§3, R§6, R§8: the player's place stays; the place it was walked into
+// from is put opposite that way; the join is straight; no two places share a
+// position; and a second redraw changes nothing.
+#[test]
+fn a_redraw_puts_the_places_round_the_player_where_the_ways_say() {
+    let mut map = out_of_place();
+    assert_eq!(map.position(12), Some((1, 0, 2)), "pushed past the Pit");
+    assert_eq!(kind_of(&map, 10, 12), LineKind::Bent);
+    assert!(map.redraw());
+    assert_eq!(
+        map.position(12),
+        Some((1, 0, 2)),
+        "the player's place has not moved"
+    );
+    assert_eq!(map.position(10), Some((1, 0, 1)), "the Hall is north of it");
+    assert_eq!(kind_of(&map, 10, 12), LineKind::Straight);
+    let mut cells: Vec<(usize, i32, i32)> = [10, 11, 12, 13]
+        .iter()
+        .map(|id| map.position(*id).unwrap())
+        .collect();
+    cells.sort_unstable();
+    cells.dedup();
+    assert_eq!(cells.len(), 4);
+    assert_eq!(map.view().unwrap().here, Some(12));
+    // Again, with nothing walked between: nothing changes.
+    let view = map.view();
+    assert!(!map.redraw());
+    assert_eq!(map.view(), view);
+}
+
+// S§2: a redraw is on offer while the game waits for a command, the player's
+// place is known and their sheet has two places; and not on another sheet.
+#[test]
+fn a_redraw_is_offered_where_it_can_be_made() {
+    let map = out_of_place();
+    assert_eq!(
+        map.view().unwrap().redraw,
+        Some("Redraw the map around here")
+    );
+    let mut one = Map::new(true);
+    at(&mut one, None, 10, "Hall", HALL);
+    assert_eq!(one.view().unwrap().redraw, None);
+    assert!(!one.redraw());
+    // At a question.
+    let mut asked = out_of_place();
+    let mut yard = At::room(Some("quit"), 12, "Yard", &[]);
+    yard.waiting = Waiting::Answer;
+    yard.feed(&mut asked);
+    assert_eq!(asked.view().unwrap().redraw, None);
+    // Another sheet than the player's.
+    let sheets = three_sheets();
+    assert!(sheets.sheet(1).unwrap().redraw.is_some());
+    assert_eq!(sheets.sheet(2).unwrap().redraw, None);
+}
+
+// R§5: a place attached to another keeps its corner of it; and where the
+// player is in an attached place, it and the place it hangs from stay.
+#[test]
+fn attached_places_go_with_the_places_they_hang_from() {
+    let hall: &[WayOf] = &[
+        (East, Open, Some("Den")),
+        (South, Open, Some("Yard")),
+        (Up, Open, Some("Loft")),
+    ];
+    let den: &[WayOf] = &[(West, Open, Some("Hall")), (Southwest, Open, Some("Pit"))];
+    let pit: &[WayOf] = &[(Northeast, Open, Some("Den"))];
+    let build = || {
+        let mut map = Map::new(true);
+        at(&mut map, None, 10, "Hall", hall);
+        at(
+            &mut map,
+            Some("up"),
+            14,
+            "Loft",
+            &[(Down, Open, Some("Hall"))],
+        );
+        at(&mut map, Some("down"), 10, "Hall", hall);
+        at(&mut map, Some("east"), 11, "Den", den);
+        at(&mut map, Some("southwest"), 13, "Pit", pit);
+        at(&mut map, Some("northeast"), 11, "Den", den);
+        at(&mut map, Some("west"), 10, "Hall", hall);
+        map
+    };
+    let mut map = build();
+    at(
+        &mut map,
+        Some("south"),
+        12,
+        "Yard",
+        &[(North, Open, Some("Hall"))],
+    );
+    let (hall_before, loft_before) = (map.position(10).unwrap(), map.position(14).unwrap());
+    assert!(map.is_inset(14));
+    assert!(map.redraw());
+    let (hall_after, loft_after) = (map.position(10).unwrap(), map.position(14).unwrap());
+    assert_ne!(hall_before, hall_after, "the Hall moved");
+    assert_eq!(
+        (loft_after.1 - loft_before.1, loft_after.2 - loft_before.2),
+        (hall_after.1 - hall_before.1, hall_after.2 - hall_before.2),
+        "the Loft went with it"
+    );
+    assert!(map.is_inset(14));
+    assert_eq!(kind_of(&map, 10, 14), LineKind::Ladder);
+
+    // In the Loft: neither it nor the Hall moves.
+    let mut map = build();
+    at(
+        &mut map,
+        Some("south"),
+        12,
+        "Yard",
+        &[(North, Open, Some("Hall"))],
+    );
+    at(&mut map, Some("north"), 10, "Hall", hall);
+    at(
+        &mut map,
+        Some("up"),
+        14,
+        "Loft",
+        &[(Down, Open, Some("Hall"))],
+    );
+    let (hall, loft) = (map.position(10), map.position(14));
+    map.redraw();
+    assert_eq!((map.position(10), map.position(14)), (hall, loft));
+    assert_eq!(
+        kind_of(&map, 10, 12),
+        LineKind::Straight,
+        "the Yard is south of the Hall now"
+    );
+}
+
+// R§6: a redraw is of the player's sheet; every other is as it was, and
+// every place is on the sheet it was on.
+#[test]
+fn a_redraw_leaves_other_sheets_alone() {
+    let mut map = three_sheets();
+    let (cave, vault) = (map.sheet(2), map.sheet(3));
+    let count = map.sheet_count();
+    map.redraw();
+    assert_eq!(map.sheet_count(), count);
+    assert_eq!(map.sheet(2), cave);
+    assert_eq!(map.sheet(3), vault);
+    let ids: Vec<u16> = map.sheet(1).unwrap().places.iter().map(|p| p.id).collect();
+    assert_eq!(ids, [10, 11]);
+}

@@ -348,3 +348,77 @@ fn a_card_is_made_quickly_and_changes_nothing() {
         assert!(slowest < command_limit(), "{slowest:?}");
     }
 }
+
+// specs/016-map-untangle, FR-013: a redraw of the map with its snapshot is
+// answered within 50 ms, along a wander of Zork I with a redraw at every
+// fifth move, and at every tenth turn of both walkthroughs.
+#[test]
+#[ignore = "timing; run with --release -- --ignored --nocapture"]
+fn a_redraw_is_quick() {
+    let zork = || {
+        let pack = read_text("packs/zork1.pack");
+        Session::with_pack(read("stories/zork1/zork1.z3"), Seed::Fixed(11), Some(&pack)).unwrap()
+    };
+    let advent = || Session::new(read("stories/advent/advent.z5"), Seed::Fixed(1)).unwrap();
+    let limit = Duration::from_millis(50);
+    let redraw = |session: &mut Session, slowest: &mut Duration, made: &mut usize| {
+        if session.map().view().is_none_or(|v| v.redraw.is_none()) {
+            return;
+        }
+        let at = session.stamp();
+        let began = Instant::now();
+        session.redraw_map(at).unwrap();
+        let _ = session.snapshot_json(at.turn_count);
+        *slowest = (*slowest).max(began.elapsed());
+        *made += 1;
+    };
+    // The wander.
+    let mut session = zork();
+    let mut state = 1u32;
+    let (mut slowest, mut made) = (Duration::ZERO, 0);
+    for step in 1..=400 {
+        let ways: Vec<String> = session
+            .map()
+            .view()
+            .map(|view| {
+                view.ways
+                    .into_iter()
+                    .filter_map(|way| way.command)
+                    .collect()
+            })
+            .unwrap_or_default();
+        state = state.wrapping_mul(1_103_515_245).wrapping_add(12345);
+        let line = match ways.len() {
+            0 => "look".to_string(),
+            n => ways[(state >> 16) as usize % n].clone(),
+        };
+        if session.send_line(session.stamp(), &line).is_err() {
+            break;
+        }
+        if step % 5 == 0 {
+            redraw(&mut session, &mut slowest, &mut made);
+        }
+    }
+    println!("zork1 wander: {made} redraws; slowest with its snapshot {slowest:?}");
+    assert!(slowest < limit, "{slowest:?}");
+    for (name, script, mut session) in [
+        ("zork1", "stories/zork1/fidelity/walkthrough.txt", zork()),
+        (
+            "advent",
+            "stories/advent/fidelity/walkthrough.txt",
+            advent(),
+        ),
+    ] {
+        let (mut slowest, mut made) = (Duration::ZERO, 0);
+        for (turn, line) in read_text(script).lines().skip(2).enumerate() {
+            if session.send_line(session.stamp(), line).is_err() {
+                break;
+            }
+            if turn % 10 == 0 {
+                redraw(&mut session, &mut slowest, &mut made);
+            }
+        }
+        println!("{name} walkthrough: {made} redraws; slowest with its snapshot {slowest:?}");
+        assert!(slowest < limit, "{slowest:?}");
+    }
+}

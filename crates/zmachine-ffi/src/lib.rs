@@ -318,6 +318,34 @@ pub extern "C" fn zmx_session_tap_place(
     })
 }
 
+/// The player asked for their sheet of the map to be laid out again around
+/// the place they are in. Returns 1 if it was done and 0 if it was refused.
+/// Nothing is sent to the game and no turn is added; the kept game holds it.
+#[unsafe(no_mangle)]
+pub extern "C" fn zmx_session_redraw_map(
+    session: *mut zmx_session,
+    generation: u64,
+    turn_count: usize,
+) -> c_int {
+    let Some(wrapper) = borrow(session) else {
+        return 0;
+    };
+    if wrapper.failed {
+        return 0;
+    }
+    let at = Stamp {
+        generation,
+        turn_count,
+    };
+    match catch_unwind(AssertUnwindSafe(|| wrapper.session.redraw_map(at).is_ok())) {
+        Ok(done) => c_int::from(done),
+        Err(_) => {
+            wrapper.failed = true;
+            0
+        }
+    }
+}
+
 /// A sheet of the map by its number, from 1: JSON in the form of the
 /// snapshot's `map`, which the caller frees with `zmx_string_free`; NULL if
 /// it was refused. Nothing is sent to the game.

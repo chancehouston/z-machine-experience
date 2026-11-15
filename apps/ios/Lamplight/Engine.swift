@@ -101,6 +101,13 @@ actor Engine {
         return snapshot(since: showing.turnCount)
     }
 
+    /// Has the player's sheet of the map laid out again around them, then
+    /// reports what the screen should show. The game is sent nothing.
+    func redrawMap(showing: Snapshot) -> Snapshot? {
+        _ = zmx_session_redraw_map(session, showing.generation, showing.turnCount)
+        return snapshot(since: showing.turnCount)
+    }
+
     /// A sheet of the map by its number. Nothing is sent to the game.
     func sheet(number: Int, showing: Snapshot) -> MapSheet? {
         guard let json = zmx_session_sheet(session, showing.generation, showing.turnCount, number)

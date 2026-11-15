@@ -13,6 +13,7 @@
 
 use crate::compass::{self, Compass, SPOKEN_DARK};
 use crate::map_place::{self, Cell, Sheet};
+use crate::map_redraw;
 use crate::{Place, PlaceState, Waiting};
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -293,6 +294,10 @@ pub struct MapView {
     pub after: Option<SheetRef>,
     /// The player's sheet, where this is not it.
     pub back: Option<SheetRef>,
+    /// The layer's words for the control that redraws the sheet around the
+    /// player, where that can be asked for
+    /// (specs/016-map-untangle/contracts/untangle.md, S§2).
+    pub redraw: Option<&'static str>,
 }
 
 /// Another sheet of the map, to turn to.
@@ -334,6 +339,14 @@ pub struct Map {
     /// The story's word for looking, if its dictionary has one.
     look: Option<String>,
 }
+
+/// What a screen reader is given for the control that redraws the sheet
+/// around the player.
+pub const SPOKEN_REDRAW: &str = "Redraw the map around here";
+
+/// How many layouts a redraw may try while it tidies the far places
+/// (specs/016-map-untangle/research.md, R2).
+const REDRAW_BUDGET: usize = 3_000;
 
 /// The direction a word names. Six characters are kept, as a version 3
 /// dictionary keeps them.
@@ -871,6 +884,142 @@ impl Map {
             .count()
     }
 
+    /// The place a redraw is made around: the player's, or where that is an
+    /// attached place, the positioned place it hangs from, so that neither
+    /// moves (R§5).
+    fn redraw_anchor(&self) -> Option<u16> {
+        let mut place = self.here?;
+        // No chain of attached places is longer than the map has places.
+        for _ in 0..=self.places.len() {
+            let spot = self.places.get(&place)?;
+            if !spot.inset {
+                return Some(place);
+            }
+            place = self.hangs_from(place)?;
+        }
+        None
+    }
+
+    /// The place an attached place hangs from: its own, or that of the
+    /// first place of its group.
+    fn hangs_from(&self, place: u16) -> Option<u16> {
+        let spot = self.places.get(&place)?;
+        spot.attached_to.or_else(|| {
+            let first = *self.groups.get(spot.group?)?.first()?;
+            self.places.get(&first)?.attached_to
+        })
+    }
+
+    /// The places of a sheet that are on its positions, in the order found.
+    fn positioned(&self, sheet: usize) -> Vec<u16> {
+        self.order
+            .iter()
+            .copied()
+            .filter(|id| self.places[id].sheet == sheet && !self.places[id].inset)
+            .collect()
+    }
+
+    /// Whether the player's sheet can be redrawn around them now (S§2).
+    fn can_redraw(&self) -> bool {
+        self.recognised
+            && self.at_command
+            && self
+                .redraw_anchor()
+                .is_some_and(|anchor| self.positioned(self.places[&anchor].sheet).len() >= 2)
+    }
+
+    /// Lays the player's sheet out again around the place they are in
+    /// (specs/016-map-untangle/contracts/untangle.md, part R): that place
+    /// stays; the places it is joined to are put along the ways walked; the
+    /// rest follow outward and are then tidied while those are held. Only
+    /// places the player has been in and ways they have walked are used.
+    /// Returns whether any place moved.
+    pub(crate) fn redraw(&mut self) -> bool {
+        if !self.can_redraw() {
+            return false;
+        }
+        let Some(anchor) = self.redraw_anchor() else {
+            return false;
+        };
+        let sheet = self.places[&anchor].sheet;
+        let order = self.positioned(sheet);
+        let mut ways: Vec<map_redraw::Way> = Vec::new();
+        for line in &self.lines {
+            let both = order.contains(&line.a) && order.contains(&line.b);
+            for (from, step, to) in [
+                (line.a, Some(&line.out), line.b),
+                (line.b, line.back.as_ref(), line.a),
+            ] {
+                if let (true, Some(Step::Way(place))) = (both, step)
+                    && let Some(delta) = map_place::delta(*place)
+                {
+                    ways.push(map_redraw::Way {
+                        from,
+                        delta,
+                        rank: Place::ALL.iter().position(|p| p == place).unwrap_or(0),
+                        to,
+                    });
+                }
+            }
+        }
+        let mut put = map_redraw::around(&order, &ways, anchor, self.places[&anchor].cell);
+        let held = map_redraw::near(&ways, anchor);
+        map_redraw::tidy(&mut put, &order, &ways, &held, REDRAW_BUDGET);
+
+        // How far each positioned place has gone: what hangs from it goes
+        // as far.
+        let moved: BTreeMap<u16, Cell> = order
+            .iter()
+            .map(|id| {
+                let (was, now) = (self.places[id].cell, put[id]);
+                (*id, (now.0 - was.0, now.1 - was.1))
+            })
+            .collect();
+        if moved.values().all(|by| *by == (0, 0)) {
+            return false;
+        }
+        let attached: Vec<(u16, Cell)> = self
+            .order
+            .iter()
+            .copied()
+            .filter(|id| self.places[id].sheet == sheet && self.places[id].inset)
+            .map(|id| {
+                let mut root = id;
+                for _ in 0..=self.places.len() {
+                    match self.hangs_from(root) {
+                        Some(parent) if self.places[&root].inset => root = parent,
+                        _ => break,
+                    }
+                }
+                (id, moved.get(&root).copied().unwrap_or((0, 0)))
+            })
+            .collect();
+        let page = &mut self.sheets[sheet];
+        page.cells.clear();
+        page.insets.clear();
+        for id in &order {
+            let cell = put[id];
+            page.cells.insert(cell, *id);
+            if let Some(spot) = self.places.get_mut(id) {
+                spot.cell = cell;
+            }
+        }
+        for (id, by) in attached {
+            let Some(spot) = self.places.get_mut(&id) else {
+                continue;
+            };
+            let mut cell = (spot.cell.0 + by.0, spot.cell.1 + by.1);
+            // Two that would share an inset: the later found goes to the
+            // next free one beside it.
+            while page.insets.contains_key(&cell) {
+                cell.0 += 1;
+            }
+            spot.cell = cell;
+            page.insets.insert(cell, id);
+        }
+        true
+    }
+
     /// The sheet the player is on, for a snapshot; none where there is no
     /// map for this game.
     pub fn view(&self) -> Option<MapView> {
@@ -1058,6 +1207,7 @@ impl Map {
             before: beside(held.len().saturating_sub(1)),
             after: beside(1),
             back: (!own).then(|| self.sheet_ref(self.shown)),
+            redraw: (own && self.can_redraw()).then_some(SPOKEN_REDRAW),
         })
     }
 

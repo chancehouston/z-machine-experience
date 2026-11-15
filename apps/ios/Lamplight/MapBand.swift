@@ -15,6 +15,8 @@ struct MapBand: View {
     /// Whether the sheet is opened out.
     let open: Bool
     let setOpen: (Bool) -> Void
+    /// Asks for the sheet to be laid out again around the player.
+    let redraw: () -> Void
     /// Turns the opened map to another sheet, with a place of it to centre.
     let turnSheet: (Int, Int?) -> Void
     let tapWay: (Int) -> Void
@@ -82,6 +84,22 @@ struct MapBand: View {
                 }
                 toggle
                     .position(x: room.size.width - 26, y: 26)
+                // Redraws the sheet around the player, where the layer
+                // offers it: its words are the layer's.
+                if let words = map.redraw {
+                    Button(action: redraw) {
+                        Image(systemName: "arrow.triangle.2.circlepath")
+                            .font(.system(size: 13, weight: .semibold))
+                            .frame(width: 30, height: 30)
+                            .background(Circle().fill(Color(.systemBackground).opacity(0.9)))
+                            .frame(width: MapLayout.control, height: MapLayout.control)
+                            .contentShape(Rectangle())
+                    }
+                    .disabled(!ready)
+                    .accessibilityLabel(Text(verbatim: words))
+                    .accessibilityIdentifier("button.map.redraw")
+                    .position(x: 26, y: room.size.height - 26)
+                }
                 if open {
                     sheets.position(x: room.size.width / 2, y: 26)
                     if let back = map.back {

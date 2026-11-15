@@ -81,6 +81,11 @@ Four parts: what is witnessed (W), where places go (P), the snapshot (S), the sc
   line bent if the way back did not agree. A wander through Zork I's forest then gave
   29 lines among 16 places, 25 of them bent. Joined once, the same wander gives 21
   joins, 11 bent; the walkthrough gives 57 straight of 60.)
+- **P§8a** (Feature 016.) P§2 to P§6 say where a place is put when it is found, and
+  that it then stays. They still do, until the player asks for a redraw
+  (`specs/016-map-untangle/contracts/untangle.md`), which lays their sheet out
+  again around the place they are in. P§9 then reads: one story, one chance, one
+  sequence of inputs and the same redraws at the same turns.
 - **P§9** For one story, one chance and one sequence of inputs, every place's sheet
   and position, and every line's being straight or bent, are the same every time.
 - **P§10** Nothing of P§1 to P§8 uses a place the player has not been in.

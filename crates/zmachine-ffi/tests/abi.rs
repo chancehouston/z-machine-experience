@@ -355,6 +355,7 @@ fn the_header_and_the_library_agree() {
             "zmx_session_new_game",
             "zmx_session_new_with_pack",
             "zmx_session_open",
+            "zmx_session_redraw_map",
             "zmx_session_send_line",
             "zmx_session_sheet",
             "zmx_session_snapshot",
@@ -622,6 +623,37 @@ fn a_kept_game_crosses_the_boundary_and_comes_back() {
     for session in [first, second, third, quiet] {
         zmx_session_free(session);
     }
+}
+
+// specs/016-map-untangle/contracts/untangle.md, A§17, R§10: a redraw of the
+// map is asked for across the boundary; it adds no turn, and the kept game
+// then holds it.
+#[test]
+fn a_redraw_of_the_map_crosses_the_boundary() {
+    let session = open();
+    // With one place there is nothing to redraw.
+    assert_eq!(zmx_session_redraw_map(session, 1, 1), 0);
+    for (turn, line) in ["south", "west", "west"].iter().enumerate() {
+        assert_eq!(
+            zmx_session_send_line(session, 1, turn + 1, c(line).as_ptr()),
+            1
+        );
+    }
+    let before = snapshot(session, 0);
+    assert!(
+        before.contains(r#""redraw":"Redraw the map around here"}"#),
+        "{before}"
+    );
+    assert_eq!(
+        zmx_session_redraw_map(session, 1, 3),
+        0,
+        "a turn that has passed"
+    );
+    assert_eq!(zmx_session_redraw_map(session, 1, 4), 1);
+    let after = snapshot(session, 0);
+    assert!(after.contains(r#""turn_count":4,"#), "no turn was added");
+    assert_eq!(zmx_session_redraw_map(std::ptr::null_mut(), 1, 4), 0);
+    zmx_session_free(session);
 }
 
 // specs/015-map-sheets/contracts/sheets.md, L§7, S§1: a sheet of the map is

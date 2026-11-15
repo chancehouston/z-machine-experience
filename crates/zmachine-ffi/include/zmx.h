@@ -78,6 +78,9 @@ int zmx_session_tap_way(zmx_session *session, uint64_t generation, size_t turn_c
                         size_t index);
 /* A touch on the place the player is in: sends the snapshot's map.look. */
 int zmx_session_tap_place(zmx_session *session, uint64_t generation, size_t turn_count);
+/* Lays the player's sheet of the map out again around the place they are in.
+ * Sends the game nothing and adds no turn. 1 if done, 0 if refused. */
+int zmx_session_redraw_map(zmx_session *session, uint64_t generation, size_t turn_count);
 /* A sheet of the map by its number, from 1, in the form of the snapshot's map:
  * JSON, freed with zmx_string_free; NULL if refused. Sends the game nothing. */
 char *zmx_session_sheet(zmx_session *session, uint64_t generation, size_t turn_count,

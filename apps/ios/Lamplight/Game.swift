@@ -131,6 +131,12 @@ final class Game {
         card = nil
     }
 
+    /// Has the map redrawn around the player. No turn comes of it; what is
+    /// kept is stored again, since the redraw is kept with the game.
+    func redrawMap() async {
+        await command { engine, showing in await engine.redrawMap(showing: showing) }
+    }
+
     /// Turns the opened map to a sheet, with a place of it in the middle.
     /// The player's own sheet is the snapshot's; any other is asked for.
     /// The game is sent nothing.
