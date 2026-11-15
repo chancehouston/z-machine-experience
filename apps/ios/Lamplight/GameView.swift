@@ -54,11 +54,23 @@ struct GameView: View {
                     // with a control for each way out. Where the layer has no
                     // map for the game there is no band.
                     if let map = showing.map {
-                        MapBand(map: map, ready: !game.busy, open: mapOpen) { open in
+                        // Closed, the band shows the snapshot's own sheet;
+                        // opened out it shows the sheet turned to, if any.
+                        MapBand(
+                            map: mapOpen ? game.looking?.sheet ?? map : map,
+                            centre: mapOpen ? game.looking?.centre ?? game.ownCentre : nil,
+                            ready: !game.busy, open: mapOpen
+                        ) { open in
                             // Opening the map out puts the keyboard down;
-                            // bringing the band back raises it.
+                            // bringing the band back raises it, and returns
+                            // to the player's own sheet.
                             mapOpen = open
                             typing = !open
+                            if !open {
+                                game.ownSheet()
+                            }
+                        } turnSheet: { number, centre in
+                            Task { await game.turn(toSheet: number, centre: centre) }
                         } tapWay: { index in
                             Task { await game.tap(way: index) }
                         } tapPlace: {
@@ -116,6 +128,7 @@ struct GameView: View {
         .onChange(of: typing) {
             if typing {
                 mapOpen = false
+                game.ownSheet()
             }
         }
         .task { await game.start() }

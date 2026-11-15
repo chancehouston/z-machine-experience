@@ -7,11 +7,16 @@ import SwiftUI
 /// (specs/012-map-first-slice/contracts/map.md, part A).
 struct MapBand: View {
     let map: MapSheet
+    /// A place to put in the middle, where the sheet was turned to by a way
+    /// that leads to it.
+    let centre: Int?
     /// False while a command is being worked out.
     let ready: Bool
     /// Whether the sheet is opened out.
     let open: Bool
     let setOpen: (Bool) -> Void
+    /// Turns the opened map to another sheet, with a place of it to centre.
+    let turnSheet: (Int, Int?) -> Void
     let tapWay: (Int) -> Void
     /// A touch on the place the player is in.
     let tapPlace: () -> Void
@@ -25,10 +30,14 @@ struct MapBand: View {
     private var still: Bool { reduceMotion || MapHand.stillAsked }
     private var glide: Animation? { still ? nil : .easeInOut(duration: 0.25) }
 
-    /// The middle of the place the player is in; or, where that is not
-    /// known, of the first place of the sheet.
+    /// What is put in the middle: the place the sheet was turned to for;
+    /// else the place the player is in; else the first place found on the
+    /// sheet.
     private var focus: CGPoint {
-        let place = map.places.first { $0.id == map.here } ?? map.places.first
+        let wanted = [centre, map.here, map.first].compactMap { $0 }
+        let place =
+            wanted.lazy.compactMap { id in map.places.first { $0.id == id } }.first
+            ?? map.places.first
         return place.map(MapLayout.point) ?? .zero
     }
 
@@ -53,7 +62,9 @@ struct MapBand: View {
             let middle = CGPoint(
                 x: room.size.width / 2 + shift.width, y: room.size.height / 2 + shift.height)
             ZStack(alignment: .topLeading) {
-                MapDrawing(map: map, still: still, ready: ready, tapPlace: tapPlace)
+                MapDrawing(
+                    map: map, still: still, ready: ready, tapPlace: tapPlace,
+                    turnSheet: open ? turnSheet : nil)
                     .offset(x: middle.x - focus.x, y: middle.y - focus.y)
                 if map.here != nil {
                     ways(around: middle)
@@ -71,6 +82,13 @@ struct MapBand: View {
                 }
                 toggle
                     .position(x: room.size.width - 26, y: 26)
+                if open {
+                    sheets.position(x: room.size.width / 2, y: 26)
+                    if let back = map.back {
+                        turner(to: back, symbol: "location.fill", identifier: "button.sheet.return")
+                            .position(x: room.size.width - 26, y: room.size.height - 26)
+                    }
+                }
                 // For tests: whether the map is drawn in and glided, or still.
                 if MapHand.shown {
                     Color.clear
@@ -130,6 +148,46 @@ struct MapBand: View {
                     setOpen(true)
                 }
             }
+    }
+
+    /// Which sheet is shown, in the layer's words, between the controls that
+    /// turn to the sheet before and the sheet after (contract A§2).
+    private var sheets: some View {
+        HStack(spacing: 2) {
+            if let before = map.before {
+                turner(to: before, symbol: "chevron.left", identifier: "button.sheet.before")
+            }
+            if let label = map.label {
+                Text(verbatim: label)
+                    .font(.footnote.weight(.medium))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(Capsule().fill(Color(.systemBackground).opacity(0.9)))
+                    .accessibilityIdentifier("map.sheet.label")
+            }
+            if let after = map.after {
+                turner(to: after, symbol: "chevron.right", identifier: "button.sheet.after")
+            }
+        }
+    }
+
+    /// A control that turns to another sheet; a screen reader is given the
+    /// layer's words for that sheet.
+    private func turner(to sheet: SheetRef, symbol: String, identifier: String) -> some View {
+        Button {
+            turnSheet(sheet.number, nil)
+        } label: {
+            Image(systemName: symbol)
+                .font(.system(size: 14, weight: .semibold))
+                .frame(width: 30, height: 30)
+                .background(Circle().fill(Color(.systemBackground).opacity(0.9)))
+                .frame(width: MapLayout.control, height: MapLayout.control)
+                .contentShape(Rectangle())
+        }
+        .accessibilityLabel(Text(verbatim: sheet.label))
+        .accessibilityIdentifier(identifier)
     }
 
     /// Opens the sheet out, or brings the band back.

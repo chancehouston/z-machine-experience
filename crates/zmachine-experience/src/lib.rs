@@ -53,7 +53,7 @@ pub const NOTE_NOT_KEPT: &str = "Your place is not being kept.";
 pub const ASK_START_OVER: &str = "Start over? The game in progress will be given up.";
 pub use card::{Action, Card, LABEL_DROP, NOTE_NO_DESCRIPTION};
 pub use compass::{Compass, CompassPlace, Extra, NOTE_NONE, NOTE_UNKNOWN, Place, PlaceState};
-pub use json::card_json;
+pub use json::{card_json, sheet_json};
 pub use light::{Light, NOTE_DARK};
 pub use strip::{ItemState, Kind, NOTE_NOT_KNOWN, NOTE_NOTHING, Strip, StripItem};
 pub use transcript::{Source, Turn};
@@ -754,6 +754,16 @@ impl Session {
             .ok_or(Refused::NotOffered)?;
         self.give(&command, Source::Tap);
         Ok(())
+    }
+
+    /// Any sheet of the map, by its number from 1: the player's own, or
+    /// another to look at. Nothing is changed
+    /// (specs/015-map-sheets/contracts/sheets.md, L§7).
+    pub fn sheet(&self, at: Stamp, number: usize) -> Result<map::MapView, Refused> {
+        if at != self.stamp() {
+            return Err(Refused::Stale);
+        }
+        self.map.sheet(number).ok_or(Refused::NotOffered)
     }
 
     /// The card for a carried item: what a copy of the game says when the

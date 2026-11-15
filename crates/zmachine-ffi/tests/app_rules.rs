@@ -393,6 +393,24 @@ fn the_card_shows_the_layers_words_and_sends_nothing() {
         ]
     );
     let engine = source("Lamplight/Engine.swift");
+    // specs/015-map-sheets/contracts/sheets.md, A§1, A§7: a sheet is asked
+    // for by the engine alone; the band is given the snapshot's own map,
+    // whatever sheet is looked at; and no file of the map writes a word for
+    // a sheet.
+    assert!(engine.contains("zmx_session_sheet("));
+    let view = source("Lamplight/GameView.swift");
+    assert!(
+        view.contains("map: mapOpen ? game.looking?.sheet ?? map : map,"),
+        "closed, the map shown is the snapshot's"
+    );
+    for name in ["Lamplight/MapBand.swift", "Lamplight/MapDrawing.swift"] {
+        for literal in source(name).lines().flat_map(self::literals) {
+            assert!(
+                !literal.starts_with("Sheet") && !literal.contains(" of "),
+                "apps/ios/{name} holds {literal:?}"
+            );
+        }
+    }
     assert!(engine.contains("zmx_session_card("));
     assert!(engine.contains("zmx_session_tap_action("));
 }

@@ -325,6 +325,8 @@ pub(crate) fn map(out: &mut String, view: &MapView) {
         optional_text(out, lead.to.as_deref());
         key(out, "sheet");
         out.push_str(&lead.sheet.to_string());
+        key(out, "place");
+        out.push_str(&lead.place.to_string());
         out.push('}');
     });
     key(out, "stubs");
@@ -378,5 +380,40 @@ pub(crate) fn map(out: &mut String, view: &MapView) {
         }
         None => out.push_str("null"),
     }
+    // specs/015-map-sheets/contracts/sheets.md, S§1.
+    key(out, "own");
+    flag(out, view.own);
+    key(out, "label");
+    text(out, &view.label);
+    key(out, "first");
+    match view.first {
+        Some(id) => out.push_str(&id.to_string()),
+        None => out.push_str("null"),
+    }
+    for (name, sheet) in [
+        ("before", &view.before),
+        ("after", &view.after),
+        ("back", &view.back),
+    ] {
+        key(out, name);
+        match sheet {
+            Some(sheet) => {
+                out.push('{');
+                key(out, "number");
+                out.push_str(&sheet.number.to_string());
+                key(out, "label");
+                text(out, &sheet.label);
+                out.push('}');
+            }
+            None => out.push_str("null"),
+        }
+    }
     out.push('}');
+}
+
+/// A sheet of the map as JSON, in the form of the snapshot's `map`.
+pub fn sheet_json(view: &MapView) -> String {
+    let mut out = String::new();
+    map(&mut out, view);
+    out
 }

@@ -65,15 +65,52 @@ final class LamplightUITests: XCTestCase {
         XCTAssertTrue(field.waitForExistence(timeout: patience))
         field.tap()
         field.typeText(line)
-        element(app, "button.send").tap()
+        touch(app, "button.send")
     }
 
-    /// Waits for turn `number` to be on screen and returns its text.
+    /// Waits for turn `number` to be on screen and returns its text. After
+    /// the opening it also waits for the screen to have settled: see `settle`.
     @MainActor
     private func turn(_ app: XCUIApplication, _ number: Int) -> String {
         let text = element(app, "turn.\(number).text")
         XCTAssertTrue(text.waitForExistence(timeout: patience), "turn \(number) is shown")
+        if number == 0 {
+            settle(app)
+        }
         return text.label
+    }
+
+    /// Waits, without failing, until `ready` holds or the patience is spent.
+    @MainActor
+    private func wait(until ready: () -> Bool) {
+        let end = Date().addingTimeInterval(patience)
+        while !ready(), Date() < end {
+            RunLoop.current.run(until: Date().addingTimeInterval(0.1))
+        }
+    }
+
+    /// Waits for the keyboard to have come up after a launch, where there is
+    /// a field for it. On a slow machine the keyboard arrives some time after
+    /// the opening text, and a touch made while it is arriving has been lost:
+    /// three runs on the hosted CI runner failed at the first touch of a
+    /// test (2026-11-14), each on a different test, none of them here.
+    @MainActor
+    private func settle(_ app: XCUIApplication) {
+        let field = element(app, "field.command")
+        guard field.exists else { return }
+        wait { self.fieldHasTheKeyboard(app) }
+    }
+
+    /// Touches the element with this identifier once it can be touched: it
+    /// is there, on screen and enabled. A control is disabled while a command
+    /// is being worked out, and a touch on it then is lost. If it never
+    /// becomes touchable the touch is made all the same, so that a test of
+    /// a control that is meant to be dead still makes its touch.
+    @MainActor
+    private func touch(_ app: XCUIApplication, _ identifier: String) {
+        let control = element(app, identifier)
+        wait { control.exists && control.isHittable && control.isEnabled }
+        control.tap()
     }
 
     @MainActor
@@ -121,7 +158,7 @@ final class LamplightUITests: XCTestCase {
     func testTheGameComesBackWhereItWasLeft() {
         let app = launch()
         let opening = turn(app, 0)
-        element(app, "compass.north").tap()
+        touch(app, "compass.north")
         let north = turn(app, 1)
         type(app, "open mailbox")
         let mailbox = turn(app, 2)
@@ -147,7 +184,7 @@ final class LamplightUITests: XCTestCase {
         let app = launch()
         var texts = [turn(app, 0)]
         for (number, way) in ["north", "west", "north", "west"].enumerated() {
-            element(app, "compass.\(way)").tap()
+            touch(app, "compass.\(way)")
             texts.append(turn(app, number + 1))
             relaunch(app)
             for (earlier, text) in texts.enumerated() {
@@ -173,7 +210,7 @@ final class LamplightUITests: XCTestCase {
         XCTAssertEqual(turn(app, 2), ending)
         XCTAssertTrue(app.staticTexts["The game has ended."].exists)
         XCTAssertFalse(element(app, "field.command").exists)
-        element(app, "button.newGame").tap()
+        touch(app, "button.newGame")
         XCTAssertTrue(element(app, "field.command").waitForExistence(timeout: patience))
         XCTAssertFalse(element(app, "turn.1.text").exists)
 
@@ -188,7 +225,7 @@ final class LamplightUITests: XCTestCase {
     func testTheNewestReplyIsSpokenOnceOnReopening() {
         let app = launch(["-seed", "11", "-speakAlways"])
         _ = turn(app, 0)
-        element(app, "compass.north").tap()
+        touch(app, "compass.north")
         let north = turn(app, 1)
         XCTAssertEqual(asked(app, times: 2), spoken(north))
 
@@ -203,12 +240,12 @@ final class LamplightUITests: XCTestCase {
     func testStartingOverAsksAndIsNotUndone() {
         let app = launch()
         _ = turn(app, 0)
-        element(app, "compass.north").tap()
+        touch(app, "compass.north")
         let north = turn(app, 1)
 
         // The button can be touched once the sheet has finished rising.
         let ready = NSPredicate(format: "exists == true AND isHittable == true")
-        element(app, "button.about").tap()
+        touch(app, "button.about")
         let startOver = element(app, "button.startOver")
         expectation(for: ready, evaluatedWith: startOver)
         waitForExpectations(timeout: patience)
@@ -227,10 +264,10 @@ final class LamplightUITests: XCTestCase {
         waitForExpectations(timeout: patience)
         expectation(for: ready, evaluatedWith: startOver)
         waitForExpectations(timeout: patience)
-        element(app, "button.aboutDone").tap()
+        touch(app, "button.aboutDone")
         XCTAssertEqual(turn(app, 1), north, "declined: nothing has changed")
 
-        element(app, "button.about").tap()
+        touch(app, "button.about")
         expectation(for: ready, evaluatedWith: startOver)
         waitForExpectations(timeout: patience)
         startOver.tap()
@@ -260,7 +297,7 @@ final class LamplightUITests: XCTestCase {
     func testADamagedKeptGameGivesANewGameAndSaysSoOnce() {
         let app = launch()
         _ = turn(app, 0)
-        element(app, "compass.north").tap()
+        touch(app, "compass.north")
         _ = turn(app, 1)
 
         relaunch(app, adding: ["-damageKept"])
@@ -287,7 +324,7 @@ final class LamplightUITests: XCTestCase {
         let app = launch(["-seed", "11", "-showLaunchTime"])
         _ = turn(app, 0)
         for (number, way) in ["north", "west", "north", "west", "north", "west"].enumerated() {
-            element(app, "compass.\(way)").tap()
+            touch(app, "compass.\(way)")
             _ = turn(app, number + 1)
         }
         relaunch(app)
@@ -344,7 +381,7 @@ final class LamplightUITests: XCTestCase {
         XCTAssertEqual(map.label, "Map. You are in West of House.")
         XCTAssertEqual(placesDrawn(app), 1)
         XCTAssertEqual(element(app, "map.here").label, "West of House")
-        element(app, "compass.north").tap()
+        touch(app, "compass.north")
         waitForPlace(app, "North of House")
         XCTAssertEqual(placesDrawn(app), 2)
         XCTAssertEqual(element(app, "map.here").label, "North of House")
@@ -360,31 +397,31 @@ final class LamplightUITests: XCTestCase {
         let app = launch()
         _ = turn(app, 0)
         XCTAssertEqual(element(app, "compass.north").label, "North")
-        element(app, "compass.north").tap()
+        touch(app, "compass.north")
         waitForPlace(app, "North of House")
         XCTAssertEqual(element(app, "turn.1.command").label, "north")
-        element(app, "compass.east").tap()
+        touch(app, "compass.east")
         waitForPlace(app, "Behind House")
         // A closed door can be tried, and the game refuses.
         XCTAssertEqual(value(app, "compass.west"), "door")
         type(app, "open window")
         _ = turn(app, 3)
-        element(app, "compass.west").tap()
+        touch(app, "compass.west")
         waitForPlace(app, "Kitchen")
         XCTAssertEqual(element(app, "compass.east").label, "East")
-        element(app, "compass.up").tap()
+        touch(app, "compass.up")
         waitForPlace(app, "Attic")
         // The Attic is dark and has never been seen: the map shows no way
         // out of it but the way back (W§12a), and does not name where it
         // leads until it is walked.
         XCTAssertEqual(element(app, "compass.down").label, "Down")
         XCTAssertFalse(element(app, "compass.up").exists)
-        element(app, "compass.down").tap()
+        touch(app, "compass.down")
         waitForPlace(app, "Kitchen")
         // Walked both ways now: each end names the other.
         // The Attic has no name yet: it has only been stood in dark.
         XCTAssertEqual(element(app, "compass.up").label, "Up, into darkness")
-        element(app, "compass.east").tap()
+        touch(app, "compass.east")
         waitForPlace(app, "Behind House")
         XCTAssertEqual(element(app, "compass.west").label, "West, to Kitchen")
         XCTAssertEqual(placesDrawn(app), 5)
@@ -408,14 +445,14 @@ final class LamplightUITests: XCTestCase {
         app.typeText("open mailbox\n")
         _ = turn(app, 1)
         XCTAssertTrue(fieldHasTheKeyboard(app))
-        element(app, "compass.north").tap()
+        touch(app, "compass.north")
         _ = turn(app, 2)
         XCTAssertTrue(fieldHasTheKeyboard(app))
         app.typeText("look\n")
         _ = turn(app, 3)
-        element(app, "compass.east").tap()
+        touch(app, "compass.east")
         _ = turn(app, 4)
-        element(app, "compass.south").tap()
+        touch(app, "compass.south")
         _ = turn(app, 5)
         XCTAssertTrue(fieldHasTheKeyboard(app))
         XCTAssertEqual(element(app, "map.frame").frame, band, "the band keeps its size and place")
@@ -492,7 +529,7 @@ final class LamplightUITests: XCTestCase {
         // Touch the field: the keyboard returns, and the newest text is
         // within the transcript, above the field: the whole of it where it
         // fits, and otherwise from its first line.
-        element(app, "field.command").tap()
+        touch(app, "field.command")
         let transcript = element(app, "transcript")
         let shown = NSPredicate { _, _ in
             let (text, room) = (newest.frame, transcript.frame)
@@ -540,7 +577,7 @@ final class LamplightUITests: XCTestCase {
         _ = turn(app, 3)
         XCTAssertTrue(fieldHasTheKeyboard(app))
         scrollBack(app)
-        element(app, "field.command").tap()
+        touch(app, "field.command")
         XCTAssertTrue(fieldHasTheKeyboard(app))
     }
 
@@ -560,9 +597,9 @@ final class LamplightUITests: XCTestCase {
         }
         XCTAssertEqual(element(app, "compass.north").label, "North")
 
-        element(app, "compass.north").tap()
+        touch(app, "compass.north")
         waitForPlace(app, "North of House")
-        element(app, "compass.east").tap()
+        touch(app, "compass.east")
         waitForPlace(app, "Behind House")
         // The way west is through a window, which the story's game pack lets be
         // read as a door (feature 006). Before packs this was "may be blocked".
@@ -587,20 +624,20 @@ final class LamplightUITests: XCTestCase {
         // The keyboard is up, and what is carried is still shown (feature 012).
         XCTAssertTrue(element(app, "inventory.note").isHittable)
         app.typeText("take leaflet")
-        element(app, "button.send").tap()
+        touch(app, "button.send")
         _ = turn(app, 2)
         let strip = element(app, "inventory.strip")
         XCTAssertTrue(strip.waitForExistence(timeout: patience))
         XCTAssertEqual(strip.label, "Carrying: leaflet")
         XCTAssertFalse(element(app, "inventory.note").exists)
 
-        element(app, "compass.north").tap()
+        touch(app, "compass.north")
         waitForPlace(app, "North of House")
-        element(app, "compass.east").tap()
+        touch(app, "compass.east")
         waitForPlace(app, "Behind House")
         type(app, "open window")
         _ = turn(app, 5)
-        element(app, "compass.west").tap()
+        touch(app, "compass.west")
         waitForPlace(app, "Kitchen")
         type(app, "take sack")
         _ = turn(app, 7)
@@ -625,13 +662,13 @@ final class LamplightUITests: XCTestCase {
         let app = launch()
         _ = turn(app, 0)
         XCTAssertFalse(element(app, "light.note").exists)
-        element(app, "compass.north").tap()
+        touch(app, "compass.north")
         waitForPlace(app, "North of House")
-        element(app, "compass.east").tap()
+        touch(app, "compass.east")
         waitForPlace(app, "Behind House")
         type(app, "open window")
         _ = turn(app, 3)
-        element(app, "compass.west").tap()
+        touch(app, "compass.west")
         waitForPlace(app, "Kitchen")
         let up = element(app, "compass.up")
         XCTAssertTrue(up.label.hasSuffix(", into darkness"), up.label)
@@ -646,15 +683,15 @@ final class LamplightUITests: XCTestCase {
         // The Attic has only been stood in dark: the map shows the way back
         // and no other (feature 012, W§12a).
         XCTAssertEqual(way(app, "down"), "open")
-        element(app, "compass.down").tap()
+        touch(app, "compass.down")
         waitForPlace(app, "Kitchen")
         XCTAssertFalse(note.exists)
-        element(app, "compass.west").tap()
+        touch(app, "compass.west")
         waitForPlace(app, "Living Room")
         type(app, "take lamp")
         _ = turn(app, 8)
         app.typeText("turn on lamp")
-        element(app, "button.send").tap()
+        touch(app, "button.send")
         _ = turn(app, 9)
         let east = element(app, "compass.east")
         expectation(for: NSPredicate(format: "isHittable == true"), evaluatedWith: east)
@@ -706,7 +743,7 @@ final class LamplightUITests: XCTestCase {
         XCTAssertFalse(asked(app, times: 1).hasSuffix(">"))
 
         // A way that is touched.
-        element(app, "compass.north").tap()
+        touch(app, "compass.north")
         let north = turn(app, 1)
         XCTAssertEqual(asked(app, times: 2), spoken(north))
         XCTAssertTrue(asked(app, times: 2).hasPrefix("North of House"))
@@ -727,7 +764,7 @@ final class LamplightUITests: XCTestCase {
     func testNothingIsAskedWithNoScreenReader() {
         let app = launch()
         _ = turn(app, 0)
-        element(app, "compass.north").tap()
+        touch(app, "compass.north")
         _ = turn(app, 1)
         XCTAssertFalse(element(app, "announcement.last").exists)
     }
@@ -738,16 +775,16 @@ final class LamplightUITests: XCTestCase {
     func testDarknessIsAskedToBeSpoken() {
         let app = launch(["-seed", "11", "-speakAlways"])
         _ = turn(app, 0)
-        element(app, "compass.north").tap()
+        touch(app, "compass.north")
         waitForPlace(app, "North of House")
-        element(app, "compass.east").tap()
+        touch(app, "compass.east")
         waitForPlace(app, "Behind House")
         type(app, "open window")
         _ = turn(app, 3)
-        element(app, "compass.west").tap()
+        touch(app, "compass.west")
         waitForPlace(app, "Kitchen")
         XCTAssertFalse(asked(app, times: 5).contains("It is dark"))
-        element(app, "compass.up").tap()
+        touch(app, "compass.up")
         waitForPlace(app, "Attic")
         let attic = turn(app, 5)
         XCTAssertEqual(asked(app, times: 6), spoken(attic) + "\nIt is dark")
@@ -782,15 +819,15 @@ final class LamplightUITests: XCTestCase {
     func testTheTrapDoorComesAndGoes() {
         let app = launch()
         _ = turn(app, 0)
-        element(app, "compass.north").tap()
+        touch(app, "compass.north")
         waitForPlace(app, "North of House")
-        element(app, "compass.east").tap()
+        touch(app, "compass.east")
         waitForPlace(app, "Behind House")
         type(app, "open window")
         _ = turn(app, 3)
-        element(app, "compass.west").tap()
+        touch(app, "compass.west")
         waitForPlace(app, "Kitchen")
-        element(app, "compass.west").tap()
+        touch(app, "compass.west")
         waitForPlace(app, "Living Room")
         let down = element(app, "compass.down")
         XCTAssertFalse(down.exists, "a way the game refuses is not drawn")
@@ -798,7 +835,7 @@ final class LamplightUITests: XCTestCase {
         type(app, "move rug")
         _ = turn(app, 6)
         app.typeText("open trap door")
-        element(app, "button.send").tap()
+        touch(app, "button.send")
         _ = turn(app, 7)
         expectation(for: NSPredicate(format: "isHittable == true"), evaluatedWith: down)
         waitForExpectations(timeout: patience)
@@ -809,7 +846,7 @@ final class LamplightUITests: XCTestCase {
         type(app, "take lamp")
         _ = turn(app, 8)
         app.typeText("turn on lamp")
-        element(app, "button.send").tap()
+        touch(app, "button.send")
         _ = turn(app, 9)
         expectation(for: NSPredicate(format: "isHittable == true"), evaluatedWith: down)
         waitForExpectations(timeout: patience)
@@ -871,9 +908,9 @@ final class LamplightUITests: XCTestCase {
     func testADoorClosedThenOpen() {
         let app = launch()
         _ = turn(app, 0)
-        element(app, "compass.north").tap()
+        touch(app, "compass.north")
         waitForPlace(app, "North of House")
-        element(app, "compass.east").tap()
+        touch(app, "compass.east")
         waitForPlace(app, "Behind House")
         for way in ["west", "in"] {
             XCTAssertEqual(value(app, "compass.\(way)"), "door", way)
@@ -881,7 +918,7 @@ final class LamplightUITests: XCTestCase {
             XCTAssertTrue(element(app, "compass.\(way)").isEnabled, "a closed door can be tried")
         }
         // Trying it types the direction; the game refuses, and nothing else is done.
-        element(app, "compass.west").tap()
+        touch(app, "compass.west")
         _ = turn(app, 3)
         XCTAssertEqual(element(app, "turn.3.command").label, "west")
         XCTAssertEqual(element(app, "status.place").label, "Behind House")
@@ -891,12 +928,12 @@ final class LamplightUITests: XCTestCase {
         _ = turn(app, 4)
         XCTAssertEqual(value(app, "compass.west"), "open")
         XCTAssertEqual(element(app, "compass.west").label, "West")
-        element(app, "compass.west").tap()
+        touch(app, "compass.west")
         waitForPlace(app, "Kitchen")
         XCTAssertEqual(element(app, "compass.east").label, "East")
 
         // The next room has a way down that the game decides in its own code.
-        element(app, "compass.west").tap()
+        touch(app, "compass.west")
         waitForPlace(app, "Living Room")
         // Look-ahead finds the game refuses it while the trap door is hidden:
         // it is no way at all (feature 009).
@@ -909,18 +946,18 @@ final class LamplightUITests: XCTestCase {
     func testATapMovesThePlayer() {
         let app = launch()
         _ = turn(app, 0)
-        element(app, "compass.north").tap()
+        touch(app, "compass.north")
         XCTAssertTrue(turn(app, 1).hasPrefix("North of House"))
         XCTAssertEqual(element(app, "turn.1.command").label, "north")
         XCTAssertEqual(element(app, "status.place").label, "North of House")
         XCTAssertEqual(value(app, "status.moves"), "1")
         XCTAssertNil(way(app, "south"), "the ways are this room's")
         XCTAssertEqual(element(app, "compass.north").label, "North")
-        element(app, "compass.north").tap()
+        touch(app, "compass.north")
         XCTAssertTrue(turn(app, 2).hasPrefix("Forest Path"))
         // The way back has not been walked from here: it names nothing yet.
         XCTAssertEqual(element(app, "compass.south").label, "South")
-        element(app, "compass.south").tap()
+        touch(app, "compass.south")
         waitForPlace(app, "North of House")
         // Walked both ways now: each end names the other.
         XCTAssertEqual(element(app, "compass.north").label, "North, to Forest Path")
@@ -959,7 +996,7 @@ final class LamplightUITests: XCTestCase {
             let open = places.filter { way(app, $0) == "open" }
             XCTAssertFalse(open.isEmpty, "something is open at tap \(tap)")
             let choice = open.first { $0 != opposite[cameBy] } ?? open[0]
-            element(app, "compass.\(choice)").tap()
+            touch(app, "compass.\(choice)")
             _ = turn(app, tap)
             cameBy = choice
             rooms.insert(element(app, "status.place").label)
@@ -1067,7 +1104,7 @@ final class LamplightUITests: XCTestCase {
     func testLeavingAndReturning() {
         let app = launch()
         _ = turn(app, 0)
-        element(app, "compass.north").tap()
+        touch(app, "compass.north")
         let before = turn(app, 1)
         XCUIDevice.shared.press(.home)
         app.activate()
@@ -1082,7 +1119,7 @@ final class LamplightUITests: XCTestCase {
     func testAbout() {
         let app = launch()
         _ = turn(app, 0)
-        element(app, "button.about").tap()
+        touch(app, "button.about")
         XCTAssertTrue(app.staticTexts["Lamplight"].waitForExistence(timeout: patience))
         XCTAssertTrue(element(app, "about.demonstration").exists)
         let license = element(app, "about.license")
@@ -1322,7 +1359,7 @@ final class LamplightUITests: XCTestCase {
         let band = frame.frame
         XCTAssertTrue(fieldHasTheKeyboard(app))
 
-        element(app, "button.openMap").tap()
+        touch(app, "button.openMap")
         let close = element(app, "button.closeMap")
         XCTAssertTrue(close.waitForExistence(timeout: patience))
         let down = NSPredicate { _, _ in !self.fieldHasTheKeyboard(app) }
@@ -1336,7 +1373,7 @@ final class LamplightUITests: XCTestCase {
 
         // A way of the place the player is in is walked from the sheet.
         let before = element(app, "map.here").label
-        element(app, "compass.north").tap()
+        touch(app, "compass.north")
         expectation(
             for: NSPredicate(format: "label != %@", before), evaluatedWith: element(app, "map.here"))
         waitForExpectations(timeout: patience)
@@ -1385,9 +1422,9 @@ final class LamplightUITests: XCTestCase {
         XCTAssertEqual(marker.midY, frame.frame.midY, accuracy: 4)
 
         // Back by touching the command field.
-        element(app, "button.openMap").tap()
+        touch(app, "button.openMap")
         XCTAssertTrue(close.waitForExistence(timeout: patience))
-        element(app, "field.command").tap()
+        touch(app, "field.command")
         XCTAssertTrue(element(app, "button.openMap").waitForExistence(timeout: patience))
         expectation(for: up, evaluatedWith: nil)
         waitForExpectations(timeout: patience)
@@ -1425,14 +1462,14 @@ final class LamplightUITests: XCTestCase {
         XCTAssertFalse(sent.isEmpty)
         XCTAssertTrue(fieldHasTheKeyboard(app))
 
-        element(app, "button.openMap").tap()
+        touch(app, "button.openMap")
         XCTAssertTrue(element(app, "button.closeMap").waitForExistence(timeout: patience))
         here.tap()
         expectation(
             for: NSPredicate(format: "value == %@", "4"), evaluatedWith: element(app, "status.moves"))
         waitForExpectations(timeout: patience)
         XCTAssertTrue(element(app, "button.closeMap").exists, "still on the sheet")
-        element(app, "button.closeMap").tap()
+        touch(app, "button.closeMap")
         XCTAssertTrue(turn(app, 4).contains("open field west of a white house"))
         XCTAssertEqual(element(app, "turn.4.command").label, sent)
     }
@@ -1481,6 +1518,137 @@ final class LamplightUITests: XCTestCase {
                     .coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)))
         XCTAssertTrue(element(app, "button.closeMap").waitForExistence(timeout: patience))
         XCTAssertTrue(noTurn(app, 1))
+    }
+
+    // -----------------------------------------------------------------
+    // Feature 015: the other sheets of the map
+    // (specs/015-map-sheets/contracts/sheets.md, cited A§).
+    // -----------------------------------------------------------------
+
+    /// Whether an element's middle is at the middle of the map's frame.
+    @MainActor
+    private func isCentred(_ app: XCUIApplication, _ identifier: String) -> Bool {
+        let frame = element(app, "map.frame").frame
+        let place = element(app, identifier).frame
+        return abs(place.midX - frame.midX) < 6 && abs(place.midY - frame.midY) < 6
+    }
+
+    // A§2: with one sheet the opened map says which it is and has no
+    // arrows and nothing to return to.
+    @MainActor
+    func testOneSheetHasNoArrows() {
+        let app = launch()
+        _ = turn(app, 0)
+        XCTAssertFalse(element(app, "map.sheet.label").exists, "the band has no label")
+        touch(app, "button.openMap")
+        let label = element(app, "map.sheet.label")
+        XCTAssertTrue(label.waitForExistence(timeout: patience))
+        XCTAssertEqual(label.label, "Sheet 1 of 1 \u{b7} West of House")
+        for absent in ["button.sheet.before", "button.sheet.after", "button.sheet.return"] {
+            XCTAssertFalse(element(app, absent).exists, absent)
+        }
+    }
+
+    // A§1 to A§6: below the house the map has a second sheet. The arrows turn
+    // to the first, which is not the player's: no lamp, no way to walk, and a
+    // way back. The way that leads down turns to the sheet it leads to, with
+    // the place it leads to in the middle. Nothing of this adds a turn, and
+    // the band shows the player's own sheet throughout.
+    @MainActor
+    func testTheOtherSheets() {
+        let app = launch()
+        _ = turn(app, 0)
+        let walk = [
+            "n", "e", "open window", "w", "w", "take lamp", "move rug", "open trap door",
+            "turn on lamp", "d", "s", "e", "n",
+        ]
+        for (index, line) in walk.enumerated() {
+            type(app, line)
+            _ = turn(app, index + 1)
+        }
+        waitForPlace(app, "Studio")
+        touch(app, "button.openMap")
+        let label = element(app, "map.sheet.label")
+        XCTAssertTrue(label.waitForExistence(timeout: patience))
+        XCTAssertEqual(label.label, "Sheet 2 of 2 \u{b7} Cellar")
+        XCTAssertTrue(element(app, "map.lamp").exists)
+        XCTAssertFalse(element(app, "button.sheet.return").exists, "this is the player's sheet")
+        let before = element(app, "button.sheet.before")
+        XCTAssertEqual(before.label, "Sheet 1 of 2 \u{b7} West of House")
+        XCTAssertGreaterThanOrEqual(before.frame.width, 43.99)
+
+        // The sheet before: the house, where the player is not.
+        before.tap()
+        expectation(
+            for: NSPredicate(format: "label == %@", "Sheet 1 of 2 \u{b7} West of House"),
+            evaluatedWith: label)
+        waitForExpectations(timeout: patience)
+        XCTAssertFalse(element(app, "map.lamp").exists)
+        XCTAssertFalse(element(app, "map.here").exists)
+        let ways = app.descendants(matching: .any)
+            .matching(NSPredicate(format: "identifier BEGINSWITH %@", "compass."))
+        XCTAssertEqual(ways.count, 0, "no way can be walked from another sheet")
+        XCTAssertEqual(element(app, "map").label, "Map. Sheet 1 of 2, West of House. You are not on this sheet.")
+        XCTAssertTrue(noTurn(app, walk.count + 1))
+
+        // The way that leads down, to the Cellar's sheet, which is the
+        // player's: the Cellar is in the middle.
+        let lead = element(app, "map.lead.0")
+        XCTAssertTrue(lead.waitForExistence(timeout: patience))
+        XCTAssertGreaterThanOrEqual(lead.frame.width, 43.99)
+        XCTAssertGreaterThanOrEqual(lead.frame.height, 43.99)
+        // The sheet is shown from its first place; the way is off to one
+        // side, and the sheet is dragged to bring it in, as a player would.
+        let sheet = element(app, "map.frame")
+        for _ in 0..<5 where !sheet.frame.insetBy(dx: 30, dy: 60).contains(
+            CGPoint(x: lead.frame.midX, y: lead.frame.midY))
+        {
+            let dx: CGFloat = lead.frame.midX < sheet.frame.midX ? 0.85 : 0.15
+            let dy: CGFloat = lead.frame.midY < sheet.frame.midY ? 0.8 : 0.4
+            sheet.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.6))
+                .press(
+                    forDuration: 0.1,
+                    thenDragTo: sheet.coordinate(withNormalizedOffset: CGVector(dx: dx, dy: dy)))
+        }
+        XCTAssertTrue(noTurn(app, walk.count + 1), "dragging sent nothing")
+        lead.tap()
+        expectation(
+            for: NSPredicate(format: "label == %@", "Sheet 2 of 2 \u{b7} Cellar"),
+            evaluatedWith: label)
+        waitForExpectations(timeout: patience)
+        XCTAssertTrue(element(app, "map.lamp").exists, "the player's sheet has their lamp")
+        let cellar = app.descendants(matching: .any)
+            .matching(NSPredicate(format: "identifier BEGINSWITH %@ AND label == %@", "map.place.", "Cellar"))
+            .firstMatch
+        let frame = element(app, "map.frame").frame
+        XCTAssertEqual(cellar.frame.midX, frame.midX, accuracy: 6)
+        XCTAssertEqual(cellar.frame.midY, frame.midY, accuracy: 6)
+
+        // Round again by the other arrow, and back by the return control.
+        touch(app, "button.sheet.after")
+        let back = element(app, "button.sheet.return")
+        XCTAssertTrue(back.waitForExistence(timeout: patience))
+        XCTAssertEqual(back.label, "Sheet 2 of 2 \u{b7} Cellar")
+        back.tap()
+        XCTAssertTrue(element(app, "map.here").waitForExistence(timeout: patience))
+        XCTAssertFalse(back.exists)
+        XCTAssertTrue(isCentred(app, "map.here"))
+
+        // Another sheet, and the map closed: the band is the player's own.
+        before.tap()
+        XCTAssertTrue(back.waitForExistence(timeout: patience))
+        touch(app, "button.closeMap")
+        XCTAssertTrue(element(app, "button.openMap").waitForExistence(timeout: patience))
+        XCTAssertTrue(element(app, "map.here").waitForExistence(timeout: patience))
+        XCTAssertEqual(element(app, "map.here").label, "Studio")
+        XCTAssertEqual(element(app, "map").label, "Map. You are in Studio.")
+        XCTAssertFalse(label.exists)
+        XCTAssertFalse(element(app, "map.lead.0").exists, "in the band a way off the sheet is not a button")
+        // Opened again, it is their own sheet.
+        touch(app, "button.openMap")
+        XCTAssertTrue(label.waitForExistence(timeout: patience))
+        XCTAssertEqual(label.label, "Sheet 2 of 2 \u{b7} Cellar")
+        XCTAssertTrue(noTurn(app, walk.count + 1))
     }
 
     // -----------------------------------------------------------------
@@ -1533,7 +1701,7 @@ final class LamplightUITests: XCTestCase {
         XCTAssertTrue(element(app, "transcript").exists)
         XCTAssertEqual(element(app, "map.frame").frame, band)
         // Closed, the map is back.
-        element(app, "card.close").tap()
+        touch(app, "card.close")
         XCTAssertFalse(card.waitForExistence(timeout: 1))
         XCTAssertTrue(element(app, "compass.north").isHittable)
 
@@ -1542,7 +1710,7 @@ final class LamplightUITests: XCTestCase {
         // again, and a touch beside the card; none sends anything.
         item.tap()
         XCTAssertTrue(card.waitForExistence(timeout: patience))
-        element(app, "card.text").tap()
+        touch(app, "card.text")
         XCTAssertFalse(card.waitForExistence(timeout: 1))
         item.tap()
         XCTAssertTrue(card.waitForExistence(timeout: patience))
@@ -1567,7 +1735,7 @@ final class LamplightUITests: XCTestCase {
     @MainActor
     func testDroppingFromTheCard() {
         let app = launchWithTheLeaflet()
-        element(app, "item.0").tap()
+        touch(app, "item.0")
         // The leaflet is read before it is dropped (stage 2): Drop is the
         // second action, farther from the close control.
         XCTAssertTrue(element(app, "card.action.0").waitForExistence(timeout: patience))
@@ -1674,7 +1842,7 @@ final class LamplightUITests: XCTestCase {
     @MainActor
     func testALongDescriptionScrolls() {
         let app = launchWithTheLeaflet()
-        element(app, "item.0").tap()
+        touch(app, "item.0")
         let card = element(app, "card")
         XCTAssertTrue(card.waitForExistence(timeout: patience))
         let more = element(app, "card.more")
@@ -1698,7 +1866,7 @@ final class LamplightUITests: XCTestCase {
     @MainActor
     func testTheCardGoesAtANewTurn() {
         let app = launchWithTheLeaflet()
-        element(app, "item.0").tap()
+        touch(app, "item.0")
         XCTAssertTrue(element(app, "card").waitForExistence(timeout: patience))
         type(app, "north")
         _ = turn(app, 3)
@@ -1712,7 +1880,7 @@ final class LamplightUITests: XCTestCase {
     func testTheCardIsSpoken() {
         let app = launchWithTheLeaflet(["-seed", "11", "-speakAlways"])
         let times = Int(value(app, "announcement.last")) ?? -1
-        element(app, "item.0").tap()
+        touch(app, "item.0")
         XCTAssertTrue(element(app, "card").waitForExistence(timeout: patience))
         let said = asked(app, times: times + 1)
         XCTAssertTrue(said.hasPrefix("leaflet. "), said)
@@ -1786,7 +1954,7 @@ final class LamplightUITests: XCTestCase {
         }
         waitForPlace(app, "Kitchen")
         XCTAssertEqual(value(app, "map.lamp"), "lit")
-        element(app, "compass.up").tap()
+        touch(app, "compass.up")
         waitForPlace(app, "Attic")
         let lamp = element(app, "map.lamp")
         expectation(for: NSPredicate(format: "value == %@", "out"), evaluatedWith: lamp)
@@ -1800,7 +1968,7 @@ final class LamplightUITests: XCTestCase {
         let app = launch(["-seed", "11", "-showMapHand", "-reduceMotion"])
         _ = turn(app, 0)
         XCTAssertEqual(value(app, "map.motion"), "reduced")
-        element(app, "compass.north").tap()
+        touch(app, "compass.north")
         waitForPlace(app, "North of House")
         XCTAssertEqual(placesDrawn(app), 2)
         let frame = element(app, "map.frame").frame
@@ -1895,9 +2063,9 @@ final class LamplightUITests: XCTestCase {
         let app = launch()
         _ = turn(app, 0)
         try save("opening")
-        element(app, "compass.north").tap()
+        touch(app, "compass.north")
         waitForPlace(app, "North of House")
-        element(app, "compass.east").tap()
+        touch(app, "compass.east")
         waitForPlace(app, "Behind House")
         try save("behind-house")
         type(app, "open window")

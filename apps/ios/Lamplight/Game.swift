@@ -26,6 +26,15 @@ final class Game {
     /// turn it was made at and is dropped at any other.
     private(set) var card: (index: Int, card: Card)?
 
+    /// A sheet of the map the player has turned to that is not their own,
+    /// with the place to put in its middle. Like a card it belongs to the
+    /// turn it was asked for at, and is dropped at any other and when the
+    /// map is closed.
+    private(set) var looking: (sheet: MapSheet, centre: Int?)?
+    /// The place to put in the middle of the player's own sheet, where it
+    /// was turned to by a way that leads to that place.
+    private(set) var ownCentre: Int?
+
     private var engine: Engine?
 
     /// Reads the story from the bundle and starts a game. `-seed N` fixes the
@@ -122,6 +131,28 @@ final class Game {
         card = nil
     }
 
+    /// Turns the opened map to a sheet, with a place of it in the middle.
+    /// The player's own sheet is the snapshot's; any other is asked for.
+    /// The game is sent nothing.
+    func turn(toSheet number: Int, centre: Int?) async {
+        guard let engine, let showing else { return }
+        if number == showing.map?.sheet {
+            looking = nil
+            ownCentre = centre
+            return
+        }
+        if let sheet = await engine.sheet(number: number, showing: showing) {
+            looking = (sheet, centre)
+            ownCentre = nil
+        }
+    }
+
+    /// Back to the player's own sheet.
+    func ownSheet() {
+        looking = nil
+        ownCentre = nil
+    }
+
     /// Sends an action of the open card.
     func tap(action: Int) async {
         guard let index = card?.index else { return }
@@ -158,8 +189,10 @@ final class Game {
         guard let snapshot else { return }
         let before = turns.count
         let newGame = snapshot.generation != showing?.generation
-        // A card is for the turn it was made at.
+        // A card, and a sheet turned to, are for the turn they were asked at.
         card = nil
+        looking = nil
+        ownCentre = nil
         if newGame {
             turns = snapshot.turns
         } else {

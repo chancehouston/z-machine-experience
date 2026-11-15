@@ -646,3 +646,106 @@ fn a_game_with_looks_comes_back_the_same() {
         assert_eq!(brought.turns().last(), s.turns().last());
     }
 }
+
+// ---------------------------------------------------------------------------
+// Feature 015: the other sheets
+// (specs/015-map-sheets/contracts/sheets.md; success criteria cited SC)
+// ---------------------------------------------------------------------------
+
+/// SC-001 to SC-003, L§7: every sheet can be had; together they hold every
+/// place once; each way off a sheet leads to a place on the sheet it names;
+/// and asking changes nothing.
+fn every_sheet_can_be_had(mut session: Session, script: &[String]) -> usize {
+    for line in script {
+        if session.send_line(session.stamp(), line).is_err() {
+            break;
+        }
+    }
+    let (kept, snapshot, page) = (
+        session.kept(),
+        session.snapshot_json(0),
+        session.map().page(),
+    );
+    let count = session.map().sheet_count();
+    let mut places = BTreeSet::new();
+    let mut total = 0;
+    for number in 1..=count {
+        let sheet = session
+            .sheet(session.stamp(), number)
+            .expect("the sheet is given");
+        assert_eq!((sheet.sheet, sheet.sheets), (number, count));
+        assert!(
+            sheet
+                .label
+                .starts_with(&format!("Sheet {number} of {count}")),
+            "{}",
+            sheet.label
+        );
+        assert_eq!(
+            sheet.before.as_ref().map(|r| r.number),
+            Some(if number == 1 { count } else { number - 1 })
+        );
+        assert_eq!(
+            sheet.after.as_ref().map(|r| r.number),
+            Some(number % count + 1)
+        );
+        assert_eq!(sheet.own, sheet.back.is_none());
+        if !sheet.own {
+            assert!(sheet.here.is_none() && sheet.ways.is_empty() && sheet.look.is_none());
+        }
+        for place in &sheet.places {
+            total += 1;
+            assert!(
+                places.insert(place.id),
+                "place {} is on two sheets",
+                place.id
+            );
+        }
+        for lead in &sheet.leads {
+            let there = session
+                .sheet(session.stamp(), lead.sheet)
+                .expect("a lead's sheet");
+            assert!(
+                there.places.iter().any(|p| p.id == lead.place),
+                "sheet {number}: a lead's place is not on sheet {}",
+                lead.sheet
+            );
+        }
+    }
+    assert_eq!(
+        total,
+        session
+            .map()
+            .page()
+            .iter()
+            .filter(|l| l.starts_with("place"))
+            .count()
+    );
+    // Asking changed nothing.
+    assert_eq!(session.kept(), kept);
+    assert_eq!(session.snapshot_json(0), snapshot);
+    assert_eq!(session.map().page(), page);
+    // A turn that has passed, and a number with no sheet, are refused.
+    let mut stale = session.stamp();
+    stale.turn_count -= 1;
+    assert_eq!(session.sheet(stale, 1).err(), Some(Refused::Stale));
+    assert_eq!(
+        session.sheet(session.stamp(), count + 1).err(),
+        Some(Refused::NotOffered)
+    );
+    assert_eq!(
+        session.sheet(session.stamp(), 0).err(),
+        Some(Refused::NotOffered)
+    );
+    count
+}
+
+#[test]
+fn every_sheet_of_zorks_map_can_be_had() {
+    assert_eq!(every_sheet_can_be_had(zork(), &walkthrough("zork1")), 11);
+}
+
+#[test]
+fn every_sheet_of_adventures_map_can_be_had() {
+    assert_eq!(every_sheet_can_be_had(advent(), &walkthrough("advent")), 7);
+}

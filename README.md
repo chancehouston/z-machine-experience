@@ -98,7 +98,9 @@ What the first demo does today:
   `stories/zork1/map/` and `stories/advent/map/`. The band opens out to the whole
   sheet, which can be dragged about; places and lines are drawn as by a pencil,
   each place the same each time; and the player's place carries a lamp that is out
-  in the dark. A touch on the player's own place sends the story's word for
+  in the dark. Opened out, the map can be turned to any of its other sheets, by a
+  way that leaves the sheet or by arrows (`specs/015-map-sheets/`). A touch on the
+  player's own place sends the story's word for
   looking, for the full description (`specs/013-room-look/`).
 - **A carried item can be tapped for its card** (`specs/014-inventory-card/`): the
   game's own description of it, read from a copy of the game so that no move is

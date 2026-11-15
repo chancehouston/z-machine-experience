@@ -125,6 +125,22 @@ struct MapSheet: Decodable, Sendable, Equatable {
     let ways: [MapWay]
     /// Present when the place the player is in can be touched now.
     let look: MapLook?
+    /// Whether this is the sheet the player is on; what the sheet is called;
+    /// the first place found on it; and the sheets to turn to from it
+    /// (specs/015-map-sheets/contracts/sheets.md, S§1).
+    let own: Bool?
+    let label: String?
+    let first: Int?
+    let before: SheetRef?
+    let after: SheetRef?
+    let back: SheetRef?
+}
+
+/// Another sheet of the map, to turn to: its number and the layer's words
+/// for it.
+struct SheetRef: Decodable, Sendable, Equatable {
+    let number: Int
+    let label: String
 }
 
 struct MapPlace: Decodable, Sendable, Equatable, Identifiable {
@@ -162,6 +178,8 @@ struct MapLead: Decodable, Sendable, Equatable {
     let label: String
     let to: String?
     let sheet: Int
+    /// The place it leads to, to put in the middle of its sheet.
+    let place: Int?
 }
 
 struct MapStub: Decodable, Sendable, Equatable {

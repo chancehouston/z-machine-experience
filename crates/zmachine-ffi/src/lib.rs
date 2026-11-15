@@ -318,6 +318,43 @@ pub extern "C" fn zmx_session_tap_place(
     })
 }
 
+/// A sheet of the map by its number, from 1: JSON in the form of the
+/// snapshot's `map`, which the caller frees with `zmx_string_free`; NULL if
+/// it was refused. Nothing is sent to the game.
+#[unsafe(no_mangle)]
+pub extern "C" fn zmx_session_sheet(
+    session: *mut zmx_session,
+    generation: u64,
+    turn_count: usize,
+    number: usize,
+) -> *mut c_char {
+    let Some(wrapper) = borrow(session) else {
+        return std::ptr::null_mut();
+    };
+    if wrapper.failed {
+        return std::ptr::null_mut();
+    }
+    let at = Stamp {
+        generation,
+        turn_count,
+    };
+    let json = catch_unwind(AssertUnwindSafe(|| {
+        wrapper
+            .session
+            .sheet(at, number)
+            .ok()
+            .map(|sheet| zmachine_experience::sheet_json(&sheet))
+    }));
+    match json {
+        Ok(Some(json)) => give_string(json),
+        Ok(None) => std::ptr::null_mut(),
+        Err(_) => {
+            wrapper.failed = true;
+            std::ptr::null_mut()
+        }
+    }
+}
+
 /// The card for a carried item: one of the snapshot's `inventory.items`, at
 /// any depth, by its `index`. JSON, which the caller frees with
 /// `zmx_string_free`; NULL if it was refused. Nothing is sent to the game.

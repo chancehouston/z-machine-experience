@@ -874,3 +874,140 @@ fn there_is_no_look_without_a_word_or_a_place() {
     lost.feed(&mut map);
     assert_eq!(map.view().unwrap().look, None);
 }
+
+// ---------------------------------------------------------------------------
+// Feature 015: the other sheets
+// (specs/015-map-sheets/contracts/sheets.md, cited L§)
+// ---------------------------------------------------------------------------
+
+/// Three sheets: the Hall and the Study; a Cave reached by a word, with a
+/// Grotto east of it; and a Vault reached by another word from the Hall. The
+/// player ends in the Hall.
+fn three_sheets() -> Map {
+    let cave: &[WayOf] = &[(East, Open, Some("Grotto"))];
+    let grotto: &[WayOf] = &[(West, Open, Some("Cave")), (South, Open, None)];
+    let mut map = Map::new(true).with_look(Some("look".to_string()));
+    at(&mut map, None, 10, "Hall", HALL);
+    at(&mut map, Some("north"), 11, "Study", STUDY);
+    at(&mut map, Some("south"), 10, "Hall", HALL);
+    at(&mut map, Some("xyzzy"), 20, "Cave", cave);
+    at(&mut map, Some("east"), 21, "Grotto", grotto);
+    at(&mut map, Some("west"), 20, "Cave", cave);
+    at(&mut map, Some("xyzzy"), 10, "Hall", HALL);
+    at(&mut map, Some("plugh"), 30, "Vault", &[]);
+    at(&mut map, Some("plugh"), 10, "Hall", HALL);
+    map
+}
+
+// L§1, L§2, L§3: any sheet can be had; the player's is the view; another has
+// no place of the player's, no ways and no look, and every place's stubs.
+#[test]
+fn any_sheet_of_the_map_can_be_had() {
+    let map = three_sheets();
+    assert_eq!(map.sheet_count(), 3);
+    assert_eq!(map.sheet(1), map.view());
+    assert_eq!(map.sheet(0), None);
+    assert_eq!(map.sheet(4), None);
+    let own = map.sheet(1).unwrap();
+    assert!(own.own);
+    assert_eq!(own.here, Some(10));
+    assert!(!own.ways.is_empty() && own.look.is_some());
+    let cave = map.sheet(2).unwrap();
+    assert!(!cave.own);
+    assert_eq!((cave.sheet, cave.sheets, cave.here), (2, 3, None));
+    assert!(cave.ways.is_empty());
+    assert_eq!(cave.look, None);
+    assert_eq!(cave.note, None);
+    assert_eq!(cave.lamp, Lamp::Unknown);
+    let ids: Vec<u16> = cave.places.iter().map(|p| p.id).collect();
+    assert_eq!(ids, [20, 21]);
+    assert_eq!(cave.lines.len(), 1);
+    // The Grotto's way south was seen and never walked.
+    let stubs: Vec<(u16, &str)> = cave.stubs.iter().map(|s| (s.of, s.way.as_str())).collect();
+    assert_eq!(stubs, [(21, "south")]);
+    // Every place of the map is on one sheet and one only.
+    let mut all: Vec<u16> = (1..=3)
+        .flat_map(|n| map.sheet(n).unwrap().places)
+        .map(|p| p.id)
+        .collect();
+    all.sort_unstable();
+    assert_eq!(all, [10, 11, 20, 21, 30]);
+}
+
+// L§4, L§5: a sheet's label and spoken words; the sheets before and after,
+// going round; and the way back to the player's own.
+#[test]
+fn a_sheet_says_which_it_is_and_which_are_beside_it() {
+    let map = three_sheets();
+    let own = map.sheet(1).unwrap();
+    assert_eq!(own.label, "Sheet 1 of 3 · Hall");
+    assert_eq!(own.spoken, "Map. You are in Hall.");
+    assert_eq!(own.first, Some(10));
+    assert_eq!(own.back, None);
+    let refs = |view: &crate::map::MapView| {
+        (
+            view.before.clone().map(|r| (r.number, r.label)),
+            view.after.clone().map(|r| (r.number, r.label)),
+        )
+    };
+    assert_eq!(
+        refs(&own),
+        (
+            Some((3, "Sheet 3 of 3 · Vault".to_string())),
+            Some((2, "Sheet 2 of 3 · Cave".to_string()))
+        )
+    );
+    let cave = map.sheet(2).unwrap();
+    assert_eq!(cave.label, "Sheet 2 of 3 · Cave");
+    assert_eq!(
+        cave.spoken,
+        "Map. Sheet 2 of 3, Cave. You are not on this sheet."
+    );
+    assert_eq!(cave.first, Some(20));
+    assert_eq!(
+        cave.back.clone().map(|r| (r.number, r.label)),
+        Some((1, "Sheet 1 of 3 · Hall".to_string()))
+    );
+    let vault = map.sheet(3).unwrap();
+    assert_eq!(refs(&vault).1, Some((1, "Sheet 1 of 3 · Hall".to_string())));
+
+    // One sheet: nothing before or after it.
+    let mut one = Map::new(true);
+    at(&mut one, None, 10, "Hall", HALL);
+    let view = one.view().unwrap();
+    assert_eq!(view.label, "Sheet 1 of 1 · Hall");
+    assert_eq!((view.before, view.after, view.back), (None, None, None));
+
+    // A sheet whose places have no name yet is called by its numbers.
+    let mut dark = Map::new(true);
+    at(&mut dark, None, 10, "Hall", HALL);
+    let mut pit = At::room(Some("xyzzy"), 40, "Pit", &[]);
+    pit.dark = Some(true);
+    pit.feed(&mut dark);
+    at(&mut dark, Some("xyzzy"), 10, "Hall", HALL);
+    let pit = dark.sheet(2).unwrap();
+    assert_eq!(pit.label, "Sheet 2 of 2");
+    assert_eq!(pit.spoken, "Map. Sheet 2 of 2. You are not on this sheet.");
+}
+
+// L§6: a way that leaves a sheet says which place it leads to, and that place
+// is on the sheet it names.
+#[test]
+fn a_way_off_the_sheet_names_the_place_it_leads_to() {
+    let map = three_sheets();
+    let own = map.sheet(1).unwrap();
+    let leads: Vec<(u16, &str, usize, u16)> = own
+        .leads
+        .iter()
+        .map(|l| (l.from, l.label.as_str(), l.sheet, l.place))
+        .collect();
+    assert_eq!(leads, [(10, "xyzzy", 2, 20), (10, "plugh", 3, 30)]);
+    for lead in &own.leads {
+        let there = map.sheet(lead.sheet).unwrap();
+        assert!(there.places.iter().any(|p| p.id == lead.place));
+    }
+    // And back from the cave's sheet to the player's.
+    let cave = map.sheet(2).unwrap();
+    assert_eq!(cave.leads.len(), 1);
+    assert_eq!((cave.leads[0].sheet, cave.leads[0].place), (1, 10));
+}
