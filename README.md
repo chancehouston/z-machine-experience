@@ -9,6 +9,28 @@ walk, tap an object to pick it up. Typing is always still available.
 
 "Z-Machine Experience" is a working name.
 
+## A touchstone (2026-11-15)
+
+Work on this repository stopped here, after feature 017. The project owner's words: "It's
+not a tombstone. It's more of a touchstone, a moment in time when something important was
+learned."
+
+What was learned is about the files that frame the work, not about the code. This
+project was built with an AI agent under a Spec Kit constitution
+(`.specify/memory/constitution.md`) that the agent wrote on the first day and the owner
+did not read. Its rules were kept faithfully, and some of them, above all that nothing
+about a game may be authored by hand, made a good map far harder than it needed to be.
+The constitution was amended three times before the owner saw the pattern. In their
+words: "it's easy to write it in there and it becomes permanent and hidden, but it
+remains influential in the outcome."
+
+The practice taken from it: whoever owns the outcome reads, understands and agrees to
+every file that frames the work (a constitution, instruction files, an agent's memory)
+before it takes effect, and again whenever it changes.
+
+The project may be taken up again in a new repository. Everything below describes the
+code as it stood on this date.
+
 ## Status
 
 The interpreter works and is tested for Z-machine versions 3, 5 and 8, and so does the
